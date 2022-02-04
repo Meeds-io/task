@@ -28,13 +28,15 @@
       v-html="inputVal ? urlVerify(inputVal) : inputVal">
       {{ placeholder }}
     </div>
-    <textarea
-      id="descriptionContent"
-      ref="editor"
+
+    <exo-task-editor
+      v-if="displayEditor"
+      ref="richEditor"
       v-model="inputVal"
-      class="d-none"
-      cols="30"
-      rows="10"></textarea>
+      :max-length="MESSAGE_MAX_LENGTH"
+      :id="task.id"
+      :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)" />
+
   </div>
 </template>
 
@@ -62,13 +64,18 @@ export default {
   },
   data() {
     return {
+      MESSAGE_MAX_LENGTH: 2000,
       inputVal: this.value,
-      editorReady: false
+      editorReady: false,
+      showEditor: false,
     };
   },
   computed: {
     taskDescription () {
       return this.task && this.task.id && this.task.description || '';
+    },
+    displayEditor() {
+      return this.showEditor;
     }
   },
   watch: {
@@ -179,6 +186,7 @@ export default {
       });
     },
     showDescriptionEditor: function (event) {
+      this.showEditor = !this.showEditor;
       const target = $( event.target );
       if ( target.is( 'a' ) ) {
         const url = target[0].href;
