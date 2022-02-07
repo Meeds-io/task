@@ -1,1 +1,1 @@
-= eXo Tasks
+= Meeds Tasks Addon
