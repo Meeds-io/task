@@ -27,6 +27,7 @@
 
   <!-- Definition of TASK_PROJECTS table -->
   <changeSet author="task" id="1.0.0-1">
+    <validCheckSum>8:f6443c86a5a14315a065a8e3094075a3</validCheckSum>
     <createTable tableName="TASK_PROJECTS">
       <column name="PROJECT_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
         <constraints nullable="false" primaryKey="true" primaryKeyName="PK_TASK_PROJECTS" />
@@ -114,6 +115,7 @@
 
   <!-- Definition of TASK_TASKS table -->
   <changeSet author="task" id="1.0.0-7">
+    <validCheckSum>8:3c08b76b60439568ec6018f6fcfa330e</validCheckSum>
     <createTable tableName="TASK_TASKS">
       <column name="TASK_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
         <constraints primaryKey="true" primaryKeyName="PK_TASK_TASKS" nullable="false"/>
@@ -222,6 +224,7 @@
 
   <!-- Definition of TASK_USER_SETTINGS table -->
   <changeSet author="task" id="1.0.0-12">
+    <validCheckSum>8:d00439ac4719a90101c40c4cc31f3c98</validCheckSum>
     <createTable tableName="TASK_USER_SETTINGS">
       <column name="USERNAME" type="NVARCHAR(50)">
         <constraints primaryKey="true" primaryKeyName="PK_TASK_USER_SETTINGS" nullable="false"/>
@@ -346,6 +349,7 @@
   
   <!-- Definition of TASK_LABELS table -->
   <changeSet author="task" id="1.0.0-19">
+    <validCheckSum>8:d244b25e0a294d74c0a34bb7ae47c292</validCheckSum>
     <createTable tableName="TASK_LABELS">
       <column name="LABEL_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
         <constraints nullable="false" primaryKey="true" primaryKeyName="PK_TASK_LABELS"/>
