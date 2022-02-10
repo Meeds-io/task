@@ -40,7 +40,7 @@
       <column name="COLOR" type="NVARCHAR(100)">
         <constraints nullable="true"/>
       </column>
-      <column name="CALENDAR_INTEGRATED" type="BIT" defaultValue="0">
+      <column name="CALENDAR_INTEGRATED" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="false"/>
       </column>
       <column name="DUE_DATE" type="TIMESTAMP">
@@ -151,10 +151,10 @@
       <column name="DUE_DATE" type="TIMESTAMP">
         <constraints nullable="true"/>
       </column>
-      <column name="COMPLETED" type="BIT" defaultValue="0">
+      <column name="COMPLETED" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="false"/>
       </column>
-      <column name="CALENDAR_INTEGRATED" type="BIT" defaultValue="1">
+      <column name="CALENDAR_INTEGRATED" type="BOOLEAN" defaultValueBoolean="true">
         <constraints nullable="false"/>
       </column>
     </createTable>
@@ -226,10 +226,10 @@
       <column name="USERNAME" type="NVARCHAR(50)">
         <constraints primaryKey="true" primaryKeyName="PK_TASK_USER_SETTINGS" nullable="false"/>
       </column>
-      <column name="SHOW_HIDDEN_PROJECT" type="BIT" defaultValue="0">
+      <column name="SHOW_HIDDEN_PROJECT" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="true"/>
       </column>
-      <column name="SHOW_HIDDEN_LABEL" type="BIT" defaultValue="0">
+      <column name="SHOW_HIDDEN_LABEL" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="true"/>
       </column>
     </createTable>
@@ -282,7 +282,7 @@
   <changeSet author="task" id="1.0.0-15">
     <createIndex indexName="IDX_TASK_TASKS_01"
                  tableName="TASK_TASKS">
-      <column name="COMPLETED" type="BIT"/>
+      <column name="COMPLETED" type="BOOLEAN"/>
     </createIndex>
     <createIndex indexName="IDX_TASK_PRJ_MGR_01"
                  tableName="TASK_PROJECT_MANAGERS">
@@ -359,7 +359,7 @@
       <column name="COLOR" type="NVARCHAR(100)">
         <constraints nullable="true"/>
       </column>
-      <column name="HIDDEN" type="BIT" defaultValue="0">
+      <column name="HIDDEN" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="true"/>
       </column>
       <column name="PARENT_LABEL_ID" type="BIGINT">
