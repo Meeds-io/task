@@ -109,7 +109,9 @@ export default {
       commentId: '',
       showNewCommentEditor: false,
       test: false,
-      MESSAGE_MAX_LENGTH: 1250,
+      MESSAGE_MAX_LENGTH: 1300,
+      newComment: null,
+      newCommentId: null
     };
   },
   computed: {
@@ -132,11 +134,17 @@ export default {
     addTaskComment() {
       let comment = this.$refs.commentEditor.getMessage();
       comment = this.urlVerify(comment);
-      this.$taskDrawerApi.addTaskComments(this.task.id,comment).then(comment => {
-        this.comments.push(comment);
-      }).then( () => {
-        this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
-      });
+      this.$taskDrawerApi.addTaskComments(this.task.id,comment)
+        .then(comment => {
+          this.comments.push(comment);
+          return this.$refs.commentEditor.saveAttachments(comment.comment.id);
+        })
+        .then( () => {
+          this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
+        })
+        .finally(() => {
+          this.$root.$emit('task-comment-created');
+        });
     },
     closeDrawer() {
       this.$refs.taskCommentDrawer.close();
