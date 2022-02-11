@@ -27,6 +27,7 @@
 
   <!-- Definition of TASK_PROJECTS table -->
   <changeSet author="task" id="1.0.0-1">
+    <validCheckSum>ANY</validCheckSum>
     <createTable tableName="TASK_PROJECTS">
       <column name="PROJECT_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
         <constraints nullable="false" primaryKey="true" primaryKeyName="PK_TASK_PROJECTS" />
@@ -40,7 +41,7 @@
       <column name="COLOR" type="NVARCHAR(100)">
         <constraints nullable="true"/>
       </column>
-      <column name="CALENDAR_INTEGRATED" type="BIT" defaultValue="0">
+      <column name="CALENDAR_INTEGRATED" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="false"/>
       </column>
       <column name="DUE_DATE" type="TIMESTAMP">
@@ -114,6 +115,7 @@
 
   <!-- Definition of TASK_TASKS table -->
   <changeSet author="task" id="1.0.0-7">
+    <validCheckSum>ANY</validCheckSum>
     <createTable tableName="TASK_TASKS">
       <column name="TASK_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
         <constraints primaryKey="true" primaryKeyName="PK_TASK_TASKS" nullable="false"/>
@@ -151,10 +153,10 @@
       <column name="DUE_DATE" type="TIMESTAMP">
         <constraints nullable="true"/>
       </column>
-      <column name="COMPLETED" type="BIT" defaultValue="0">
+      <column name="COMPLETED" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="false"/>
       </column>
-      <column name="CALENDAR_INTEGRATED" type="BIT" defaultValue="1">
+      <column name="CALENDAR_INTEGRATED" type="BOOLEAN" defaultValueBoolean="true">
         <constraints nullable="false"/>
       </column>
     </createTable>
@@ -222,14 +224,15 @@
 
   <!-- Definition of TASK_USER_SETTINGS table -->
   <changeSet author="task" id="1.0.0-12">
+    <validCheckSum>ANY</validCheckSum>
     <createTable tableName="TASK_USER_SETTINGS">
       <column name="USERNAME" type="NVARCHAR(50)">
         <constraints primaryKey="true" primaryKeyName="PK_TASK_USER_SETTINGS" nullable="false"/>
       </column>
-      <column name="SHOW_HIDDEN_PROJECT" type="BIT" defaultValue="0">
+      <column name="SHOW_HIDDEN_PROJECT" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="true"/>
       </column>
-      <column name="SHOW_HIDDEN_LABEL" type="BIT" defaultValue="0">
+      <column name="SHOW_HIDDEN_LABEL" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="true"/>
       </column>
     </createTable>
@@ -280,9 +283,10 @@
 
   <!-- Add index for performance -->
   <changeSet author="task" id="1.0.0-15">
+    <validCheckSum>ANY</validCheckSum>
     <createIndex indexName="IDX_TASK_TASKS_01"
                  tableName="TASK_TASKS">
-      <column name="COMPLETED" type="BIT"/>
+      <column name="COMPLETED" type="BOOLEAN" defaultValueBoolean="false" />
     </createIndex>
     <createIndex indexName="IDX_TASK_PRJ_MGR_01"
                  tableName="TASK_PROJECT_MANAGERS">
@@ -346,6 +350,7 @@
   
   <!-- Definition of TASK_LABELS table -->
   <changeSet author="task" id="1.0.0-19">
+    <validCheckSum>ANY</validCheckSum>
     <createTable tableName="TASK_LABELS">
       <column name="LABEL_ID" type="BIGINT" autoIncrement="${autoIncrement}" startWith="1">
         <constraints nullable="false" primaryKey="true" primaryKeyName="PK_TASK_LABELS"/>
@@ -359,7 +364,7 @@
       <column name="COLOR" type="NVARCHAR(100)">
         <constraints nullable="true"/>
       </column>
-      <column name="HIDDEN" type="BIT" defaultValue="0">
+      <column name="HIDDEN" type="BOOLEAN" defaultValueBoolean="false">
         <constraints nullable="true"/>
       </column>
       <column name="PARENT_LABEL_ID" type="BIGINT">
