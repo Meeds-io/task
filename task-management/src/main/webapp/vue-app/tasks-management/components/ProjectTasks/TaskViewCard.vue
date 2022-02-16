@@ -57,33 +57,12 @@
             class="taskWorker  justify-space-between pe-2">
             <div
               :class="assigneeAndCoworkerArray && !assigneeAndCoworkerArray.length && task && task.labels && !task.labels.length && 'hideTaskAssignee'"
-              class="taskAssignee d-flex flex-nowrap">
-              <exo-user-avatar
-                v-for="userAvatar in avatarToDisplay"
-                :key="userAvatar"
-                :username="userAvatar.username"
-                :title="userAvatar.displayName"
-                :avatar-url="userAvatar.avatar"
-                :external="userAvatar.external"
-                :retrieve-extra-information="false"
-                :size="iconSize"
-                :style="'background-image: url('+userAvatar.avatar+')'"
-                class="mx-1 taskWorkerAvatar" />
-              <div class="seeMoreAvatars">
-                <div
-                  v-if="assigneeAndCoworkerArray.length > maxAvatarToShow"
-                  class="seeMoreItem"
-                  :title="getAssigneeAndCoworkerList(assigneeAndCoworkerArray)"
-                  @click="$root.$emit('displayTasksAssigneeAndCoworker', assigneeAndCoworkerArray)">
-                  <v-avatar
-                    :size="iconSize">
-                    <img
-                      :src="assigneeAndCoworkerArray[maxAvatarToShow].avatar"
-                      :title="assigneeAndCoworkerArray[maxAvatarToShow].displayName">
-                  </v-avatar>
-                  <span class="seeMoreAvatarList">+{{ showMoreAvatarsNumber }}</span>
-                </div>
-              </div>
+              class="taskAssignee d-flex flex-nowrap position-relative">
+              <exo-user-avatars-list
+                :users="avatarToDisplay"
+                :max="1"
+                :icon-size="26"
+                @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', assigneeAndCoworkerArray)" />
             </div>
           </div>
           <div
@@ -155,7 +134,6 @@ export default {
       assigneeAndCoworkerArray: [],
       isPersonnalTask: this.task.task.status === null,
       drawer: null,
-      maxAvatarToShow: 1,
     };
   },
   computed: {
@@ -163,11 +141,7 @@ export default {
       return this.task && this.task.task.dueDate && this.task.task.dueDate.time;
     },
     avatarToDisplay () {
-      if (this.assigneeAndCoworkerArray.length > this. maxAvatarToShow) {
-        return this.assigneeAndCoworkerArray.slice(0, this.maxAvatarToShow-1);
-      } else {
-        return this.assigneeAndCoworkerArray;
-      }
+      return this.assigneeAndCoworkerArray;
     },
     showMoreAvatarsNumber() {
       return this.assigneeAndCoworkerArray.length - this.maxAvatarToShow;
@@ -293,13 +267,17 @@ export default {
     getTaskAssigneeAndCoworkers() {
       this.assigneeAndCoworkerArray=[];
       if (this.task.assignee && !this.assigneeAndCoworkerArray.includes(this.task.assignee)) {
-        this.assigneeAndCoworkerArray.push(this.task.assignee);
+        this.$userService.getUser(this.task.assignee.username)
+          .then(user => {
+            this.assigneeAndCoworkerArray.push(user);
+          });
       }
       if (this.task.coworker || this.task.coworker.length > 0) {
         this.task.coworker.forEach((coworker) => {
-          if (coworker && !this.assigneeAndCoworkerArray.includes(coworker)){
-            this.assigneeAndCoworkerArray.push(coworker);
-          }
+          this.$userService.getUser(coworker.username)
+            .then(user => {
+              this.assigneeAndCoworkerArray.push(user);
+            });
         });
       }
     },
