@@ -44,14 +44,13 @@
               class="pe-0">
               <v-list-item-content class="mt-n1">
                 <div class="d-flex">
-                  <exo-user-avatar
-                    :username="item.author"
-                    :fullname="item.authorFullName"
-                    :avatar-url="item.authorAvatarUrl"
+                  <exo-user
+                    :profile-id="item.author"
                     :size="30"
                     :url="null"
-                    class="changeUserAvatar" />
-                  <div class="d-flex" v-html="renderChangeHTML(item)"></div>
+                    popover 
+                    align-top />
+                  <div class="d-flex mt-n2" v-html="renderChangeHTML(item)"></div>
                 </div>
                 <div>
                   <div class="dateTime caption px-10 my-n3">
