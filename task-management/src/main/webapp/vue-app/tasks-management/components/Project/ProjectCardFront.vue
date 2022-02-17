@@ -83,20 +83,6 @@
                 @click="changeColorProject(project,color.class)"></span>
             </v-list-item-title>
           </v-list-item>
-          <!--
-         <v-list-item>
-            <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconHide pe-1"></i>
-              <span>{{ $t('label.hide') }}</span>
-            </v-list-item-title>
-          </v-list-item>
-          <v-list-item>
-            <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconStar pe-1"></i>
-              <span>{{ $t('label.addAsFavorite') }}</span>
-            </v-list-item-title>
-          </v-list-item>
-          -->
         </v-list>
       </v-menu>
     </div>
@@ -115,14 +101,11 @@
       </div>
       <div class="ProjectSpace">
         <div v-if="project.space">
-          <v-list-item class="px-0">
-            <v-list-item-avatar size="28" class="spaceAvatar py-1">
-              <v-img :src="getSpaceAvatarURL" />
-            </v-list-item-avatar>
-            <v-list-item-title class="body-2">
-              <a href="#">{{ getSpaceName }}</a>
-            </v-list-item-title>
-          </v-list-item>
+          <exo-space-avatar 
+            :space="space" 
+            :size="28"
+            link-style
+            popover />
         </div>
       </div>
     </div>
@@ -150,7 +133,6 @@
           </div>
         </div>
       </div>
-      <!--<i class="uiIcon uiIconStar"></i>-->
     </div>
     <exo-confirm-dialog
       ref="CancelSavingChangesDialog"
@@ -208,19 +190,15 @@ export default {
       ],
       managerIdentities: this.project && this.project.managerIdentities,
       projectManagers: [],
+      projectSpace: {}
     };
   },
   computed: {
     avatarToDisplay () {
       return this.projectManagers;
     },
-    getSpaceName(){
-      const str=this.project.space;
-      return str.substr(0, str.indexOf(/spaces/)-2);
-    },
-    getSpaceAvatarURL() {
-      const str=this.project.space;
-      return `/portal/rest/v1/social/spaces/${ (str.substr(str.indexOf(/spaces/)+8)).slice(0,-1) }/avatar`;
+    space() {
+      return this.projectSpace;
     }
   },
   created() {
@@ -241,6 +219,9 @@ export default {
             this.projectManagers.push(user);
           });
       });
+    }
+    if (this.project && this.project.space && this.project.spaceDetails ) {
+      this.retrieveSpaceInformation(this.project.spaceDetails.id);
     }
   },
   methods: {
@@ -295,7 +276,11 @@ export default {
       } else if (this.project && this.project.space){
         return 'largeDescriptionAreaSpace';
       }
-
+    },
+    retrieveSpaceInformation(spaceId) {
+      this.$spaceService.getSpaceById(spaceId).then(space => {
+        this.projectSpace = space;
+      });
     }
   },
 
