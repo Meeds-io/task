@@ -58,14 +58,12 @@
                 style="display: none">
               </i>
             </a>
-            <exo-user-avatar
+            <exo-user
               v-if="project.value.avatar"
-              :username="project.value.username"
-              :fullname="project.value.displayName"
-              :avatar-url="project.value.avatar"
-              :title="project.value.displayName"
+              :profile-id="project.value.username"
               :size="26"
-              class="pe-2" />
+              class="pe-2" 
+              popover />
             <span class="amount-item">({{ filterTaskQueryResult.tasks[i].length }})</span>
             <hr
               role="separator"
