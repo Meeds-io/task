@@ -36,7 +36,6 @@
       :max-length="MESSAGE_MAX_LENGTH"
       :id="task.id"
       :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)" />
-
   </div>
 </template>
 
@@ -76,7 +75,7 @@ export default {
     },
     displayEditor() {
       return this.showEditor;
-    }
+    },
   },
   watch: {
     inputVal(val) {
@@ -89,9 +88,20 @@ export default {
           CKEDITOR.instances['descriptionContent'].setData(val);
         }
       }
+      // Modify input Val from HTML to text and send it in event
+      let pureText = val ? val.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
+      const div = document.createElement('div');
+      div.innerHTML = pureText;
+      pureText = div.textContent || div.innerText || '';
+      val = pureText;
+      this.$root.$emit('max', val);
     },
-    value() {
+
+    value(val) {
       this.inputVal = this.taskDescription;
+      if (val >= 2000) {
+        this.$root.$emit('max');
+      }
     },
     editorReady(val) {
       const ckeContent = document.querySelectorAll('[id=cke_descriptionContent]');

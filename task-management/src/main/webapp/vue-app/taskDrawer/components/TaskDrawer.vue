@@ -150,6 +150,8 @@
               v-model="task.description"
               :value="task.description"
               :placeholder="$t('editinline.taskDescription.empty')"
+              @invalidDescription="invalidDescription($event)"
+              @validDescription="validDescription($event)"
               @addTaskDescription="addTaskDescription($event)" />
           </div>
           <div class="taskLabelsName mt-3 mb-3">
@@ -206,7 +208,7 @@
             {{ $t('popup.cancel') }}
           </v-btn>
           <v-btn
-            :disabled="disableSaveButton"
+            :disabled="!enableButtonSave"
             class="btn btn-primary"
             @click="addTask">
             {{ $t('label.save') }}
@@ -263,7 +265,7 @@ export default {
       enableDelete: false,
       enableClone: false,
       currentUserName: eXo.env.portal.userName,
-      MESSAGE_MAX_LENGTH: 1250,
+      MESSAGE_MAX_LENGTH: 2000,
       dateTimeFormat: {
         year: 'numeric',
         month: 'long',
@@ -275,9 +277,15 @@ export default {
       oldTask: {},
       showBackArrow: false,
       taskSpace: {},
+      taskDescription_: '',
+      descriptionValid: false,
     };
+    // ici la fontion isValid
   },
   computed: {
+    enableButtonSave() {
+      return this.taskTitleValid && this.descriptionValid;
+    },
     confirmDrawerClose() {
       return this.isDrawerClose;
     },
@@ -292,9 +300,6 @@ export default {
     },
     taskTitleValid() {
       return this.taskTitle && this.taskTitle.trim() && this.taskTitle.trim().length >= 3 && this.taskTitle.length < 1024;
-    },
-    disableSaveButton() {
-      return this.saving || !this.taskTitleValid;
     },
     lastTaskChangesLog() {
       return this.logs && this.logs.length && this.logs[0].createdTime || '';
@@ -342,6 +347,9 @@ export default {
       }
     });
 
+
+    this.$root.$on('max', event => this.loadDescription(event));
+
     document.addEventListener('labelListChanged', event => {
       if (event && event.detail) {
         const label = event.detail;
@@ -366,6 +374,13 @@ export default {
     document.removeEventListener('keyup', this.escapeKeyListener);
   },
   methods: {
+    loadDescription(description) {
+      let pureText = description ? description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
+      const div = document.createElement('div');
+      div.innerHTML = pureText;
+      pureText = div.textContent || div.innerText || '';
+      this.descriptionValid = pureText && pureText.length <= this.MESSAGE_MAX_LENGTH ;
+    },
     closePriority() {
       document.dispatchEvent(new CustomEvent('closePriority'));
     },
