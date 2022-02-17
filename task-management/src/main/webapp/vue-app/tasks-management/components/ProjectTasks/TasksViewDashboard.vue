@@ -72,14 +72,12 @@
               style="display: none">
             </i>
           </a>
-          <exo-user-avatar
+          <exo-user
             v-if="projectItem.value.avatar"
-            :username="projectItem.value.username"
-            :fullname="projectItem.value.displayName"
-            :avatar-url="projectItem.value.avatar"
-            :title="projectItem.value.displayName"
+            :profile-id="projectItem.value.username"
             :size="26"
-            class="pe-2" />
+            class="pe-2" 
+            popover />
           <span class="amount-item">({{ tasksList[i].length }})</span>
 
           <hr
