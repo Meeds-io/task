@@ -24,7 +24,7 @@
       @mouseleave="hover = false">
       <div class="commentHeader d-flex">
         <exo-user 
-          :profile-ix="comment.author.username"
+          :profile-id="comment.author.username"
           :extra-class="'position-relative'"
           :size="30"
           bold-title

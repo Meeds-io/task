@@ -43,6 +43,7 @@
         :users="avatarToDisplay"
         :max="1"
         :icon-size="26"
+        :popover="false"
         @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', assigneeAndCoworkerArray)" />
     </div>
     <div class="taskLabels pe-7" @click="openTaskDrawer()">
