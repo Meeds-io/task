@@ -61,6 +61,7 @@
                 :users="avatarToDisplay"
                 :max="1"
                 :icon-size="26"
+                avatar-overlay-position
                 @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', assigneeAndCoworkerArray)" />
               <div class="seeMoreAvatars">
                 <div
