@@ -144,10 +144,12 @@ export default {
     }
     this.$root.$on('newCommentEditor', (lastComment) => {
       this.editorReady = false;
-      this.showCommentEditor = `commentContent-${lastComment}` === this.id;
-      if ( this.showCommentEditor ) {
-        this.editorReady = true;
-      }
+      window.setTimeout(() => {
+        this.showCommentEditor = `commentContent-${lastComment}` === this.id;
+        if (this.showCommentEditor) {
+          this.editorReady = true;
+        }
+      }, 100);
     });
     const thiss = this;
     $('body').suggester('addProvider', 'task:people', function (query, callback) {
