@@ -25,7 +25,7 @@
           v-for="user in tasksAssigneeAndCoworker"
           :key="user"
           class="flex-grow-1 text-truncate my-2">
-          <exo-user
+          <exo-user-avatar
             :identity="user"
             popover />
         </v-flex>

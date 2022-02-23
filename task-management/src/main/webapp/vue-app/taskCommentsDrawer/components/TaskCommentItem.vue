@@ -23,7 +23,7 @@
       @mouseover="hover = true"
       @mouseleave="hover = false">
       <div class="commentHeader d-flex">
-        <exo-user 
+        <exo-user-avatar 
           :profile-id="comment.author.username"
           :extra-class="'position-relative'"
           :size="30"

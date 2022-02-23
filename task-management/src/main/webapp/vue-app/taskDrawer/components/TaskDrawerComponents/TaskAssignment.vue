@@ -35,7 +35,7 @@
           <div 
             v-if="taskAssigneeObj && taskAssigneeObj.profile && taskAssigneeObj.profile.fullName" 
             class="assigneeName">
-            <exo-user
+            <exo-user-avatar
               :profile-id="taskAssigneeObj.remoteId"
               :url="null"
               :size="24"

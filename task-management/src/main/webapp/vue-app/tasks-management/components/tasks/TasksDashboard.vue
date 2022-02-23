@@ -58,7 +58,7 @@
                 style="display: none">
               </i>
             </a>
-            <exo-user
+            <exo-user-avatar
               v-if="project.value.avatar"
               :profile-id="project.value.username"
               :size="26"

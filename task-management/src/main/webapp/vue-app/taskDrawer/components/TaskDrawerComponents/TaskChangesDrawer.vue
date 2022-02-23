@@ -44,7 +44,7 @@
               class="pe-0">
               <v-list-item-content class="mt-n1">
                 <div class="d-flex">
-                  <exo-user
+                  <exo-user-avatar
                     :profile-id="item.author"
                     :size="30"
                     :url="null"

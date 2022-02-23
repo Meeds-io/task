@@ -19,7 +19,7 @@
     :id="id"
     class="commentItem">
     <div class="commentHeader d-flex">
-      <exo-user 
+      <exo-user-avatar 
         :profile-id="comment.author.username"
         :size="30"
         :extra-class="'position-relative'"

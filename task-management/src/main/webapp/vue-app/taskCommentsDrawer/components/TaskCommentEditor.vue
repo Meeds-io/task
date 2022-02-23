@@ -16,7 +16,7 @@
 -->
 <template>
   <div class="comment d-flex align-start" :class="editorReady && 'activeEditor' || 'inactiveEditor'">
-    <exo-user
+    <exo-user-avatar
       :profile-id="currentUserName"
       :size="30"
       :url="null"

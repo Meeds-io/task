@@ -113,7 +113,7 @@
       <v-divider />
       <div class="spaceAdminContainer">
         <div class="spaceAdminWrapper">
-          <exo-user 
+          <exo-user-avatar 
             v-if="avatarToDisplay && avatarToDisplay.length === 1"
             :identity="avatarToDisplay[0]"
             :size="28"

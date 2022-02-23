@@ -25,7 +25,7 @@
           v-for="manager in projectManagers"
           :key="manager"
           class="flex-grow-1 text-truncate my-2">
-          <exo-user
+          <exo-user-avatar
             :identity="manager"
             popover />
         </v-flex>
