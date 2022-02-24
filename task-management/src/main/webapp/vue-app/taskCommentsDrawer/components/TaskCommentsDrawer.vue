@@ -15,37 +15,39 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div
-    v-if="showTaskCommentDrawer"
-    ref="taskCommentDrawer"
-    :class="showTaskCommentDrawer && 'showTaskCommentDrawer' || ''"
-    class="taskCommentDrawer">
-    <v-container fill-height class="pa-0">
-      <v-layout column>
-        <v-flex class="mx-0 drawerHeader flex-grow-0">
+  <v-app>
+    <exo-drawer
+      @close="closeDrawer"
+      id="taskCommentDrawer"
+      class="taskCommentDrawer"
+      ref="taskCommentDrawer"
+      right>
+      <template slot="title">
+        <v-flex
+          class="mx-0 drawerHeader flex-grow-0 width-full">
           <v-list-item class="pe-0">
             <v-list-item-content class="drawerTitle d-flex text-header-title text-truncate">
               <i class="uiIcon uiArrowBAckIcon" @click="closeDrawer"></i>
-              <span class="ps-2">{{ $t('label.comments') }}</span>
+              <span class="ps-2 mt-2">{{ $t('label.comments') }}</span>
             </v-list-item-content>
             <v-list-item-action class="drawerIcons align-end d-flex flex-row">
               <v-btn
                 :disabled="isEditorActive"
                 icon
                 :title="$t('comment.message.addYourComment')"
-                class="addCommentBtn"
+                class="addCommentBtn float-right"
                 @click="openEditorToBottom(commentId)">
                 <i class="uiIcon uiIconTaskAddComment"></i>
-              </v-btn>
-              <v-btn icon>
-                <v-icon @click="closeDrawer()">mdi-close</v-icon>
               </v-btn>
             </v-list-item-action>
           </v-list-item>
         </v-flex>
-        <v-divider class="my-0" />
-        <v-flex id="commentDrawerContent" class="drawerContent flex-grow-1 overflow-auto border-box-sizing">
-          <div v-if="this.comments && this.comments.length" class="TaskCommentContent">
+      </template>
+      <template slot="content" id="commentDrawerContent">
+        <v-flex class="drawerContent flex-grow-1 overflow-auto border-box-sizing">
+          <div
+            v-if="this.comments && this.comments.length"
+            class="TaskCommentContent">
             <div
               v-for="(item, i) in comments"
               :key="i"
@@ -59,7 +61,7 @@
                 @confirmDialogOpened="$emit('confirmDialogOpened')"
                 @confirmDialogClosed="$emit('confirmDialogClosed')" />
             </div>
-          </div> 
+          </div>
           <div v-else>
             <div class="editorContent commentEditorContainer newCommentEditor">
               <task-comment-editor
@@ -72,11 +74,11 @@
                 class="subComment subCommentEditor"
                 @addNewComment="addTaskComment($event)" />
             </div>
-          </div>  
+          </div>
         </v-flex>
-      </v-layout>
-    </v-container>
-  </div>
+      </template>
+    </exo-drawer>
+  </v-app>
 </template>
 <script>
 export default {
@@ -117,13 +119,13 @@ export default {
   },
   mounted() {
     this.$root.$on('displayTaskComment', (commentId, isNewComment) => {
-      this.showTaskCommentDrawer = true;
+      this.openDrawer();
       this.commentId = commentId;
       this.showNewCommentEditor = isNewComment;
       this.openEditorToBottom(commentId);
     });
     this.$root.$on('hideTaskComment', () => {
-      this.showTaskCommentDrawer = false;
+      this.closeDrawer();
     });
   },
   methods: {
@@ -137,19 +139,26 @@ export default {
       });
     },
     closeDrawer() {
-      this.showTaskCommentDrawer = false;
+      this.$refs.taskCommentDrawer.close();
+    },
+    openDrawer() {
+      this.$refs.taskCommentDrawer.open();
     },
     urlVerify(text) {
       return this.$taskDrawerApi.urlVerify(text);
     },
     openEditorToBottom() {
-      this.$root.$emit('showNewCommentEditor');
+      if (this.comments.length > 0) {
+        this.$root.$emit('showNewCommentEditor');
+      }
       window.setTimeout(() => {
-        const commentsDiv = document.getElementById('commentDrawerContent');
-        $('#commentDrawerContent').animate({
-          scrollTop: commentsDiv.scrollHeight
-        }, 1000);
-      }, 500);
+        const drawerContentElement = document.querySelector('#taskCommentDrawer .drawerContent');
+        drawerContentElement.scrollTo({
+          top: drawerContentElement.scrollHeight,
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 200);
     },
   }
 };
