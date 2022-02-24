@@ -173,7 +173,7 @@
             v-if="task.id!=null"
             xs12
             class="pt-2 taskCommentsAndChanges">
-            <view-all-comments
+            <task-view-all-comments
               :task="task"
               :comments="comments" />
           </v-flex>
