@@ -85,6 +85,7 @@
               <compress>false</compress>
               <includes>
                 <include>tasks.less</include>
+                <include>tasksCommentDrawer.less</include>
               </includes>
             </configuration>
             <goals>

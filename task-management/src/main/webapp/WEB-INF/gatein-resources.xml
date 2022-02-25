@@ -33,6 +33,13 @@
     <css-path>/skin/css/tasks.css</css-path>
   </portlet-skin>
 
+  <portal-skin>
+    <skin-name>Enterprise</skin-name>
+    <skin-module>taskCommentsDrawer</skin-module>
+    <css-path>/skin/css/tasksCommentDrawer.css</css-path>
+    <css-priority>2</css-priority>
+  </portal-skin>
+
   <module>
     <name>task_jquery_ui</name>
     <script>
