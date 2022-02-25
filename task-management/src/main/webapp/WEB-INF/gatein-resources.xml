@@ -33,6 +33,13 @@
     <css-path>/skin/css/tasks.css</css-path>
   </portlet-skin>
 
+  <portal-skin>
+    <skin-name>Enterprise</skin-name>
+    <skin-module>taskCommentsDrawer</skin-module>
+    <css-path>/skin/css/tasksCommentDrawer.css</css-path>
+    <css-priority>2</css-priority>
+  </portal-skin>
+
   <module>
     <name>task_jquery_ui</name>
     <script>
@@ -241,6 +248,9 @@
       <module>commonVueComponents</module>
     </depends>
     <depends>
+      <module>extensionRegistry</module>
+    </depends>
+    <depends>
       <module>vuetify</module>
     </depends>
     <depends>
@@ -254,8 +264,36 @@
       <module>jquery</module>
       <as>$</as>
     </depends>
+  </module>
+
+  <module>
+    <name>taskCommentsDrawer</name>
+    <script>
+      <minify>false</minify>
+      <path>/js/taskCommentsDrawer.bundle.js</path>
+    </script>
+    <depends>
+      <module>commonVueComponents</module>
+    </depends>
     <depends>
       <module>extensionRegistry</module>
+    </depends>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>vuetify</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>commons-editor</module>
+      <as>editor</as>
+    </depends>
+    <depends>
+      <module>jquery</module>
+      <as>$</as>
     </depends>
     <depends>
       <module>userPopupPlugin</module>
@@ -296,6 +334,9 @@
         <minify>false</minify>
         <path>/js/tasksManagement.bundle.js</path>
       </script>
+      <depends>
+        <module>taskCommentsDrawer</module>
+      </depends>
       <depends>
         <module>commonVueComponents</module>
       </depends>
