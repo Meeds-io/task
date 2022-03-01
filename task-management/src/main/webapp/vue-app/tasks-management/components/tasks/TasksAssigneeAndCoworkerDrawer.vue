@@ -26,11 +26,8 @@
           :key="user"
           class="flex-grow-1 text-truncate my-2">
           <exo-user-avatar
-            :username="user.username"
-            :title="user.displayName"
-            :fullname="user.displayName"
-            :external="user.external"
-            :retrieve-extra-information="false" />
+            :identity="user"
+            popover />
         </v-flex>
       </v-layout>
     </template>

@@ -39,31 +39,12 @@
       </a>
     </div>
     <div class="taskAssignee d-flex v-avatar flex-nowrap pe-7">
-      <exo-user-avatar
-        v-for="user in avatarToDisplay"
-        :key="user"
-        :username="user.username"
-        :title="user.displayName"
-        :avatar-url="user.avatar"
-        :external="user.external"
-        :retrieve-extra-information="false"
-        :size="iconSize"
-        :style="'background-image: url('+user.avatar+')'"
-        class="mx-1 taskWorkerAvatar" />
-      <div class="seeMoreAvatars">
-        <div
-          v-if="assigneeAndCoworkerArray.length > maxAvatarToShow"
-          class="seeMoreItem"
-          @click="$root.$emit('displayTasksAssigneeAndCoworker', assigneeAndCoworkerArray)">
-          <v-avatar
-            :size="iconSize">
-            <img
-              :src="assigneeAndCoworkerArray[maxAvatarToShow].avatar"
-              :title="assigneeAndCoworkerArray[maxAvatarToShow].displayName">
-          </v-avatar>
-          <span class="seeMoreAvatarList">+{{ showMoreAvatarsNumber }}</span>
-        </div>
-      </div>
+      <exo-user-avatars-list
+        :users="avatarToDisplay"
+        :max="1"
+        :icon-size="26"
+        avatar-overlay-position
+        @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', assigneeAndCoworkerArray)" />
     </div>
     <div class="taskLabels pe-7" @click="openTaskDrawer()">
       <v-chip
@@ -130,7 +111,6 @@ export default {
       assigneeAndCoworkerArray: [],
       isPersonnalTask: this.task.task.status === null,
       labelList: '',
-      maxAvatarToShow: 1,
     };
   },
   computed: {
@@ -138,15 +118,7 @@ export default {
       return this.task && this.task.task.dueDate && this.task.task.dueDate.time;
     },
     avatarToDisplay () {
-      this.getTaskAssigneeAndCoworkers();
-      if (this.assigneeAndCoworkerArray.length > this. maxAvatarToShow) {
-        return this.assigneeAndCoworkerArray.slice(0, this.maxAvatarToShow-1);
-      } else {
-        return this.assigneeAndCoworkerArray;
-      }
-    },
-    showMoreAvatarsNumber() {
-      return this.assigneeAndCoworkerArray.length - this.maxAvatarToShow;
+      return this.assigneeAndCoworkerArray;
     },
     removeCompletedTask() {
       return this.task.task.completed === true && !this.showCompletedTasks;
@@ -184,13 +156,17 @@ export default {
     getTaskAssigneeAndCoworkers() {
       this.assigneeAndCoworkerArray=[];
       if (this.task.assignee && !this.assigneeAndCoworkerArray.includes(this.task.assignee)) {
-        this.assigneeAndCoworkerArray.push(this.task.assignee);
+        this.$userService.getUser(this.task.assignee.username)
+          .then(user => {
+            this.assigneeAndCoworkerArray.push(user);
+          });
       }
       if (this.task.coworker || this.task.coworker.length > 0) {
         this.task.coworker.forEach((coworker) => {
-          if (coworker && !this.assigneeAndCoworkerArray.includes(coworker)){
-            this.assigneeAndCoworkerArray.push(coworker);
-          }
+          this.$userService.getUser(coworker.username)
+            .then(user => {
+              this.assigneeAndCoworkerArray.push(user);
+            });
         });
       }
     },
