@@ -22,11 +22,11 @@
       <exo-user-avatar 
         :profile-id="comment.author.username"
         :size="30"
-        :extra-class="'position-relative'"
+        :extra-class="'position-relative overflow-hidden'"
         bold-title
         link-style
         popover />
-      <div class="commentContent ps-3 d-flex align-center">
+      <div class="commentContent ps-3 d-flex align-center flex-grow-0 flex-shrink-0">
         <span :title="displayCommentDate(comment.comment.createdTime.time)" class="dateTime caption font-italic d-block text-sub-title">{{ relativeTime }}</span>
       </div>
     </div>

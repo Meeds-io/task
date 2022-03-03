@@ -34,12 +34,14 @@
         <div class="d-flex align-center taskAssignItem" v-on="on">
           <div 
             v-if="taskAssigneeObj && taskAssigneeObj.profile && taskAssigneeObj.profile.fullName" 
-            class="assigneeName">
+            class="assigneeName overflow-hidden">
             <exo-user-avatar
               :profile-id="taskAssigneeObj.remoteId"
               :url="null"
               :size="24"
-              class="pe-2" />
+              extra-class="pe-2 overflow-hidden"
+              link-style
+              popover />
           </div>
           <span
             v-if="taskCoworkers.length > 0"
