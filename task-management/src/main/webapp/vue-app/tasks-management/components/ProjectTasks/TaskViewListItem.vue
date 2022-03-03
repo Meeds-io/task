@@ -38,13 +38,14 @@
         @click="openTaskDrawer()">{{ task.task.title }}
       </a>
     </div>
-    <div class="taskAssignee d-flex v-avatar flex-nowrap pe-7">
+    <div class="taskAssignee d-flex v-avatar flex-nowrap pe-7 justify-start">
       <exo-user-avatars-list
         :users="avatarToDisplay"
         :max="1"
         :icon-size="26"
         avatar-overlay-position
-        @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', assigneeAndCoworkerArray)" />
+        retrieve-extra-information
+        @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', avatarToDisplay)" />
     </div>
     <div class="taskLabels pe-7" @click="openTaskDrawer()">
       <v-chip
@@ -102,7 +103,6 @@ export default {
   data () {
     return {
       enabled: false,
-      iconSize: 26,
       dateTimeFormat: {
         year: 'numeric',
         month: 'numeric',
@@ -118,7 +118,13 @@ export default {
       return this.task && this.task.task.dueDate && this.task.task.dueDate.time;
     },
     avatarToDisplay () {
-      return this.assigneeAndCoworkerArray;
+      const usersList = [];
+      if (this.assigneeAndCoworkerArray && this.assigneeAndCoworkerArray.length ) {
+        this.assigneeAndCoworkerArray.forEach(user => {
+          usersList.push({'userName': user.username});
+        });
+      }
+      return usersList;
     },
     removeCompletedTask() {
       return this.task.task.completed === true && !this.showCompletedTasks;
@@ -156,17 +162,13 @@ export default {
     getTaskAssigneeAndCoworkers() {
       this.assigneeAndCoworkerArray=[];
       if (this.task.assignee && !this.assigneeAndCoworkerArray.includes(this.task.assignee)) {
-        this.$userService.getUser(this.task.assignee.username)
-          .then(user => {
-            this.assigneeAndCoworkerArray.push(user);
-          });
+        this.assigneeAndCoworkerArray.push(this.task.assignee);
       }
       if (this.task.coworker || this.task.coworker.length > 0) {
         this.task.coworker.forEach((coworker) => {
-          this.$userService.getUser(coworker.username)
-            .then(user => {
-              this.assigneeAndCoworkerArray.push(user);
-            });
+          if (coworker && !this.assigneeAndCoworkerArray.includes(coworker)){
+            this.assigneeAndCoworkerArray.push(coworker);
+          }
         });
       }
     },
