@@ -20,7 +20,8 @@
       :profile-id="currentUserName"
       :size="30"
       :url="null"
-      class="pe-2" />
+      extra-class="me-2" 
+      avatar />
     <div class="editorContainer">
       <textarea 
         :ref="`editor-${id}`"

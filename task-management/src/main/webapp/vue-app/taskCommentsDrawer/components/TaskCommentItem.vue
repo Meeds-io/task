@@ -25,20 +25,20 @@
       <div class="commentHeader d-flex">
         <exo-user-avatar 
           :profile-id="comment.author.username"
-          :extra-class="'position-relative'"
+          :extra-class="'position-relative overflow-hidden'"
           :size="30"
           bold-title
           link-style
           popover />
-        <div class="commentContent ps-3 d-flex align-center">
+        <div class="commentContent ps-3 d-flex align-center flex-grow-0 flex-shrink-0">
           <span :title="displayCommentDate(comment.comment.createdTime.time)" class="dateTime caption font-italic d-block">{{ relativeTime }}</span>
         </div>
-        <div class="removeCommentBtn">
+        <div class="removeCommentBtn position-relative">
           <v-btn
             v-show="showDeleteButtom"
             :title="$t('label.remove')"
             :size="32"
-            class="deleteComment"
+            class="deleteComment position-absolute white"
             icon
             small
             @click="$emit('openConfirmDeleteDialog', comment.comment.id)"
