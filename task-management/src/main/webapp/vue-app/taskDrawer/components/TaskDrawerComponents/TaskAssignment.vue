@@ -40,7 +40,6 @@
               :url="null"
               :size="24"
               extra-class="pe-2 overflow-hidden"
-              link-style
               popover />
           </div>
           <span
