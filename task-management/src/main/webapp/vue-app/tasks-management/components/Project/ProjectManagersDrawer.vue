@@ -26,7 +26,7 @@
           :key="manager"
           class="flex-grow-1 text-truncate my-2">
           <exo-user-avatar
-            :identity="manager"
+            :profile-id="manager.userName"
             popover />
         </v-flex>
       </v-layout>
