@@ -115,7 +115,7 @@
         <div class="spaceAdminWrapper">
           <exo-user-avatar 
             v-if="avatarToDisplay && avatarToDisplay.length === 1"
-            :identity="avatarToDisplay[0]"
+            :profile-id="avatarToDisplay[0].userName"
             :size="28"
             :extra-class="'my-2'"
             link-style
@@ -129,6 +129,7 @@
               :max="5"
               :icon-size="28"
               avatar-overlay-position
+              retrieve-extra-information
               @open-detail="$root.$emit('displayProjectManagers', avatarToDisplay)" />
           </div>
         </div>
@@ -189,13 +190,18 @@ export default {
         { class: 'plum' },
       ],
       managerIdentities: this.project && this.project.managerIdentities,
-      projectManagers: [],
       projectSpace: {}
     };
   },
   computed: {
     avatarToDisplay () {
-      return this.projectManagers;
+      const projectManagersList = [];
+      if ( this.managerIdentities && this.managerIdentities.length ) {
+        this.managerIdentities.forEach((manager) => {
+          projectManagersList.push({'userName': manager.username});
+        });
+      }
+      return projectManagersList;
     },
     space() {
       return this.projectSpace;
@@ -212,14 +218,6 @@ export default {
     this.$root.$on('update-projects-list-avatar',managerIdentities =>{
       this.project.managerIdentities=managerIdentities;
     });
-    if ( this.managerIdentities && this.managerIdentities.length) {
-      this.managerIdentities.forEach((identity) => {
-        this.$userService.getUser(identity.username)
-          .then(user => {
-            this.projectManagers.push(user);
-          });
-      });
-    }
     if (this.project && this.project.space && this.project.spaceDetails ) {
       this.retrieveSpaceInformation(this.project.spaceDetails.id);
     }
