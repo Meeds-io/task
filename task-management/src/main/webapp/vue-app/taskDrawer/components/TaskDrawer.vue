@@ -27,6 +27,8 @@
       id="task-Drawer"
       ref="addTaskDrawer"
       :temporary="confirmDrawerClose"
+      :confirm-close="confirmClose"
+      :confirm-close-labels="confirmCloseLabels"
       class="taskDrawer"
       body-classes="hide-scroll decrease-z-index-more"
       right
@@ -226,6 +228,13 @@
       ref="taskChangesDrawer"
       :task="task"
       :logs="logs" />
+    <exo-confirm-dialog
+        ref="CancelSavingChangesDialog"
+        :message="$t('label.drawer.confirmCancelChanges')"
+        :title="$t('label.drawer.confirmCancelChanges.title')"
+        :ok-label="$t('label.button.ok')"
+        :cancel-label="$t('label.button.cancel')"
+        @ok="confirmCancelSavingChanges()" />
   </div>
 </template>
 <script>
@@ -288,6 +297,17 @@ export default {
     },
     confirmDrawerClose() {
       return this.isDrawerClose;
+    },
+    confirmClose() {
+      return !this.descriptionValid ;
+    },
+    confirmCloseLabels() {
+      return {
+        title: this.$t('label.drawer.confirmCancelChanges.title'),
+        message: this.$t('label.drawer.confirmCancelChanges'),
+        ok: this.$t('label.button.yes'),
+        cancel: this.$t('label.button.no'),
+      };
     },
     taskLink() {
       if (this.task == null || this.task.id == null) {
@@ -379,7 +399,7 @@ export default {
       const div = document.createElement('div');
       div.innerHTML = pureText;
       pureText = div.textContent || div.innerText || '';
-      this.descriptionValid = pureText && pureText.length <= this.MESSAGE_MAX_LENGTH ;
+      this.descriptionValid = pureText.length <= this.MESSAGE_MAX_LENGTH && pureText.length >=0 ;
     },
     closePriority() {
       document.dispatchEvent(new CustomEvent('closePriority'));
@@ -840,6 +860,9 @@ export default {
         type: 'error',
         message: this.$t('alert.error')
       });
+    },
+    confirmCancelSavingChanges() {
+      this.$refs.addTaskDrawer.close();
     },
   }
 };
