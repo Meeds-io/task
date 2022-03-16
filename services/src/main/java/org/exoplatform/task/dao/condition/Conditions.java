@@ -33,6 +33,7 @@ public class Conditions {
   public static String TASK_WATCHER = "watcher";
   public static String TASK_CREATOR = "createdBy";
   public static String TASK_STATUS = "status";
+  public static String TASK_STATUS_NAME = "status.name";
   public static String TASK_DUEDATE = "dueDate";
   public static String TASK_PROJECT = "status.project";
   public static String TASK_LABEL_USERNAME = "lblMapping.label.username";
