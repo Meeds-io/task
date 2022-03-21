@@ -181,6 +181,10 @@ public class TaskQuery extends Query implements Cloneable {
     this.add(Conditions.or(eq(TASK_ASSIGNEE, username), eq(TASK_COWORKER, username), in(TASK_PROJECT, projectIds)));
   }
 
+  public void setStatusName(String statusName) {
+    add(eq(TASK_STATUS_NAME, statusName));
+  }
+
   public void setStatus(Status status) {
     add(eq(TASK_STATUS, status));
   }
