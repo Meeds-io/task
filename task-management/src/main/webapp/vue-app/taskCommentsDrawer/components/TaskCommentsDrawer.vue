@@ -17,7 +17,7 @@
 <template>
   <v-app>
     <exo-drawer
-      @close="closeDrawer"
+      @closed="closeDrawer"
       id="taskCommentDrawer"
       class="taskCommentDrawer"
       ref="taskCommentDrawer"
@@ -140,6 +140,7 @@ export default {
     },
     closeDrawer() {
       this.$refs.taskCommentDrawer.close();
+      document.dispatchEvent(new CustomEvent('Task-comments-drawer-closed'));
     },
     openDrawer() {
       this.$refs.taskCommentDrawer.open();

@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.HTMLEntityEncoder;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainer;
@@ -40,8 +41,12 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.organization.Membership;
+import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.organization.User;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Status;
@@ -672,6 +677,37 @@ public final class ProjectUtil {
   private static ProjectService getProjectService() {
     ExoContainer container = ExoContainerContext.getCurrentContainer();
     return container.getComponentInstanceOfType(ProjectService.class);
+  }
+
+  public static boolean isProjectParticipant(OrganizationService organizationService,
+                                      String userName,
+                                      ProjectDto project) {
+    Collection<Membership> memberships;
+    try {
+      memberships = organizationService.getMembershipHandler().findMembershipsByUser(userName);
+    } catch (Exception e) {
+      LOG.error("Error while getting user memberships", e);
+      return false;
+    }
+    if (project.getParticipator() == null) {
+      return false;
+    }
+    if (project.getParticipator().contains(userName)) {
+      return true;
+    } else {
+      for (String per : project.getParticipator()) {
+        MembershipEntry entry = MembershipEntry.parse(per);
+        if (entry != null) {
+          boolean isParticipant = memberships.stream()
+                                             .map(Membership::getGroupId)
+                                             .anyMatch(groupId -> groupId.equals(entry.getGroup()));
+          if (isParticipant) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   private static class ProjectProxy extends ProjectDto {

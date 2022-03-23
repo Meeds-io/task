@@ -26,6 +26,7 @@ import org.exoplatform.container.RootContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ProjectDto;
@@ -39,7 +40,7 @@ import java.util.LinkedList;
 import java.util.Set;
 
 public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin {
-  
+
   public AbstractNotificationPlugin(InitParams initParams) {
     super(initParams);
   }
@@ -106,11 +107,12 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
   }
 
   protected Set<String> getReceiver(TaskDto task, NotificationContext ctx) {
+    OrganizationService organizationService = CommonsUtils.getOrganizationService();
     Set<String> receivers = new HashSet<String>();
     if (task.getAssignee() != null && !task.getAssignee().isEmpty()) {
       receivers.add(task.getAssignee());
     }
-    if (task.getCreatedBy()!= null && !task.getCreatedBy().isEmpty()) {
+    if (task.getCreatedBy() != null && !task.getCreatedBy().isEmpty()) {
       receivers.add(task.getCreatedBy());
     }
     if (task.getCoworker() != null && task.getCoworker().size() > 0) {
@@ -119,12 +121,14 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
     if (task.getWatcher() != null && task.getWatcher().size() > 0) {
       receivers.addAll(task.getWatcher());
     }
-    if(ctx != null) {
+    if (ctx != null) {
       receivers.remove(ctx.value(NotificationUtils.CREATOR));
     }
+    ProjectDto project = task.getStatus().getProject();
+    receivers.removeIf(user -> !ProjectUtil.isProjectParticipant(organizationService, user, project));
     return receivers;
   }
-  
+
   private String buildTaskUrl(TaskDto t, ExoContainer container, WebAppController controller) {
     return CommonsUtils.getCurrentDomain() + TaskUtil.buildTaskURL(t, CommonsUtils.getCurrentSite(), container, controller.getRouter());
   }
