@@ -26,13 +26,16 @@ import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
+import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.integration.notification.NotificationUtils;
 import org.exoplatform.task.integration.notification.TaskCommentPlugin;
 import org.exoplatform.task.integration.notification.TaskMentionPlugin;
 import org.exoplatform.task.service.CommentService;
+import org.exoplatform.task.util.ProjectUtil;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -44,6 +47,12 @@ import java.util.Set;
  */
 public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDto> {
 
+  private final OrganizationService organizationService;
+
+  public TaskCommentNotificationListener(OrganizationService organizationService) {
+    this.organizationService = organizationService;
+  }
+
   @Override
   public void onEvent(Event<TaskDto, CommentDto> event) throws Exception {
     TaskDto task = event.getSource();
@@ -54,6 +63,7 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
   }
 
   private NotificationContext buildContext(TaskDto task, CommentDto comment) {
+    ProjectDto project = task.getStatus().getProject();
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
             .append(NotificationUtils.COMMENT, comment)
             .append(NotificationUtils.TASK, task);
@@ -65,7 +75,7 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
     Set<String> receiver = new HashSet<String>();
 
     // Task creator
-    receiver.add(task.getCreatedBy());
+      receiver.add(task.getCreatedBy());
 
     // Assignee , Coworker , and watcher
     if (task.getAssignee() != null && !task.getAssignee().isEmpty()) {
@@ -104,6 +114,7 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
       mentioned = new HashSet<String>();
     }
     mentioned.remove(creator);
+    receiver.removeIf(user -> !ProjectUtil.isProjectParticipant(organizationService, user, project));
     ctx.append(NotificationUtils.RECEIVERS, receiver);
     ctx.append(NotificationUtils.MENTIONED, mentioned);
 

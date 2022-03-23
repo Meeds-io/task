@@ -140,6 +140,7 @@ export default {
     },
     closeDrawer() {
       this.$refs.taskCommentDrawer.close();
+      document.dispatchEvent(new CustomEvent('Task-comments-drawer-closed'));
     },
     openDrawer() {
       this.$refs.taskCommentDrawer.open();
