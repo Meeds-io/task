@@ -18,21 +18,40 @@ package org.exoplatform.task.integration.notification;
 
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.task.domain.Task;
+import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.util.ProjectUtil;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.Assert.*;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
  *
  */
+@RunWith(PowerMockRunner.class)
+@PowerMockIgnore({ "javax.management.*" })
+@PrepareForTest({CommonsUtils.class, ProjectUtil.class})
 public class AbstractNotificationPluginTest {
+
+  @Mock
+  private OrganizationService organizationService;
 
   public class DummyNotificationPlugin extends AbstractNotificationPlugin {
 
@@ -51,15 +70,26 @@ public class AbstractNotificationPluginTest {
     }
   }
 
+  @Before
+  public void setUp() throws Exception {
+    PowerMockito.mockStatic(CommonsUtils.class);
+    PowerMockito.mockStatic(ProjectUtil.class);
+    when(CommonsUtils.getOrganizationService()).thenReturn(organizationService);
+  }
+
   @Test
   public void shouldReturnAssigneeInReceivers() throws Exception {
     // Given
     TaskDto task = new TaskDto();
     task.setAssignee("user1");
-
+    ProjectDto projectDto = new ProjectDto();
+    StatusDto statusDto = new StatusDto();
+    statusDto.setProject(new ProjectDto());
+    task.setStatus(statusDto);
     AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
 
     // When
+    when(ProjectUtil.isProjectParticipant(organizationService,"user1", projectDto)).thenReturn(true);
     Set<String> receivers = notificationPlugin.getReceiver(task, null);
 
     // Then
@@ -72,11 +102,18 @@ public class AbstractNotificationPluginTest {
   public void shouldReturnCoworkersInReceivers() throws Exception {
     // Given
     TaskDto task = new TaskDto();
+    ProjectDto projectDto = new ProjectDto();
+    StatusDto statusDto = new StatusDto();
+    statusDto.setProject(new ProjectDto());
+    task.setStatus(statusDto);
     task.setCoworker(new HashSet<>(Arrays.asList("user1", "user2")));
 
     AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
 
     // When
+    when(ProjectUtil.isProjectParticipant(organizationService,"user1", projectDto)).thenReturn(true);
+    when(ProjectUtil.isProjectParticipant(organizationService,"user2", projectDto)).thenReturn(true);
+
     Set<String> receivers = notificationPlugin.getReceiver(task, null);
 
     // Then
@@ -90,11 +127,17 @@ public class AbstractNotificationPluginTest {
   public void shouldReturnWatchersInReceivers() throws Exception {
     // Given
     TaskDto task = new TaskDto();
+    ProjectDto projectDto = new ProjectDto();
+    StatusDto statusDto = new StatusDto();
+    statusDto.setProject(new ProjectDto());
+    task.setStatus(statusDto);
     task.setWatcher(new HashSet<>(Arrays.asList("user1", "user2")));
 
     AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
 
     // When
+    when(ProjectUtil.isProjectParticipant(organizationService,"user1", projectDto)).thenReturn(true);
+    when(ProjectUtil.isProjectParticipant(organizationService,"user2", projectDto)).thenReturn(true);
     Set<String> receivers = notificationPlugin.getReceiver(task, null);
 
     // Then
@@ -110,6 +153,10 @@ public class AbstractNotificationPluginTest {
     TaskDto task = new TaskDto();
     task.setAssignee("user1");
     task.setCreatedBy("user2");
+    ProjectDto projectDto = new ProjectDto();
+    StatusDto statusDto = new StatusDto();
+    statusDto.setProject(new ProjectDto());
+    task.setStatus(statusDto);
     task.setCoworker(new HashSet<>(Arrays.asList("user2", "user3")));
 
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
@@ -117,6 +164,10 @@ public class AbstractNotificationPluginTest {
     AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
 
     // When
+    when(ProjectUtil.isProjectParticipant(organizationService,"user1", projectDto)).thenReturn(true);
+    when(ProjectUtil.isProjectParticipant(organizationService,"user2", projectDto)).thenReturn(true);
+    when(ProjectUtil.isProjectParticipant(organizationService,"user3", projectDto)).thenReturn(true);
+
     Set<String> receivers = notificationPlugin.getReceiver(task, ctx);
 
     // Then
@@ -125,5 +176,33 @@ public class AbstractNotificationPluginTest {
     assertTrue(receivers.contains("user1"));
     assertTrue(receivers.contains("user2"));
     assertTrue(receivers.contains("user3"));
+  }
+
+  @Test
+  public void shouldNotReturnUserInReceiversIfNotProjectParticipant() throws Exception {
+    // Given
+    TaskDto task = new TaskDto();
+    task.setCreatedBy("user2");
+    task.setAssignee("user1");
+    ProjectDto projectDto = new ProjectDto();
+    StatusDto statusDto = new StatusDto();
+    statusDto.setProject(new ProjectDto());
+    task.setStatus(statusDto);
+
+    NotificationContext ctx = NotificationContextImpl.cloneInstance();
+
+    AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
+
+    // When
+    when(ProjectUtil.isProjectParticipant(organizationService, "user1", projectDto)).thenReturn(false);
+    when(ProjectUtil.isProjectParticipant(organizationService, "user2", projectDto)).thenReturn(true);
+
+    Set<String> receivers = notificationPlugin.getReceiver(task, ctx);
+
+    // Then
+    assertNotNull(receivers);
+    assertEquals(1, receivers.size());
+    assertFalse(receivers.contains("user1"));
+    assertTrue(receivers.contains("user2"));
   }
 }
