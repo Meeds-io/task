@@ -72,6 +72,9 @@ export default {
     };
   },
   watch: {
+    charsCount(val){
+      this.$emit('counterChanged',val);
+    },
     inputVal(val) {
       this.$emit('input', val);
     },

@@ -19,24 +19,26 @@
     id="taskDescriptionId"
     :class="editorReady && 'active'"
     class="taskDescription">
-    <div
-      :data-text="placeholder"
-      :title="$t('tooltip.clickToEdit')"
-      contentEditable="true"
-      class="py-1 px-2 taskDescriptionToShow"
-      @click="showDescriptionEditor($event)"
-      v-html="inputVal ? urlVerify(inputVal) : inputVal">
-      {{ placeholder }}
-    </div>
-
     <exo-task-editor
       v-if="displayEditor"
       ref="richEditor"
       v-model="inputVal"
       :max-length="MESSAGE_MAX_LENGTH"
       :id="task.id"
+      @counterChanged="disableApply"
       :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)" />
 
+    <v-btn
+      v-if="task.id!=null"
+      id="apply-btn"
+      depressed
+      outlined
+      class="btn mt-1 ml-auto d-flex"
+      :disabled="buttonOff"
+      @click="saveDescription(inputVal)"
+    >
+      Apply
+    </v-btn>
   </div>
 </template>
 
@@ -67,7 +69,9 @@ export default {
       MESSAGE_MAX_LENGTH: 2000,
       inputVal: this.value,
       editorReady: false,
-      showEditor: false,
+      showEditor: true,
+      buttonOff: false,
+
     };
   },
   computed: {
@@ -120,7 +124,6 @@ export default {
   created() {
     this.$root.$off('drawerClosed');
     this.$root.$on('drawerClosed', () => {
-      this.saveDescription(this.inputVal);
       this.editorReady = false;
     });
     document.addEventListener('onAddTask', () => {
@@ -129,7 +132,15 @@ export default {
     });
   },
   methods: {
+    disableApply (val){
+      this.buttonOff = !(val<= this.MESSAGE_MAX_LENGTH);
+    },
     saveDescription: function (newValue) {
+      let pureText = newValue ? newValue.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
+      const div = document.createElement('div');
+      div.innerHTML = pureText;
+      pureText = div.textContent || div.innerText || '';
+      newValue = pureText;
       if (newValue){
         newValue = newValue.replace('&nbsp;',' ');
       }
