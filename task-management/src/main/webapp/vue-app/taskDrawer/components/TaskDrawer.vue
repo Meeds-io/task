@@ -146,6 +146,7 @@
           <v-divider class="my-0" />
           <div class="taskDescription py-4">
             <task-description-editor
+              @enableSaveButton="maxReached"
               :task="task"
               v-model="task.description"
               :value="task.description"
@@ -188,7 +189,7 @@
             {{ $t('popup.cancel') }}
           </v-btn>
           <v-btn
-            :disabled="disableSaveButton"
+            :disabled="!disableSaveButton"
             class="btn btn-primary"
             @click="addTask">
             {{ $t('label.save') }}
@@ -245,7 +246,7 @@ export default {
       enableDelete: false,
       enableClone: false,
       currentUserName: eXo.env.portal.userName,
-      MESSAGE_MAX_LENGTH: 1250,
+      MESSAGE_MAX_LENGTH: 2000,
       dateTimeFormat: {
         year: 'numeric',
         month: 'long',
@@ -257,9 +258,11 @@ export default {
       oldTask: {},
       showBackArrow: false,
       taskSpace: {},
+      descriptionValid: true,
     };
   },
   computed: {
+
     confirmDrawerClose() {
       return this.isDrawerClose;
     },
@@ -276,7 +279,7 @@ export default {
       return this.taskTitle && this.taskTitle.trim() && this.taskTitle.trim().length >= 3 && this.taskTitle.length < 1024;
     },
     disableSaveButton() {
-      return this.saving || !this.taskTitleValid;
+      return (this.taskTitleValid && this.descriptionValid ) ;
     },
     lastTaskChangesLog() {
       return this.logs && this.logs.length && this.logs[0].createdTime || '';
@@ -348,6 +351,9 @@ export default {
     document.removeEventListener('keyup', this.escapeKeyListener);
   },
   methods: {
+    maxReached(val){
+      this.descriptionValid = ( val >=0 && val<=this.MESSAGE_MAX_LENGTH);
+    },
     closePriority() {
       document.dispatchEvent(new CustomEvent('closePriority'));
     },

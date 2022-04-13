@@ -31,6 +31,7 @@
 
     <exo-task-editor
       v-if="displayEditor"
+      @enableSaveButton="emitCounterChanged"
       ref="richEditor"
       v-model="inputVal"
       :max-length="MESSAGE_MAX_LENGTH"
@@ -129,6 +130,9 @@ export default {
     });
   },
   methods: {
+    emitCounterChanged(val){
+      this.$emit('enableSaveButton',val);
+    },
     saveDescription: function (newValue) {
       if (newValue){
         newValue = newValue.replace('&nbsp;',' ');

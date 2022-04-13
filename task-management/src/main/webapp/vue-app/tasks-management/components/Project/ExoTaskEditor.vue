@@ -72,6 +72,9 @@ export default {
     };
   },
   watch: {
+    charsCount(val){
+      this.$emit('enableSaveButton',val);
+    },
     inputVal(val) {
       this.$emit('input', val);
     },
