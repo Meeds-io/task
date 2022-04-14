@@ -33,8 +33,7 @@
       @closed="onCloseDrawer">
       <template 
         v-if="task.id!=null" 
-        slot="title" 
-        class="d-flex justify-space-between">
+        slot="title">
         <div class="drawerTitleAndProject d-flex">
           <i
             v-if="addBackArrow"

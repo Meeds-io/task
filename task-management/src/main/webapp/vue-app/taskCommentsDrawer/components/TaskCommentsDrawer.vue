@@ -43,8 +43,8 @@
           </v-list-item>
         </v-flex>
       </template>
-      <template slot="content" id="commentDrawerContent">
-        <v-flex class="drawerContent flex-grow-1 overflow-auto border-box-sizing">
+      <template slot="content">
+        <v-flex id="commentDrawerContent" class="drawerContent flex-grow-1 overflow-auto border-box-sizing">
           <div
             v-if="this.comments && this.comments.length"
             class="TaskCommentContent">

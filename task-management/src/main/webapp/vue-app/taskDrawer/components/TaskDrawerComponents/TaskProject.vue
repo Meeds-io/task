@@ -33,7 +33,7 @@
         prepend-icon
         @click="$emit('projectsListOpened')"
         @change="deleteProject()">
-        <template v-slot:selection="{ attrs, item, parent, selected }">
+        <template #selection="{ attrs, item, parent, selected }">
           <v-chip
             v-if="item === Object(item)"
             v-bind="attrs"
@@ -53,7 +53,7 @@
             </span>
           </v-chip>
         </template>
-        <template v-slot:item="{ index, item }">
+        <template #item="{ item }">
           <v-list-item @click="updateTaskProject(item)">
             <v-chip
               :color="`${item.color} lighten-3`"

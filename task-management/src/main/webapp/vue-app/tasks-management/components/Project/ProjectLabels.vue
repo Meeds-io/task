@@ -34,10 +34,10 @@
       solo
       @click="openLabelsList()"
       @change="search = ''">
-      <template v-slot:prepend class="me-4">
+      <template #prepend>
         <i class="uiIconTag uiIconBlue"></i>
       </template>
-      <template v-slot:no-data>
+      <template #no-data>
         <v-list-item>
           <span class="subheading">{{ $t('label.createLabel') }}</span>
           <v-chip
@@ -47,7 +47,7 @@
           </v-chip>
         </v-list-item>
       </template>
-      <template v-slot:selection="{ attrs, item, parent, selected }">
+      <template #selection="{ item, parent }">
         <editable-labels
           :item="item"
           :parent="parent"
