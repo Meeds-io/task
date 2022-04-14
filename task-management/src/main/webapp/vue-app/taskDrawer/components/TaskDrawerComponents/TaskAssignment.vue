@@ -30,7 +30,7 @@
       allow-overflow
       eager
       bottom>
-      <template v-slot:activator="{ on }">
+      <template #activator="{ on }">
         <div class="d-flex align-center taskAssignItem" v-on="on">
           <div 
             v-if="taskAssigneeObj && taskAssigneeObj.profile && taskAssigneeObj.profile.fullName" 
@@ -108,10 +108,8 @@ export default {
       }
     },
     globalMenu: {
-      type: Object,
-      default: () => {
-        return false;
-      }
+      type: Boolean,
+      default: false
     },
   },
   data() {

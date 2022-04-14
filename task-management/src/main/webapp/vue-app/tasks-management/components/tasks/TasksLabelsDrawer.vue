@@ -39,7 +39,7 @@
         solo
         @click="openLabelsList()"
         @change="search = ''">
-        <template v-slot:selection="{ attrs, item, parent, selected }">
+        <template #selection="{ attrs, item, parent, selected }">
           <v-chip
             v-if="item === Object(item)"
             v-bind="attrs"

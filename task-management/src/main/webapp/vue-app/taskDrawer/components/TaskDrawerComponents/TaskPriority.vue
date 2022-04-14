@@ -28,7 +28,7 @@
       class="pt-0 selectFont"
       @change="updateTaskPriority()"
       @click="$emit('PriorityListOpened')">
-      <template v-slot:append>
+      <template #append>
         <v-icon :class="priorityDefaultColor" size="20">mdi-flag-variant</v-icon>
       </template>
       <template slot="item" slot-scope="data">

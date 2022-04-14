@@ -24,7 +24,7 @@
       :close-on-content-click="false"
       :close-on-click="true"
       offset-y>
-      <template v-slot:activator="{ on }">
+      <template #activator="{ on }">
         <v-chip
           v-if="item === Object(item)"
           :id="`label-${item.id}`"

@@ -18,7 +18,7 @@ import tasksApp from './components/TasksApp.vue';
 import TaskDetails from './components/TaskDetails.vue';
 
 Vue.use(Vuetify);
-Vue.component('task-details', TaskDetails);
+Vue.component('TaskDetails', TaskDetails);
 
 const vuetify = new Vuetify(eXo.env.portal.vuetifyPreset);
 
