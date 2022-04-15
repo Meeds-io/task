@@ -148,6 +148,7 @@
               :task="task"
               v-model="task.description"
               :value="task.description"
+              @counterChanged="saveButtonEnablement"
               :placeholder="$t('editinline.taskDescription.empty')"
               @addTaskDescription="addTaskDescription($event)" />
           </div>
@@ -187,7 +188,7 @@
             {{ $t('popup.cancel') }}
           </v-btn>
           <v-btn
-            :disabled="disableSaveButton"
+            :disabled="disableSaveButton || buttonOff"
             class="btn btn-primary"
             @click="addTask">
             {{ $t('label.save') }}
@@ -244,7 +245,7 @@ export default {
       enableDelete: false,
       enableClone: false,
       currentUserName: eXo.env.portal.userName,
-      MESSAGE_MAX_LENGTH: 1250,
+      MESSAGE_MAX_LENGTH: 2000,
       dateTimeFormat: {
         year: 'numeric',
         month: 'long',
@@ -256,6 +257,8 @@ export default {
       oldTask: {},
       showBackArrow: false,
       taskSpace: {},
+      descriptionValid: false,
+      buttonOff: false,
     };
   },
   computed: {
@@ -347,6 +350,9 @@ export default {
     document.removeEventListener('keyup', this.escapeKeyListener);
   },
   methods: {
+    saveButtonEnablement (val){
+      this.buttonOff = !(val<= this.MESSAGE_MAX_LENGTH);
+    },
     closePriority() {
       document.dispatchEvent(new CustomEvent('closePriority'));
     },

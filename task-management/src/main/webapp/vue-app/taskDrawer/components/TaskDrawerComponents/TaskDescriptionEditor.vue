@@ -19,25 +19,35 @@
     id="taskDescriptionId"
     :class="editorReady && 'active'"
     class="taskDescription">
+    <div
+      :data-text="placeholder"
+      :title="$t('tooltip.clickToEdit')"
+      contentEditable="true"
+      class="py-1 px-2 taskDescriptionToShow"
+      @click="showDescriptionEditor($event)"
+      v-html="inputVal ? urlVerify(inputVal) : inputVal">
+      {{ placeholder }}
+    </div>
+
     <exo-task-editor
       v-if="displayEditor"
       ref="richEditor"
       v-model="inputVal"
       :max-length="MESSAGE_MAX_LENGTH"
       :id="task.id"
-      @counterChanged="disableApply"
+      @counterChanged="updateButtonEnablement"
       :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)" />
 
     <v-btn
-      v-if="task.id!=null"
-      id="apply-btn"
+      v-if="task.id!=null && displayEditor"
+      id="saveDescriptionButton"
       depressed
       outlined
-      class="btn mt-1 ml-auto d-flex"
+      class="btn mt-1 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
       :disabled="buttonOff"
       @click="saveDescription(inputVal)"
     >
-      Apply
+      Save
     </v-btn>
   </div>
 </template>
@@ -69,7 +79,7 @@ export default {
       MESSAGE_MAX_LENGTH: 2000,
       inputVal: this.value,
       editorReady: false,
-      showEditor: true,
+      showEditor: false,
       buttonOff: false,
 
     };
@@ -132,15 +142,12 @@ export default {
     });
   },
   methods: {
-    disableApply (val){
+    updateButtonEnablement (val){
       this.buttonOff = !(val<= this.MESSAGE_MAX_LENGTH);
+      this.$emit('counterChanged',val);
     },
     saveDescription: function (newValue) {
-      let pureText = newValue ? newValue.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
-      const div = document.createElement('div');
-      div.innerHTML = pureText;
-      pureText = div.textContent || div.innerText || '';
-      newValue = pureText;
+
       if (newValue){
         newValue = newValue.replace('&nbsp;',' ');
       }
