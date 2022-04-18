@@ -60,28 +60,29 @@ export default {
     maxLength: {
       type: Number,
       default: -1
-    }
+    },
   },
   data() {
     return {
       SMARTPHONE_LANDSCAPE_WIDTH: 768,
       descriptionTaskContent: '',
       inputVal: this.value,
-      charsCount: 0,
       editorReady: false,
     };
   },
-  watch: {
-    charsCount(val){
-      this.$emit('counterChanged',val);
+  computed: {
+    charsCount() {
+      const pureText = this.$utils.htmlToText(this.inputVal);
+      return pureText.length;
     },
+  },
+  watch: {
     inputVal(val) {
       this.$emit('input', val);
     },
     value(val) {
-
       for (const instances in CKEDITOR.instances){
-        if (CKEDITOR.instances[instances].element.$.id===this.descriptionTaskContent){
+        if (CKEDITOR.instances[instances].element.$.id === this.descriptionTaskContent) {
           const editorData = CKEDITOR.instances[instances].getData();
           // watch value to reset the editor value if the value has been updated by the component parent
           if (editorData != null && val !== editorData) {
@@ -94,7 +95,6 @@ export default {
           }
         }
       }
-
     },
     reset() {
       CKEDITOR.instances[this.descriptionTaskContent].destroy(true);
@@ -142,18 +142,10 @@ export default {
           },
           change: function(evt) {
             const newData = evt.editor.getData();
-
             self.inputVal = newData;
-
-            let pureText = newData ? newData.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
-            const div = document.createElement('div');
-            div.innerHTML = pureText;
-            pureText = div.textContent || div.innerText || '';
-            self.charsCount = pureText.length;
           },
           destroy: function () {
             self.inputVal = '';
-            self.charsCount = 0;
           }
         }
       });

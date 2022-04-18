@@ -25,29 +25,26 @@
       contentEditable="true"
       class="py-1 px-2 taskDescriptionToShow"
       @click="showDescriptionEditor($event)"
-      v-html="inputVal ? urlVerify(inputVal) : inputVal">
+      v-sanitized-html="value">
       {{ placeholder }}
     </div>
-
     <exo-task-editor
       v-if="displayEditor"
       ref="richEditor"
       v-model="inputVal"
       :max-length="MESSAGE_MAX_LENGTH"
       :id="task.id"
-      @counterChanged="updateButtonEnablement"
       :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)" />
-
     <v-btn
-      v-if="task.id!=null && displayEditor"
+      v-if="task.id && displayEditor"
       id="saveDescriptionButton"
+      :loading="savingDescription"
+      :disabled="saveDescriptionButtonDisabled"
       depressed
       outlined
       class="btn mt-1 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
-      :disabled="buttonOff"
-      @click="saveDescription(inputVal)"
-    >
-      Save
+      @click="saveDescription">
+      {{ $t('label.apply') }}
     </v-btn>
   </div>
 </template>
@@ -77,20 +74,22 @@ export default {
   data() {
     return {
       MESSAGE_MAX_LENGTH: 2000,
-      inputVal: this.value,
+      inputVal: '',
       editorReady: false,
       showEditor: false,
-      buttonOff: false,
-
+      savingDescription: false,
     };
   },
   computed: {
-    taskDescription () {
-      return this.task && this.task.id && this.task.description || '';
+    saveDescriptionButtonDisabled() {
+      return this.savingDescription || this.inputVal?.length > this.MESSAGE_MAX_LENGTH;
+    },
+    taskDescription() {
+      return this.task?.description || '';
     },
     displayEditor() {
       return this.showEditor;
-    }
+    },
   },
   watch: {
     inputVal(val) {
@@ -103,9 +102,9 @@ export default {
           CKEDITOR.instances['descriptionContent'].setData(val);
         }
       }
-    },
-    value() {
-      this.inputVal = this.taskDescription;
+      if (this.editorReady) {
+        this.$emit('input', val);
+      }
     },
     editorReady(val) {
       const ckeContent = document.querySelectorAll('[id=cke_descriptionContent]');
@@ -117,14 +116,15 @@ export default {
           }
         }
         document.getElementById('taskDescriptionId').classList.remove('taskDescription');
-        CKEDITOR.instances['descriptionContent'].focus(true);
+        if (CKEDITOR.instances['descriptionContent']) {
+          CKEDITOR.instances['descriptionContent'].focus(true);
+        }
       } else {
         for (let i = 0; i < ckeContent.length; i++) {
           ckeContent[i].classList.add('hiddenEditor');
           document.getElementById('taskDescriptionId').classList.add('taskDescription');
         }
       }
-      this.saveDescription(this.inputVal);
     },
     reset() {
       CKEDITOR.instances['descriptionContent'].destroy(true);
@@ -140,33 +140,32 @@ export default {
       this.$emit('addTaskDescription',this.inputVal);
       this.editorReady = false;
     });
+    this.inputVal = this.value || '';
   },
   methods: {
-    updateButtonEnablement (val){
-      this.buttonOff = !(val<= this.MESSAGE_MAX_LENGTH);
-      this.$emit('counterChanged',val);
-    },
-    saveDescription: function (newValue) {
+    saveDescription() {
+      const newValue = this.inputVal?.replace('&nbsp;',' ');
+      if (this.task.id && !isNaN(this.task.id)) {
+        this.savingDescription = true;
 
-      if (newValue){
-        newValue = newValue.replace('&nbsp;',' ');
-      }
-      if (newValue !== this.taskDescription && newValue !== this.task.description) {
-        if (this.task.id && !isNaN(this.task.id)){
-          this.task.description = newValue;
-          this.$taskDrawerApi.updateTask(this.task.id ,this.task)
-            .then( () => {
-              this.$root.$emit('show-alert', {
-                type: 'success',
-                message: this.$t('alert.success.task.description')
-              });
-              this.$root.$emit('task-description-updated', this.task);
-            }).catch(e => {
-              console.error('Error when updating task\'s descriprion', e);
-              this.$root.$emit('show-alert',{type: 'error',message: this.$t('alert.error')} );
+        const task = JSON.parse(JSON.stringify(this.task));
+        task.description = newValue;
+        this.$taskDrawerApi.updateTask(this.task.id , task)
+          .then(() => {
+            this.task.description = newValue;
+            this.$root.$emit('show-alert', {
+              type: 'success',
+              message: this.$t('alert.success.task.description')
             });
-        }
-        //this.inputVal = '';
+            this.$root.$emit('task-description-updated', this.task);
+            this.editorReady = false;
+            this.showEditor = false;
+          }).catch(() => {
+            this.$root.$emit('show-alert',{
+              type: 'error',
+              message: this.$t('alert.error')
+            });
+          }).finally(() => this.savingDescription = false);
       }
     },
     initCKEditor: function () {
@@ -181,7 +180,6 @@ export default {
       const self = this;
       $(this.$refs.editor).ckeditor({
         customConfig: '/commons-extension/ckeditorCustom/config.js',
-        //removePlugins: 'suggester,simpleLink,confighelper',
         extraPlugins: extraPlugins,
         removePlugins: 'confirmBeforeReload,maximize,resize',
         toolbarLocation: 'bottom',
@@ -197,20 +195,23 @@ export default {
             self.inputVal = newData;
           },
           destroy: function () {
-            self.inputVal = '';
             self.editorReady = false;
+            self.inputVal = '';
           }
         },
       });
     },
+    hideDescriptionEditor() {
+      this.editorReady = false;
+      this.showEditor = false;
+    },
     showDescriptionEditor: function (event) {
-      this.showEditor = !this.showEditor;
-      const target = $( event.target );
-      if ( target.is( 'a' ) ) {
-        const url = target[0].href;
-        window.open(url, '_blank');
-      } else {
-        this.editorReady = !this.editorReady;
+      if (!this.showEditor && event?.target?.nodeName !== 'A') {
+        this.inputVal = this.value;
+        this.editorReady = true;
+        this.showEditor = true;
+      } else if (event?.target?.nodeName === 'A') {
+        window.open(event.target.href, '_blank');
       }
     },
     urlVerify(text) {
