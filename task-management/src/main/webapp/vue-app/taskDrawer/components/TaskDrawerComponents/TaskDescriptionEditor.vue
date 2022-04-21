@@ -28,15 +28,29 @@
       v-sanitized-html="value">
       {{ placeholder }}
     </div>
-    <exo-task-editor
-      v-if="displayEditor"
-      ref="richEditor"
-      v-model="inputVal"
-      :max-length="MESSAGE_MAX_LENGTH"
-      :id="task.id"
-      :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)" />
+
+      <textarea
+        id="descriptionContent"
+        ref="editor"
+        v-model="value"
+        class="d-none"
+        cols="30"
+        rows="10"></textarea>
+
+      <div
+        v-if="displayEditor && editorReady"
+        :class="charsCount > MESSAGE_MAX_LENGTH ? 'tooManyChars' : ''"
+        class="activityCharsCount flex d-flex justify-end"
+        style="">
+        {{ charsCount }}/{{MESSAGE_MAX_LENGTH}}
+      <i class="uiIconMessageLength"></i>
+      </div>
+
+
+
+
     <v-btn
-      v-if="task.id && displayEditor"
+      v-if="task.id && displayEditor && editorReady"
       id="saveDescriptionButton"
       :loading="savingDescription"
       :disabled="saveDescriptionButtonDisabled"
@@ -44,8 +58,9 @@
       outlined
       class="btn mt-1 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
       @click="saveDescription">
-      {{ $t('label.apply') }}
+    {{ $t('label.apply') }}
     </v-btn>
+
   </div>
 </template>
 
@@ -55,10 +70,6 @@ export default {
     value: {
       type: String,
       default: ''
-    },
-    reset: {
-      type: Boolean,
-      default: false
     },
     placeholder: {
       type: String,
@@ -81,6 +92,10 @@ export default {
     };
   },
   computed: {
+    charsCount() {
+      const pureText = this.$utils.htmlToText(this.value);
+      return pureText.length;
+    },
     saveDescriptionButtonDisabled() {
       return this.savingDescription || this.inputVal?.length > this.MESSAGE_MAX_LENGTH;
     },
@@ -127,18 +142,17 @@ export default {
       }
     },
     reset() {
-      CKEDITOR.instances['descriptionContent'].destroy(true);
-      this.editorReady = false;
+      this.hideDescriptionEditor();
     },
   },
   created() {
     this.$root.$off('drawerClosed');
     this.$root.$on('drawerClosed', () => {
-      this.editorReady = false;
+      this.hideDescriptionEditor();
     });
     document.addEventListener('onAddTask', () => {
       this.$emit('addTaskDescription',this.inputVal);
-      this.editorReady = false;
+      this.hideDescriptionEditor();
     });
     this.inputVal = this.value || '';
   },
@@ -158,8 +172,7 @@ export default {
               message: this.$t('alert.success.task.description')
             });
             this.$root.$emit('task-description-updated', this.task);
-            this.editorReady = false;
-            this.showEditor = false;
+            this.hideDescriptionEditor();
           }).catch(() => {
             this.$root.$emit('show-alert',{
               type: 'error',
@@ -188,7 +201,7 @@ export default {
         on: {
           blur: function () {
             $(document.body).trigger('click');
-            self.editorReady = false;
+            self.hideDescriptionEditor();
           },
           change: function(evt) {
             const newData = evt.editor.getData();
@@ -196,12 +209,16 @@ export default {
           },
           destroy: function () {
             self.editorReady = false;
+            self.showEditor = false;
             self.inputVal = '';
           }
         },
       });
     },
     hideDescriptionEditor() {
+      if (CKEDITOR.instances['descriptionContent']) {
+        CKEDITOR.instances['descriptionContent'].destroy(true);
+      }
       this.editorReady = false;
       this.showEditor = false;
     },
