@@ -29,22 +29,22 @@
       {{ placeholder }}
     </div>
 
-      <textarea
-        id="descriptionContent"
-        ref="editor"
-        v-model="value"
-        class="d-none"
-        cols="30"
-        rows="10"></textarea>
+    <textarea
+      id="descriptionContent"
+      ref="editor"
+      v-model="value"
+      class="d-none"
+      cols="30"
+      rows="10"></textarea>
 
-      <div
-        v-if="displayEditor && editorReady"
-        :class="charsCount > MESSAGE_MAX_LENGTH ? 'tooManyChars' : ''"
-        class="activityCharsCount flex d-flex justify-end"
-        style="">
-        {{ charsCount }}/{{MESSAGE_MAX_LENGTH}}
+    <div
+      v-if="displayEditor && editorReady"
+      :class="charsCount > MESSAGE_MAX_LENGTH ? 'tooManyChars' : ''"
+      class="activityCharsCount flex d-flex justify-end"
+      style="">
+      {{ charsCount }}/{{ MESSAGE_MAX_LENGTH }}
       <i class="uiIconMessageLength"></i>
-      </div>
+    </div>
 
 
 
@@ -58,9 +58,8 @@
       outlined
       class="btn mt-1 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
       @click="saveDescription">
-    {{ $t('label.apply') }}
+      {{ $t('label.apply') }}
     </v-btn>
-
   </div>
 </template>
 

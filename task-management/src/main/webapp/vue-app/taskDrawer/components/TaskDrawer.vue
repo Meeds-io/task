@@ -256,8 +256,6 @@ export default {
       taskSpace: {},
       taskTitle: null,
       taskDescription: null,
-      descriptionValid: false,
-      buttonOff: false,
     };
   },
   computed: {
@@ -350,9 +348,7 @@ export default {
     document.removeEventListener('keyup', this.escapeKeyListener);
   },
   methods: {
-    saveButtonEnablement(val) {
-      this.buttonOff = val > this.MESSAGE_MAX_LENGTH;
-    },
+
     closePriority() {
       document.dispatchEvent(new CustomEvent('closePriority'));
     },
