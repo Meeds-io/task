@@ -32,7 +32,7 @@
       right
       @closed="onCloseDrawer">
       <template 
-        v-if="task.id!=null" 
+        v-if="task.id" 
         slot="title">
         <div class="drawerTitleAndProject d-flex">
           <i
@@ -93,17 +93,17 @@
             </v-btn>
             <v-textarea
               ref="autoFocusInput4"
-              v-model="task.title"
+              v-model="taskTitle"
               :class="{taskCompleted: task.completed}"
               :placeholder="$t('label.tapTask.name')"
-              :autofocus="task && task.id === null"
+              :autofocus="!task || !task.id"
               type="text"
               class="ps-0 pt-0 task-name"
               auto-grow
               rows="1"
               row-height="13"
               required
-              @change="updateTaskTitle()" />
+              @change="updateTaskTitle" />
           </div>
           <div
             v-if="task && task && task.id"
@@ -145,9 +145,8 @@
           <v-divider class="my-0" />
           <div class="taskDescription py-4">
             <task-description-editor
+              v-model="taskDescription"
               :task="task"
-              v-model="task.description"
-              :value="task.description"
               :placeholder="$t('editinline.taskDescription.empty')"
               @addTaskDescription="addTaskDescription($event)" />
           </div>
@@ -169,7 +168,7 @@
             class="d-flex" />
           <v-divider class="my-0" />
           <v-flex
-            v-if="task.id!=null"
+            v-if="task.id"
             xs12
             class="pt-2 taskCommentsAndChanges">
             <task-view-all-comments
@@ -228,7 +227,6 @@ export default {
       chips: [],
       autoSaveDelay: 1000,
       saveDescription: '',
-      taskTitle_: '',
       logs: [],
       comments: [],
       subEditorIsOpen: false,
@@ -244,7 +242,7 @@ export default {
       enableDelete: false,
       enableClone: false,
       currentUserName: eXo.env.portal.userName,
-      MESSAGE_MAX_LENGTH: 1250,
+      MESSAGE_MAX_LENGTH: 2000,
       dateTimeFormat: {
         year: 'numeric',
         month: 'long',
@@ -256,6 +254,8 @@ export default {
       oldTask: {},
       showBackArrow: false,
       taskSpace: {},
+      taskTitle: null,
+      taskDescription: null,
     };
   },
   computed: {
@@ -268,14 +268,15 @@ export default {
       }
       return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/taskDetail/${this.task.id}`;
     },
-    taskTitle() {
-      return this.task && this.task.title;
-    },
     taskTitleValid() {
-      return this.taskTitle && this.taskTitle.trim() && this.taskTitle.trim().length >= 3 && this.taskTitle.length < 1024;
+      return  this.taskTitle?.trim().length >= 3 && this.taskTitle.length < 1024;
+    },
+    taskDescriptionValid() {
+      const taskDescriptionText = this.$utils.htmlToText(this.taskDescription);
+      return !taskDescriptionText || taskDescriptionText.length < 2000;
     },
     disableSaveButton() {
-      return this.saving || !this.taskTitleValid;
+      return this.saving || !this.taskTitleValid || !this.taskDescriptionValid;
     },
     lastTaskChangesLog() {
       return this.logs && this.logs.length && this.logs[0].createdTime || '';
@@ -347,6 +348,7 @@ export default {
     document.removeEventListener('keyup', this.escapeKeyListener);
   },
   methods: {
+
     closePriority() {
       document.dispatchEvent(new CustomEvent('closePriority'));
     },
@@ -366,23 +368,23 @@ export default {
       document.dispatchEvent(new CustomEvent('closeAssignments'));
     },
     updateTaskTitle() {
-      if (this.oldTask.title!==this.task.title){
-        if (!this.task.title || this.task.title.length===0 ){
+      if (this.task.id && this.oldTask.title !== this.taskTitle) {
+        if (!this.taskTitle || !this.taskTitle.length) {
           this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.mandatory')});
-        } else if (!this.taskTitleValid){
+        } else if (!this.taskTitleValid) {
           this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.length')});
-        } else if (this.task.id != null) {
-          this.$taskDrawerApi.updateTask(this.task.id, this.task).then(() => {
-            this.taskTitle_ = this.task.title;
-            this.oldTask.title = this.task.title;
-            this.$root.$emit('task-updated', this.task);
-            this.$root.$emit('show-alert', {
-              type: 'success',
-              message: this.$t('alert.success.task.title')
-            });
-          })
-            .catch(e => {
-              this.task.title = this.taskTitle_;
+        } else {
+          const task = JSON.parse(JSON.stringify(this.task));
+          task.title = this.taskTitle;
+          this.$taskDrawerApi.updateTask(this.task.id, task)
+            .then(() => {
+              this.task.title = this.oldTask.title = this.taskTitle;
+              this.$root.$emit('show-alert', {
+                type: 'success',
+                message: this.$t('alert.success.task.title')
+              });
+              this.$root.$emit('task-updated', JSON.parse(JSON.stringify(this.task)));
+            }).catch(e => {
               console.error('Error when updating task\'s title', e);
               this.$root.$emit('show-alert', {
                 type: 'error',
@@ -390,6 +392,8 @@ export default {
               });
             });
         }
+      } else if (!this.task.id) {
+        this.task.title = this.oldTask.title = this.taskTitle;
       }
     },
     updateCompleted() {
@@ -537,6 +541,7 @@ export default {
     },
     addTask() {
       document.dispatchEvent(new CustomEvent('onAddTask'));
+      this.task.description = this.taskDescription;
       this.task.coworker = this.taskCoworkers;
       this.task.assignee = this.assignee;
       this.task.startDate = this.taskStartDate;
@@ -653,9 +658,10 @@ export default {
       window.open(`${ eXo.env.portal.context }/${ eXo.env.portal.portalName }/${ pagelink }`, '_blank');
     },
     open(task) {
-      this.oldTask= Object.assign({}, task);
-      this.taskTitle_= task.title;
-      this.task = task;
+      this.oldTask = task;
+      this.task = JSON.parse(JSON.stringify(task));
+      this.taskTitle = this.task.title;
+      this.taskDescription = this.task.description;
       this.taskCoworkers= null;
       this.assignee= null;
       this.taskStartDate= null;
@@ -702,7 +708,6 @@ export default {
       this.$refs.addTaskDrawer.close();
     },
     onCloseDrawer() {
-      this.task.title = this.taskTitle_;
       this.$root.$emit('task-drawer-closed', this.task);
       this.showEditor = false;
       this.task = {};

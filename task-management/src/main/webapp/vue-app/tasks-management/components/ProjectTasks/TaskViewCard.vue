@@ -183,6 +183,11 @@ export default {
     },
   },
   created() {
+    this.$root.$on('task-updated', task => {
+      if (this.task?.task?.id === task?.id) {
+        this.task.task = task;
+      }
+    });
     this.$root.$on('update-completed-task', (value, id) => {
       if (this.task.id === id) {
         this.task.task.completed = value;
