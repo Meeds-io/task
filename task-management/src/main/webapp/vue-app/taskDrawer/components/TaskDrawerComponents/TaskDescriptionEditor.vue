@@ -46,9 +46,6 @@
       <i class="uiIconMessageLength"></i>
     </div>
 
-
-
-
     <v-btn
       v-if="task.id && displayEditor && editorReady"
       id="saveDescriptionButton"
@@ -60,6 +57,7 @@
       @click="saveDescription">
       {{ $t('label.apply') }}
     </v-btn>
+
   </div>
 </template>
 
@@ -104,6 +102,7 @@ export default {
     displayEditor() {
       return this.showEditor;
     },
+
   },
   watch: {
     inputVal(val) {
