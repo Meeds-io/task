@@ -100,6 +100,13 @@ export default {
       return `${this.task.status.project.color  }_border`;
     }
   },
+  created() {
+    this.$root.$on('task-updated', task => {
+      if (this.task?.task?.id === task?.id) {
+        this.task.task = task;
+      }
+    });
+  },
   methods: {
     dateFormatter(dueDate) {
       if (dueDate) {
