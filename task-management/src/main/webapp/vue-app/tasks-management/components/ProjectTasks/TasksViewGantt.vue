@@ -108,7 +108,9 @@ export default {
       const tasksInGantt = this.getTasksToDisplay(taskItems);
       if ( this.tasksToDisplay && this.tasksToDisplay.length && tasksInGantt.length > this.tasksToDisplay.length) {
         this.tasksToDisplay.push(tasksInGantt[tasksInGantt.length-1]);
-        this.gantt.refresh(this.tasksToDisplay);
+        if (this.gantt) {
+          this.gantt.refresh(this.tasksToDisplay);
+        }
       }
       this.$root.$emit('refresh-unscheduled-gantt',this.unscheduledTaskList);
     });
@@ -122,7 +124,11 @@ export default {
       this.tasksToDisplay = this.getTasksToDisplay(this.tasks);
       this.$root.$emit('refresh-unscheduled-gantt',this.unscheduledTaskList);
       if (this.ganttTasks > 0 ) {
-        this.gantt.refresh(this.tasksToDisplay);
+        this.$nextTick().then(() => {
+          if (this.gantt) {
+            this.gantt.refresh(this.tasksToDisplay);
+          }
+        });
       }
     });
   },
