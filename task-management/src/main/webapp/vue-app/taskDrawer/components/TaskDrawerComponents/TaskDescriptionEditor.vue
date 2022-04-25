@@ -94,7 +94,7 @@ export default {
       return pureText.length;
     },
     saveDescriptionButtonDisabled() {
-      return this.savingDescription || this.inputVal?.length > this.MESSAGE_MAX_LENGTH;
+      return this.savingDescription || this.charsCount > this.MESSAGE_MAX_LENGTH;
     },
     taskDescription() {
       return this.task?.description || '';

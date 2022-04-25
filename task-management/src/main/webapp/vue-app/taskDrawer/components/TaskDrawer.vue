@@ -273,7 +273,7 @@ export default {
     },
     taskDescriptionValid() {
       const taskDescriptionText = this.$utils.htmlToText(this.taskDescription);
-      return !taskDescriptionText || taskDescriptionText.length < 2000;
+      return !taskDescriptionText || taskDescriptionText.length <= 2000;
     },
     disableSaveButton() {
       return this.saving || !this.taskTitleValid || !this.taskDescriptionValid;
