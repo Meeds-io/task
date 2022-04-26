@@ -505,4 +505,11 @@
     <createSequence sequenceName="SEQ_TASK_LABELS_LABEL_ID" startValue="1" />
   </changeSet>
 
+  <!-- Update the size of DESCRIPTION column for the table TASK_TASKS -->
+  <changeSet author="task" id="1.0.0-34">
+    <modifyDataType columnName="DESCRIPTION"
+                    newDataType="NVARCHAR(4000)"
+                    tableName="TASK_TASKS"/>
+  </changeSet>
+
 </databaseChangeLog>

@@ -25,16 +25,39 @@
       contentEditable="true"
       class="py-1 px-2 taskDescriptionToShow"
       @click="showDescriptionEditor($event)"
-      v-html="inputVal ? urlVerify(inputVal) : inputVal">
+      v-sanitized-html="value">
       {{ placeholder }}
     </div>
+
     <textarea
       id="descriptionContent"
       ref="editor"
-      v-model="inputVal"
+      v-model="value"
       class="d-none"
       cols="30"
       rows="10"></textarea>
+
+    <div
+      v-if="displayEditor && editorReady"
+      :class="charsCount > MESSAGE_MAX_LENGTH ? 'tooManyChars' : ''"
+      class="activityCharsCount flex d-flex justify-end"
+      style="">
+      {{ charsCount }}/{{ MESSAGE_MAX_LENGTH }}
+      <i class="uiIconMessageLength"></i>
+    </div>
+
+    <v-btn
+      v-if="task.id && displayEditor && editorReady"
+      id="saveDescriptionButton"
+      :loading="savingDescription"
+      :disabled="saveDescriptionButtonDisabled"
+      depressed
+      outlined
+      class="btn mt-1 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
+      @click="saveDescription">
+      {{ $t('label.apply') }}
+    </v-btn>
+
   </div>
 </template>
 
@@ -44,10 +67,6 @@ export default {
     value: {
       type: String,
       default: ''
-    },
-    reset: {
-      type: Boolean,
-      default: false
     },
     placeholder: {
       type: String,
@@ -62,14 +81,28 @@ export default {
   },
   data() {
     return {
-      inputVal: this.value,
-      editorReady: false
+      MESSAGE_MAX_LENGTH: 2000,
+      inputVal: '',
+      editorReady: false,
+      showEditor: false,
+      savingDescription: false,
     };
   },
   computed: {
-    taskDescription () {
-      return this.task && this.task.id && this.task.description || '';
-    }
+    charsCount() {
+      const pureText = this.$utils.htmlToText(this.value);
+      return pureText.length;
+    },
+    saveDescriptionButtonDisabled() {
+      return this.savingDescription || this.charsCount > this.MESSAGE_MAX_LENGTH;
+    },
+    taskDescription() {
+      return this.task?.description || '';
+    },
+    displayEditor() {
+      return this.showEditor;
+    },
+
   },
   watch: {
     inputVal(val) {
@@ -82,9 +115,9 @@ export default {
           CKEDITOR.instances['descriptionContent'].setData(val);
         }
       }
-    },
-    value() {
-      this.inputVal = this.taskDescription;
+      if (this.editorReady) {
+        this.$emit('input', val);
+      }
     },
     editorReady(val) {
       const ckeContent = document.querySelectorAll('[id=cke_descriptionContent]');
@@ -96,52 +129,54 @@ export default {
           }
         }
         document.getElementById('taskDescriptionId').classList.remove('taskDescription');
-        CKEDITOR.instances['descriptionContent'].focus(true);
+        if (CKEDITOR.instances['descriptionContent']) {
+          CKEDITOR.instances['descriptionContent'].focus(true);
+        }
       } else {
         for (let i = 0; i < ckeContent.length; i++) {
           ckeContent[i].classList.add('hiddenEditor');
           document.getElementById('taskDescriptionId').classList.add('taskDescription');
         }
       }
-      this.saveDescription(this.inputVal);
     },
     reset() {
-      CKEDITOR.instances['descriptionContent'].destroy(true);
-      this.editorReady = false;
+      this.hideDescriptionEditor();
     },
   },
   created() {
     this.$root.$off('drawerClosed');
     this.$root.$on('drawerClosed', () => {
-      this.saveDescription(this.inputVal);
-      this.editorReady = false;
+      this.hideDescriptionEditor();
     });
     document.addEventListener('onAddTask', () => {
       this.$emit('addTaskDescription',this.inputVal);
-      this.editorReady = false;
+      this.hideDescriptionEditor();
     });
+    this.inputVal = this.value || '';
   },
   methods: {
-    saveDescription: function (newValue) {
-      if (newValue){
-        newValue = newValue.replace('&nbsp;',' ');
-      }
-      if (newValue !== this.taskDescription && newValue !== this.task.description) {
-        if (this.task.id && !isNaN(this.task.id)){
-          this.task.description = newValue;
-          this.$taskDrawerApi.updateTask(this.task.id ,this.task)
-            .then( () => {
-              this.$root.$emit('show-alert', {
-                type: 'success',
-                message: this.$t('alert.success.task.description')
-              });
-              this.$root.$emit('task-description-updated', this.task);
-            }).catch(e => {
-              console.error('Error when updating task\'s descriprion', e);
-              this.$root.$emit('show-alert',{type: 'error',message: this.$t('alert.error')} );
+    saveDescription() {
+      const newValue = this.inputVal?.replace('&nbsp;',' ');
+      if (this.task.id && !isNaN(this.task.id)) {
+        this.savingDescription = true;
+
+        const task = JSON.parse(JSON.stringify(this.task));
+        task.description = newValue;
+        this.$taskDrawerApi.updateTask(this.task.id , task)
+          .then(() => {
+            this.task.description = newValue;
+            this.$root.$emit('show-alert', {
+              type: 'success',
+              message: this.$t('alert.success.task.description')
             });
-        }
-        //this.inputVal = '';
+            this.$root.$emit('task-description-updated', this.task);
+            this.hideDescriptionEditor();
+          }).catch(() => {
+            this.$root.$emit('show-alert',{
+              type: 'error',
+              message: this.$t('alert.error')
+            });
+          }).finally(() => this.savingDescription = false);
       }
     },
     initCKEditor: function () {
@@ -156,7 +191,6 @@ export default {
       const self = this;
       $(this.$refs.editor).ckeditor({
         customConfig: '/commons-extension/ckeditorCustom/config.js',
-        //removePlugins: 'suggester,simpleLink,confighelper',
         extraPlugins: extraPlugins,
         removePlugins: 'confirmBeforeReload,maximize,resize',
         toolbarLocation: 'bottom',
@@ -165,26 +199,34 @@ export default {
         on: {
           blur: function () {
             $(document.body).trigger('click');
-            self.editorReady = false;
+            self.hideDescriptionEditor();
           },
           change: function(evt) {
             const newData = evt.editor.getData();
             self.inputVal = newData;
           },
           destroy: function () {
-            self.inputVal = '';
             self.editorReady = false;
+            self.showEditor = false;
+            self.inputVal = '';
           }
         },
       });
     },
+    hideDescriptionEditor() {
+      if (CKEDITOR.instances['descriptionContent']) {
+        CKEDITOR.instances['descriptionContent'].destroy(true);
+      }
+      this.editorReady = false;
+      this.showEditor = false;
+    },
     showDescriptionEditor: function (event) {
-      const target = $( event.target );
-      if ( target.is( 'a' ) ) {
-        const url = target[0].href;
-        window.open(url, '_blank');
-      } else {
-        this.editorReady = !this.editorReady;
+      if (!this.showEditor && event?.target?.nodeName !== 'A') {
+        this.inputVal = this.value;
+        this.editorReady = true;
+        this.showEditor = true;
+      } else if (event?.target?.nodeName === 'A') {
+        window.open(event.target.href, '_blank');
       }
     },
     urlVerify(text) {
