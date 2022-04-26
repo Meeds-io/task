@@ -137,8 +137,12 @@ export default {
     };
   },
   computed: {
-    taskDueDate() {
-      return this.task && this.task.task.dueDate && this.task.task.dueDate.time;
+    taskDueDate() { 
+      if (this.task?.task?.dueDate?.time) {
+        const formattedDate = `${this.task.task.dueDate.year + 1900}-${this.task.task.dueDate.month + 1}-${this.task.task.dueDate.date}`;
+        return new Date(formattedDate);
+      }
+      return null;
     },
     avatarToDisplay () {
       const usersList = [];
@@ -350,8 +354,7 @@ export default {
         const day = date.getDate();
         const month = date.getMonth()+1;
         const year = date.getFullYear();
-        const formattedTime = `${  year}-${  month  }-${day  }`;
-        return formattedTime;
+        return `${year}-${month}-${day}`;
       }
     },
     getOverdueTask(value){
