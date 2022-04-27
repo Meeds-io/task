@@ -711,6 +711,7 @@ export default {
       this.$root.$emit('task-drawer-closed', this.task);
       this.showEditor = false;
       this.task = {};
+      this.comments = {};
       this.$root.$emit('drawerClosed');
       document.dispatchEvent(new CustomEvent('loadTaskLabels', {
         detail: {}
