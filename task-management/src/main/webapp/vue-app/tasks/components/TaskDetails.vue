@@ -127,7 +127,7 @@ export default {
       case 'LOW':
         return '#2eb58c';
       case 'NONE':
-        return '#578dc9';
+        return '#476A9C';
       }
     },
     openTaskDrawer() {
