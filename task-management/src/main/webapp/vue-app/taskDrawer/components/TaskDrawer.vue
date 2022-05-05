@@ -448,7 +448,7 @@ export default {
       }
     },
     updateTaskStatus(value) {
-      if (value && this.oldTask.status.id!==value.id) {
+      if (value && this.oldTask.status.id !== value.id) {
         if (this.task.id != null) {
           this.task.status = value;
           this.$taskDrawerApi.updateTask(this.task.id, this.task).then( () => {
