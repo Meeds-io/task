@@ -75,7 +75,6 @@ export default {
         this.$taskDrawerApi.getStatusesByProjectId(this.task.status.project.id).then(
           (projectStatuses) => {
             const status = projectStatuses.find(s => s.name === this.taskStatus);
-            this.task.status = status;
             this.$emit('updateTaskStatus',status);
           });
       }
