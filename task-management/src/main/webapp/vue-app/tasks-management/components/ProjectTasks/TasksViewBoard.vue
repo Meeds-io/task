@@ -29,7 +29,9 @@
               ghost-class="ghost-card"
               class="d-flex"
               @start="dragStatus=true"
-              @end="dragStatus=false">
+              @end="dragStatus=false"
+              :options="{handle:'.draggHandler'}"
+              >
               <v-col
                 v-for="(status, index) in statusList"
                 :key="index"
