@@ -17,6 +17,7 @@
 <template>
   <div :id="status.id">
     <tasks-view-header
+      class="draggHandler"
       :status="status"
       :project="project"
       :view-type="'board'"
