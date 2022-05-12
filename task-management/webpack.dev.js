@@ -22,7 +22,7 @@ const webpackCommonConfig = require('./webpack.common.js');
 const app = 'task-management';
 
 // add the server path to your server location path
-const exoServerPath = "/home/exo/amineF/binaries/maintenance-servers/platform-6.4.x-maintenance-SNAPSHOT";
+const exoServerPath = "/exo-server";
 
 let config = merge(webpackCommonConfig, {
   output: {
