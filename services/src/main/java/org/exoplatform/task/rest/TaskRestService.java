@@ -443,7 +443,10 @@ public class TaskRestService implements ResourceContainer {
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
-    if (!TaskUtil.hasEditPermission(taskService,task)) {
+    if (task.getStatus() == null) {
+      task.setStatus(updatedTask.getStatus());
+    }
+    if (!TaskUtil.hasEditPermission(taskService, task)) {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
     task = taskService.updateTask(updatedTask);
