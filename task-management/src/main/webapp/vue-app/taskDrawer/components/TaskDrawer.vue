@@ -318,12 +318,6 @@ export default {
         }, 200);
       }
     });
-    $(document).on('click', (event) => {
-      if (( event.target.className === 'v-overlay__scrim' ) && ( this.isDrawerClose )) {
-        this.$refs.addTaskDrawer.close();
-      }
-    });
-
     document.addEventListener('labelListChanged', event => {
       if (event && event.detail) {
         const label = event.detail;
