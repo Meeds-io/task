@@ -132,10 +132,10 @@ export function addTaskToLabel(taskId, label) {
 export function removeTaskFromLabel(taskId, labelId) {
   return fetch(`/portal/rest/tasks/labels/${taskId}/${labelId}`, {
     credentials: 'include',
-    method: 'delete',
+    method: 'DELETE',
   }).then((resp) => {
     if (resp && resp.ok) {
-      return resp;
+      return;
     } else {
       throw new Error('Error when deleting task from label');
     }
@@ -181,10 +181,10 @@ export function editLabel(label) {
 export function removeLabel(labelId) {
   return fetch(`/portal/rest/tasks/labels/${labelId}`, {
     credentials: 'include',
-    method: 'delete',
+    method: 'DELETE',
   }).then((resp) => {
     if (resp && resp.ok) {
-      return resp;
+      return;
     } else {
       throw new Error('Error when deleting label');
     }
@@ -307,11 +307,11 @@ export function addTaskSubComment(taskId, parentCommentId, comment) {
 
 export function removeTaskComment(commentId) {
   return fetch(`/portal/rest/tasks/comments/${commentId}`, {
-    method: 'delete',
+    method: 'DELETE',
     credentials: 'include',
   }).then((resp) => {
     if (resp && resp.ok) {
-      return resp.json();
+      return;
     } else {
       throw new Error('Error when removing task comment');
     }
