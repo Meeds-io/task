@@ -121,20 +121,22 @@ export default {
       }
     },
     removeTaskComment() {
-      this.$taskDrawerApi.removeTaskComment(this.commentToDelete);
-      this.comments.forEach((comment,index) => {
-        if ( comment === this.comment) {
-          if ( this.comment.comment.id === this.commentToDelete ) {
-            this.comments.splice(index, 1);
-          } else {
-            comment.subComments.forEach((subComment,index) => {
-              if ( subComment.comment.id === this.commentToDelete) {
-                this.comment.subComments.splice(index,1);
+      this.$taskDrawerApi.removeTaskComment(this.commentToDelete)
+        .then(() => {
+          this.comments.forEach((comment,index) => {
+            if ( comment === this.comment) {
+              if ( this.comment.comment.id === this.commentToDelete ) {
+                this.comments.splice(index, 1);
+              } else {
+                comment.subComments.forEach((subComment,index) => {
+                  if ( subComment.comment.id === this.commentToDelete) {
+                    this.comment.subComments.splice(index,1);
+                  }
+                });
               }
-            });
-          }
-        }
-      });
+            }
+          });
+        });
       this.$emit('confirmDialogClosed');
     },
     displayCommentDate(dateTimeValue) {
