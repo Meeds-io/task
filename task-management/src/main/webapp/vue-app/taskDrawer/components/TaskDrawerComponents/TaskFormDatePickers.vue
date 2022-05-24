@@ -225,7 +225,7 @@ export default {
             this.startDate = this.toDate(this.actualTask.startDate.time);
           });
         }
-        if (this.actualTask.dueDate!=null) {
+        if (this.actualTask.dueDate) {
           this.$nextTick().then(() => {
             this.dueDate = this.toDate(this.actualTask.dueDate.time);
           });
