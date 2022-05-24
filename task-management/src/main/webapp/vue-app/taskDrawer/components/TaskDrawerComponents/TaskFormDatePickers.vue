@@ -220,14 +220,14 @@ export default {
       if (this.actualTask.id!=null) {
         this.startDate = null;
         this.dueDate = null;
-        if (this.actualTask.startDate!=null) {
+        if (this.actualTask.startDate) {
           this.$nextTick().then(() => {
-            this.startDate = this.toDate(this.actualTask.startDate);
+            this.startDate = this.toDate(this.actualTask.startDate.time);
           });
         }
-        if (this.actualTask.dueDate!=null) {
+        if (this.actualTask.dueDate) {
           this.$nextTick().then(() => {
-            this.dueDate = this.toDate(this.actualTask.dueDate);
+            this.dueDate = this.toDate(this.actualTask.dueDate.time);
           });
         }
       } else {
