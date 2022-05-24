@@ -48,7 +48,7 @@
       <div
         v-else
         class="text-truncate subtitle-2 text-color my-auto">
-        {{ status.name }} <span class="text-truncate subtitle-2 text-color my-auto">({{ tasksNumber }})</span>
+        {{ taskStatusLabel }} <span class="text-truncate subtitle-2 text-color my-auto">({{ tasksNumber }})</span>
       </div>
     </div>
     <v-divider class="mx-1" />
@@ -143,7 +143,21 @@ export default {
     },
     limitTasksToshow() {
       return this.tasksStatsStartValue;
-    }
+    },
+    taskStatusLabel() {
+      switch (this.status && this.status.name) {
+      case 'ToDo':
+        return this.$t('exo.tasks.status.todo');
+      case 'InProgress':
+        return this.$t('exo.tasks.status.inprogress');
+      case 'WaitingOn':
+        return this.$t('exo.tasks.status.waitingon');
+      case 'Done':
+        return this.$t('exo.tasks.status.done');
+      default:
+        return this.status.name;
+      }
+    },
   },
   created() {
     $(document).on('mousedown', () => {
