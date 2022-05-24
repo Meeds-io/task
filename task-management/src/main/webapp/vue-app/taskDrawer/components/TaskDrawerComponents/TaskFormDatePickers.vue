@@ -222,12 +222,12 @@ export default {
         this.dueDate = null;
         if (this.actualTask.startDate!=null) {
           this.$nextTick().then(() => {
-            this.startDate = this.toDate(this.actualTask.startDate);
+            this.startDate = this.toDate(this.actualTask.startDate.time);
           });
         }
         if (this.actualTask.dueDate!=null) {
           this.$nextTick().then(() => {
-            this.dueDate = this.toDate(this.actualTask.dueDate);
+            this.dueDate = this.toDate(this.actualTask.dueDate.time);
           });
         }
       } else {
