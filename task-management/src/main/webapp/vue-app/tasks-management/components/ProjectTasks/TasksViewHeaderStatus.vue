@@ -147,8 +147,7 @@ export default {
     taskStatusLabel() {
       const key = `exo.tasks.status.${this.status?.name.toLowerCase()}`;
       const translatedLabel = this.$t(key);
-      const label = translatedLabel === key && this.status?.name || translatedLabel;
-      return label;
+      return translatedLabel === key && this.status?.name || translatedLabel;
     }
   },
   created() {
