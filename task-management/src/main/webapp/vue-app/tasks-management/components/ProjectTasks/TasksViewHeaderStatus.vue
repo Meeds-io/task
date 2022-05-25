@@ -48,7 +48,7 @@
       <div
         v-else
         class="text-truncate subtitle-2 text-color my-auto">
-        {{ status.name }} <span class="text-truncate subtitle-2 text-color my-auto">({{ tasksNumber }})</span>
+        {{ taskStatusLabel }} <span class="text-truncate subtitle-2 text-color my-auto">({{ tasksNumber }})</span>
       </div>
     </div>
     <v-divider class="mx-1" />
@@ -143,6 +143,11 @@ export default {
     },
     limitTasksToshow() {
       return this.tasksStatsStartValue;
+    },
+    taskStatusLabel() {
+      const key = `exo.tasks.status.${this.status?.name.toLowerCase()}`;
+      const translatedLabel = this.$t(key);
+      return translatedLabel === key && this.status?.name || translatedLabel;
     }
   },
   created() {
