@@ -145,19 +145,11 @@ export default {
       return this.tasksStatsStartValue;
     },
     taskStatusLabel() {
-      switch (this.status && this.status.name) {
-      case 'ToDo':
-        return this.$t('exo.tasks.status.todo');
-      case 'InProgress':
-        return this.$t('exo.tasks.status.inprogress');
-      case 'WaitingOn':
-        return this.$t('exo.tasks.status.waitingon');
-      case 'Done':
-        return this.$t('exo.tasks.status.done');
-      default:
-        return this.status.name;
-      }
-    },
+      const key = `exo.tasks.status.${this.status?.name.toLowerCase()}`;
+      const translatedLabel = this.$t(key);
+      const label = translatedLabel === key && this.status?.name || translatedLabel;
+      return label;
+    }
   },
   created() {
     $(document).on('mousedown', () => {
