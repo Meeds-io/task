@@ -70,6 +70,11 @@ export default {
     document.removeEventListener('loadProjectStatus', this.loadProjectStatus);
   },
   methods: {
+    getI18nStatus(status) {
+      return this.$te(`tasks.status.${status}`) ? this.$t(`tasks.status.${status}`) : this.$te(`tasks.status.${status.toLowerCase()}`)
+                                                && this.$t(`tasks.status.${status.toLowerCase()}`)
+                                                || status;
+    },
     updateTaskStatus() {
       if (this.taskStatus != null) {
         this.$taskDrawerApi.getStatusesByProjectId(this.task.status.project.id).then(
@@ -84,22 +89,7 @@ export default {
         (data) => {
           this.projectStatuses = data;
           for (let i = 0; i < data.length; i++) {
-            switch (data[i].name) {
-            case 'ToDo':
-              this.projectStatuses[i] = {key: 'ToDo', value: this.$t('exo.tasks.status.todo')};
-              break;
-            case 'InProgress':
-              this.projectStatuses[i] = {key: 'InProgress', value: this.$t('exo.tasks.status.inprogress')};
-              break;
-            case 'WaitingOn':
-              this.projectStatuses[i] = {key: 'WaitingOn', value: this.$t('exo.tasks.status.waitingon')};
-              break;
-            case 'Done':
-              this.projectStatuses[i] = {key: 'Done', value: this.$t('exo.tasks.status.done')};
-              break;
-            default:
-              this.projectStatuses[i] = {key: data[i].name, value: data[i].name};
-            }
+            this.projectStatuses[i] = {key: data[i].name, value: this.getI18nStatus(data[i].name)};
           }
         });
     },
