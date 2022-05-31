@@ -40,7 +40,7 @@
     <div
       v-if="displayEditor && editorReady"
       :class="charsCount > MESSAGE_MAX_LENGTH ? 'tooManyChars' : ''"
-      class="activityCharsCount flex d-flex justify-end"
+      class="activityCharsCount"
       style="">
       {{ charsCount }}/{{ MESSAGE_MAX_LENGTH }}
       <i class="uiIconMessageLength"></i>
@@ -53,7 +53,7 @@
       :disabled="saveDescriptionButtonDisabled"
       depressed
       outlined
-      class="btn mt-1 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
+      class="btn mt-2 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
       @click="saveDescription">
       {{ $t('label.apply') }}
     </v-btn>
