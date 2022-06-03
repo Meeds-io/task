@@ -21,6 +21,7 @@
     <div class="commentHeader d-flex">
       <exo-user-avatar 
         :profile-id="comment.author.username"
+        :key="comment.comment.id"
         :size="30"
         :extra-class="'position-relative overflow-hidden'"
         bold-title
