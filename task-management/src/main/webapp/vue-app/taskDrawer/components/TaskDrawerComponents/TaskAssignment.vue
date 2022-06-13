@@ -131,7 +131,7 @@ export default {
     suggesterLabels() {
       return {
         placeholder: this.$t('label.assignee'),
-        noDataLabel: this.$t('label.noDataLabel'),
+        noDataLabel: this.$t('label.noResultLabel'),
       };
     },
     searchOptions() {
