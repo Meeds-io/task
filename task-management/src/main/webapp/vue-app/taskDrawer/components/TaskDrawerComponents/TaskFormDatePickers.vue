@@ -220,14 +220,14 @@ export default {
       if (this.actualTask.id!=null) {
         this.startDate = null;
         this.dueDate = null;
-        if (this.actualTask.startDate) {
+        if (this.actualTask.startDate != null) {
           this.$nextTick().then(() => {
-            this.startDate = this.toDate(this.actualTask.startDate.time);
+            this.startDate = this.toDate(this.actualTask.startDate);
           });
         }
-        if (this.actualTask.dueDate) {
+        if (this.actualTask.dueDate != null) {
           this.$nextTick().then(() => {
-            this.dueDate = this.toDate(this.actualTask.dueDate.time);
+            this.dueDate = this.toDate(this.actualTask.dueDate);
           });
         }
       } else {
@@ -246,7 +246,7 @@ export default {
         }
         return new Date(date);
       } else if (typeof date === 'object') {
-        const formattedDate = `${date.year + 1900}-${date.month + 1}-${date.date}`;
+        const formattedDate = `${date.year + 1900}/${date.month + 1}/${date.date}`;
         return new Date(formattedDate);
       }
     },
