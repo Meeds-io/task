@@ -220,7 +220,7 @@ export default {
       if (this.actualTask.id!=null) {
         this.startDate = null;
         this.dueDate = null;
-        if (this.actualTask.startDate!=null) {
+        if (this.actualTask.startDate != null) {
           this.$nextTick().then(() => {
             this.startDate = this.toDate(this.actualTask.startDate);
           });
