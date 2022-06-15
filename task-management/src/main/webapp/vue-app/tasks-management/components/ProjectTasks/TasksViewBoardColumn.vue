@@ -42,14 +42,15 @@
       v-model="tasksList" 
       :move="checkMove"
       :animation="200"
-      ghost-class="ghost-card"
       class="draggable-palceholder taskBoardColumn"
       handle=".taskBoardCardItem"
       :options="{group:'status'}"
       :class="filterNoActive && 'taskBoardNoFilterColumn'"
-      @end="drag=true">
+      @start="drag=true"
+      @end="updateTaskStatus">
       <task-view-card
         v-for="taskItem in tasksList"
+        :class="{'ghost-card': drag}"
         :key="taskItem.task.id"
         :task="taskItem"
         :show-completed-tasks="showCompletedTasks"
@@ -126,15 +127,14 @@ export default {
       this.closeForm();
     });
   },
-  watch: {
-    drag(val) {
-      if (val&&this.task&&this.newStatus&&this.task.status.name !== this.newStatus){
-        this.$emit('updateTaskStatus', this.task,this.newStatus);
-        Array.from(document.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#FFFFFF');
-        this.drag = false;
-      }},
-  },
   methods: {
+    updateTaskStatus() {
+      if (this.task && this.newStatus && this.task.status.name !== this.newStatus) {
+        this.$emit('updateTaskStatus', this.task,this.newStatus);
+      }
+      Array.from(document.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#FFFFFF');
+      this.drag = false;
+    },
     cancelDrag() {
       if (event.target && !$(event.target).parents(`#${this.idViewCard}`).length) {
         return event.preventDefault ? event.preventDefault() : event.returnValue = false;
