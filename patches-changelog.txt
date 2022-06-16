@@ -1,5 +1,10 @@
               2022-06-16 eXo Support <support@exoplatform.org> 
 
-   # 3.3.0 Patches changelog: 
+   # 6.3.0 Patches changelog:
+    
+   * 2022-06-16: Patch-6.3.0:1, Author: Jihed Chabbeh<jchabbeh@exoplatform.com>
+
+  -  https://github.com/Meeds-io/task/commit/c443356144a6cf56c04c05e5c0a79fa35f8f6540
+  -  https://github.com/Meeds-io/task/commit/22170d73d0aece8f34fc9ac89d102a2312ecf13c
 
 
