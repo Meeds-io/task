@@ -139,7 +139,7 @@ export default {
   computed: {
     taskDueDate() { 
       if (this.task?.task?.dueDate?.time) {
-        const formattedDate = `${this.task.task.dueDate.year + 1900}-${this.task.task.dueDate.month + 1}-${this.task.task.dueDate.date}`;
+        const formattedDate = `${this.task.task.dueDate.year + 1900}/${this.task.task.dueDate.month + 1}/${this.task.task.dueDate.date}`;
         return new Date(formattedDate);
       }
       return null;
