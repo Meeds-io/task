@@ -35,15 +35,19 @@
       <div
         class="taskContentComment"
         v-html="comment.formattedComment"></div>
-      <v-btn
-        id="reply_btn"
-        depressed
-        text
-        small
-        color="primary"
-        @click="openCommentDrawer">
-        {{ $t('comment.message.Reply') }}
-      </v-btn>
+      <div class="py-0 my-1 align-start">
+        <v-btn
+          id="reply_btn"
+          class="pa-0 me-0"
+          text
+          small
+          color="primary"
+          @click="openCommentDrawer">
+          <span>
+            {{ $t('comment.message.Reply') }}
+          </span>
+        </v-btn>
+      </div>
     </div>
     <div v-if="comment.subComments && comment.subComments.length" class="py-0 TaskSubComments">
       <div
