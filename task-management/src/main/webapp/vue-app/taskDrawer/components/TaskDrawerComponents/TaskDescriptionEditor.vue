@@ -15,37 +15,38 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div
-    id="taskDescriptionId"
-    :class="editorReady && 'active'"
-    class="taskDescription">
+  <div>
     <div
-      :data-text="placeholder"
-      :title="$t('tooltip.clickToEdit')"
-      contentEditable="true"
-      class="py-1 px-2 taskDescriptionToShow"
-      @click="showDescriptionEditor($event)"
-      v-sanitized-html="value">
-      {{ placeholder }}
+      id="taskDescriptionId"
+      :class="editorReady && 'active'"
+      class="taskDescription">
+      <div
+        :data-text="placeholder"
+        :title="$t('tooltip.clickToEdit')"
+        contentEditable="true"
+        class="py-1 px-2 taskDescriptionToShow"
+        @click="showDescriptionEditor($event)"
+        v-sanitized-html="value">
+        {{ placeholder }}
+      </div>
+
+      <textarea
+        id="descriptionContent"
+        ref="editor"
+        v-model="value"
+        class="d-none"
+        cols="30"
+        rows="10"></textarea>
+
+      <div
+        v-if="displayEditor && editorReady"
+        :class="charsCount > MESSAGE_MAX_LENGTH ? 'tooManyChars' : ''"
+        class="activityCharsCount"
+        style="">
+        {{ charsCount }}/{{ MESSAGE_MAX_LENGTH }}
+        <i class="uiIconMessageLength"></i>
+      </div>
     </div>
-
-    <textarea
-      id="descriptionContent"
-      ref="editor"
-      v-model="value"
-      class="d-none"
-      cols="30"
-      rows="10"></textarea>
-
-    <div
-      v-if="displayEditor && editorReady"
-      :class="charsCount > MESSAGE_MAX_LENGTH ? 'tooManyChars' : ''"
-      class="activityCharsCount"
-      style="">
-      {{ charsCount }}/{{ MESSAGE_MAX_LENGTH }}
-      <i class="uiIconMessageLength"></i>
-    </div>
-
     <v-btn
       v-if="task.id && displayEditor && editorReady"
       id="saveDescriptionButton"
@@ -57,7 +58,6 @@
       @click="saveDescription">
       {{ $t('label.apply') }}
     </v-btn>
-
   </div>
 </template>
 
