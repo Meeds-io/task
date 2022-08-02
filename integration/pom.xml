@@ -26,7 +26,7 @@
   <packaging>jar</packaging>
   <name>eXo Add-on:: Task Management - Integration</name>
   <properties>
-    <exo.test.coverage.ratio>0.09</exo.test.coverage.ratio>
+    <exo.test.coverage.ratio>0</exo.test.coverage.ratio>
   </properties>
   <dependencies>
     <dependency>
@@ -76,8 +76,18 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>org.exoplatform.social</groupId>
+      <artifactId>social-component-service</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org.exoplatform.addons.gamification</groupId>
       <artifactId>gamification-services</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
       <scope>provided</scope>
     </dependency>
     <!-- TEST -->
@@ -102,4 +112,25 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+  <build>
+    <finalName>task-management-integration</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>delombok</goal>
+            </goals>
+            <configuration>
+              <sourceDirectory>${basedir}/src/main/java</sourceDirectory>
+              <addOutputDirectory>false</addOutputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>
