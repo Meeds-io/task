@@ -23,6 +23,7 @@ import TaskPriority from './components/TaskDrawerComponents/TaskPriority.vue';
 import TaskStatus from './components/TaskDrawerComponents/TasksStatus.vue';
 import TaskFormDatePickers from './components/TaskDrawerComponents/TaskFormDatePickers.vue';
 import TaskChangesDrawer from './components/TaskDrawerComponents/TaskChangesDrawer.vue';
+import '../taskCommentsDrawer/initComponents';
 
 const components = {
   'task-drawer': TaskDrawer,
