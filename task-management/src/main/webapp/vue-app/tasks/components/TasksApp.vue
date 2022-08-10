@@ -169,6 +169,7 @@
 
 <script>
 import {filterTasksList} from '../../../js/tasksService';
+import '../../taskCommentsDrawer/initComponents';
 
 export default {
 
