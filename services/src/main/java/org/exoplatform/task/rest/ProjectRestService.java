@@ -16,7 +16,13 @@
  */
 package org.exoplatform.task.rest;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.utils.HTMLEntityEncoder;
 import org.exoplatform.commons.utils.ListAccess;
@@ -36,8 +42,6 @@ import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
-import org.exoplatform.task.exception.ParameterEntityException;
-import org.exoplatform.task.exception.UnAuthorizedOperationException;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.model.User;
 import org.exoplatform.task.service.*;
@@ -48,14 +52,13 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.annotation.security.RolesAllowed;
-import javax.persistence.NonUniqueResultException;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.*;
 
 @Path("/projects")
-@Api(value = "/projects", description = "Managing tasks")
+@Tag(name = "/projects", description = "Managing tasks")
 @RolesAllowed("users")
 public class ProjectRestService implements ResourceContainer {
 
@@ -103,15 +106,16 @@ public class ProjectRestService implements ResourceContainer {
   @Path("projects")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets projects", httpMethod = "GET", response = Response.class, notes = "This returns projects of the authenticated user")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 500, message = "Internal server error") })
-  public Response getProjects(@ApiParam(value = "Search term", required = false, defaultValue = "null") @QueryParam("q") String query,
-                              @ApiParam(value = "Space Name", required = false, defaultValue = "null") @QueryParam("spaceName") String spaceName,
-                              @ApiParam(value = "Filter", required = false, defaultValue = "") @QueryParam("projectsFilter") String projectsFilter,
-                              @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam("offset") int offset,
-                              @ApiParam(value = "Limit", required = false, defaultValue = "-1") @QueryParam("limit") int limit,
-                              @ApiParam(value = "Participator Need", required = false, defaultValue = "false") @QueryParam("participatorParam") boolean participatorParam) {
+  @Operation(summary = "Gets projects", method = "GET", description = "This returns projects of the authenticated user")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "500", description = "Internal server error") })
+  public Response getProjects(@Parameter(description = "Search term") @Schema(defaultValue = "null") @QueryParam("q") String query,
+                              @Parameter(description = "Space Name") @Schema(defaultValue = "null") @QueryParam("spaceName") String spaceName,
+                              @Parameter(description = "Filter") @Schema(defaultValue = "") @QueryParam("projectsFilter") String projectsFilter,
+                              @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                              @Parameter(description = "Limit") @Schema(defaultValue = "-1") @QueryParam("limit") int limit,
+                              @Parameter(description = "Participator Need") @Schema(defaultValue = "false") @QueryParam("participatorParam") boolean participatorParam) {
     if (limit == 0) {
       limit = -1;
     }
@@ -167,11 +171,13 @@ public class ProjectRestService implements ResourceContainer {
   @Path("projects/{id}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets  project by id", httpMethod = "GET", response = Response.class, notes = "This returns the default status by project id")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 403, message = "Unauthorized operation"), @ApiResponse(code = 500, message = "Internal server error") })
-  public Response getProjectById(@ApiParam(value = "Project id", required = true) @PathParam("id") long id,
-                                 @ApiParam(value = "Participator Need", required = false, defaultValue = "false") @QueryParam("participatorParam") boolean participatorParam) {
+  @Operation(summary = "Gets  project by id", method = "GET", description = "This returns the default status by project id")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error") })
+  public Response getProjectById(@Parameter(description = "Project id", required = true) @PathParam("id") long id,
+                                 @Parameter(description = "Participator Need") @Schema(defaultValue = "false") @QueryParam("participatorParam") boolean participatorParam) {
     try {
       Identity currentUser = ConversationState.getCurrent().getIdentity();
       ProjectDto project = projectService.getProject(id);
@@ -192,10 +198,12 @@ public class ProjectRestService implements ResourceContainer {
   @Path("projects/status/{id}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets the default status by project id", httpMethod = "GET", response = Response.class, notes = "This returns the default status by project id")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 403, message = "Unauthorized operation"), @ApiResponse(code = 500, message = "Internal server error") })
-  public Response getDefaultStatusByProjectId(@ApiParam(value = "Project id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Gets the default status by project id", method = "GET", description = "This returns the default status by project id")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "500", description = "Internal server error") })
+  public Response getDefaultStatusByProjectId(@Parameter(description = "Project id", required = true) @PathParam("id") long id) {
     try {
       Identity currentUser = ConversationState.getCurrent().getIdentity();
       ProjectDto project = projectService.getProject(id);
@@ -217,10 +225,12 @@ public class ProjectRestService implements ResourceContainer {
   @Path("projects/statuses/{id}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets the statuses by project id", httpMethod = "GET", response = Response.class, notes = "This returns the statuses by project id")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 403, message = "Unauthorized operation"), @ApiResponse(code = 404, message = "Resource not found") })
-  public Response getStatusesByProjectId(@ApiParam(value = "Project id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Gets the statuses by project id", method = "GET", description = "This returns the statuses by project id")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response getStatusesByProjectId(@Parameter(description = "Project id", required = true) @PathParam("id") long id) {
     try {
       Identity currentUser = ConversationState.getCurrent().getIdentity();
       ProjectDto project = projectService.getProject(id);
@@ -242,9 +252,9 @@ public class ProjectRestService implements ResourceContainer {
   @Path("project/statistics/{id}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets users by query and project name", httpMethod = "GET", response = Response.class, notes = "This returns users by query and project name")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled") })
-  public Response getProjectsStatistics(@ApiParam(value = "id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Gets users by query and project name", method = "GET", description = "This returns users by query and project name")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
+  public Response getProjectsStatistics(@Parameter(description = "id", required = true) @PathParam("id") long id) {
     try {
       HashMap<String, Integer> hm = new HashMap<String, Integer>();
       for (StatusDto statusDto : statusService.getStatuses(id)) {
@@ -280,10 +290,10 @@ public class ProjectRestService implements ResourceContainer {
   @Path("users/{query}/{projectName}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets users by query and project name", httpMethod = "GET", response = Response.class, notes = "This returns users by query and project name")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled") })
-  public Response getUsersByQueryAndProjectName(@ApiParam(value = "Query", required = true) @PathParam("query") String query,
-                                                @ApiParam(value = "projectName", required = true) @PathParam("projectName") String projectName) {
+  @Operation(summary = "Gets users by query and project name", method = "GET", description = "This returns users by query and project name")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
+  public Response getUsersByQueryAndProjectName(@Parameter(description = "Query", required = true) @PathParam("query") String query,
+                                                @Parameter(description = "projectName", required = true) @PathParam("projectName") String projectName) {
     try {
       ListAccess<User> usersList = userService.findUserByName(query);
       JSONArray usersJsonArray = new JSONArray();
@@ -479,11 +489,13 @@ public class ProjectRestService implements ResourceContainer {
   @POST
   @Path("createproject")
   @RolesAllowed("users")
-  @ApiOperation(value = "Adds a project", httpMethod = "POST", response = Response.class, notes = "This Adds project")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response createProject(@ApiParam(value = "ProjectDto", required = true) ProjectDto projectDto) {
+  @Operation(summary = "Adds a project", method = "POST", description = "This Adds project")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response createProject(@RequestBody(description = "Project object to create", required = true) ProjectDto projectDto) {
     try {
       String currentUser = ConversationState.getCurrent().getIdentity().getUserId();
       if (currentUser == null) {
@@ -563,12 +575,14 @@ public class ProjectRestService implements ResourceContainer {
   @Path("updateproject/{projectId}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Update Project", httpMethod = "POST", response = Response.class, notes = "This Update Project info")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response updateProject(@ApiParam(value = "projectId", required = true) @PathParam("projectId") long projectId,
-                                @ApiParam(value = "Project", required = true) ProjectDto projectDto) {
+  @Operation(summary = "Update Project", method = "POST", description = "This Update Project info")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response updateProject(@Parameter(description = "projectId", required = true) @PathParam("projectId") long projectId,
+                                @RequestBody(description = "Project object to update", required = true) ProjectDto projectDto) {
     try {
       if (projectDto.getName() == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
@@ -628,15 +642,15 @@ public class ProjectRestService implements ResourceContainer {
   @Path("{projectId}")
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Delete Project", httpMethod = "DELETE", response = Response.class, notes = "This deletes the Project", consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Project deleted"),
-      @ApiResponse(code = 400, message = "Invalid query input"),
-      @ApiResponse(code = 401, message = "User not authorized to delete the Project"),
-      @ApiResponse(code = 500, message = "Internal server error") })
-  public Response deleteProject(@ApiParam(value = "projectId", required = true) @PathParam("projectId") Long projectId,
-                                @ApiParam(value = "deleteChild", defaultValue = "false") @QueryParam("deleteChild") Boolean deleteChild,
-                                @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam("offset") int offset,
-                                @ApiParam(value = "Limit", required = false, defaultValue = "-1") @QueryParam("limit") int limit) {
+  @Operation(summary = "Delete Project", method = "DELETE", description = "This deletes the Project")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Project deleted"),
+      @ApiResponse(responseCode = "400", description = "Invalid query input"),
+      @ApiResponse(responseCode = "401", description = "User not authorized to delete the Project"),
+      @ApiResponse(responseCode = "500", description = "Internal server error") })
+  public Response deleteProject(@Parameter(description = "projectId", required = true) @PathParam("projectId") Long projectId,
+                                @Parameter(description = "deleteChild") @Schema(defaultValue = "false") @QueryParam("deleteChild") Boolean deleteChild,
+                                @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                                @Parameter(description = "Limit") @Schema(defaultValue = "-1") @QueryParam("limit") int limit) {
     try {
       Identity identity = ConversationState.getCurrent().getIdentity();
       ProjectDto project = projectService.getProject(projectId);
@@ -662,11 +676,12 @@ public class ProjectRestService implements ResourceContainer {
   @POST
   @Path("cloneproject")
   @RolesAllowed("users")
-  @ApiOperation(value = "Clone a project", httpMethod = "POST", response = Response.class, notes = "This Clone project")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response cloneProject(@ApiParam(value = "ProjectDto", required = true) ProjectDto projectDto) {
+  @Operation(summary = "Clone a project", method = "POST", description = "This Clone project")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response cloneProject(@Parameter(description = "Project object to clone", required = true) ProjectDto projectDto) {
     try {
       ProjectDto currentProject = projectDto;
       if (!currentProject.canEdit(ConversationState.getCurrent().getIdentity())) {
@@ -692,12 +707,13 @@ public class ProjectRestService implements ResourceContainer {
   @Path("changeProjectColor/{projectId}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Change Project Color", httpMethod = "POST", response = Response.class, notes = "This change Project Color")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response changeProjectColor(@ApiParam(value = "projectId", required = true) @PathParam("projectId") Long projectId,
-                                     @ApiParam(value = "color", required = false, defaultValue = "null") @QueryParam("color") String color) {
+  @Operation(summary = "Change Project Color", method = "POST", description = "This change Project Color")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response changeProjectColor(@Parameter(description = "projectId", required = true) @PathParam("projectId") Long projectId,
+                                     @Parameter(description = "color") @Schema(defaultValue = "null") @QueryParam("color") String color) {
     try {
       Map<String, String[]> fields = new HashMap<String, String[]>();
       fields.put("color", new String[] { color });
@@ -720,11 +736,11 @@ public class ProjectRestService implements ResourceContainer {
   @Path("projectParticipants/{idProject}/{term}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets participants", httpMethod = "GET", response = Response.class, notes = "This returns participants in project")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled") })
-  public Response getProjectParticipants(@ApiParam(value = "Project id", required = true) @PathParam("idProject") long idProject,
-                                         @ApiParam(value = "User name search information", required = false) @PathParam("term") String term,
-                                         @ApiParam(value = "Include or not current user", required = false) @QueryParam("includeCurrentUser") boolean includeCurrentUser) {
+  @Operation(summary = "Gets participants", method = "GET", description = "This returns participants in project")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
+  public Response getProjectParticipants(@Parameter(description = "Project id", required = true) @PathParam("idProject") long idProject,
+                                         @Parameter(description = "User name search information") @PathParam("term") String term,
+                                         @Parameter(description = "Include or not current user") @QueryParam("includeCurrentUser") boolean includeCurrentUser) {
 
     Identity currentUser = ConversationState.getCurrent().getIdentity();
     Set<String> participants = projectService.getParticipator(idProject);
