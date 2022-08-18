@@ -79,6 +79,12 @@
       <artifactId>social-component-core</artifactId>
       <scope>provided</scope>
     </dependency>
+    <!--swagger-->
+    <dependency>
+      <groupId>io.swagger.core.v3</groupId>
+      <artifactId>swagger-annotations</artifactId>
+      <scope>provided</scope>
+    </dependency>
     <!-- OTHER -->
     <dependency>
       <groupId>com.googlecode.owasp-java-html-sanitizer</groupId>

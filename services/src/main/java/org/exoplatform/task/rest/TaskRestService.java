@@ -16,7 +16,13 @@
  */
 package org.exoplatform.task.rest;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
@@ -49,7 +55,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Path("/tasks")
-@Api(value = "/tasks", description = "Managing tasks")
+@Tag(name = "/tasks", description = "Managing tasks")
 @RolesAllowed("users")
 public class TaskRestService implements ResourceContainer {
 
@@ -102,11 +108,13 @@ public class TaskRestService implements ResourceContainer {
   @Path("{id}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Get task by id", httpMethod = "GET", response = Response.class, notes = "This get the task if the authenticated user has permissions to view the objects linked to this task.")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-          @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-          @ApiResponse(code = 404, message = "Resource not found") })
-  public Response getTaskById(@ApiParam(value = "Task id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Get task by id", method = "GET", description = "This get the task if the authenticated user has permissions to view the objects linked to this task.")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response getTaskById(@Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
     TaskDto task = taskService.getTask(id);
     if (task == null) {
@@ -126,14 +134,14 @@ public class TaskRestService implements ResourceContainer {
   @GET
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets uncompleted tasks of the authenticated user", httpMethod = "GET", response = Response.class, notes = "This returns uncompleted tasks of the authenticated user in the following cases: <br/><ul><li>The authenticated is the creator of the task</li><li>The authenticated is the assignee of the task</li><li>The authenticated is a coworker of the task</li></ul>")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled") })
-  public Response getTasks(@ApiParam(value = "Type of task to get (all, incoming, overdue)", required = false) @QueryParam("status") String status,
-                           @ApiParam(value = "Search term", required = false) @QueryParam("q") String query,
-                           @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam("offset") int offset,
-                           @ApiParam(value = "Limit", required = false, defaultValue = "20") @QueryParam("limit") int limit,
-                           @ApiParam(value = "Returning the number of tasks or not", defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
-                           @ApiParam(value = "Returning All Details", defaultValue = "false") @QueryParam("returnDetails") boolean returnDetails) {
+  @Operation(summary = "Gets uncompleted tasks of the authenticated user", method = "GET", description = "This returns uncompleted tasks of the authenticated user in the following cases: <br/><ul><li>The authenticated is the creator of the task</li><li>The authenticated is the assignee of the task</li><li>The authenticated is a coworker of the task</li></ul>")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
+  public Response getTasks(@Parameter(description = "Type of task to get (all, incoming, overdue)") @QueryParam("status") String status,
+                           @Parameter(description = "Search term") @QueryParam("q") String query,
+                           @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                           @Parameter(description = "Limit") @Schema(defaultValue = "20") @QueryParam("limit") int limit,
+                           @Parameter(description = "Returning the number of tasks or not") @Schema(defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
+                           @Parameter(description = "Returning All Details") @Schema(defaultValue = "false") @QueryParam("returnDetails") boolean returnDetails) {
 
       try {
       Identity currentId = ConversationState.getCurrent().getIdentity();
@@ -200,30 +208,31 @@ public class TaskRestService implements ResourceContainer {
   @RolesAllowed("users")
   @Path("filter")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets  a specific task", httpMethod = "GET", response = Response.class, notes = "This returns  a specific task")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request ful"),
-          @ApiResponse(code = 401, message = "Unauthorized operation"),
-          @ApiResponse(code = 404, message = "Resource not found") })
-  public Response filterTasks(@ApiParam(value = "Type of task to get (all, incoming, overdue)", required = false) @QueryParam("statusDto") String status,
-                              @ApiParam(value = "projectId term", required = false,defaultValue = "-2") @QueryParam("projectId") long projectId,
-                              @ApiParam(value = "Search term", required = false) @QueryParam("query") String query,
-                              @ApiParam(value = "dueCategory term", required = false) @QueryParam("dueCategory") String dueCategory,
-                              @ApiParam(value = "priority term", required = false) @QueryParam("priority") String priority,
-                              @ApiParam(value = "assignee term", required = false) @QueryParam("assignee") String assignee,
-                              @ApiParam(value = "coworker term", required = false) @QueryParam("coworker") String coworker,
-                              @ApiParam(value = "watchers term", required = false) @QueryParam("watcher") String watcher,
-                              @ApiParam(value = "showCompletedTasks term", defaultValue = "false") @QueryParam("showCompletedTasks") boolean showCompletedTasks,
-                              @ApiParam(value = "statusId term", required = false) @QueryParam("statusId") String statusId,
-                              @ApiParam(value = "space_group_id term", required = false) @QueryParam("space_group_id") String space_group_id,
-                              @ApiParam(value = "groupBy term", required = false) @QueryParam("groupBy") String groupBy,
-                              @ApiParam(value = "orderBy term", required = false) @QueryParam("orderBy") String orderBy,
-                              @ApiParam(value = "dueDate term", required = false) @QueryParam("dueDate") String dueDate,
-                              @ApiParam(value = "labelId term", required = false) @QueryParam("labelId") Long labelId,
-                              @ApiParam(value = "filterLabelIds term", required = false) @QueryParam("filterLabelIds") String filterLabelIds,
-                              @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam("offset") int offset,
-                              @ApiParam(value = "Limit", required = false, defaultValue = "20") @QueryParam("limit") int limit,
-                              @ApiParam(value = "Returning the number of tasks or not", defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
-                              @ApiParam(value = "Returning All Details", defaultValue = "false") @QueryParam("returnDetails") boolean returnDetails) {
+  @Operation(summary = "Gets  a specific task", method = "GET", description = "This returns  a specific task")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request ful"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response filterTasks(@Parameter(description = "Type of task to get (all, incoming, overdue)") @QueryParam("statusDto") String status,
+                              @Parameter(description = "projectId term") @Schema(defaultValue = "-2") @QueryParam("projectId") long projectId,
+                              @Parameter(description = "Search term") @QueryParam("query") String query,
+                              @Parameter(description = "dueCategory term") @QueryParam("dueCategory") String dueCategory,
+                              @Parameter(description = "priority term") @QueryParam("priority") String priority,
+                              @Parameter(description = "assignee term") @QueryParam("assignee") String assignee,
+                              @Parameter(description = "coworker term") @QueryParam("coworker") String coworker,
+                              @Parameter(description = "watchers term") @QueryParam("watcher") String watcher,
+                              @Parameter(description = "showCompletedTasks term") @Schema(defaultValue = "false") @QueryParam("showCompletedTasks") boolean showCompletedTasks,
+                              @Parameter(description = "statusId term") @QueryParam("statusId") String statusId,
+                              @Parameter(description = "space_group_id term") @QueryParam("space_group_id") String space_group_id,
+                              @Parameter(description = "groupBy term") @QueryParam("groupBy") String groupBy,
+                              @Parameter(description = "orderBy term") @QueryParam("orderBy") String orderBy,
+                              @Parameter(description = "dueDate term") @QueryParam("dueDate") String dueDate,
+                              @Parameter(description = "labelId term") @QueryParam("labelId") Long labelId,
+                              @Parameter(description = "filterLabelIds term") @QueryParam("filterLabelIds") String filterLabelIds,
+                              @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                              @Parameter(description = "Limit") @Schema(defaultValue = "20") @QueryParam("limit") int limit,
+                              @Parameter(description = "Returning the number of tasks or not") @Schema(defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
+                              @Parameter(description = "Returning All Details") @Schema(defaultValue = "false") @QueryParam("returnDetails") boolean returnDetails) {
 
     try {
     String listId = ViewState.buildId(projectId, labelId, dueCategory);
@@ -302,14 +311,14 @@ public class TaskRestService implements ResourceContainer {
   @Path("project/{id}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets tasks by projectIdr", httpMethod = "GET", response = Response.class, notes = "This returns list of tasks by project")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled") })
-  public Response getTasksByProjectId(@ApiParam(value = "Id", required = true, defaultValue = "0") @PathParam("id") Long id,
-                                      @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam("offset") int offset,
-                                      @ApiParam(value = "Limit", required = false, defaultValue = "0") @QueryParam("limit") int limit,
-                                      @ApiParam(value = "Returning the Completed tasks", defaultValue = "false") @QueryParam("completed") boolean completed,
-                                      @ApiParam(value = "Returning the number of tasks or not", defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
-                                      @ApiParam(value = "Returning All Details", defaultValue = "false") @QueryParam("returnDetails") boolean returnDetails) {
+  @Operation(summary = "Gets tasks by projectIdr", method = "GET", description = "This returns list of tasks by project")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
+  public Response getTasksByProjectId(@Parameter(description = "Id", required = true) @Schema(defaultValue = "0") @PathParam("id") Long id,
+                                      @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                                      @Parameter(description = "Limit") @Schema(defaultValue = "0") @QueryParam("limit") int limit,
+                                      @Parameter(description = "Returning the Completed tasks") @Schema(defaultValue = "false") @QueryParam("completed") boolean completed,
+                                      @Parameter(description = "Returning the number of tasks or not") @Schema(defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
+                                      @Parameter(description = "Returning All Details") @Schema(defaultValue = "false") @QueryParam("returnDetails") boolean returnDetails) {
     try {
     Identity currentUser = ConversationState.getCurrent().getIdentity();
     ProjectDto project = projectService.getProject(id);
@@ -355,11 +364,13 @@ public class TaskRestService implements ResourceContainer {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Add a new task", httpMethod = "POST", response = Response.class, notes = "This adds a new task.")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response addTask(@ApiParam(value = "task object to be updated", required = true) TaskDto task) {
+  @Operation(summary = "Add a new task", method = "POST", description = "This adds a new task.")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response addTask(@RequestBody(description = "task object to be updated", required = true) TaskDto task) {
 
     if (task == null) {
       return Response.status(Response.Status.BAD_REQUEST).build();
@@ -400,11 +411,13 @@ public class TaskRestService implements ResourceContainer {
   @Path("clone/{taskId}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Clones a specific task by id", httpMethod = "POST", response = Response.class, notes = "This clones the task if the authenticated user has permissions to edit the objects linked to this task.")
-  @ApiResponses(value = {@ApiResponse(code = 200, message = "Request fulfilled"),
-          @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-          @ApiResponse(code = 404, message = "Resource not found")})
-  public Response cloneTask(@ApiParam(value = "Task id", required = true) @PathParam("taskId") long taskId) {
+  @Operation(summary = "Clones a specific task by id", method = "POST", description = "This clones the task if the authenticated user has permissions to edit the objects linked to this task.")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"), 
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found")})
+  public Response cloneTask(@Parameter(description = "Task id", required = true) @PathParam("taskId") long taskId) {
     try {
     TaskDto task = taskService.getTask(taskId);
     if (task == null) {
@@ -429,12 +442,13 @@ public class TaskRestService implements ResourceContainer {
   @Path("{id}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Updates a specific task by id", httpMethod = "PUT", response = Response.class, notes = "This updates the task if the authenticated user has permissions to view the objects linked to this task.")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response updateTaskById(@ApiParam(value = "Task id", required = true) @PathParam("id") long id,
-                                 @ApiParam(value = "task object to be updated", required = true) TaskDto updatedTask) {
+  @Operation(summary = "Updates a specific task by id", method = "PUT", description = "This updates the task if the authenticated user has permissions to view the objects linked to this task.")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"), 
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response updateTaskById(@Parameter(description = "Task id", required = true) @PathParam("id") long id,
+                                 @RequestBody(description = "task object to be updated", required = true) TaskDto updatedTask) {
     if (updatedTask == null) {
       return Response.status(Response.Status.BAD_REQUEST).build();
     }
@@ -462,11 +476,12 @@ public class TaskRestService implements ResourceContainer {
   @Path("{id}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Updates a specific task by id", httpMethod = "PUT", response = Response.class, notes = "This updates the task if the authenticated user has permissions to view the objects linked to this task.")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response deleteTaskById(@ApiParam(value = "Task id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Updates a specific task by id", method = "PUT", description = "This updates the task if the authenticated user has permissions to view the objects linked to this task.")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"), 
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response deleteTaskById(@Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
     TaskDto task = taskService.getTask(id);
     if (task == null) {
@@ -488,8 +503,8 @@ public class TaskRestService implements ResourceContainer {
   @Path("labels")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets labels of the authenticated user", httpMethod = "GET", response = Response.class, notes = "This returns labels of the authenticated user")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled") })
+  @Operation(summary = "Gets labels of the authenticated user", method = "GET", description = "This returns labels of the authenticated user")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
   public Response getLabels() {
     try {
     String currentUser = ConversationState.getCurrent().getIdentity().getUserId();
@@ -503,9 +518,9 @@ public class TaskRestService implements ResourceContainer {
   @Path("labels/project/{id}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets labels of the given project", httpMethod = "GET", response = Response.class, notes = "This returns labels of the given project")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled") })
-  public Response getLabelsByProjectId(@ApiParam(value = "project id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Gets labels of the given project", method = "GET", description = "This returns labels of the given project")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
+  public Response getLabelsByProjectId(@Parameter(description = "project id", required = true) @PathParam("id") long id) {
     try {
       Identity currentUser = ConversationState.getCurrent().getIdentity();
       ProjectDto project = projectService.getProject(id);
@@ -526,10 +541,10 @@ public class TaskRestService implements ResourceContainer {
   @Path("labels/{id}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets labels of a specific task by id", httpMethod = "GET", response = Response.class, notes = "This returns labels of a specific task by id")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 500, message = "Internal server error") })
-  public Response getLabelsByTaskId(@ApiParam(value = "Task id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Gets labels of a specific task by id", method = "GET", description = "This returns labels of a specific task by id")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "500", description = "Internal server error") })
+  public Response getLabelsByTaskId(@Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
     Identity currentUser = ConversationState.getCurrent().getIdentity();
       TaskDto task = taskService.getTask(id);
@@ -550,12 +565,13 @@ public class TaskRestService implements ResourceContainer {
   @POST
   @Path("labels/{id}")
   @RolesAllowed("users")
-  @ApiOperation(value = "Adds a specific task by id to a label", httpMethod = "POST", response = Response.class, notes = "This adds a specific task by id to a label")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response addTaskToLabel(@ApiParam(value = "label", required = true) LabelDto addedLabel,
-                                 @ApiParam(value = "Task id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Adds a specific task by id to a label", method = "POST", description = "This adds a specific task by id to a label")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"), 
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response addTaskToLabel(@RequestBody(description = "label", required = true) LabelDto addedLabel,
+                                 @Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
     Identity currentUser = ConversationState.getCurrent().getIdentity();
     if (addedLabel == null) {
@@ -599,11 +615,13 @@ public class TaskRestService implements ResourceContainer {
   @Path("labels/{id}/{labelId}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Deletes a specific task association to a specific label", httpMethod = "DELETE", response = Response.class, notes = "This deletes a specific task association to a specific label")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 403, message = "Unauthorized operation"), @ApiResponse(code = 404, message = "Resource not found") })
-  public Response removeTaskFromLabel(@ApiParam(value = "label id", required = true) @PathParam("labelId") long labelId,
-                                      @ApiParam(value = "Task id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Deletes a specific task association to a specific label", method = "DELETE", description = "This deletes a specific task association to a specific label")
+  @ApiResponses(value = { 
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"), 
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response removeTaskFromLabel(@Parameter(description = "label id", required = true) @PathParam("labelId") long labelId,
+                                      @Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
     TaskDto task = taskService.getTask(id);
     if (task == null) {
@@ -627,11 +645,13 @@ public class TaskRestService implements ResourceContainer {
   @POST
   @Path("labels")
   @RolesAllowed("users")
-  @ApiOperation(value = "Adds a specific task by id to a label", httpMethod = "POST", response = Response.class, notes = "This adds a specific task by id to a label")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response addLabel(@ApiParam(value = "label", required = true) LabelDto addedLabel) {
+  @Operation(summary = "Adds a specific task by id to a label", method = "POST", description = "This adds a specific task by id to a label")
+  @ApiResponses(value = { 
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"), 
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response addLabel(@RequestBody(description = "label object to create", required = true) LabelDto addedLabel) {
     try {
     Identity currentUser = ConversationState.getCurrent().getIdentity();
     if (addedLabel == null) {
@@ -662,12 +682,14 @@ public class TaskRestService implements ResourceContainer {
   @PUT
   @Path("labels/{labelId}")
   @RolesAllowed("users")
-  @ApiOperation(value = "Adds a specific task by id to a label", httpMethod = "POST", response = Response.class, notes = "This adds a specific task by id to a label")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response editLabel(@ApiParam(value = "label id", required = true) @PathParam("labelId") long labelId,
-                            @ApiParam(value = "label", required = true) LabelDto label) {
+  @Operation(summary = "Adds a specific task by id to a label", method = "POST", description = "This adds a specific task by id to a label")
+  @ApiResponses(value = { 
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"), 
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response editLabel(@Parameter(description = "label id", required = true) @PathParam("labelId") long labelId,
+                            @RequestBody(description = "label object to update", required = true) LabelDto label) {
     try {
     Identity currentUser = ConversationState.getCurrent().getIdentity();
     if (label == null) {
@@ -700,10 +722,12 @@ public class TaskRestService implements ResourceContainer {
   @Path("labels/{labelId}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Deletes a specific  label", httpMethod = "DELETE", response = Response.class, notes = "This deletes a specific task association to a specific label")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 403, message = "Unauthorized operation"), @ApiResponse(code = 404, message = "Resource not found") })
-  public Response removeLabel(@ApiParam(value = "label id", required = true) @PathParam("labelId") long labelId) {
+  @Operation(summary = "Deletes a specific  label", method = "DELETE", description = "This deletes a specific task association to a specific label")
+  @ApiResponses(value = { 
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"), 
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response removeLabel(@Parameter(description = "label id", required = true) @PathParam("labelId") long labelId) {
     try {
       Identity currentUser = ConversationState.getCurrent().getIdentity();
     LabelDto label = labelService.getLabel(labelId);
@@ -733,12 +757,14 @@ public class TaskRestService implements ResourceContainer {
   @Path("logs/{id}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets a logs of a specific task", httpMethod = "GET", response = Response.class, notes = "This returns a logs of a specific task")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 401, message = "Unauthorized operation"), @ApiResponse(code = 404, message = "Resource not found") })
-  public Response getTaskLogs(@ApiParam(value = "Task id", required = true) @PathParam("id") long id,
-                              @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam("offset") int offset,
-                              @ApiParam(value = "Limit", required = false, defaultValue = "-1") @QueryParam("limit") int limit) {
+  @Operation(summary = "Gets a logs of a specific task", method = "GET", description = "This returns a logs of a specific task")
+  @ApiResponses(value = { 
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "401", description = "Unauthorized operation"), 
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response getTaskLogs(@Parameter(description = "Task id", required = true) @PathParam("id") long id,
+                              @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                              @Parameter(description = "Limit") @Schema(defaultValue = "-1") @QueryParam("limit") int limit) {
     try {
     TaskDto task = taskService.getTask(id);
     if (task == null) {
@@ -766,12 +792,14 @@ public class TaskRestService implements ResourceContainer {
   @Path("comments/{id}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets a comment list of a specific task", httpMethod = "GET", response = Response.class, notes = "This returns a comment list of a specific task")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 403, message = "Unauthorized operation"), @ApiResponse(code = 404, message = "Resource not found") })
-  public Response getTaskComments(@ApiParam(value = "Task id", required = true) @PathParam("id") long id,
-                                  @ApiParam(value = "Offset", required = false, defaultValue = "0") @QueryParam("offset") int offset,
-                                  @ApiParam(value = "Limit", required = false, defaultValue = "-1") @QueryParam("limit") int limit) {
+  @Operation(summary = "Gets a comment list of a specific task", method = "GET", description = "This returns a comment list of a specific task")
+  @ApiResponses(value = { 
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"), 
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response getTaskComments(@Parameter(description = "Task id", required = true) @PathParam("id") long id,
+                                  @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                                  @Parameter(description = "Limit") @Schema(defaultValue = "-1") @QueryParam("limit") int limit) {
     try {
     TaskDto task = taskService.getTask(id);
     if (task == null) {
@@ -807,12 +835,14 @@ public class TaskRestService implements ResourceContainer {
   @POST
   @Path("comments/{id}")
   @RolesAllowed("users")
-  @ApiOperation(value = "Adds comment to a specific task by id", httpMethod = "POST", response = Response.class, notes = "This Adds comment to a specific task by id")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response addTaskComment(@ApiParam(value = "Comment text", required = true) String commentText,
-                                 @ApiParam(value = "Task id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Adds comment to a specific task by id", method = "POST", description = "This Adds comment to a specific task by id")
+  @ApiResponses(value = { 
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"), 
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response addTaskComment(@Parameter(description = "Comment text", required = true) String commentText,
+                                 @Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
     String currentUser = ConversationState.getCurrent().getIdentity().getUserId();
     TaskDto task = taskService.getTask(id);
@@ -843,13 +873,15 @@ public class TaskRestService implements ResourceContainer {
   @POST
   @Path("comments/{commentId}/{id}")
   @RolesAllowed("users")
-  @ApiOperation(value = "Adds a sub comment to a specific parent comment by id and a specific task by id", httpMethod = "POST", response = Response.class, notes = "This Adds sub comment to a parent comment in specific task by id")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response addTaskSubComment(@ApiParam(value = "Comment text", required = true) String commentText,
-                                    @ApiParam(value = "Comment id", required = true) @PathParam("commentId") long commentId,
-                                    @ApiParam(value = "Task id", required = true) @PathParam("id") long id) {
+  @Operation(summary = "Adds a sub comment to a specific parent comment by id and a specific task by id", method = "POST", description = "This Adds sub comment to a parent comment in specific task by id")
+  @ApiResponses(value = { 
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response addTaskSubComment(@Parameter(description = "Comment text", required = true) String commentText,
+                                    @Parameter(description = "Comment id", required = true) @PathParam("commentId") long commentId,
+                                    @Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
     String currentUser = ConversationState.getCurrent().getIdentity().getUserId();
     TaskDto task = taskService.getTask(id);
@@ -881,10 +913,12 @@ public class TaskRestService implements ResourceContainer {
   @DELETE
   @Path("comments/{commentId}")
   @RolesAllowed("users")
-  @ApiOperation(value = "Deletes a specific task comment by id", httpMethod = "DELETE", response = Response.class, notes = "This deletes a specific task comment by id")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 403, message = "Unauthorized operation"), @ApiResponse(code = 404, message = "Resource not found") })
-  public Response deleteComment(@ApiParam(value = "Comment id", required = true) @PathParam("commentId") long commentId) {
+  @Operation(summary = "Deletes a specific task comment by id", method = "DELETE", description = "This deletes a specific task comment by id")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response deleteComment(@Parameter(description = "Comment id", required = true) @PathParam("commentId") long commentId) {
     try {
     CommentDto comment = commentService.getComment(commentId);
     if (comment == null) {
@@ -906,9 +940,9 @@ public class TaskRestService implements ResourceContainer {
   @Path("usersToMention/{query}")
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
-  @ApiOperation(value = "Gets users to mention in comment", httpMethod = "GET", response = Response.class, notes = "This returns users to mention in comment")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled") })
-  public Response findUsersToMention(@ApiParam(value = "Query", required = true) @PathParam("query") String query) {
+  @Operation(summary = "Gets users to mention in comment", method = "GET", description = "This returns users to mention in comment")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
+  public Response findUsersToMention(@Parameter(description = "Query", required = true) @PathParam("query") String query) {
     try {
     ListAccess<User> list = userService.findUserByName(query);
     JSONArray usersJsonArray = new JSONArray();
@@ -935,12 +969,14 @@ public class TaskRestService implements ResourceContainer {
   @Path("updateCompleted/{idTask}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Updates a specific task by id", httpMethod = "PUT", response = Response.class, notes = "This updates the task if the authenticated user has permissions to view the objects linked to this task.")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-          @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-          @ApiResponse(code = 404, message = "Resource not found") })
-  public Response updateCompleted(@ApiParam(value = "Task id", required = true) @PathParam("idTask") long idTask,
-                                  @ApiParam(value = "isCompleted", defaultValue = "false") @QueryParam("isCompleted") boolean isCompleted) {
+  @Operation(summary = "Updates a specific task by id", method = "PUT", description = "This updates the task if the authenticated user has permissions to view the objects linked to this task.")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response updateCompleted(@Parameter(description = "Task id", required = true) @PathParam("idTask") long idTask,
+                                  @Parameter(description = "isCompleted") @Schema(defaultValue = "false") @QueryParam("isCompleted") boolean isCompleted) {
     try {
     TaskDto task = taskService.getTask(idTask);
     if (!TaskUtil.hasEditPermission(taskService,task)) {
