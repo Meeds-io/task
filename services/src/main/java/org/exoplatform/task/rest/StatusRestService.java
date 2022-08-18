@@ -23,6 +23,12 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
@@ -31,14 +37,11 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
-import org.exoplatform.task.exception.NotAllowedOperationOnEntityException;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 
-import io.swagger.annotations.*;
-
 @Path("/status")
-@Api(value = "/status", description = "Managing status")
+@Tag(name = "/status", description = "Managing status")
 @RolesAllowed("users")
 public class StatusRestService implements ResourceContainer {
 
@@ -58,11 +61,12 @@ public class StatusRestService implements ResourceContainer {
   @Path("{statusId}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "get Status by Id", httpMethod = "GET", response = Response.class, notes = "This get status by Id")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-          @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-          @ApiResponse(code = 404, message = "Resource not found") })
-  public Response getStatus(@ApiParam(value = "statusId", required = true) @PathParam("statusId") long statusId) {
+  @Operation(summary = "get Status by Id", method = "GET", description = "This get status by Id")
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response getStatus(@Parameter(description = "statusId", required = true) @PathParam("statusId") long statusId) {
     try {
       StatusDto statusDto = statusService.getStatus(statusId);
       if (statusDto == null) {
@@ -80,11 +84,13 @@ public class StatusRestService implements ResourceContainer {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Create Status", httpMethod = "POST", response = Response.class, notes = "This create new status")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response addStatus(@ApiParam(value = "Status", required = true) List<StatusDto> status){
+  @Operation(summary = "Create Status", method = "POST", description = "This create new status")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response addStatus(@RequestBody(description = "Status object to be created", required = true) List<StatusDto> status){
     try {
     Identity identity = ConversationState.getCurrent().getIdentity();
     ProjectDto projectDto = projectService.getProject(status.get(0).getProject().getId());
@@ -124,12 +130,14 @@ public class StatusRestService implements ResourceContainer {
   @Path("{statusId}")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Update StatusId", httpMethod = "PUT", response = Response.class, notes = "This Update status name")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response updateStatus(@ApiParam(value = "statusId", required = true) @PathParam("statusId") long statusId,
-                               @ApiParam(value = "status", required = true) StatusDto statusDto) {
+  @Operation(summary = "Update StatusId", method = "PUT", description = "This Update status name")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response updateStatus(@Parameter(description = "statusId", required = true) @PathParam("statusId") long statusId,
+                               @RequestBody(description = "status object to be updated", required = true) StatusDto statusDto) {
     try {  
   if (statusService.getStatus(statusId) == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
@@ -163,11 +171,13 @@ public class StatusRestService implements ResourceContainer {
   @Path("move")
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "move Status", httpMethod = "PUT", response = Response.class, notes = "This moves status")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Request fulfilled"),
-      @ApiResponse(code = 400, message = "Invalid query input"), @ApiResponse(code = 403, message = "Unauthorized operation"),
-      @ApiResponse(code = 404, message = "Resource not found") })
-  public Response moveStatus(@ApiParam(value = "Status", required = true) List<StatusDto> status){
+  @Operation(summary = "move Status", method = "PUT", description = "This moves status")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response moveStatus(@RequestBody(description = "Status to be moved", required = true) List<StatusDto> status){
     try {
       Identity identity = ConversationState.getCurrent().getIdentity();
       ProjectDto projectDto = projectService.getProject(status.get(0).getProject().getId());
@@ -205,12 +215,13 @@ public class StatusRestService implements ResourceContainer {
   @Path("{statusId}")
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
-  @ApiOperation(value = "Delete status", httpMethod = "DELETE", response = Response.class, notes = "This deletes the status", consumes = "application/json")
-  @ApiResponses(value = { @ApiResponse(code = 200, message = "Project deleted"),
-      @ApiResponse(code = 400, message = "Invalid query input"),
-      @ApiResponse(code = 401, message = "User not authorized to delete the Project"),
-      @ApiResponse(code = 500, message = "Internal server error") })
-  public Response deleteStatus(@ApiParam(value = "statusId", required = true) @PathParam("statusId") Long statusId) {
+  @Operation(summary = "Delete status", method = "DELETE",  description = "This deletes the status")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Project deleted"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "401", description = "User not authorized to delete the Project"),
+          @ApiResponse(responseCode = "500", description = "Internal server error") })
+  public Response deleteStatus(@Parameter(description = "status Id", required = true) @PathParam("statusId") Long statusId) {
     try {
       Identity identity = ConversationState.getCurrent().getIdentity();
       StatusDto statusDto = statusService.getStatus(statusId);
