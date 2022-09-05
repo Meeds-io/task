@@ -226,8 +226,8 @@ public class TestProjectRestService {
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertNotNull(response.getEntity());
     JSONObject jsonObject = new JSONObject(response.getEntity().toString());
-    String projectNumber = jsonObject.getString("projectNumber");
-    assertEquals("2", projectNumber);
+    int projectNumber = jsonObject.getInt("projectNumber");
+    assertEquals(2, projectNumber);
   }
 
   @Test
