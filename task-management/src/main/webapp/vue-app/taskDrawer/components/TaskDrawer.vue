@@ -593,7 +593,7 @@ export default {
       }
     },
     updateTaskCoworker(value) {
-      if (this.task.id !== null && this.oldTask.coworker!==value) {
+      if (this.task.id !== null) {
         if (value && value.length) {
           this.task.coworker = value;
         } else {

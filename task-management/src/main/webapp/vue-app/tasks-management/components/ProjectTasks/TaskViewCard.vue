@@ -148,7 +148,9 @@ export default {
       const usersList = [];
       if (this.assigneeAndCoworkerArray && this.assigneeAndCoworkerArray.length ) {
         this.assigneeAndCoworkerArray.forEach(user => {
-          usersList.push({'userName': user.username});
+          if (!usersList.includes({'userName': user.username})) {
+            usersList.push({'userName': user.username});
+          }
         });
       }
       return usersList;
@@ -234,10 +236,11 @@ export default {
       }
     },
     updateTaskCoworker(value,id){
+      const coworkers = value.coworker;
       if (this.task.id === id){
-        if (value && value.length) {
+        if (coworkers && coworkers.length) {
           this.task.coworker=[];
-          value.forEach((coworker) => {
+          coworkers.forEach((coworker) => {
             this.$identityService.getIdentityByProviderIdAndRemoteId('organization',coworker).then(user => {
               const taskCoworker = {
                 id: `organization:${user.remoteId}`,
