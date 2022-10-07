@@ -463,6 +463,9 @@ export default {
       }
     },
     updateTaskStartDate(value) {
+      if (value !== 'none' && value.date === 1 && value.month === 0 && value.timezoneOffset < 0) {
+        value.year += 1;
+      }
       if (value && value !== 'none'  && (!this.oldTask.startDate|| !this.datesEquals(this.oldTask.startDate,value))) {
         if (this.task.id != null) {
           this.task.startDate = value;
@@ -502,6 +505,9 @@ export default {
       }
     },
     updateTaskDueDate(value) {
+      if (value !== 'none' && value.date === 1 && value.month === 0 && value.timezoneOffset < 0) {
+        value.year += 1;
+      }
       if (value && value !== 'none' && (!this.oldTask.dueDate || !this.datesEquals(this.oldTask.dueDate,value))) {
         if (this.task.id !== null) {
           this.task.dueDate = value;
