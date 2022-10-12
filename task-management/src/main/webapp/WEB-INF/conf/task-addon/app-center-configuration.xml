@@ -32,7 +32,7 @@
           <value>${exo.app-center.tasks.override:false}</value>
         </value-param>
         <value-param>
-          <name>override</name>
+          <name>override-mode</name>
           <value>${exo.app-center.tasks.override-mode:merge}</value>
         </value-param>
         <object-param>
