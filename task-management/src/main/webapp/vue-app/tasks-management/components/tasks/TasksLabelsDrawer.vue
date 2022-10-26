@@ -133,7 +133,6 @@ export default {
     document.addEventListener('loadTaskLabels', event => {
       if (event && event.detail) {
         const task = event.detail;
-        this.model = [];
         if (task.id!=null) {
           this.getTaskLabels();
           this.$taskDrawerApi.getTaskLabels(task.id).then((labels) => {
@@ -152,9 +151,7 @@ export default {
         this.getProjectLabels(this.projectId);
       }
     });
-    this.$root.$on('reset-filter-task-group-sort',() =>{
-      this.model = null;
-    });
+    
   },
   methods: {
     filter(item, queryText, itemText) {
