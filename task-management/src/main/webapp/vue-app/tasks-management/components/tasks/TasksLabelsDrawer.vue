@@ -133,6 +133,7 @@ export default {
     document.addEventListener('loadTaskLabels', event => {
       if (event && event.detail) {
         const task = event.detail;
+        this.model = [];
         if (task.id!=null) {
           this.getTaskLabels();
           this.$taskDrawerApi.getTaskLabels(task.id).then((labels) => {
