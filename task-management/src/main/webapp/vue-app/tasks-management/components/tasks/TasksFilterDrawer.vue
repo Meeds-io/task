@@ -305,7 +305,6 @@ export default {
       this.orderBy = projectId > 0 && localStorageSaveFilter && localStorageSaveFilter.projectId === projectId && localStorageSaveFilter.orderBy ||
       localStorageSaveFilter && localStorageSaveFilter.projectId === 'None' && localStorageSaveFilter.orderBy ? localStorageSaveFilter.orderBy : '';
       
-      this.$root.$emit('reset-filter-task-group-sort', this.groupBy);
       this.$root.$emit('reset-filter-task-sort', this.orderBy);
       this.$refs.filterTasksDrawer.open();
     },
