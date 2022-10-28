@@ -152,7 +152,9 @@ export default {
         this.getProjectLabels(this.projectId);
       }
     });
-    
+    this.$root.$on('reset-filter-task-group-sort',() =>{
+      this.model = null;
+    });
   },
   methods: {
     filter(item, queryText, itemText) {
