@@ -63,6 +63,7 @@
                 :max="1"
                 :icon-size="26"
                 retrieve-extra-information
+                avatar-overlay-position
                 @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', avatarToDisplay)" />
             </div>
           </div>
