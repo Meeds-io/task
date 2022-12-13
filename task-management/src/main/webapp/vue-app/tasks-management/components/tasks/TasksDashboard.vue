@@ -298,7 +298,7 @@ export default {
       }
       this.loadingTasks = true;
       if (tasksFilter.assignee) {
-        tasksFilter.projectId = -3;
+        tasksFilter.projectId = -2;
       }
       
       return this.$tasksService.filterTasksList(tasksFilter,this.groupBy,this.orderBy,this.labels).then(data => {
@@ -346,7 +346,12 @@ export default {
         this.filterTasks.query='';
         this.groupBy='';
         this.orderBy='';
-        this.filterTasks.projectId=-3;
+        this.filterTasks.projectId=-2;
+        if (localStorage.getItem('filterStorageNone+list')) {
+          const localStorageSavedFilter = JSON.parse(localStorage.getItem('filterStorageNone+list'));
+          this.groupBy = localStorageSavedFilter.groupBy;
+          this.orderBy = localStorageSavedFilter.orderBy;
+        }               
         this.resetSearch();
         this.searchTasks();
       } else if (primaryFilter && (primaryFilter === 'WATCHED')){
@@ -372,7 +377,12 @@ export default {
         this.filterTasks.query='';
         this.groupBy='';
         this.orderBy='';
-        this.filterTasks.projectId=-3;
+        this.filterTasks.projectId=-2;
+        if (localStorage.getItem('filterStorageNone+list')) {
+          const localStorageSavedFilter = JSON.parse(localStorage.getItem('filterStorageNone+list'));
+          this.groupBy = localStorageSavedFilter.groupBy;
+          this.orderBy = localStorageSavedFilter.orderBy;
+        }        
         this.resetSearch();
         this.searchTasks();
       } else {
