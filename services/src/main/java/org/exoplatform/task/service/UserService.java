@@ -36,9 +36,10 @@ public interface UserService {
    * For now, this method is used only for search user in assignee, permission or mention.
    * These function use username, fullName and avatar, so some other infos will be null to avoid recall organizationService
    * @param keyword name of the user
+   * @param excludeExternal if true, exclude external users from search
    * @return List of users
    */
-  ListAccess<User> findUserByName(String keyword);
+  ListAccess<User> findUserByName(String keyword, boolean excludeExternal);
 
   UserSetting getUserSetting(String username);
 
