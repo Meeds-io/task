@@ -295,7 +295,7 @@ public class ProjectRestService implements ResourceContainer {
   public Response getUsersByQueryAndProjectName(@Parameter(description = "Query", required = true) @PathParam("query") String query,
                                                 @Parameter(description = "projectName", required = true) @PathParam("projectName") String projectName) {
     try {
-      ListAccess<User> usersList = userService.findUserByName(query);
+      ListAccess<User> usersList = userService.findUserByName(query, false);
       JSONArray usersJsonArray = new JSONArray();
       for (User user : usersList.load(0, UserUtil.SEARCH_LIMIT)) {
         JSONObject userJson = new JSONObject();

@@ -81,12 +81,15 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public ListAccess<User> findUserByName(String keyword) {
+  public ListAccess<User> findUserByName(String keyword, boolean excludeExternal) {
     ProfileFilter filter = new ProfileFilter();
     filter.setName(keyword);
     filter.setCompany("");
     filter.setPosition("");
     filter.setSkills("");
+    if (excludeExternal) {
+      filter.setUserType("internal");
+    }
     filter.setExcludedIdentityList(new ArrayList<org.exoplatform.social.core.identity.model.Identity>());
 
     final ListAccess<org.exoplatform.social.core.identity.model.Identity> list = identityManager.getIdentitiesByProfileFilter(OrganizationIdentityProvider.NAME, filter, true);

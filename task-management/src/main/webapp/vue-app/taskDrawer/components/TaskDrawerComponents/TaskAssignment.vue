@@ -135,13 +135,11 @@ export default {
       };
     },
     searchOptions() {
-      if (this.task && this.task.status && this.task.status.project) {
-        return {
-          searchUrl: '/portal/rest/projects/projectParticipants/'.concat(this.task.status.project.id).concat('/')
-        };
-      } else {
-        return this.currentUser;
-      }
+      return {
+        searchUrl: this.task && this.task.status && this.task.status.project ? `${eXo.env.portal.context}/${eXo.env.portal.rest}/projects/projectParticipants/`.concat(this.task.status.project.id).concat('/') :
+          `${eXo.env.portal.context}/${eXo.env.portal.rest}/tasks/usersToMention/`,
+
+      };
     }
   },
   mounted() {
