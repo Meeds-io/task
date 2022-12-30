@@ -33,19 +33,13 @@
   <dependencies>
     <dependency>
       <groupId>org.exoplatform.addons.task</groupId>
-      <artifactId>task-management</artifactId>
+      <artifactId>task-management-webapps</artifactId>
       <type>war</type>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.exoplatform.addons.task</groupId>
       <artifactId>task-management-services</artifactId>
-      <type>jar</type>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.exoplatform.addons.task</groupId>
-      <artifactId>task-management-integration</artifactId>
       <type>jar</type>
       <scope>provided</scope>
     </dependency>
