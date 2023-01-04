@@ -780,7 +780,7 @@ public class TestTaskRestService {
       }
     };
 
-    when(userService.findUserByName("root")).thenReturn(lists);
+    when(userService.findUserByName("root", true)).thenReturn(lists);
     when(taskService.isExternal("root")).thenReturn(false);
     Response response = taskRestService.findUsersToMention("root");
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());

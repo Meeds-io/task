@@ -944,7 +944,7 @@ public class TaskRestService implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
   public Response findUsersToMention(@Parameter(description = "Query", required = true) @PathParam("query") String query) {
     try {
-    ListAccess<User> list = userService.findUserByName(query);
+    ListAccess<User> list = userService.findUserByName(query, true);
     JSONArray usersJsonArray = new JSONArray();
     for (User user : list.load(0, UserUtil.SEARCH_LIMIT)) {
       JSONObject userJson = new JSONObject();

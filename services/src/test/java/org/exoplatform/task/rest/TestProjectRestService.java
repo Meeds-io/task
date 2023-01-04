@@ -23,12 +23,10 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,7 +45,6 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
@@ -480,7 +477,7 @@ public class TestProjectRestService {
   }
 
   @Test
-  public void testfindUsersToMention() throws Exception {
+  public void testFindUsersToMention() throws Exception {
     // Given
     ProjectRestService projectRestService = new ProjectRestService(taskService,
             commentService,
@@ -511,7 +508,7 @@ public class TestProjectRestService {
       }
     };
 
-    when(userService.findUserByName("root")).thenReturn(lists);
+    when(userService.findUserByName("root", false)).thenReturn(lists);
 
     Response response = projectRestService.getUsersByQueryAndProjectName("root", "project1");
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
