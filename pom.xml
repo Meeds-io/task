@@ -32,9 +32,8 @@
   <description>Task management add-on</description>
   <modules>
     <module>services</module>
-    <module>task-management</module>
+    <module>webapps</module>
     <module>packaging</module>
-    <module>integration</module>
   </modules>
   <scm>
     <connection>scm:git:git://github.com/exoplatform/task.git</connection>
@@ -88,12 +87,7 @@
       </dependency>
       <dependency>
         <groupId>org.exoplatform.addons.task</groupId>
-        <artifactId>task-management-integration</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.exoplatform.addons.task</groupId>
-        <artifactId>task-management</artifactId>
+        <artifactId>task-management-webapps</artifactId>
         <version>${project.version}</version>
         <type>war</type>
       </dependency>
