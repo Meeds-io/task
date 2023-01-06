@@ -149,15 +149,29 @@
               <collection type="java.util.ArrayList">
                 <value>
                   <object type="org.exoplatform.application.registry.Application">
-                    <field name="applicationName"><string>Tasks</string></field>
-                    <field name="categoryName"><string>Collaboration</string></field>
-                    <field name="displayName"><string>Tasks</string></field>
-                    <field name="description"><string>Task management application</string></field>
-                    <field name="type"><string>portlet</string></field>
-                    <field name="contentId"><string>task-management/TasksManagement</string></field>
+                    <field name="applicationName">
+                      <string>Tasks</string>
+                    </field>
+                    <field name="categoryName">
+                      <string>Collaboration</string>
+                    </field>
+                    <field name="displayName">
+                      <string>Tasks</string>
+                    </field>
+                    <field name="description">
+                      <string>Task management application</string>
+                    </field>
+                    <field name="type">
+                      <string>portlet</string>
+                    </field>
+                    <field name="contentId">
+                      <string>task-management/TasksManagement</string>
+                    </field>
                     <field name="accessPermissions">
                       <collection type="java.util.ArrayList" item-type="java.lang.String">
-                        <value><string>*:/platform/users</string></value>
+                        <value>
+                          <string>*:/platform/users</string>
+                        </value>
                       </collection>
                     </field>
                   </object>
@@ -219,7 +233,9 @@
                     </field>
                     <field name="accessPermissions">
                       <collection type="java.util.ArrayList" item-type="java.lang.String">
-                        <value><string>*:/platform/users</string></value>
+                        <value>
+                          <string>*:/platform/users</string>
+                        </value>
                       </collection>
                     </field>
                   </object>
