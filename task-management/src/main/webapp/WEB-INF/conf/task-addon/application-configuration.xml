@@ -46,7 +46,7 @@
               <boolean>${exo.tasks.portalConfig.metadata.override:true}</boolean>
             </field>
             <field name="importMode">
-              <string>${exo.tasks.portalConfig.metadata.importMode:insert}</string>
+              <string>${exo.tasks.portalConfig.metadata.importMode:merge}</string>
             </field>
           </object>
         </object-param>
