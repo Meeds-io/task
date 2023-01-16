@@ -123,20 +123,24 @@
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>tasks.portlets.registry</name>
+      <name>tools.portlets.registry</name>
       <set-method>initListener</set-method>
       <type>org.exoplatform.application.registry.ApplicationCategoriesPlugins</type>
-      <description>Add TaskManagementPortlet to Collaboration category</description>
+      <description>Add tasks portlet to Tools category</description>
       <init-params>
+        <value-param>
+          <name>system</name>
+          <value>true</value>
+        </value-param>
         <object-param>
-          <name>Collaboration</name>
-          <description>Collaboration</description>
+          <name>tools</name>
+          <description>Tools</description>
           <object type="org.exoplatform.application.registry.ApplicationCategory">
             <field name="name">
-              <string>Collaboration</string>
+              <string>Tools</string>
             </field>
             <field name="displayName">
-              <string>Collaboration</string>
+              <string>Tools</string>
             </field>
             <field name="accessPermissions">
               <collection type="java.util.ArrayList" item-type="java.lang.String">
@@ -149,15 +153,29 @@
               <collection type="java.util.ArrayList">
                 <value>
                   <object type="org.exoplatform.application.registry.Application">
-                    <field name="applicationName"><string>Tasks</string></field>
-                    <field name="categoryName"><string>Collaboration</string></field>
-                    <field name="displayName"><string>Tasks</string></field>
-                    <field name="description"><string>Task management application</string></field>
-                    <field name="type"><string>portlet</string></field>
-                    <field name="contentId"><string>task-management/TasksManagement</string></field>
+                    <field name="applicationName">
+                      <string>tasks</string>
+                    </field>
+                    <field name="categoryName">
+                      <string>tools</string>
+                    </field>
+                    <field name="displayName">
+                      <string>My Tasks</string>
+                    </field>
+                    <field name="description">
+                      <string>Task application</string>
+                    </field>
+                    <field name="type">
+                      <string>portlet</string>
+                    </field>
+                    <field name="contentId">
+                      <string>task-management/tasks</string>
+                    </field>
                     <field name="accessPermissions">
                       <collection type="java.util.ArrayList" item-type="java.lang.String">
-                        <value><string>*:/platform/users</string></value>
+                        <value>
+                          <string>*:/platform/users</string>
+                        </value>
                       </collection>
                     </field>
                   </object>
