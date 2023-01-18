@@ -19,97 +19,99 @@
     id="taskCardItem"
     class="taskBoardCardItem"
     :class="removeCompletedTask && 'completedTask' || ''">
-    <v-card
-      :class="[taskPriorityColor]"
-      class="taskCard taskViewCard pa-2"
-      flat>
-      <div class="taskTitleId  d-flex justify-space-between">
-        <div class="taskCheckBox">
-          <v-switch
-            ref="autoFocusInput2"
-            class="d-none"
-            true-value="true"
-            false-value="false" />
-          <i 
-            :title="$t(taskCompletedTitle)" 
-            :class="taskCompletedClass" 
-            @click="updateCompleted"></i>
-        </div>
-        <div class="taskTitle d-flex align-start" @click="openTaskDrawer()">
-          <a
-            ref="tooltip"
-            :class="getTitleTaskClass()"
-            :title="task.task.title"
-            class="taskCardViewTitle">
-            <span class="taskTitleEllipsis">{{ task.task.title }}</span>
-          </a>
-        </div>
-      </div>
-
-      <v-divider v-if="displayCardBottomSection" />
-      <div 
-        v-if="displayCardBottomSection" 
-        class="taskActionsAndDate d-flex align-center justify-space-between">
-        <div 
-          class="taskActionsAndLabels d-flex align-center">
-          <div
-            v-if="assigneeAndCoworkerArray && assigneeAndCoworkerArray.length"
-            class="taskWorker  justify-space-between pe-2">
-            <div
-              :class="assigneeAndCoworkerArray && !assigneeAndCoworkerArray.length && task && task.labels && !task.labels.length && 'hideTaskAssignee'"
-              class="taskAssignee d-flex flex-nowrap position-relative">
-              <exo-user-avatars-list
-                :users="avatarToDisplay"
-                :max="1"
-                :icon-size="26"
-                retrieve-extra-information
-                avatar-overlay-position
-                @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', avatarToDisplay)" />
-            </div>
+    <v-hover v-slot="{ hover }">
+      <v-card
+        :class="[taskPriorityColor]"
+        :elevation="hover && !isMobile && 4 || 0"
+        class="taskCard taskViewCard pa-2"
+        flat>
+        <div class="taskTitleId  d-flex justify-space-between">
+          <div class="taskCheckBox">
+            <v-switch
+              ref="autoFocusInput2"
+              class="d-none"
+              true-value="true"
+              false-value="false" />
+            <i
+              :title="$t(taskCompletedTitle)"
+              :class="taskCompletedClass" 
+              @click="updateCompleted"></i>
           </div>
-          <div
-            v-if="task.commentCount"
-            class="taskComment d-flex pe-2"
-            @click="openTaskDrawer()">
-            <i class="uiIcon uiCommentIcon"></i>
-            <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
-          </div>
-          <div
-            v-if="task.labels && task.labels.length"
-            :class="getClassLabels()"
-            @click="openTaskDrawer()">
-            <v-chip
-              v-if="task.labels && task.labels.length == 1"
-              :color="task.labels[0].color"
-              :title="task.labels[0].name"
-              class="mx-1 font-weight-bold theme--light"
-              label
-              small>
-              <span class="text-truncate">
-                {{ task.labels[0].name }}
-              </span>
-            </v-chip>
-            <div
-              v-else-if="task.labels && task.labels.length > 1"
-              :title="getLabelsList(task.labels)"
-              class="taskTags d-flex theme--light">
-              <i class="uiIcon uiTagIcon"></i>
-              <span class="taskAttachNumber caption">{{ task.labels.length }}</span>
-            </div>
+          <div class="taskTitle d-flex align-start" @click="openTaskDrawer()">
+            <a
+              ref="tooltip"
+              :class="getTitleTaskClass()"
+              :title="task.task.title"
+              class="taskCardViewTitle">
+              <span class="taskTitleEllipsis">{{ task.task.title }}</span>
+            </a>
           </div>
         </div>
+        <v-divider v-if="displayCardBottomSection" />
         <div
-          v-if="taskDueDate"
-          class="taskStatusAndDate"
-          @click="openTaskDrawer()">
-          <div class="taskDueDate" :class="getOverdueTask(taskDueDate) ? 'red--text' : ''">
-            <div>
-              <date-format :value="taskDueDate" :format="dateTimeFormat" />
+          v-if="displayCardBottomSection"
+          class="taskActionsAndDate d-flex align-center justify-space-between">
+          <div
+            class="taskActionsAndLabels d-flex align-center">
+            <div
+              v-if="assigneeAndCoworkerArray && assigneeAndCoworkerArray.length"
+              class="taskWorker  justify-space-between pe-2">
+              <div
+                :class="assigneeAndCoworkerArray && !assigneeAndCoworkerArray.length && task && task.labels && !task.labels.length && 'hideTaskAssignee'"
+                class="taskAssignee d-flex flex-nowrap position-relative">
+                <exo-user-avatars-list
+                  :users="avatarToDisplay"
+                  :max="1"
+                  :icon-size="26"
+                  retrieve-extra-information
+                  avatar-overlay-position
+                  @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', avatarToDisplay)" />
+              </div>
+            </div>
+            <div
+              v-if="task.commentCount"
+              class="taskComment d-flex pe-2"
+              @click="openTaskDrawer()">
+              <i class="uiIcon uiCommentIcon"></i>
+              <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
+            </div>
+            <div
+              v-if="task.labels && task.labels.length"
+              :class="getClassLabels()"
+              @click="openTaskDrawer()">
+              <v-chip
+                v-if="task.labels && task.labels.length == 1"
+                :color="task.labels[0].color"
+                :title="task.labels[0].name"
+                class="mx-1 font-weight-bold theme--light"
+                label
+                small>
+                <span class="text-truncate">
+                  {{ task.labels[0].name }}
+                </span>
+              </v-chip>
+              <div
+                v-else-if="task.labels && task.labels.length > 1"
+                :title="getLabelsList(task.labels)"
+                class="taskTags d-flex theme--light">
+                <i class="uiIcon uiTagIcon"></i>
+                <span class="taskAttachNumber caption">{{ task.labels.length }}</span>
+              </div>
+            </div>
+          </div>
+          <div
+            v-if="taskDueDate"
+            class="taskStatusAndDate"
+            @click="openTaskDrawer()">
+            <div class="taskDueDate" :class="getOverdueTask(taskDueDate) ? 'red--text' : ''">
+              <div>
+                <date-format :value="taskDueDate" :format="dateTimeFormat" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </v-card>
+      </v-card>
+    </v-hover>
   </v-app>
 </template>
 <script>
@@ -179,7 +181,10 @@ export default {
     },
     removeCompletedTask() {
       return this.task.task.completed === true && !this.showCompletedTasks;
-    }
+    },
+    isMobile() {
+      return this.$vuetify.breakpoint.mdAndDown;
+    },
   },
   watch: {
     'task.assignee'() {
