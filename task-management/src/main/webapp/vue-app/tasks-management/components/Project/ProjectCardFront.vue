@@ -17,8 +17,10 @@
 <template>
   <v-card 
     :class="project.color && project.color+'_border_bottom' || ''"
-    class="tasksCardItem" 
-    flat>
+    class="tasksCardItem"
+    flat
+    outlined
+    hover>
     <div class="taskItemToolbar d-flex px-2 align-center font-weight-bold">
       <i
         :class="project.color && 'white--text' || 'toolbarNoColor'"
