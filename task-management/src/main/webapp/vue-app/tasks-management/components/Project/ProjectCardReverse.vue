@@ -15,7 +15,11 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-card class="tasksCardItem" flat>
+  <v-card 
+    class="tasksCardItem" 
+    flat
+    outlined
+    hover>
     <div class="projectDetailsReverse pa-3">
       <i
         icon
