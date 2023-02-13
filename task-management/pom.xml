@@ -20,7 +20,7 @@
   <parent>
     <artifactId>task-management-parent</artifactId>
     <groupId>org.exoplatform.addons.task</groupId>
-    <version>3.4.x-exo-SNAPSHOT</version>
+    <version>3.4.0-exo-20230213</version>
   </parent>
   <artifactId>task-management</artifactId>
   <packaging>war</packaging>
