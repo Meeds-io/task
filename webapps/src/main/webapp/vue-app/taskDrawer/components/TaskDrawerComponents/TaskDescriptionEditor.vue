@@ -19,7 +19,7 @@
     <div
       id="taskDescriptionId"
       :class="editorReady && 'active'"
-      class="taskDescription">
+      class="taskDescription richEditor">
       <div
         :data-text="placeholder"
         :title="$t('tooltip.clickToEdit')"
@@ -181,11 +181,14 @@ export default {
     },
     initCKEditor: function () {
       CKEDITOR.plugins.addExternal('embedsemantic', '/commons-extension/eXoPlugins/embedsemantic/', 'plugin.js');
-      let extraPlugins = 'simpleLink,widget,embedsemantic';
+      const toolbar = [
+        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote'],
+      ];
+      let extraPlugins = 'simpleLink,widget,embedsemantic,formatOption';
       const windowWidth = $(window).width();
       const windowHeight = $(window).height();
       if (windowWidth > windowHeight && windowWidth < 768) {
-        extraPlugins = 'simpleLink,selectImage,embedsemantic';
+        extraPlugins = 'simpleLink,selectImage,embedsemantic,formatOption';
       }
       CKEDITOR.basePath = '/commons-extension/ckeditor/';
       const self = this;
@@ -193,6 +196,7 @@ export default {
         customConfig: '/commons-extension/ckeditorCustom/config.js',
         extraPlugins: extraPlugins,
         removePlugins: 'confirmBeforeReload,maximize,resize',
+        toolbar,
         toolbarLocation: 'bottom',
         startupFocus: self.inputVal=== '' ? true :'end',
         autoGrow_onStartup: true,

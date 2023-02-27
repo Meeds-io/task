@@ -21,7 +21,7 @@
       :status="status"
       :project="project"
       :view-type="'board'"
-      :tasks-number="tasksList.length"
+      :tasks-number="tasksList && tasksList.length || 0"
       :index="index"
       :status-list-length="statusListLength"
       @delete-status="deleteStatus"
