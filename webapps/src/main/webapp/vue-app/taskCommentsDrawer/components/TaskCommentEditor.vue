@@ -15,40 +15,44 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div class="comment d-flex align-start" :class="editorReady && 'activeEditor' || 'inactiveEditor'">
-    <exo-user-avatar
-      :profile-id="currentUserName"
-      :size="30"
-      :url="null"
-      extra-class="me-2" 
-      avatar />
-    <div class="editorContainer">
-      <textarea 
-        :ref="`editor-${id}`"
-        :id="id" 
-        v-model="inputVal" 
-        :placeholder="placeholder" 
-        cols="30" 
-        rows="10" 
-        class="textarea"
-        autofocus></textarea>
-      <div
-        :class="charsCount > maxLength ? 'tooManyChars' : ''"
-        class="activityCharsCount"
-        style="">
-        {{ charsCount }}{{ maxLength > -1 ? ' / ' + maxLength : '' }}
-        <i class="uiIconMessageLength"></i>
+  <div>
+    <div
+      class="comment d-flex align-start mb-2"
+      :class="editorReady && 'activeEditor' || 'inactiveEditor'">
+      <exo-user-avatar
+        :profile-id="currentUserName"
+        :size="30"
+        :url="null"
+        extra-class="me-2" 
+        avatar />
+      <div class="editorContainer richEditor">
+        <textarea 
+          :ref="`editor-${id}`"
+          :id="id" 
+          v-model="inputVal" 
+          :placeholder="placeholder" 
+          cols="30" 
+          rows="10" 
+          class="textarea"
+          autofocus></textarea>
+        <div
+          :class="charsCount > maxLength ? 'tooManyChars' : ''"
+          class="activityCharsCount"
+          style="">
+          {{ charsCount }}{{ maxLength > -1 ? ' / ' + maxLength : '' }}
+          <i class="uiIconMessageLength"></i>
+        </div>
       </div>
-      <v-btn
-        :disabled="postDisabled"
-        depressed
-        small
-        type="button" 
-        class="btn btn-primary ignore-vuetify-classes btnStyle mt-1 mb-2 commentBtn"
-        @click="addNewComment()">
-        {{ $t('comment.label.comment') }}
-      </v-btn>
     </div>
+    <v-btn
+      :disabled="postDisabled"
+      depressed
+      small
+      type="button" 
+      class="btn btn-primary ignore-vuetify-classes btnStyle ms-10 mb-2 commentBtn"
+      @click="addNewComment()">
+      {{ $t('comment.label.comment') }}
+    </v-btn>
   </div>
 </template>
 
@@ -172,7 +176,10 @@ export default {
   },
   methods: {
     initCKEditor() {
-      let extraPlugins = 'suggester,widget,embedsemantic';
+      const toolbar = [
+        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote'],
+      ];
+      let extraPlugins = 'suggester,widget,embedsemantic,formatOption';
       const windowWidth = $(window).width();
       const windowHeight = $(window).height();
       if (windowWidth > windowHeight && windowWidth < 768) {
@@ -185,7 +192,7 @@ export default {
         customConfig: '/commons-extension/ckeditorCustom/config.js',
         extraPlugins: extraPlugins,
         removePlugins: 'confirmBeforeReload,maximize,resize',
-
+        toolbar,
         autoGrow_onStartup: true,
         on: {
           instanceReady: function() {

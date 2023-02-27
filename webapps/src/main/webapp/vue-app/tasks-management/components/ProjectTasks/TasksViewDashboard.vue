@@ -78,7 +78,7 @@
             :size="26"
             class="pe-2" 
             popover />
-          <span class="amount-item">({{ tasksList[i].length }})</span>
+          <span class="amount-item">({{ tasksList[i] && tasksList[i].length || 0 }})</span>
 
           <hr
             role="separator"
@@ -116,7 +116,7 @@
           </div>
 
           <span class="nameGroup">{{ $t(getNameGroup(projectItem.name)) }}</span>
-          <span class="amount-item">({{ tasksList[i].length }})</span>
+          <span class="amount-item">({{ tasksList[i] && tasksList[i].length || 0 }})</span>
           <hr
             role="separator"
             aria-orientation="horizontal"

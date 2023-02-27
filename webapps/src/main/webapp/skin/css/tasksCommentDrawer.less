@@ -8,9 +8,9 @@
         position: relative;
         cursor: pointer;
         margin-top: 2px;
+        .fa-comment-dots();
         &:before {
-          content: '\e620';
-          font-family: "PLF-FONT-ICONS";
+          .fa();
           font-size: 16px;
           color: @primaryColor;
         }
@@ -81,9 +81,9 @@
       .uiIconComment{
         display: block;
         margin-bottom: 10px;
+        .fa-comments();
         &:before {
-          font-family: "PLF-FONT-ICONS" !important;
-          content: '\e9c1';
+          .fa();
           font-style: normal;
           font-size: 34px;
           color: @greyColor;
@@ -117,9 +117,9 @@
       position: relative;
       cursor: pointer;
       top: 0px;
+      .fa-comment-dots();
       &:before {
-        content: '\e620';
-        font-family: "PLF-FONT-ICONS";
+        .fa();
         font-size: 18px;
         color: @primaryColor;
       }
@@ -141,13 +141,9 @@
   .uiArrowBAckIcon {
     cursor: pointer;
     color: @btnDisableColor!important;
-    margin-left: -4px ~'; /** orientation=lt */ ';
-    margin-right: -4px ~'; /** orientation=rt */ ';
     &:before {
-      content: "\e913";
-      font-family: "PLF-FONT-ICONS" !important;
       font-style: normal;
-      font-size: 22px;
+      font-size: 18px;
     }
   }
   .drawerContent {
@@ -222,43 +218,6 @@
         .editorContainer {
           width: 100%;
         }
-      }
-      .tooManyChars {
-        color: #bc4343!important;
-      }
-      .tooManyChars .uiIconMessageLength {
-        color: #bc4343!important;
-      }
-      .activityCharsCount{
-        position: absolute;
-        bottom: 46px;
-        font-size: 12px;
-        right: 3px ~'; /** orientation=lt */ ';
-        left: 3px ~'; /** orientation=rt */ ';
-        .uiIconMessageLength {
-          font-size: 14px;
-          color: #2eb58c;
-          &:before {
-            content: "\e910";
-          }
-        }
-      }
-      .cke_bottom.cke_reset_all {
-        background-color: transparent;
-        height: 30px!important;
-      }
-      .cke_toolbar {
-        border-right: none ~'!important; /** orientation=lt */ ';
-        border-left: none ~'!important; /** orientation=rt */ ';
-      }
-      .cke_bottom .cke_button_icon {
-        filter: opacity(0.4);
-      }
-      .tooManyChars {
-        color: #bc4343!important;
-      }
-      .tooManyChars .uiIconMessageLength {
-        color: #bc4343!important;
       }
     }
     .changeUserAvatar {
