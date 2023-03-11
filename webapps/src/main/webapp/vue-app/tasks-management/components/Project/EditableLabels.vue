@@ -68,13 +68,13 @@
               dense>
               <i
                 dark
-                class="uiIcon40x40TickBlue label-btn ma-1"
+                class="uiIconTick success--text clickable label-btn ma-1"
                 slot="append"
                 @click="editLabel()">
               </i>
               <i
                 dark
-                class="uiIconClose label-btn ma-1"
+                class="uiIconClose error--text clickable label-btn ma-1"
                 slot="append"
                 @click="cancel($event)">
               </i>
