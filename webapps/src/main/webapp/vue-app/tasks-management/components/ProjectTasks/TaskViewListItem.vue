@@ -38,7 +38,7 @@
         @click="openTaskDrawer()">{{ task.task.title }}
       </a>
     </div>
-    <div class="taskAssignee d-flex v-avatar flex-nowrap pe-7 justify-start">
+    <div class="taskAssignee d-flex v-avatar flex-nowrap me-2 justify-start">
       <exo-user-avatars-list
         :users="avatarToDisplay"
         :max="1"

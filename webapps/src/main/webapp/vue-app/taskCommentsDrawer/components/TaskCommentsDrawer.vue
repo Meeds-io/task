@@ -28,7 +28,7 @@
           <v-list-item class="pe-0">
             <v-list-item-content class="drawerTitle d-flex text-header-title text-truncate">
               <i class="uiIcon uiArrowBAckIcon" @click="closeDrawer"></i>
-              <span class="ps-2 mt-2">{{ $t('label.comments') }}</span>
+              <span class="ps-2">{{ $t('label.comments') }}</span>
             </v-list-item-content>
             <v-list-item-action class="drawerIcons align-end d-flex flex-row">
               <v-btn
