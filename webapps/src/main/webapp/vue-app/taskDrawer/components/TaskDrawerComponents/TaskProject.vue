@@ -20,7 +20,9 @@
       pa-0
       fluid
       d-flex>
-      <i class="uiIcon icon-ArrowRight uiIconLightGray me-1"></i>
+      <i
+        :class="$vuetify.rtl && 'fa-chevron-left' || 'fa-chevron-right'"
+        class="fa my-auto me-1 ms-2 disabled--text"></i>
       <v-combobox
         ref="select"
         :filter="filterProjects"
