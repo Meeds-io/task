@@ -15,8 +15,8 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div>
-    <div class="taskPlanDateCalender d-flex align-center">
+  <div class="d-flex flex-column">
+    <div class="taskPlanDateCalender d-flex col ps-0 align-center">
       <i class="uiIconStartDate uiIconBlue"></i>
       <date-picker
         ref="taskStartDate"
@@ -71,7 +71,7 @@
         </template>
       </date-picker>
     </div>
-    <div class="taskDueDateCalender d-flex align-center">
+    <div class="taskDueDateCalender d-flex col ps-0 align-center">
       <i class="uiIconDueDate uiIconBlue"></i>
       <date-picker
         ref="taskDueDate"
