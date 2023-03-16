@@ -62,8 +62,8 @@
       <div
         v-else-if="task.labels && task.labels.length > 1"
         :title="getLabelsList(task.labels)"
-        class="taskTags d-flex justify-center">
-        <i class="uiIcon uiTagIcon"></i>
+        class="taskTags d-flex align-center justify-center">
+        <i class="uiIcon uiTagIcon me-1"></i>
         <span class="taskAttachNumber caption">{{ task.labels.length }}</span>
       </div>
     </div>
