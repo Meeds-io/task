@@ -68,9 +68,9 @@
           </div>
           <div
             v-if="task.commentCount"
-            class="taskComment d-flex pe-2"
+            class="taskComment d-flex align-center pe-2"
             @click="openTaskDrawer()">
-            <i class="uiIcon uiCommentIcon"></i>
+            <i class="far fa-comment uiCommentIcon"></i>
             <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
           </div>
           <div
