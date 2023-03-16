@@ -17,7 +17,7 @@
 <template>
   <v-app id="projectCard">
     <v-flex :class="flipCard && 'taskCardFlip taskCardFlipped' || 'taskCardFlip'">
-      <div class="taskCardFront pa-3">
+      <div class="taskCardFront py-3 px-2">
         <project-card-front
           :project="project"
           @openDrawer="openEditDrawer"
