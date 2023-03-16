@@ -2286,10 +2286,10 @@
         }
         textarea {
           border: none!important;
-          padding: 3px 6px!important;
           width: 100%!important;
+          padding: 2px 3px;
+          line-height: 1.2em;
           font-size: 20px;
-          margin-top: -4px;
           color: @textColor!important;
           &::placeholder {
             font-size: 19px!important;
@@ -2307,7 +2307,6 @@
     }
     .markAsCompletedBtn {
       color: @primaryColor!important;
-      font-size: 30px!important;
     }
   }
   .lastUpdatedTask {
@@ -2445,19 +2444,23 @@
       }
       input {
         max-width: 90%!important;
+        min-height: auto;
+        height: auto;
+        line-height: 1em;
+        margin: auto 0;
         padding-right: 10px ~'!important; /** orientation=lt */ ';
         padding-left: 10px ~'!important; /** orientation=rt */ ';
-        padding-left: 5px ~'!important; /** orientation=lt */ ';
-        padding-right: 5px ~'!important; /** orientation=rt */ ';
+        padding-left: 2px ~'!important; /** orientation=lt */ ';
+        padding-right: 2px ~'!important; /** orientation=rt */ ';
         border: none!important;
         box-shadow: none;
+        box-sizing: border-box;
         &::placeholder {
           font-size: 16px!important;
         }
       }
     }
     .taskPlanDateCalender {
-      max-height: 40px;
       .uiIconStartDate {
         color: @primaryColor;
         font-size: 24px;
@@ -2471,7 +2474,6 @@
       }
     }
     .taskDueDateCalender {
-      max-height: 40px;
       .uiIconDueDate {
         &:before {
           color: @primaryColor;
@@ -2503,6 +2505,10 @@
         color: @primaryColor;
         font-size: 22px;
       }
+    }
+    .taskPriority, .taskStatus {
+      max-height: 48px;
+      min-height: 48px;
     }
     .taskPriority {
       .v-input__control {
