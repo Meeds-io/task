@@ -23,7 +23,6 @@ import * as statusService from '../../js/statusService.js';
 import * as taskDrawerApi from '../../js/taskDrawerApi.js';
 
 Vue.use(Vuetify);
-Vue.use(VueEllipsis);
 const vuetify = new Vuetify(eXo.env.portal.vuetifyPreset);
 
 if (!Vue.prototype.$tasksService) {

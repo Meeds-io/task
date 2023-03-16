@@ -54,13 +54,13 @@
           @keyup="checkInput($event,index)">
           <i
             dark
-            class="uiIcon40x40TickBlue ma-1"
+            class="uiIconTick success--text clickable ma-1"
             slot="append"
             @click="checkInput(13,status.name)">
           </i>
           <i
             dark
-            class="uiIconClose ma-1"
+            class="uiIconClose error--text clickable ma-1"
             slot="append"
             @click="cancelAddColumn(status.name)">
           </i>
@@ -119,6 +119,15 @@
         offset-y>
         <v-list class="pa-0" dense>
           <v-list-item
+            v-if="index < statusListLength-1"
+            class="menu-list"
+            @click="moveAfterColumn(index)">
+            <v-list-item-title class="subtitle-2">
+              <i class="uiIcon uiIconArrowRight pe-1"></i>
+              <span> {{ $t('label.status.move.after') }}</span>
+            </v-list-item-title>
+          </v-list-item>
+          <v-list-item
             v-if="index>0"
             class="menu-list"
             @click="moveBeforeColumn(index)">
@@ -139,17 +148,8 @@
             class="menu-list"
             @click="addColumn(index+1)">
             <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconRotateRight pe-1"></i>
+              <i class="uiIcon uiIconRotateRight ps-1"></i>
               <span> {{ $t('label.status.after') }} </span>
-            </v-list-item-title>
-          </v-list-item>
-          <v-list-item
-            v-if="index < statusListLength-1"
-            class="menu-list"
-            @click="moveAfterColumn(index)">
-            <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconArrowRight pe-1"></i>
-              <span> {{ $t('label.status.move.after') }}</span>
             </v-list-item-title>
           </v-list-item>
           <v-list-item

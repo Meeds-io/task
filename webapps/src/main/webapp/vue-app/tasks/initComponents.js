@@ -14,27 +14,14 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-import './initComponents.js';
+import TasksApp from './components/TasksApp.vue';
+import TaskDetails from './components/TaskDetails.vue';
 
-// getting language of user
-const lang = window.eXo && eXo?.env?.portal?.language || 'en';
+const components = {
+  'my-tasks-app': TasksApp,
+  'task-details': TaskDetails,
+};
 
-const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.portlet.taskManagement-${lang}.json`;
-
-const appId = 'tasks';
-
-export function init(itemsLimit) {
-//getting locale ressources
-  exoi18n.loadLanguageAsync(lang, url)
-    .then(i18n => {
-      // init Vue app when locale ressources are ready
-      Vue.createApp({
-        data: {
-          itemsLimit: itemsLimit
-        },
-        template: `<my-tasks-app id="${appId}" />`,
-        i18n,
-        vuetify: Vue.prototype.vuetifyOptions,
-      }, `#${appId}`, 'Tasks Widget');
-    });
+for (const key in components) {
+  Vue.component(key, components[key]);
 }

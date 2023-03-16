@@ -68,9 +68,9 @@
           </div>
           <div
             v-if="task.commentCount"
-            class="taskComment d-flex pe-2"
+            class="taskComment d-flex align-center pe-2"
             @click="openTaskDrawer()">
-            <i class="uiIcon uiCommentIcon"></i>
+            <i class="far fa-comment uiCommentIcon"></i>
             <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
           </div>
           <div
@@ -91,8 +91,8 @@
             <div
               v-else-if="task.labels && task.labels.length > 1"
               :title="getLabelsList(task.labels)"
-              class="taskTags d-flex theme--light">
-              <i class="uiIcon uiTagIcon"></i>
+              class="taskTags d-flex align-center theme--light">
+              <i class="uiIcon uiTagIcon me-1"></i>
               <span class="taskAttachNumber caption">{{ task.labels.length }}</span>
             </div>
           </div>

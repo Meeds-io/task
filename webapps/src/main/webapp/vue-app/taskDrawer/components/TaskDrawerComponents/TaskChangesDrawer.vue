@@ -23,7 +23,7 @@
     <v-container fill-height class="pa-0">
       <v-layout column>
         <v-flex class="mx-0 drawerHeader flex-grow-0">
-          <v-list-item class="pe-0">
+          <v-list-item class="px-0">
             <v-list-item-content class="drawerTitle d-flex text-header-title text-truncate">
               <i class="uiIcon uiArrowBAckIcon" @click="closeDrawer"></i>
               <span class="ps-2">{{ $t('label.changes') }}</span>

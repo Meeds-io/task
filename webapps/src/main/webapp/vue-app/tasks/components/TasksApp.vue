@@ -25,7 +25,7 @@
       dismissible>
       {{ message }}
     </v-alert>
-    <v-container pa-0>
+    <v-container white pa-0>
       <v-layout
         row
         mx-3

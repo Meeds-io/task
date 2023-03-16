@@ -38,7 +38,7 @@
         @click="openTaskDrawer()">{{ task.task.title }}
       </a>
     </div>
-    <div class="taskAssignee d-flex v-avatar flex-nowrap pe-7 justify-start">
+    <div class="taskAssignee d-flex v-avatar flex-nowrap me-2 justify-start">
       <exo-user-avatars-list
         :users="avatarToDisplay"
         :max="1"
@@ -62,14 +62,14 @@
       <div
         v-else-if="task.labels && task.labels.length > 1"
         :title="getLabelsList(task.labels)"
-        class="taskTags d-flex justify-center">
-        <i class="uiIcon uiTagIcon"></i>
+        class="taskTags d-flex align-center justify-center">
+        <i class="uiIcon uiTagIcon me-1"></i>
         <span class="taskAttachNumber caption">{{ task.labels.length }}</span>
       </div>
     </div>
     <div class="taskActions d-flex justify-center align-center pe-9" @click="openTaskDrawer()">
-      <div v-if="task.commentCount" class="taskComment d-flex">
-        <i class="uiIcon uiCommentIcon"></i>
+      <div v-if="task.commentCount" class="taskComment d-flex align-center">
+        <i class="far fa-comment uiCommentIcon"></i>
         <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
       </div>
     </div>

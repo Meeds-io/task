@@ -17,7 +17,7 @@
 <template>
   <div 
     :class="charsCount > 0 ? '' : 'emptyEditor'"
-    class="projectDescription" 
+    class="projectDescription richEditor" 
     style="position: relative">
     <textarea
       ref="editor"
@@ -115,7 +115,11 @@ export default {
       if (typeof CKEDITOR.instances[instances] !== 'undefined') {
         CKEDITOR.instances[instances].destroy(true);
       }
-      let extraPlugins = 'simpleLink,widget';
+      const toolbar = [
+        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote', 'emoji'],
+      ];
+      let extraPlugins = 'simpleLink,widget,formatOption,emoji';
+
       const windowWidth = $(window).width();
       const windowHeight = $(window).height();
       if (windowWidth > windowHeight && windowWidth < this.SMARTPHONE_LANDSCAPE_WIDTH) {
@@ -130,9 +134,7 @@ export default {
         extraPlugins: extraPlugins,
         allowedContent: true,
         removePlugins: 'image,confirmBeforeReload,maximize,resize',
-        toolbar: [
-          ['Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote'],
-        ],
+        toolbar,
         typeOfRelation: 'mention_activity_stream',
         autoGrow_onStartup: true,
         //autoGrow_maxHeight: 300,

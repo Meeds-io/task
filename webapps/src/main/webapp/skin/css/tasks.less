@@ -33,16 +33,14 @@
         padding: 0 16px 0 16px;
         .addProjectTitle {
           .uiIconProject {
-            font-family: "PLF-FONT-ICONS" !important;
+            .fa();
+            .fa-folder();
             font-style: normal;
             font-size: 20px;
             color: @primaryColor;
             margin-right: 4px ~'; /** orientation=lt */ ';
             margin-left: 4px ~'; /** orientation=rt */ ';
             margin-top: -4px;
-            &:before {
-              content: "\e665";
-            }
           }
           .projectInputTitle {
             margin-bottom:0px;
@@ -240,9 +238,10 @@
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                i.uiIconInformation.uiIconProject:before {
-                  content: "\ea93";
-                  font-size: 13px;
+                i.uiIconInformation.uiIconProject {
+                  .fa();
+                  .fa-info-circle();
+                  font-size: 11px;
                   color: @textLightColor;
                 }
               }
@@ -250,9 +249,6 @@
           }
         }
 
-        .cke_browser_webkit{
-          margin: 16px 16px;
-        }
         .cke_bottom.cke_reset_all {
           background-color: transparent;
           height: 30px;
@@ -261,26 +257,6 @@
           filter: opacity(0.4);
         }
         .projectDescription {
-          .tooManyChars {
-            color: #bc4343!important;
-          }
-          .tooManyChars .uiIconMessageLength {
-            color: #bc4343!important;
-          }
-          .activityCharsCount{
-            position: absolute;
-            bottom: 8px;
-            right: 25px ~'; /** orientation=lt */ ';
-            left: 25px ~'; /** orientation=rt */ ';
-            color: #adadad;
-            .uiIconMessageLength {
-              font-size: 14px;
-              color: #2eb58c;
-              &:before {
-                content: "\e910";
-              }
-            }
-          }
           label {
             font-size: 1rem !important;
             font-weight: 400;
@@ -407,16 +383,8 @@
         font-weight: normal;
       }
       .tasksToolbar {
-        .addNewProjectButton {
-          .uiIconPlus {
-            &:before {
-              content: "\eb5b";
-            }
-          }
-        }
         .inputTasksFilter {
           max-width: 250px;
-          margin-top: -2px!important;
           .v-input__slot {
             margin-bottom: 0!important;
             .v-text-field__slot {
@@ -481,21 +449,18 @@
         }
         .taskDisplay {
           .uiIcon {
-            font-family: "PLF-FONT-ICONS" !important;
             font-style: normal;
             font-size: 16px;
             padding-right: 10px ~'; /** orientation=lt */ ';
             padding-left: 10px ~'; /** orientation=rt */ ';
           }
           .uiIconCards {
-            &:before {
-              content: "\e635";
-            }
+            .far();
+            .fa-clipboard();
           }
           .uiIconList {
-            &:before {
-              content: "\e62e";
-            }
+            .fas();
+            .fa-list();
           }
         }
         .v-tabs-slider-wrapper {
@@ -519,13 +484,11 @@
         }
         .filterTasksSetting {
           .uiIconFilterSetting {
-            font-family: "PLF-FONT-ICONS" !important;
+            .fa();
+            .fa-sliders-h();
             font-style: normal;
             font-size: 16px;
             color: @primaryColor;
-            &:before {
-              content: "\eaf2";
-            }
           }
         }
       }
@@ -942,20 +905,6 @@
                   .v-list-item {
                     min-height: 38px!important;
                   }
-                  .uiIconStar {
-                    position: absolute;
-                    top: 85%;
-                    right: 10px ~'; /** orientation=lt */ ';
-                    left: 10px ~'; /** orientation=rt */ ';
-                    z-index: 0;
-                    &:before {
-                      content: "\e97f";
-                      font-family: "PLF-FONT-ICONS" !important;
-                      color: @colorIconOrange;
-                      font-style: normal;
-                      font-size: 18px;
-                    }
-                  }
                   .spaceAdminWrapper {
                     position: relative;
                     z-index: 2;
@@ -1004,9 +953,6 @@
                         padding-left: 4px ~'; /** orientation=lt */ ';
                         padding-right: 4px ~'; /** orientation=rt */ ';
                         cursor: pointer;
-                        &:before {
-                          content: "\e74f";
-                        }
                       }
                     }
                   }
@@ -1162,9 +1108,9 @@
                 .isSelected {
                   position: relative;
                   text-align: center;
+                  .fa-check();
                   &:before {
-                    content: '\e9c6';
-                    font-family: 'PLF-FONT-ICONS' !important;
+                    .fa();
                     color: white;
                     font-size: 14px;
                   }
@@ -1184,9 +1130,6 @@
           a {
             i {
               color: @greyColorLighten1;
-              &:before {
-                content: "\e913";
-              }
             }
             span {
               font-size: 1.25rem;
@@ -1211,9 +1154,8 @@
                     height: 38px;
                     min-height: 38px;
                     .uiIconBoard {
-                      &:before {
-                        content: "\e631";
-                      }
+                      .far();
+                      .fa-clipboard();
                     }
                   }
                   .taskTabList {
@@ -1225,9 +1167,8 @@
                     height: 38px;
                     min-height: 38px;
                     .uiIconGantt {
-                      &:before {
-                        content: "\e623";
-                      }
+                      .fas();
+                      .fa-stream();
                     }
                   }
                 }
@@ -1297,24 +1238,17 @@
                 max-width: 100%;
                 padding-top: 0px;
                 width: 266px;
-                .uiIcon40x40TickBlue{
-                  color: @primaryColor;
-                  cursor: pointer;
-                }
-                .uiIconClose{
-                  cursor: pointer;
-                  &:before{
-                    color: red;
-                    font-size: 16px;
-                  }
-                }
               }
 
               .taskNumberAndActions {
                 .uiIconVerticalDots,.uiIconSocSimplePlus {
-                  font-size: 16px;
+                    font-size: 16px;
                     margin-top: -3px;
+                    min-width: 22px;
                     color:@greyColorLighten1!important;
+                    &:before {
+                      margin: 0 auto;
+                    }
                   }
                 .uiIconVerticalDots:hover,.uiIconSocSimplePlus:hover {
                     color:@primaryColor!important;
@@ -1345,6 +1279,12 @@
                   min-height: 30px!important;
                   text-align: start!important;
                   max-width: 100%!important;
+                  padding: 2px 10px;
+
+                  i {
+                    min-width: 24px;
+                    text-align: center;
+                  }
                 }
               }
             }
@@ -1407,15 +1347,11 @@
           padding-right: 10px ~'; /** orientation=lt */ ';
           padding-left: 10px ~'; /** orientation=rt */ ';
           .uiIconCircle {
-            font-family: "PLF-FONT-ICONS" !important;
             color: @primaryColor;
             font-style: normal;
             font-weight: bold;
             font-size: 19px;
             cursor: pointer;
-            &:before {
-              content: "\ea47";
-            }
           }
           .uiIconValidate{
             font-style: normal;
@@ -1523,12 +1459,10 @@
     }
     .taskComment {
       .uiCommentIcon {
-        padding-right: 2px ~'; /** orientation=lt */ ';
-        padding-left: 2px ~'; /** orientation=rt */ ';
-        margin-top: -2px;
+        margin-right: 5px ~'; /** orientation=lt */ ';
+        margin-left: 5px ~'; /** orientation=rt */ ';
         &:before {
-          content: "\ea42";
-          font-family: "PLF-FONT-ICONS" !important;
+          .far();
           color: @likeButtonColor;
           font-style: normal;
           font-size: 20px;
@@ -1565,9 +1499,9 @@
           .uiTagIcon {
             padding-right: 2px ~'; /** orientation=lt */ ';
             padding-left: 2px ~'; /** orientation=rt */ ';
+            .fa-tag();
             &:before {
-              content: "\ead3";
-              font-family: "PLF-FONT-ICONS" !important;
+              .fa();
               color: @likeButtonColor;
               font-style: normal;
               font-size: 18px;
@@ -1677,9 +1611,9 @@
       }
     }
 }
-.TaskCommentItem .commentBody .taskContentComment ul li {
+.TaskCommentItem .commentBody .taskContentComment li {
   list-style-position: inside;
-  list-style-type: disc;
+  list-style-type: inherit;
 }
 .projectAndTasksContainer {
       .noTasksProject {
@@ -1884,16 +1818,12 @@
               padding-right: 10px ~'; /** orientation=lt */ ';
               padding-left: 10px ~'; /** orientation=rt */ ';
               .uiIconCircle {
-                font-family: "PLF-FONT-ICONS" !important;
                 color: @primaryColor;
                 font-style: normal;
                 font-weight: bold;
                 font-size: 19px;
                 padding-top: 5px;
                 cursor: pointer;
-                &:before {
-                  content: "\ea47";
-                }
               }
               .uiIconValidate{
                 font-style: normal;
@@ -1967,9 +1897,9 @@
               cursor: pointer;
               .taskTags {
                 .uiTagIcon {
+                  .fa-tag();
                   &:before {
-                    content: "\ead3";
-                    font-family: "PLF-FONT-ICONS" !important;
+                    .fa();
                     color: @likeButtonColor;
                     font-style: normal;
                     font-size: 18px;
@@ -2202,9 +2132,6 @@
           padding-left: 4px ~'; /** orientation=lt */ ';
           padding-right: 4px ~'; /** orientation=rt */ ';
           cursor: pointer;
-          &:before {
-            content: "\e74f";
-          }
         }
       }
       #TasksListToolbar {
@@ -2244,10 +2171,13 @@
       #taskActionMenu {
         .uiThreeDotsIcon {
           cursor: pointer;
+          .fas();
+          .fa-ellipsis-v();
+          font-size: 15px;
+          margin-right: 6px ~'; /** orientation=lt */ ';
+          margin-left: 6px ~'; /** orientation=rt */ ';
           &:before {
-            content: "\e961";
             color: @greyColorLighten1Default;
-            font-size: 24px;
           }
         }
         .taskActionMenu {
@@ -2269,29 +2199,14 @@
         .uiArrowBAckIcon {
           cursor: pointer;
           color: @btnDisableColor!important;
-          margin-left: -4px ~'; /** orientation=lt */ ';
-          margin-right: -4px ~'; /** orientation=rt */ ';
           padding-right: 10px ~'; /** orientation=lt */ ';
           padding-right: 10px ~'; /** orientation=rt */ ';
           &:before {
-            content: "\e913";
-            font-family: "PLF-FONT-ICONS" !important;
             font-style: normal;
             font-size: 22px;
           }
         }
         .taskProjectName {
-          .icon-ArrowRight {
-            margin-top: 6px;
-            margin-left: 10px ~'; /** orientation=lt */ ';
-            margin-right: 10px ~'; /** orientation=rt */ ';
-            &:before {
-              content: '\e9cb' ~'; /** orientation=lt */ ';
-              content: '\e9ca' ~'; /** orientation=rt */ ';
-              font-size: 16px;
-              color: @btnDisableColor!important;
-            }
-          }
           .projectName {
             max-width: 200px;
           }
@@ -2371,10 +2286,10 @@
         }
         textarea {
           border: none!important;
-          padding: 3px 6px!important;
           width: 100%!important;
+          padding: 2px 3px;
+          line-height: 1.2em;
           font-size: 20px;
-          margin-top: -4px;
           color: @textColor!important;
           &::placeholder {
             font-size: 19px!important;
@@ -2392,7 +2307,6 @@
     }
     .markAsCompletedBtn {
       color: @primaryColor!important;
-      font-size: 30px!important;
     }
   }
   .lastUpdatedTask {
@@ -2451,8 +2365,9 @@
           margin-top: -4px !important;
           padding-right: 6px ~'; /** orientation=lt */ ';
           padding-left: 6px ~'; /** orientation=rt */ ';
+          .fa();
+          .fa-user-plus();
           &:before {
-            content: "\e6c4";
             color: @greyColorLighten1Default;
             font-size: 15px;
           }
@@ -2469,18 +2384,19 @@
     .assignTaskMenu {
       .uiAssignToMeIcon {
         margin-top: -4px;
+        .fa();
+        .fa-user();
         &:before {
-          content: "\e6cc";
           padding-right: 6px ~'; /** orientation=lt */ ';
           padding-left: 6px ~'; /** orientation=rt */ ';
-          content: "\e6cc";
           font-size: 16px;
         }
       }
       .uiAddMeCoworkerIcon {
         margin-top: -4px;
+        .fa();
+        .fa-user-friends();
         &:before {
-          content: "\e6cb";
           font-size: 18px;
           padding-right: 8px ~'; /** orientation=lt */ ';
           padding-left: 8px ~'; /** orientation=rt */ ';
@@ -2528,27 +2444,26 @@
       }
       input {
         max-width: 90%!important;
+        min-height: auto;
+        height: auto;
+        line-height: 1em;
+        margin: auto 0;
         padding-right: 10px ~'!important; /** orientation=lt */ ';
         padding-left: 10px ~'!important; /** orientation=rt */ ';
-        padding-left: 5px ~'!important; /** orientation=lt */ ';
-        padding-right: 5px ~'!important; /** orientation=rt */ ';
+        padding-left: 2px ~'!important; /** orientation=lt */ ';
+        padding-right: 2px ~'!important; /** orientation=rt */ ';
         border: none!important;
         box-shadow: none;
+        box-sizing: border-box;
         &::placeholder {
           font-size: 16px!important;
         }
       }
     }
     .taskPlanDateCalender {
-      max-height: 40px;
       .uiIconStartDate {
         color: @primaryColor;
         font-size: 24px;
-        margin-left: -2px ~'; /** orientation=lt */ ';
-        margin-right: -2px ~'; /** orientation=rt */ ';
-        &:before {
-          content: "\ebf3";
-        }
       }
       .v-picker__actions.v-card__actions {
         border-top: 1px solid  @borderColor;
@@ -2559,12 +2474,10 @@
       }
     }
     .taskDueDateCalender {
-      max-height: 40px;
       .uiIconDueDate {
         &:before {
-          content: "\ebf2";
           color: @primaryColor;
-          font-size: 22px;
+          font-size: 24px;
         }
       }
       .v-picker__actions.v-card__actions {
@@ -2592,6 +2505,10 @@
         color: @primaryColor;
         font-size: 22px;
       }
+    }
+    .taskPriority, .taskStatus {
+      max-height: 48px;
+      min-height: 48px;
     }
     .taskPriority {
       .v-input__control {
@@ -2687,33 +2604,9 @@
   .taskDescription {
     position: relative;
 
-    .activityCharsCount{
-      position: absolute;
-      bottom: 8px;
-      font-size: 15px;
-      right: 5px ~'; /** orientation=lt */ ';
-      left: 5px ~'; /** orientation=rt */ ';
-      color: #adadad;
-
-      .uiIconMessageLength {
-        font-size: 14px;
-        color: #2eb58c;
-        &:before {
-          content: "\e910";
-        }
-      }
-    }
-
-    .tooManyChars {
-      color: #bc4343!important;
-    }
-    .tooManyChars .uiIconMessageLength {
-      color: #bc4343!important;
-    }
-
-    ul li {
+    li {
       list-style-position: inside;
-      list-style-type: disc;
+      list-style-type: inherit;
     }
     .taskDescriptionToShow {
       &:focus {
@@ -2727,30 +2620,6 @@
     }
     #cke_descriptionContent {
       display: none;
-    }
-
-    .cke_toolbar:last-child {
-      display: none;
-    }
-
-    .cke_toolbar {
-      border-right: none ~'; /** orientation=lt */ ';
-      border-left: none ~'; /** orientation=rt */ ';
-    }
-
-    .cke_bottom.cke_reset_all {
-      background-color: transparent;
-      height: 30px!important;
-    }
-    .cke_bottom .cke_button_icon {
-      filter: opacity(0.4);
-    }
-    .uiIconMessageLength {
-      font-size: 14px;
-      color: @primaryColor;
-      &:before {
-        content: "\e910";
-      }
     }
   }
 
@@ -2910,10 +2779,8 @@
         font-size: 60px;
         font-style: normal;
         font-weight: normal;
-        &:before {
-          font-family: 'PLF-FONT-ICONS';
-          content: "\e690" !important;
-        }
+        .fa();
+        .fa-clipboard-list();
       }
       .noTasksTitle {
         color: #4d5466;
@@ -3428,12 +3295,6 @@
   border-color: #795548 !important;
 }
 
-.uiIconCalTask:before {
-  content: "\e611";
-  font-family: "PLF-FONT-ICONS";
-}
-
-
 @keyframes beginDrag {
     from {
       transform: rotate(0deg)
@@ -3514,9 +3375,9 @@
       .isSelected {
         position: relative;
         text-align: center;
+        .fa();
         &:before {
-          content: '\e9c6';
-          font-family: 'PLF-FONT-ICONS' !important;
+          .fa-check();
           color: white;
           font-size: 14px;
         }
@@ -3531,7 +3392,7 @@
 -----------------------------------------------------------*/
 .gantt-wrapper {
   .unscheduled-task-container {
-    position: fixed;
+    position: absolute;
     z-index: 999;
     top: 50%;
     left: 30px;

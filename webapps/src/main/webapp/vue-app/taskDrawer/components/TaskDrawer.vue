@@ -123,7 +123,7 @@
               @assignmentsOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeLabelsList()" />
           </div>
           <v-divider class="my-0" />
-          <div class="d-flex  pt-4 pb-2">
+          <div class="d-flex py-2">
             <div class="taskDates">
               <task-form-date-pickers
                 :task="task"
@@ -134,10 +134,12 @@
             <div class="taskStatusAndPriority">
               <task-priority
                 :task="task"
+                class="py-2"
                 @updateTaskPriority="updateTaskPriority($event)"
                 @PriorityListOpened="closeStatus(); closeProjectsList(); closeLabelsList();closeTaskDates();closeAssignements()" />
               <task-status
                 :task="task"
+                class="py-2"
                 @statusListOpened="closePriority(); closeProjectsList();closeLabelsList();closeTaskDates();closeAssignements()"
                 @updateTaskStatus="updateTaskStatus($event)" />
             </div>

@@ -171,9 +171,27 @@
   </module>
 
   <module>
-    <name>vuedraggable</name>
+    <name>vueDraggable</name>
     <script>
-      <path>/js/vuedraggable.js</path>
+      <adapter>
+        (function() {
+        <include>/js/lib/vueDraggable.min.js</include>
+        })();
+      </adapter>
+    </script>
+    <depends>
+      <module>sortablejs</module>
+    </depends>
+  </module>
+
+  <module>
+    <name>sortablejs</name>
+    <script>
+      <adapter>
+        (function() {
+        <include>/js/lib/sortable.min.js</include>
+        })();
+      </adapter>
     </script>
   </module>
 
@@ -338,7 +356,7 @@
         <module>commonVueComponents</module>
       </depends>
       <depends>
-        <module>vuedraggable</module>
+        <module>vueDraggable</module>
       </depends>
       <depends>
         <module>ganttChart</module>
@@ -348,9 +366,6 @@
       </depends>
       <depends>
         <module>vuetify</module>
-      </depends>
-      <depends>
-        <module>vueEllipsis</module>
       </depends>
       <depends>
         <module>eXoVueI18n</module>
