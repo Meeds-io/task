@@ -175,9 +175,9 @@ export default {
   methods: {
     initCKEditor() {
       const toolbar = [
-        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote'],
+        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote', 'emoji'],
       ];
-      let extraPlugins = 'suggester,widget,embedsemantic,formatOption';
+      let extraPlugins = 'suggester,widget,embedsemantic,formatOption,emoji';
       const windowWidth = $(window).width();
       const windowHeight = $(window).height();
       if (windowWidth > windowHeight && windowWidth < 768) {

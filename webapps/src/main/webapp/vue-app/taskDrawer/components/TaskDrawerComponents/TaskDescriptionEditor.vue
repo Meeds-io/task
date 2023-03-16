@@ -182,9 +182,9 @@ export default {
     initCKEditor: function () {
       CKEDITOR.plugins.addExternal('embedsemantic', '/commons-extension/eXoPlugins/embedsemantic/', 'plugin.js');
       const toolbar = [
-        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote'],
+        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote', 'emoji'],
       ];
-      let extraPlugins = 'simpleLink,widget,embedsemantic,formatOption';
+      let extraPlugins = 'simpleLink,widget,embedsemantic,formatOption,emoji';
       const windowWidth = $(window).width();
       const windowHeight = $(window).height();
       if (windowWidth > windowHeight && windowWidth < 768) {

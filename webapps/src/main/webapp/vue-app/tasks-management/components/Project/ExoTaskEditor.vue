@@ -116,9 +116,9 @@ export default {
         CKEDITOR.instances[instances].destroy(true);
       }
       const toolbar = [
-        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote'],
+        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote', 'emoji'],
       ];
-      let extraPlugins = 'simpleLink,widget,formatOption';
+      let extraPlugins = 'simpleLink,widget,formatOption,emoji';
 
       const windowWidth = $(window).width();
       const windowHeight = $(window).height();
