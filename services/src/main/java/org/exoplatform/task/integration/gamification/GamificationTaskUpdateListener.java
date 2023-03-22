@@ -1,28 +1,20 @@
 package org.exoplatform.task.integration.gamification;
 
-import java.util.Iterator;
 import java.util.Set;
 
-import org.exoplatform.addons.gamification.entities.domain.effective.GamificationActionsHistory;
 import org.exoplatform.addons.gamification.service.configuration.RuleService;
-import org.exoplatform.addons.gamification.service.dto.configuration.RuleDTO;
 import org.exoplatform.addons.gamification.service.effective.GamificationService;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
-import org.exoplatform.services.log.ExoLogger;
-import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.ConversationState;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskPayload;
 import org.exoplatform.task.service.TaskService;
-import org.exoplatform.task.util.TaskUtil;
+
+import static org.exoplatform.task.util.TaskUtil.TASK_OBJECT_TYPE;
 
 public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPayload> {
-  private static final Log      LOG                                             =
-                                    ExoLogger.getLogger(GamificationTaskUpdateListener.class);
 
   private static final String   GAMIFICATION_TASK_ADDON_CREATE_TASK             = "createNewTask";
 
@@ -71,45 +63,44 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
     String actorUsername = ConversationState.getCurrent().getIdentity().getUserId();
 
     // Compute user id
-    String actorId = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, actorUsername, false).getId();
+    String actorId = identityManager.getOrCreateUserIdentity(actorUsername).getId();
 
-    gamificationService.createHistory(GAMIFICATION_TASK_ADDON_CREATE_TASK, actorId, actorId, TaskUtil.buildTaskURL(task));
-
+    gamificationService.createHistory(GAMIFICATION_TASK_ADDON_CREATE_TASK,
+                                      actorId,
+                                      actorId,
+                                      String.valueOf(task.getId()),
+                                      TASK_OBJECT_TYPE);
   }
 
   protected void updateTask(TaskDto before, TaskDto after) {
-    RuleDTO ruleDto = null;
-    String actorId = "";
-    GamificationActionsHistory aHistory = null;
+    String actorId;
     // Task completed
     if (isDiff(before.isCompleted(), after.isCompleted())) {
-
       // Get task assigned property
       if (after.getAssignee() != null && after.getAssignee().length() != 0) {
         // Compute user id
-        actorId = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, after.getAssignee(), false).getId();
+        actorId = identityManager.getOrCreateUserIdentity(after.getAssignee()).getId();
 
         gamificationService.createHistory(GAMIFICATION_TASK_ADDON_COMPLETED_TASK_ASSIGNED,
                                           actorId,
                                           actorId,
-                                          TaskUtil.buildTaskURL(after));
-
+                                          String.valueOf(after.getId()),
+                                          TASK_OBJECT_TYPE);
       }
-
       // Manage coworker
-      Set<String> cowrokers = after.getCoworker();
+      Set<String> coworkers = after.getCoworker();
       // Get task assigned property
-      if (cowrokers == null)
+      if (coworkers == null) {
         return;
-
-      Iterator<String> coworker = cowrokers.iterator();
-      while (coworker.hasNext()) {
+      }
+      for (String coworker : coworkers) {
         // Compute user id
-        actorId = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, coworker.next(), false).getId();
+        actorId = identityManager.getOrCreateUserIdentity(coworker).getId();
         gamificationService.createHistory(GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER,
                                           actorId,
                                           actorId,
-                                          TaskUtil.buildTaskURL(after));
+                                          String.valueOf(after.getId()),
+                                          TASK_OBJECT_TYPE);
       }
     } else { // Update a task regardless le action made by a user
 
@@ -117,9 +108,13 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
       String actorUsername = ConversationState.getCurrent().getIdentity().getUserId();
 
       // Compute user id
-      actorId = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, actorUsername, false).getId();
+      actorId = identityManager.getOrCreateUserIdentity(actorUsername).getId();
 
-      gamificationService.createHistory(GAMIFICATION_TASK_ADDON_UPDATE_TASK, actorId, actorId, TaskUtil.buildTaskURL(after));
+      gamificationService.createHistory(GAMIFICATION_TASK_ADDON_UPDATE_TASK,
+                                        actorId,
+                                        actorId,
+                                        String.valueOf(after.getId()),
+                                        TASK_OBJECT_TYPE);
 
     }
   }
@@ -138,7 +133,7 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
     if (before != null) {
       return !before.equals(after);
     } else {
-      return !after.equals(before);
+      return true;
     }
   }
 }

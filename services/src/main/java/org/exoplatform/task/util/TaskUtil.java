@@ -70,6 +70,7 @@ public final class TaskUtil {
   public static final String MEMBERSHIP = "membership";
   public static final String CREATED_BY = "createdBy";
   public static final String COWORKER = "coworker";
+  public static final String TASK_OBJECT_TYPE = "task";
 
   public static final ListAccess<Task> EMPTY_TASK_LIST = new ListAccess<Task>() {
 
@@ -288,21 +289,6 @@ public final class TaskUtil {
     return maps.entrySet().stream()
             .sorted(Map.Entry.comparingByKey(byKey))
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
-  }
-
-  public static String buildTaskURL(TaskDto task) {
-    if (task == null) {
-      return "#";
-    }
-
-    StringBuilder urlBuilder = new StringBuilder(ResourceUtil.buildBaseURL());
-    if (urlBuilder.length() <= 1) {
-      return urlBuilder.toString();
-    } else {
-      return urlBuilder.append(URL_TASK_DETAIL)
-              .append(task.getId())
-              .toString();
-    }
   }
 
   public static String buildTaskURL(TaskDto task, SiteKey siteKey, ExoContainer container, Router router) {

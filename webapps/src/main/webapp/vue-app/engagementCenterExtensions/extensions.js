@@ -6,7 +6,9 @@ export function init() {
       rank: 50,
       icon: 'fas fa-tasks',
       match: (actionLabel) => taskUserActions.includes(actionLabel),
-      getLabel: () => ''
+      getLink: (realization) => {
+        Vue.prototype.$set(realization, 'link', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/taskDetail/${realization?.objectId}`);
+      }
     },
   });
 }
