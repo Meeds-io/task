@@ -16,6 +16,8 @@
  */
 package org.exoplatform.task.dto;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.exoplatform.task.domain.*;
 import java.io.Serializable;
 import java.util.*;
@@ -23,6 +25,8 @@ import lombok.Data;
 
 
 @Data
+@Getter
+@Setter
 public class TaskDto  implements Serializable {
     private long        id;
     private String      title;
