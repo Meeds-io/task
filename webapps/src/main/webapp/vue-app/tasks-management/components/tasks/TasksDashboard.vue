@@ -124,7 +124,7 @@
     </div>
     <v-row class="ma-0 border-box-sizing">
       <v-btn
-        v-if="canShowMore && !filterActive"
+        v-if="canShowMore"
         :loading="loadingTasks"
         :disabled="loadingTasks"
         class="loadMoreButton ma-auto mt-4 btn"
@@ -148,7 +148,7 @@ export default {
       pageSize: 20,
       limit: 20,
       limitToFetch: 0,
-      originalLimitToFetch: 0,
+      originalLimitToFetch: 20,
       startSearchAfterInMilliseconds: 600,
       endTypingKeywordTimeout: 50,
       startTypingKeywordTimeout: 0,
@@ -181,7 +181,7 @@ export default {
         groupBy: '',
         orderBy: '',
         offset: this.offset,
-        limit: this.limitToFetch,
+        limit: 20,
         showCompletedTasks: this.showCompletedTasks
       },
       defaultAvatar: '/portal/rest/v1/social/users/default-image/avatar',
@@ -189,7 +189,7 @@ export default {
   },
   computed: {
     canShowMore() {
-      return this.loadingTasks || this.tasks.length >= this.limitToFetch;
+      return this.tasks.length >= this.limitToFetch && !this.filterActive;
     },
   },
   watch: {
@@ -311,8 +311,8 @@ export default {
           this.filterActive=false;
         } 
         return this.$nextTick();
-      }).then(() => {
-        if (this.keyword && this.tasks.length >= this.limitToFetch) {
+      }) .then(() => {
+        if (this.keyword && this.tasksSize >= this.limitToFetch) {
           this.limitToFetch += this.pageSize;
         }
       })
@@ -426,6 +426,7 @@ export default {
       }
     },
     loadNextPage() {
+      this.filterTasks.limit += this.pageSize;
       this.limitToFetch += this.pageSize;
     },
     waitForEndTyping() {
