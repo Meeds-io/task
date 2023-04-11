@@ -19,24 +19,17 @@
 	xsi:schemaLocation="http://www.exoplatform.org/xml/ns/gatein_resources_1_4 http://www.exoplatform.org/xml/ns/gatein_resources_1_4"
 	xmlns="http://www.exoplatform.org/xml/ns/gatein_resources_1_4">
 
-  <portlet-skin>
-    <application-name>task-management</application-name>
-    <portlet-name>TasksManagement</portlet-name>
-    <skin-name>Enterprise</skin-name>
-    <css-path>/skin/css/tasks.css</css-path>
-  </portlet-skin>
-
-  <portlet-skin>
-    <application-name>task-management</application-name>
-    <portlet-name>tasks</portlet-name>
-    <skin-name>Enterprise</skin-name>
-    <css-path>/skin/css/tasks.css</css-path>
-  </portlet-skin>
-
   <portal-skin>
     <skin-name>Enterprise</skin-name>
     <skin-module>taskCommentsDrawer</skin-module>
     <css-path>/skin/css/tasksCommentDrawer.css</css-path>
+    <css-priority>2</css-priority>
+  </portal-skin>
+
+  <portal-skin>
+    <skin-name>Enterprise</skin-name>
+    <skin-module>taskCommentsDrawer</skin-module>
+    <css-path>/skin/css/tasks.css</css-path>
     <css-priority>2</css-priority>
   </portal-skin>
 
