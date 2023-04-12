@@ -32,7 +32,7 @@
       right
       @closed="onCloseDrawer">
       <template 
-        v-if="task.id" 
+        v-if="task && task.id"
         slot="title">
         <div class="drawerTitleAndProject d-flex">
           <i
@@ -88,13 +88,13 @@
               icon
               dark
               @click="updateCompleted">
-              <v-icon v-if="task.completed" class="markAsCompletedBtn">mdi-checkbox-marked-circle</v-icon>
+              <v-icon v-if="task && task.completed" class="markAsCompletedBtn">mdi-checkbox-marked-circle</v-icon>
               <v-icon v-else class="markAsCompletedBtn">mdi-checkbox-blank-circle-outline</v-icon>
             </v-btn>
             <v-textarea
               ref="autoFocusInput4"
               v-model="taskTitle"
-              :class="{taskCompleted: task.completed}"
+              :class="{taskCompleted: task && task.completed}"
               :placeholder="$t('label.tapTask.name')"
               :autofocus="!task || !task.id"
               type="text"
@@ -106,7 +106,7 @@
               @change="updateTaskTitle" />
           </div>
           <div
-            v-if="task && task && task.id"
+            v-if="task && task.id"
             :title="$t('tooltip.viewAllChanges')"
             class="lastUpdatedTask pb-3"
             @click="$root.$emit('displayTaskChanges')">
@@ -154,13 +154,13 @@
           </div>
           <div class="taskLabelsName mt-3 mb-3">
             <task-labels
-              v-if="task.status && task.status.project"
+              v-if="task && task.status && task.status.project"
               :task="task"
               @labelsListOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeAssignements()" />
           </div>
           <extension-registry-components
             :params="{
-              taskId: task.id,
+              taskId: task && task.id,
               spaceId: taskSpaceId,
             }"
             name="TaskDrawer"
@@ -170,7 +170,7 @@
             class="d-flex" />
           <v-divider class="my-0" />
           <v-flex
-            v-if="task.id"
+            v-if="task && task.id"
             xs12
             class="pt-2 taskCommentsAndChanges">
             <task-view-all-comments
@@ -179,7 +179,7 @@
           </v-flex>
         </div>
       </template>
-      <template v-if="!task.id" slot="footer">
+      <template v-if="task && !task.id" slot="footer">
         <div class="d-flex">
           <v-spacer />
           <v-btn
