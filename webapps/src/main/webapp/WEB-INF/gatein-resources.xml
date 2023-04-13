@@ -28,7 +28,7 @@
 
   <portal-skin>
     <skin-name>Enterprise</skin-name>
-    <skin-module>taskCommentsDrawer</skin-module>
+    <skin-module>tasks</skin-module>
     <css-path>/skin/css/tasks.css</css-path>
     <css-priority>2</css-priority>
   </portal-skin>
