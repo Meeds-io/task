@@ -16,8 +16,9 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <gatein-resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.exoplatform.org/xml/ns/gatein_resources_1_4 http://www.exoplatform.org/xml/ns/gatein_resources_1_4"
-	xmlns="http://www.exoplatform.org/xml/ns/gatein_resources_1_4">
+                  xsi:schemaLocation="http://www.exoplatform.org/xml/ns/gatein_resources_1_4 http://www.exoplatform.org/xml/ns/gatein_resources_1_4"
+                  xmlns="http://www.exoplatform.org/xml/ns/gatein_resources_1_4">
+
 
   <portal-skin>
     <skin-name>Enterprise</skin-name>
@@ -28,10 +29,26 @@
 
   <portal-skin>
     <skin-name>Enterprise</skin-name>
-    <skin-module>tasks</skin-module>
-    <css-path>/skin/css/tasks.css</css-path>
+    <skin-module>tasksDrawer</skin-module>
+    <css-path>/skin/css/tasksDrawer.css</css-path>
     <css-priority>2</css-priority>
   </portal-skin>
+
+  <portlet-skin>
+    <application-name>task-management</application-name>
+    <portlet-name>tasks</portlet-name>
+    <skin-name>Enterprise</skin-name>
+    <css-path>/skin/css/tasks.css</css-path>
+    <css-priority>2</css-priority>
+  </portlet-skin>
+
+  <portlet-skin>
+    <application-name>task-management</application-name>
+    <portlet-name>TasksManagement</portlet-name>
+    <skin-name>Enterprise</skin-name>
+    <css-path>/skin/css/tasks.css</css-path>
+    <css-priority>2</css-priority>
+  </portlet-skin>
 
   <module>
     <name>task_jquery_ui</name>
@@ -135,11 +152,11 @@
     <script>
       <adapter>
         (function() {
-          var oldJQuery = window.jQuery;
-          window.jQuery = $;
-          <include>/WEB-INF/classes/org/exoplatform/task/management/assets/x-editable-bootstrap/1.4.6/js/bootstrap-editable.js</include>
-          window.jQuery = oldJQuery;
-          return $;
+        var oldJQuery = window.jQuery;
+        window.jQuery = $;
+        <include>/WEB-INF/classes/org/exoplatform/task/management/assets/x-editable-bootstrap/1.4.6/js/bootstrap-editable.js</include>
+        window.jQuery = oldJQuery;
+        return $;
         })();
       </adapter>
     </script>
@@ -188,7 +205,7 @@
     </script>
   </module>
 
- <module>
+  <module>
     <name>ganttChart</name>
     <script>
       <minify>false</minify>
