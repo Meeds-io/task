@@ -32,18 +32,25 @@ if (extensionRegistry) {
 
 Vue.use(Vuetify);
 
-window.Object.defineProperty(Vue.prototype, '$tasksService', {
-  value: tasksService,
-});
+if (!Vue.prototype.$tasksService) {
+  window.Object.defineProperty(Vue.prototype, '$tasksService', {
+    value: tasksService,
+  });
+}
 
-window.Object.defineProperty(Vue.prototype, '$projectService', {
-  value: projectService,
-});
+if (!Vue.prototype.$projectService) {
+  window.Object.defineProperty(Vue.prototype, '$projectService', {
+    value: projectService,
+  });
+}
 
-window.Object.defineProperty(Vue.prototype, '$statusService', {
-  value: statusService,
-});
-
-window.Object.defineProperty(Vue.prototype, '$taskDrawerApi', {
-  value: taskDrawerApi,
-});
+if (!Vue.prototype.$statusService) {
+  window.Object.defineProperty(Vue.prototype, '$statusService', {
+    value: statusService,
+  });
+}
+if (!Vue.prototype.$taskDrawerApi) {
+  window.Object.defineProperty(Vue.prototype, '$taskDrawerApi', {
+    value: taskDrawerApi,
+  });
+}
