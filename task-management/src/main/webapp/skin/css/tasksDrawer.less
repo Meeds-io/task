@@ -296,26 +296,27 @@
       }
       input {
         max-width: 90%!important;
-        min-height: auto;
-        height: auto;
-        line-height: 1em;
-        margin: auto 0;
         padding-right: 10px ~'!important; /** orientation=lt */ ';
         padding-left: 10px ~'!important; /** orientation=rt */ ';
-        padding-left: 2px ~'!important; /** orientation=lt */ ';
-        padding-right: 2px ~'!important; /** orientation=rt */ ';
+        padding-left: 5px ~'!important; /** orientation=lt */ ';
+        padding-right: 5px ~'!important; /** orientation=rt */ ';
         border: none!important;
         box-shadow: none;
-        box-sizing: border-box;
         &::placeholder {
           font-size: 16px!important;
         }
       }
     }
     .taskPlanDateCalender {
+      max-height: 40px;
       .uiIconStartDate {
         color: @primaryColor;
         font-size: 24px;
+        margin-left: -2px ~'; /** orientation=lt */ ';
+        margin-right: -2px ~'; /** orientation=rt */ ';
+        &:before {
+          content: "\ebf3";
+        }
       }
       .v-picker__actions.v-card__actions {
         border-top: 1px solid  @borderColor;
@@ -326,10 +327,12 @@
       }
     }
     .taskDueDateCalender {
+      max-height: 40px;
       .uiIconDueDate {
         &:before {
+          content: "\ebf2";
           color: @primaryColor;
-          font-size: 24px;
+          font-size: 22px;
         }
       }
       .v-picker__actions.v-card__actions {
