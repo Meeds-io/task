@@ -187,7 +187,7 @@ export default {
       CKEDITOR.basePath = '/commons-extension/ckeditor/';
       const self = this;
       $(this.$refs[`editor-${this.id}`]).ckeditor({
-        customConfig: '/commons-extension/ckeditorCustom/config.js',
+        customConfig: `${eXo.env.portal.context}/${eXo.env.portal.rest}/richeditor/configuration?type=task-comment&v=${eXo.env.client.assetsVersion}`,
         extraPlugins: extraPlugins,
         removePlugins: 'confirmBeforeReload,maximize,resize',
         toolbar,
