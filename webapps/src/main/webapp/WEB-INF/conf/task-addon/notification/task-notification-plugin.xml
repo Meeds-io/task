@@ -366,7 +366,7 @@
         </value-param>
       </init-params>
     </component-plugin>
-    <component-plugin>
+    <component-plugin profiles="push-notifications">
       <name>web.channel.task.template</name>
       <set-method>registerTemplateProvider</set-method>
       <type>org.exoplatform.task.integration.notification.PushTemplateProvider</type>
