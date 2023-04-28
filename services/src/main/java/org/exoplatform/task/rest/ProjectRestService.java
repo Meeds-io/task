@@ -474,7 +474,8 @@ public class ProjectRestService implements ResourceContainer {
     projectJson.put("name", project.getName());
     projectJson.put("color", project.getColor());
     projectJson.put("participator", projectParticipators);
-    projectJson.put("participatorsDetail", participatorsDetail);
+    //remove the redundancy from the participatorsDetails
+    projectJson.put("participatorsDetail", participatorsDetail.toList().stream().distinct().toArray());
     projectJson.put("hiddenOn", project.getHiddenOn());
     projectJson.put("manager", projectService.getManager(projectId));
     projectJson.put("managersDetail", managersDetail);
