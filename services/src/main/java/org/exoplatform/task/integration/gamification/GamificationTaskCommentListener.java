@@ -1,17 +1,17 @@
 package org.exoplatform.task.integration.gamification;
 
-import static org.exoplatform.addons.gamification.GamificationConstant.OBJECT_ID_PARAM;
-import static org.exoplatform.addons.gamification.GamificationConstant.OBJECT_TYPE_PARAM;
-import static org.exoplatform.addons.gamification.GamificationConstant.RECEIVER_ID;
-import static org.exoplatform.addons.gamification.GamificationConstant.EVENT_NAME;
-import static org.exoplatform.addons.gamification.GamificationConstant.SENDER_ID;
-import static org.exoplatform.addons.gamification.listener.generic.GamificationGenericListener.GENERIC_EVENT_NAME;
+import static io.meeds.gamification.constant.GamificationConstant.OBJECT_ID_PARAM;
+import static io.meeds.gamification.constant.GamificationConstant.OBJECT_TYPE_PARAM;
+import static io.meeds.gamification.constant.GamificationConstant.RECEIVER_ID;
+import static io.meeds.gamification.constant.GamificationConstant.EVENT_NAME;
+import static io.meeds.gamification.constant.GamificationConstant.SENDER_ID;
+import static io.meeds.gamification.listener.GamificationGenericListener.GENERIC_EVENT_NAME;
 import static org.exoplatform.task.util.TaskUtil.TASK_OBJECT_TYPE;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import org.exoplatform.addons.gamification.service.configuration.RuleService;
+import io.meeds.gamification.service.RuleService;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
