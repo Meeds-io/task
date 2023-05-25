@@ -490,8 +490,7 @@ export default {
       });
     },
     updateTasksList() {
-      const filterTasks = this.filterActive ? this.taskQueryFilter : this.filterTasks;
-      this.$tasksService.filterTasksList(filterTasks, this.groupBy, this.orderBy, this.labels).then(data => {
+      this.$tasksService.filterTasksList(this.filterTasks, this.groupBy, this.orderBy, this.labels).then(data => {
 
         if (this.filterActive) {
           this.filterTaskQueryResult = data;
