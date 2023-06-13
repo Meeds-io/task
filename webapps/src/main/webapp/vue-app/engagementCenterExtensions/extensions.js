@@ -1,4 +1,4 @@
-const taskUserActions = ['commentTask', 'completeTaskAssigned', 'completeTaskCoworker', 'createNewTask', 'updateTask'];
+const taskUserActions = ['commentTask', 'completeTask', 'completeTaskAssigned', 'completeTaskCoworker', 'createNewTask', 'updateTask'];
 export function init() {
   extensionRegistry.registerExtension('engagementCenterActions', 'user-actions', {
     type: 'task',
