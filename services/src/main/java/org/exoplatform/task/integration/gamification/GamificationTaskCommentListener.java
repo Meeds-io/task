@@ -1,33 +1,42 @@
 package org.exoplatform.task.integration.gamification;
 
-import org.exoplatform.addons.gamification.service.configuration.RuleService;
-import org.exoplatform.addons.gamification.service.effective.GamificationService;
+import static io.meeds.gamification.constant.GamificationConstant.OBJECT_ID_PARAM;
+import static io.meeds.gamification.constant.GamificationConstant.OBJECT_TYPE_PARAM;
+import static io.meeds.gamification.constant.GamificationConstant.RECEIVER_ID;
+import static io.meeds.gamification.constant.GamificationConstant.EVENT_NAME;
+import static io.meeds.gamification.constant.GamificationConstant.SENDER_ID;
+import static io.meeds.gamification.listener.GamificationGenericListener.GENERIC_EVENT_NAME;
+import static org.exoplatform.task.util.TaskUtil.TASK_OBJECT_TYPE;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import io.meeds.gamification.service.RuleService;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskService;
 
-import static org.exoplatform.task.util.TaskUtil.TASK_OBJECT_TYPE;
-
 public class GamificationTaskCommentListener extends Listener<TaskService, CommentDto> {
 
-  private static final String   GAMIFICATION_TASK_ADDON_COMMENT_TASK = "commentTask";
+  private static final String GAMIFICATION_TASK_ADDON_COMMENT_TASK = "commentTask";
 
-  protected RuleService         ruleService;
+  protected RuleService       ruleService;
 
-  protected IdentityManager     identityManager;
+  protected IdentityManager   identityManager;
 
-  protected GamificationService gamificationService;
+  protected ListenerService   listenerService;
 
   public GamificationTaskCommentListener(RuleService ruleService,
                                          IdentityManager identityManager,
-                                         GamificationService gamificationService) {
+                                         ListenerService listenerService) {
     this.ruleService = ruleService;
     this.identityManager = identityManager;
-    this.gamificationService = gamificationService;
+    this.listenerService = listenerService;
   }
 
   @Override
@@ -37,10 +46,27 @@ public class GamificationTaskCommentListener extends Listener<TaskService, Comme
     // Compute user id
     String actorId = identityManager.getOrCreateUserIdentity(actorUsername).getId();
 
-    gamificationService.createHistory(GAMIFICATION_TASK_ADDON_COMMENT_TASK,
-                                      actorId,
-                                      actorId,
-                                      String.valueOf(task.getId()),
-                                      TASK_OBJECT_TYPE);
+    createGamificationRealization(actorId,
+                                  actorId,
+                                  GAMIFICATION_TASK_ADDON_COMMENT_TASK,
+                                  String.valueOf(task.getId()));
   }
+
+  private void createGamificationRealization(String earnerIdentityId,
+                                             String receiverId,
+                                             String gamificationEventName,
+                                             String taskId) {
+    Map<String, String> gam = new HashMap<>();
+    try {
+      gam.put(EVENT_NAME, gamificationEventName);
+      gam.put(OBJECT_ID_PARAM, taskId);
+      gam.put(OBJECT_TYPE_PARAM, TASK_OBJECT_TYPE);
+      gam.put(SENDER_ID, earnerIdentityId);
+      gam.put(RECEIVER_ID, receiverId);
+      listenerService.broadcast(GENERIC_EVENT_NAME, gam, null);
+    } catch (Exception e) {
+      throw new IllegalStateException("Error triggering Gamification Listener Event: " + gam, e);
+    }
+  }
+
 }
