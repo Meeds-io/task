@@ -117,7 +117,7 @@ export default {
     },
     renderChangeHTML(item) {
       let str = '';
-      if ( item.actionName === 'assign' || item.actionName === 'unassign') {
+      if (item.actionName === 'assign' || item.actionName === 'unassign' || item.actionName === 'assignCoworker' || item.actionName === 'unassignCoworker') {
         const targetFullName = item.isTargetFullNameExternal ? `${item.targetFullName} (${this.$t('label.external')})` :  `${item.targetFullName}`;
         str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${targetFullName}'>` +
             `<span>${ this.$t(this.logMsg(item))}</span>`+
