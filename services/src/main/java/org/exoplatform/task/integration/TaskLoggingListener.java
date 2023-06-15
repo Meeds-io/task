@@ -17,6 +17,7 @@
   
 package org.exoplatform.task.integration;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.PluginKey;
@@ -34,6 +35,7 @@ import org.exoplatform.task.service.TaskService;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -66,11 +68,11 @@ public class TaskLoggingListener extends Listener<TaskService, TaskPayload> {
     }
 
     if (oldTask != null && newTask != null) {
-      logTaskUpdate(service, username, (TaskDto)oldTask, (TaskDto)newTask);
+      logTaskUpdate(service, username, oldTask, newTask);
     }
   }
 
-  private void logTaskUpdate(TaskService service, String username, TaskDto before, TaskDto after) throws EntityNotFoundException {
+  private void logTaskUpdate(TaskService service, String username, TaskDto before, TaskDto after) throws Exception {
     if (isDateDiff(before.getStartDate(), after.getStartDate()) || isDateDiff(before.getEndDate(), after.getEndDate())) {
       service.addTaskLog(after.getId(), username, "edit_workplan", "");
 
@@ -197,17 +199,30 @@ public class TaskLoggingListener extends Listener<TaskService, TaskPayload> {
                                  .execute(ctx);
   }
 
-  private void notifyCoworker(TaskDto before, TaskDto after, String username) {
-    Set<String> receiver = new HashSet<String>();
-    Set<String> coworkers = new HashSet<String>();
+  private void notifyCoworker(TaskDto before, TaskDto after, String username) throws Exception { // NOSONAR
+    Set<String> newTaskCoworkers = after.getCoworker() == null ? Collections.emptySet() : after.getCoworker();
+    Set<String> oldTaskCoworkers = before == null || before.getCoworker() == null ? Collections.emptySet() : before.getCoworker();
+    if (!CollectionUtils.isEqualCollection(newTaskCoworkers, oldTaskCoworkers)) {
+      List<String> addedCoworkers = newTaskCoworkers.stream().filter(coworker -> !oldTaskCoworkers.contains(coworker)).toList();
+      for (String coworker : addedCoworkers) {
+        taskService.addTaskLog(after.getId(), username, "assignCoworker", coworker);
+      }
+      List<String> removedCoworkers = oldTaskCoworkers.stream().filter(coworker -> !newTaskCoworkers.contains(coworker)).toList();
+      for (String coworker : removedCoworkers) {
+        taskService.addTaskLog(after.getId(), username, "unassignCoworker", coworker);
+      }
+    }
+
+    Set<String> receiver = new HashSet<>();
+    Set<String> coworkers = new HashSet<>();
     if(before != null) {
       coworkers = before.getCoworker();
       if (coworkers == null) {
         coworkers = Collections.emptySet();
       }
     }
-    if (after.getCoworker() != null && !after.getCoworker().isEmpty()) {
-      for (String user : after.getCoworker()) {
+    if (newTaskCoworkers != null && !newTaskCoworkers.isEmpty()) {
+      for (String user : newTaskCoworkers) {
         if (!coworkers.contains(user) && !user.equals(username)) {
           receiver.add(user);
         }
