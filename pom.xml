@@ -26,7 +26,7 @@
   </parent>
   <groupId>org.exoplatform.addons.task</groupId>
   <artifactId>task-management-parent</artifactId>
-  <version>3.5.0-exo-20230621</version>
+  <version>3.5.x-exo-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>eXo Add-on:: Task management</name>
   <description>Task management add-on</description>
@@ -38,13 +38,13 @@
   <scm>
     <connection>scm:git:git://github.com/exoplatform/task.git</connection>
     <developerConnection>scm:git:git@github.com:exoplatform/task.git</developerConnection>
-    <tag>3.5.0-exo-20230621</tag>
+    <tag>HEAD</tag>
     <url>https://github.com/exoplatform/task</url>
   </scm>
   <properties>
-    <org.exoplatform.social.version>6.5.0-exo-20230621</org.exoplatform.social.version>
-    <addon.exo.gamification.version>2.5.0-exo-20230621</addon.exo.gamification.version>
-    <addon.exo.analytics.version>1.4.0-exo-20230621</addon.exo.analytics.version>
+    <org.exoplatform.social.version>6.5.x-exo-SNAPSHOT</org.exoplatform.social.version>
+    <addon.exo.gamification.version>2.5.x-exo-SNAPSHOT</addon.exo.gamification.version>
+    <addon.exo.analytics.version>1.4.x-exo-SNAPSHOT</addon.exo.analytics.version>
 
     <!-- Sonar properties -->
     <sonar.organization>meeds-io</sonar.organization>
