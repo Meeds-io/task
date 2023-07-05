@@ -39,7 +39,7 @@
             v-if="addBackArrow"
             class="uiIcon uiArrowBAckIcon"
             @click="closeTaskDrawer"></i>
-          <span>{{ $t('label.drawer.header') }}</span>
+          <span>{{ $t('label.project') }}</span>
           <div class="taskProjectName">
             <task-projects
               :task="task"
