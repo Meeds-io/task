@@ -37,6 +37,7 @@ import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.notification.LinkProviderUtils;
+import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.util.CommentUtil;
 import org.exoplatform.task.util.TaskUtil;
@@ -128,7 +129,8 @@ public class MailTemplateProvider extends TemplateProvider {
       templateContext.put("usersMentioned", usersMentioned);
       //
       templateContext.put("ACTION_NAME", encoder.encode(actionName.toString()));
-      templateContext.put("FOOTER_LINK", LinkProviderUtils.getRedirectUrl("notification_settings", receiver.getRemoteId()));
+
+      SocialNotificationUtils.addFooterAndFirstName(notification.getTo(), templateContext);
       String subject = TemplateUtils.processSubject(templateContext);
 
       String body = TemplateUtils.processGroovy(templateContext);
@@ -140,7 +142,6 @@ public class MailTemplateProvider extends TemplateProvider {
 
     @Override
     protected boolean makeDigest(NotificationContext ctx, Writer writer) {
-      EntityEncoder encoder = HTMLEntityEncoder.getInstance();
       List<NotificationInfo> notifications = ctx.getNotificationInfos();
       NotificationInfo first = notifications.get(0);
       String keyId = first.getKey().getId();
@@ -169,9 +170,7 @@ public class MailTemplateProvider extends TemplateProvider {
             shouldSend = true;
           }
           break;
-        case TaskCompletedPlugin.ID:
-        case TaskDueDatePlugin.ID:
-        case TaskCommentPlugin.ID:
+        case TaskCompletedPlugin.ID, TaskDueDatePlugin.ID, TaskCommentPlugin.ID:
           if (!sendTo.equals(notificationCreator) && (sendTo.equals(taskCreator) || sendTo.equals(assignee) || taskCoworkers.contains(sendTo))) {
             shouldSend = true;
           }
@@ -183,11 +182,7 @@ public class MailTemplateProvider extends TemplateProvider {
       if (shouldSend) {
         String language = getLanguage(first);
         TemplateContext templateContext = new TemplateContext(first.getKey().getId(), language);
-        //
-        Identity receiver = CommonsUtils.getService(IdentityManager.class)
-                .getOrCreateIdentity(OrganizationIdentityProvider.NAME, first.getTo(), true);
-        templateContext.put("FIRST_NAME", encoder.encode(receiver.getProfile().getProperty(Profile.FIRST_NAME).toString()));
-        templateContext.put("FOOTER_LINK", LinkProviderUtils.getRedirectUrl("notification_settings", receiver.getRemoteId()));
+        SocialNotificationUtils.addFooterAndFirstName(first.getTo(), templateContext);
 
         try {
           writer.append(buildDigestMsg(notifications, templateContext));
@@ -204,12 +199,12 @@ public class MailTemplateProvider extends TemplateProvider {
     protected String buildDigestMsg(List<NotificationInfo> notifications, TemplateContext templateContext) {
       EntityEncoder encoder = HTMLEntityEncoder.getInstance();
 
-      Map<String, List<NotificationInfo>> map = new HashMap<String, List<NotificationInfo>>();
+      Map<String, List<NotificationInfo>> map = new HashMap<>();
       for (NotificationInfo notif : notifications) {
         String activityID = notif.getValueOwnerParameter(NotificationUtils.ACTIVITY_ID);
         List<NotificationInfo> tmp = map.get(activityID);
         if (tmp == null) {
-          tmp = new LinkedList<NotificationInfo>();
+          tmp = new LinkedList<>();
           map.put(activityID, tmp);
         }
         tmp.add(notif);
