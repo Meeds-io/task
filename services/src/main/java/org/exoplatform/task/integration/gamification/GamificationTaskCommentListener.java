@@ -1,9 +1,9 @@
 package org.exoplatform.task.integration.gamification;
 
+import static io.meeds.gamification.constant.GamificationConstant.EVENT_NAME;
 import static io.meeds.gamification.constant.GamificationConstant.OBJECT_ID_PARAM;
 import static io.meeds.gamification.constant.GamificationConstant.OBJECT_TYPE_PARAM;
 import static io.meeds.gamification.constant.GamificationConstant.RECEIVER_ID;
-import static io.meeds.gamification.constant.GamificationConstant.EVENT_NAME;
 import static io.meeds.gamification.constant.GamificationConstant.SENDER_ID;
 import static io.meeds.gamification.listener.GamificationGenericListener.GENERIC_EVENT_NAME;
 import static org.exoplatform.task.util.TaskUtil.TASK_OBJECT_TYPE;
@@ -11,7 +11,6 @@ import static org.exoplatform.task.util.TaskUtil.TASK_OBJECT_TYPE;
 import java.util.HashMap;
 import java.util.Map;
 
-import io.meeds.gamification.service.RuleService;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
@@ -25,16 +24,12 @@ public class GamificationTaskCommentListener extends Listener<TaskService, Comme
 
   private static final String GAMIFICATION_TASK_ADDON_COMMENT_TASK = "commentTask";
 
-  protected RuleService       ruleService;
-
   protected IdentityManager   identityManager;
 
   protected ListenerService   listenerService;
 
-  public GamificationTaskCommentListener(RuleService ruleService,
-                                         IdentityManager identityManager,
+  public GamificationTaskCommentListener(IdentityManager identityManager,
                                          ListenerService listenerService) {
-    this.ruleService = ruleService;
     this.identityManager = identityManager;
     this.listenerService = listenerService;
   }
