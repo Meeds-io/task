@@ -835,6 +835,7 @@ public class TaskRestService implements ResourceContainer {
   @POST
   @Path("comments/{id}")
   @RolesAllowed("users")
+  @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Adds comment to a specific task by id", method = "POST", description = "This Adds comment to a specific task by id")
   @ApiResponses(value = { 
           @ApiResponse(responseCode = "200", description = "Request fulfilled"),
@@ -872,6 +873,7 @@ public class TaskRestService implements ResourceContainer {
 
   @POST
   @Path("comments/{commentId}/{id}")
+  @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Operation(summary = "Adds a sub comment to a specific parent comment by id and a specific task by id", method = "POST", description = "This Adds sub comment to a parent comment in specific task by id")
   @ApiResponses(value = { 
