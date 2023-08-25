@@ -320,6 +320,9 @@
       <as>editor</as>
     </depends>
     <depends>
+      <module>attachImage</module>
+    </depends>
+    <depends>
       <module>jquery</module>
       <as>$</as>
     </depends>
