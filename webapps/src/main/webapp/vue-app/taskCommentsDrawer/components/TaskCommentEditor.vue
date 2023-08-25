@@ -119,9 +119,10 @@ export default {
   },
   mounted() {
     this.$root.$on('task-comment-created', () => {
-      this.inputVal = '';
-      this.editorReady = false;
+      this.reset();
     });
+
+    document.addEventListener('Task-comments-drawer-closed', this.reset);
 
     this.$root.$on('showEditor', commentId => {
       this.$nextTick().then(() => {
@@ -134,6 +135,7 @@ export default {
     }
     this.$root.$on('newCommentEditor', (lastComment) => {
       this.editorReady = false;
+      this.newCommentId = null;
       window.setTimeout(() => {
         this.showCommentEditor = `commentContent-${lastComment}` === this.id;
         if (this.showCommentEditor) {
@@ -160,17 +162,24 @@ export default {
       });
     });
   },
+  beforeDestroy() {
+    document.removeEventListener('Task-comments-drawer-closed', this.reset);
+  },
   methods: {
     showEditor(commentId) {
       this.currentCommentId = commentId;
+      this.newCommentId = null;
       this.editorReady =  `commentContent-${commentId}`  === this.id;
     },
     getMessage() {
-      const newData = this.$refs.taskCommentEditor.getMessage();
-      return newData ? newData.trim() : '';
+      return this.inputVal;
     },
     addNewComment() {
       this.$emit('addNewComment', this.commentId);
+    },
+    reset() {
+      this.inputVal = '';
+      this.editorReady = false;
     },
     saveAttachments(commentId) {
       this.newCommentId = commentId;
