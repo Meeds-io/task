@@ -631,11 +631,34 @@ public final class TaskUtil {
     return UserUtil.isPlatformAdmin(identity);
   }
 
+  public static boolean hasEditPermission(TaskService taskService, TaskDto task, Identity identity) {
+    String userId = identity.getUserId();
+    if ((task.getAssignee() != null && task.getAssignee().equals(identity.getUserId())) ||
+        getCoworker(taskService, task.getId()).contains(userId) ||
+        (task.getCreatedBy() != null && task.getCreatedBy().equals(userId))) {
+      return true;
+    }
+
+    if (task.getStatus() != null) {
+      ProjectDto project = task.getStatus().getProject();
+      if (project.canView(identity)) {
+        return true;
+      }
+    }
+
+    return UserUtil.isPlatformAdmin(identity);
+  }
+
   public static boolean hasViewPermission(TaskService taskService,TaskDto task) {
     Identity identity = ConversationState.getCurrent().getIdentity();
     String userId = identity.getUserId();
 
     return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService,task);
+  }
+
+  public static boolean hasViewPermission(TaskService taskService, TaskDto task, Identity identity) {
+    String userId = identity.getUserId();
+    return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService, task);
   }
 
   private static boolean hasMentionedUser(TaskService taskService, TaskDto task, String userId) {
