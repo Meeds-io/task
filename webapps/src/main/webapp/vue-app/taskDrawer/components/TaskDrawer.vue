@@ -26,6 +26,7 @@
     <exo-drawer
       id="task-Drawer"
       ref="addTaskDrawer"
+      v-model="drawer"
       :temporary="confirmDrawerClose"
       class="taskDrawer"
       body-classes="hide-scroll decrease-z-index-more"
@@ -196,16 +197,20 @@
         </div>
       </template>
     </exo-drawer>
-    <task-comments-drawer
-      ref="taskCommentDrawer"
-      :task="task"
-      :comments="comments"
-      @confirmDialogOpened="isDrawerClose = false"
-      @confirmDialogClosed="isDrawerClose = true" />
-    <task-changes-drawer
-      ref="taskChangesDrawer"
-      :task="task"
-      :logs="logs" />
+    <template v-if="drawer">
+      <task-comments-drawer
+        ref="taskCommentDrawer"
+        :task="task"
+        :comments="comments"
+        @confirmDialogOpened="isDrawerClose = false"
+        @confirmDialogClosed="isDrawerClose = true" />
+      <task-changes-drawer
+        ref="taskChangesDrawer"
+        :task="task"
+        :logs="logs" />
+      <attachments-image-crop-drawer />
+      <attachments-image-preview-dialog />
+    </template>
   </div>
 </template>
 <script>
