@@ -285,6 +285,9 @@
       <module>eXoVueI18n</module>
     </depends>
     <depends>
+      <module>attachImage</module>
+    </depends>
+    <depends>
       <module>commons-editor</module>
       <as>editor</as>
     </depends>
@@ -318,9 +321,6 @@
     <depends>
       <module>commons-editor</module>
       <as>editor</as>
-    </depends>
-    <depends>
-      <module>attachImage</module>
     </depends>
     <depends>
       <module>jquery</module>
