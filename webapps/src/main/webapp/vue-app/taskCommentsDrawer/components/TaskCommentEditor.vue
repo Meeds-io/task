@@ -122,7 +122,7 @@ export default {
       this.reset();
     });
 
-    document.addEventListener('Task-comments-drawer-closed', this.reset());
+    document.addEventListener('Task-comments-drawer-closed', this.reset);
 
     this.$root.$on('showEditor', commentId => {
       this.$nextTick().then(() => {
@@ -163,7 +163,7 @@ export default {
     });
   },
   beforeDestroy() {
-    document.removeEventListener('Task-comments-drawer-closed', this.reset());
+    document.removeEventListener('Task-comments-drawer-closed', this.reset);
   },
   methods: {
     showEditor(commentId) {
