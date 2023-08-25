@@ -136,10 +136,11 @@ export default {
       comment = this.urlVerify(comment);
       this.$taskDrawerApi.addTaskComments(this.task.id,comment)
         .then(comment => {
-          this.comments.push(comment);
+          this.newComment = comment;
           return this.$refs.commentEditor.saveAttachments(comment.comment.id);
         })
-        .then( () => {
+        .then(() => {
+          this.comments.push(this.newComment);
           this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
         })
         .finally(() => {
