@@ -48,7 +48,7 @@
         ck-editor-type="taskContent"
         object-type="task"
         autofocus
-        disable-suggester />
+        @attachments-edited="$emit('attachments-edited')" />
     </div>
     <v-btn
       v-if="task.id && displayEditor && editorReady"
@@ -126,9 +126,7 @@ export default {
     },
     editorReady(val) {
       if (val === true) {
-        if (this.$refs.taskDescriptionEditor) {
-          this.$refs.taskDescriptionEditor.initCKEditor();
-        }
+        this.$refs.taskDescriptionEditor.initCKEditor();
         document.getElementById('taskDescriptionId').classList.remove('taskDescription');
         if (this.$refs.taskDescriptionEditor) {
           this.$refs.taskDescriptionEditor.setFocus(true);
