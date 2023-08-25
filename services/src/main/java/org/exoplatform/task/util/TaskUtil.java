@@ -656,6 +656,11 @@ public final class TaskUtil {
     return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService,task);
   }
 
+  public static boolean hasViewPermission(TaskService taskService, TaskDto task, Identity identity) {
+    String userId = identity.getUserId();
+    return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService, task);
+  }
+
   private static boolean hasMentionedUser(TaskService taskService, TaskDto task, String userId) {
     Set<String> mentionedUsers = taskService.getMentionedUsers(task.getId());
     return mentionedUsers.contains(userId);
