@@ -156,11 +156,15 @@ export default {
         });
     },
     closeDrawer() {
-      this.$refs.taskCommentDrawer.close();
+      if (this.$refs.taskCommentDrawer) {
+        this.$refs.taskCommentDrawer.close();
+      }
       document.dispatchEvent(new CustomEvent('Task-comments-drawer-closed'));
     },
     openDrawer() {
-      this.$refs.taskCommentDrawer.open();
+      if (this.$refs.taskCommentDrawer) {
+        this.$refs.taskCommentDrawer.open();
+      }
     },
     urlVerify(text) {
       return this.$taskDrawerApi.urlVerify(text);
