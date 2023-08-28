@@ -47,8 +47,7 @@
         :tag-enabled="false"
         ck-editor-type="taskContent"
         object-type="task"
-        autofocus
-        @attachments-edited="$emit('attachments-edited')" />
+        autofocus />
     </div>
     <v-btn
       v-if="task.id && displayEditor && editorReady"
@@ -58,7 +57,7 @@
       depressed
       outlined
       class="btn mt-2 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
-      @click="saveDescription">
+      @click="saveDescription($event)">
       {{ $t('label.apply') }}
     </v-btn>
   </div>
@@ -126,7 +125,9 @@ export default {
     },
     editorReady(val) {
       if (val === true) {
-        this.$refs.taskDescriptionEditor.initCKEditor();
+        if (this.$refs.taskDescriptionEditor) {
+          this.$refs.taskDescriptionEditor.initCKEditor();
+        }
         document.getElementById('taskDescriptionId').classList.remove('taskDescription');
         if (this.$refs.taskDescriptionEditor) {
           this.$refs.taskDescriptionEditor.setFocus(true);
@@ -149,10 +150,19 @@ export default {
       this.hideDescriptionEditor();
     });
     this.inputVal = this.value || '';
+    $('#task-Drawer').on('click', (event) => {
+      if (this.showEditor && event?.target && !$(event.target).parents('#taskDescriptionId').length) {
+        this.hideDescriptionEditor();
+      }
+    });
   },
   methods: {
-    saveDescription() {
-      const newValue = this.inputVal?.replace('&nbsp;',' ');
+    saveDescription(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const newValue = this.value?.replace('&nbsp;',' ');
       if (this.task.id && !isNaN(this.task.id)) {
         this.savingDescription = true;
 
@@ -184,6 +194,10 @@ export default {
       this.showEditor = false;
     },
     showDescriptionEditor: function (event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       if (!this.showEditor && event?.target?.nodeName !== 'A') {
         this.inputVal = this.value;
         this.editorReady = true;
@@ -191,11 +205,7 @@ export default {
       } else if (event?.target?.nodeName === 'A') {
         window.open(event.target.href, '_blank');
       }
-    },
-    urlVerify(text) {
-      return this.$taskDrawerApi.urlVerify(text);
     }
-
   }
 };
 </script>
