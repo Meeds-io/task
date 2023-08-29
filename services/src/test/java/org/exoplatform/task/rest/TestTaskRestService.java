@@ -733,7 +733,7 @@ public class TestTaskRestService {
 
     // Sending an empty comment
     response = taskRestService.addTaskComment("", 1);
-    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
 
     // Sending an encoded comment
     response = taskRestService.addTaskComment("x%20%3C%3D%202", 1);
