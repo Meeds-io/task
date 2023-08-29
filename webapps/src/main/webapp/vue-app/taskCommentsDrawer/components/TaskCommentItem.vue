@@ -49,6 +49,7 @@
       </div>
       <div class="commentBody d-block overflow-hidden ms-10 mt-1">
         <div
+          v-if="comment?.formattedComment?.length"
           class="taskContentComment reset-style-box rich-editor-content"
           v-sanitized-html="comment.formattedComment"></div>
          <attachments-image-items
