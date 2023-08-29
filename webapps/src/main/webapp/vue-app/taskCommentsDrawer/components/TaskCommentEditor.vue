@@ -35,11 +35,11 @@
         object-type="taskComment"
         autofocus
         class="editorContainer"
-        @attachments-edited="$emit('attachments-edited')"
-        @validity-edited="postDisabled = $event" />
+        @attachments-edited="attachmentsEdit"
+        @validity-updated="validMessage = $event" />
     </div>
     <v-btn
-      :disabled="!postDisabled"
+      :disabled="postDisabled"
       depressed
       small
       type="button" 
@@ -97,7 +97,8 @@ export default {
       currentCommentId: '',
       newCommentId: null,
       editorReady: false,
-      postDisabled: true
+      validMessage: true,
+      taskCommentAttachmentsEdited: false
     };
   },
   watch: {
@@ -116,6 +117,11 @@ export default {
         }
       }
     }
+  },
+  computed: {
+    postDisabled() {
+      return !this.validMessage || (!this.inputVal && !this.taskCommentAttachmentsEdited);
+    },
   },
   mounted() {
     this.$root.$on('task-comment-created', () => {
@@ -185,7 +191,13 @@ export default {
       this.newCommentId = commentId;
       return this.$nextTick()
         .then(() => this.$refs.taskCommentEditor.saveAttachments());
-    }
+    },
+    attachmentsEdit(attachments) {
+      this.$emit('attachments-edited');
+      if (attachments?.length) {
+        this.taskCommentAttachmentsEdited = true;
+      }
+    },
   },
 };
 </script>
