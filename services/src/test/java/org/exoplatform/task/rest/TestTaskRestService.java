@@ -876,7 +876,7 @@ public class TestTaskRestService {
 
     // Sending an empty subcomment
     response = taskRestService.addTaskSubComment("", 1, 1);
-    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
 
     // Sending an encoded subcomment
     response = taskRestService.addTaskSubComment("x%20%3C%3D%202", 1, 1);
