@@ -140,8 +140,8 @@ export default {
   },
   methods: {
     addTaskComment() {
-      let comment = this.$refs.commentEditor.getMessage();
-      comment = this.urlVerify(comment);
+      let comment = this.$refs.commentEditor.getMessage() || '';
+      comment = comment.length && this.urlVerify(comment) || '';
       this.$taskDrawerApi.addTaskComments(this.task.id,comment)
         .then(comment => {
           this.newComment = comment;
