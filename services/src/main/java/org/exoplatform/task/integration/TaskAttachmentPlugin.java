@@ -81,7 +81,7 @@ public class TaskAttachmentPlugin extends AttachmentPlugin {
     long spaceId = 0l;
     try {
       TaskDto task = taskService.getTask(Long.parseLong(entityId));
-      Space space = getProjectSpace(task.getStatus().getProject().getId());
+      Space space = task.getStatus() == null || task.getStatus().getProject() == null ? null : getProjectSpace(task.getStatus().getProject().getId());
       if (space != null) {
         spaceId = Long.parseLong(space.getId());
       }
