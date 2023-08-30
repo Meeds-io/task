@@ -26,7 +26,6 @@ import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
-import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.TaskService;
@@ -83,7 +82,7 @@ public class TaskCommentAttachmentPluginTest {
   }
 
   @Test
-  public void testHasAccessPermission() throws EntityNotFoundException, ObjectNotFoundException {
+  public void testHasAccessPermission() throws ObjectNotFoundException {
     long commentId = 2l;
     Identity userIdentity = Mockito.mock(Identity.class);
 
@@ -97,16 +96,15 @@ public class TaskCommentAttachmentPluginTest {
   }
 
   @Test
-  public void testHasEditPermission() throws EntityNotFoundException, ObjectNotFoundException {
+  public void testHasEditPermission() throws  ObjectNotFoundException {
     long commentId = 2l;
     Identity userIdentity = Mockito.mock(Identity.class);
+    String rootId = "root";
 
     CommentDto comment = Mockito.mock(CommentDto.class);
     when(commentService.getComment(commentId)).thenReturn(comment);
-    TaskDto task = Mockito.mock(TaskDto.class);
-    when(comment.getTask()).thenReturn(task);
-
-    TASK_UTIL.when(() -> TaskUtil.hasEditPermission(taskService, task, userIdentity)).thenReturn(true);
+    when(userIdentity.getUserId()).thenReturn(rootId);
+    when(comment.getAuthor()).thenReturn(rootId);
     assertTrue(taskCommentAttachmentPlugin.hasEditPermission(userIdentity, String.valueOf(commentId)));
   }
 
