@@ -18,6 +18,7 @@
  */
 package org.exoplatform.task.integration;
 
+import liquibase.repackaged.org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.attachment.AttachmentPlugin;
@@ -73,7 +74,7 @@ public class TaskCommentAttachmentPlugin extends AttachmentPlugin {
   public boolean hasEditPermission(Identity userIdentity, String entityId) throws ObjectNotFoundException {
     try {
       CommentDto comment = commentService.getComment(Long.parseLong(entityId));
-      return TaskUtil.hasEditPermission(taskService, comment.getTask(), userIdentity);
+      return StringUtils.equals(comment.getAuthor(), userIdentity.getUserId());
     } catch (Exception e) {
       throw new ObjectNotFoundException(String.format(TASK_COMMENT_NOT_FOUND_EXCEPTION_MESSAGE, entityId));
     }
