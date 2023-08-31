@@ -43,7 +43,7 @@
             small
             @click="$emit('openConfirmDeleteDialog', comment.comment.id)"
             v-on="on">
-            <i class="uiIconTrashMini uiIconLightGray "></i>
+            <v-icon class="icon-default-color" size="16">fa-trash</v-icon>
           </v-btn>
         </div>
       </div>
