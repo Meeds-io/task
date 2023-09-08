@@ -36,151 +36,131 @@
   </external-component-plugins>
 
   <external-component-plugins>
-    <target-component>io.meeds.gamification.service.RuleRegistry</target-component>
+    <target-component>io.meeds.gamification.service.EventRegistry</target-component>
     <component-plugin>
-      <name>rule.CreateNewTask</name>
+      <name>CreateNewTask</name>
       <set-method>addPlugin</set-method>
-      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>createNewTask</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>You created a task</value>
-        </value-param>
-        <value-param>
-          <name>rule-event</name>
-          <value>createNewTask</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>3</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>false</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>createNewTask</string>
+            </field>
+            <field name="type">
+              <string>meeds</string>
+            </field>
+            <field name="trigger">
+              <string>createNewTask</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>rule.CompleteTask</name>
+      <name>CompleteTask</name>
       <set-method>addPlugin</set-method>
-      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-event</name>
-          <value>completeTask</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>completeTask</string>
+            </field>
+            <field name="type">
+              <string>meeds</string>
+            </field>
+            <field name="trigger">
+              <string>completeTask</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>rule.CompleteTaskAssigned</name>
+      <name>CompleteTaskAssigned</name>
       <set-method>addPlugin</set-method>
-      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>completeTaskAssigned</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>You Completed an assigned task</value>
-        </value-param>
-        <value-param>
-          <name>rule-event</name>
-          <value>completeTaskAssigned</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>5</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>false</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>completeTaskAssigned</string>
+            </field>
+            <field name="type">
+              <string>meeds</string>
+            </field>
+            <field name="trigger">
+              <string>completeTaskAssigned</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>rule.CompleteTaskCoworker</name>
+      <name>CompleteTaskCoworker</name>
       <set-method>addPlugin</set-method>
-      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>completeTaskCoworker</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>You completed a task as coworker</value>
-        </value-param>
-        <value-param>
-          <name>rule-event</name>
-          <value>completeTaskCoworker</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>1</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>false</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>completeTaskCoworker</string>
+            </field>
+            <field name="type">
+              <string>meeds</string>
+            </field>
+            <field name="trigger">
+              <string>completeTaskCoworker</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>rule.CommentTask</name>
+      <name>CommentTask</name>
       <set-method>addPlugin</set-method>
-      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>commentTask</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>You commented a task</value>
-        </value-param>
-        <value-param>
-          <name>rule-event</name>
-          <value>commentTask</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>2</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>false</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>commentTask</string>
+            </field>
+            <field name="type">
+              <string>meeds</string>
+            </field>
+            <field name="trigger">
+              <string>commentTask</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
     <component-plugin>
-      <name>rule.UpdateTask</name>
+      <name>UpdateTask</name>
       <set-method>addPlugin</set-method>
-      <type>io.meeds.gamification.plugin.RuleConfigPlugin</type>
+      <type>io.meeds.gamification.plugin.EventConfigPlugin</type>
       <init-params>
-        <value-param>
-          <name>rule-title</name>
-          <value>updateTask</value>
-        </value-param>
-        <value-param>
-          <name>rule-description</name>
-          <value>You updated a task</value>
-        </value-param>
-        <value-param>
-          <name>rule-event</name>
-          <value>updateTask</value>
-        </value-param>
-        <value-param>
-          <name>rule-score</name>
-          <value>1</value>
-        </value-param>
-        <value-param>
-          <name>rule-enable</name>
-          <value>false</value>
-        </value-param>
+        <object-param>
+          <name>event</name>
+          <object type="io.meeds.gamification.model.EventDTO">
+            <field name="title">
+              <string>updateTask</string>
+            </field>
+            <field name="type">
+              <string>meeds</string>
+            </field>
+            <field name="trigger">
+              <string>updateTask</string>
+            </field>
+          </object>
+        </object-param>
       </init-params>
     </component-plugin>
   </external-component-plugins>
