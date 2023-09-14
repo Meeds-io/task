@@ -18,7 +18,6 @@ package org.exoplatform.task.integration.notification;
 
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.TaskDto;
 
 public class TaskCompletedPlugin extends AbstractNotificationPlugin {

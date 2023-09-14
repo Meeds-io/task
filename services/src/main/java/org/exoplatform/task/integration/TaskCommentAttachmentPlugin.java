@@ -90,7 +90,7 @@ public class TaskCommentAttachmentPlugin extends AttachmentPlugin {
     long spaceId = 0l;
     try {
       CommentDto comment = commentService.getComment(Long.parseLong(entityId));
-      Space space = getProjectSpace(comment.getTask().getStatus().getProject().getId());
+      Space space = comment == null || comment.getTask().getStatus() == null || comment.getTask().getStatus().getProject() == null ? null : getProjectSpace(comment.getTask().getStatus().getProject().getId());
       if (space != null) {
         spaceId = Long.parseLong(space.getId());
       }
