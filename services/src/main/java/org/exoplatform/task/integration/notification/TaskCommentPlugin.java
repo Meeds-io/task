@@ -19,15 +19,13 @@
 
 package org.exoplatform.task.integration.notification;
 
+import java.util.Set;
+
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.task.domain.Comment;
-import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.TaskDto;
-
-import java.util.Set;
 
 /**
  * @author <a href="mailto:tuyennt@exoplatform.com">Tuyen Nguyen The</a>.
@@ -51,25 +49,25 @@ public class TaskCommentPlugin extends AbstractNotificationPlugin {
     NotificationInfo info = super.makeNotification(ctx);
     info.with(NotificationUtils.TASKS, String.valueOf(task.getId()));
     info.with(NotificationUtils.COMMENT_TEXT, comment.getComment());
-
     // Override the activityId
     String projectId = "project.";
-    if (task.getStatus() != null) {
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
       projectId += String.valueOf(task.getStatus().getProject().getId());
     }
     info.with(NotificationUtils.ACTIVITY_ID, projectId);
-
     return info;
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public boolean isValid(NotificationContext ctx) {
-    Set<String> receivers = (Set<String>)ctx.value(NotificationUtils.RECEIVERS);
-    return receivers != null && receivers.size() > 0;
+    Set<String> receivers = ctx.value(NotificationUtils.RECEIVERS);
+    return receivers != null && !receivers.isEmpty();
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   protected Set<String> getReceiver(TaskDto task, NotificationContext ctx) {
-    return (Set<String>)ctx.value(NotificationUtils.RECEIVERS);
+    return ctx.value(NotificationUtils.RECEIVERS);
   }
 }

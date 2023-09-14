@@ -410,7 +410,7 @@ public final class TaskUtil {
 
     // Project manager can delete comment
     TaskDto task = comment.getTask();
-    if (task.getStatus() != null) {
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto pj = task.getStatus().getProject();
       return pj.canEdit(identity);
     }
@@ -602,7 +602,7 @@ public final class TaskUtil {
       return true;
     }
 
-    if (task.getStatus() != null) {
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
       if (project.canView(identity)) {
         return true;
@@ -639,7 +639,7 @@ public final class TaskUtil {
       return true;
     }
 
-    if (task.getStatus() != null) {
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
       if (project.canView(identity)) {
         return true;
@@ -678,7 +678,7 @@ public final class TaskUtil {
       return true;
     }
 
-    if (task.getStatus() != null) {
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
       if (project.canEdit(identity)) {
         return true;

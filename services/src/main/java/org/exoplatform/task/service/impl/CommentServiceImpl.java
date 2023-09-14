@@ -110,7 +110,7 @@ public class CommentServiceImpl implements CommentService {
 
         try {
             listenerService.broadcast(TASK_COMMENT_CREATION, commentDto.getTask(), commentDto);
-            if(commentDto.getTask().getStatus()!=null){
+            if(commentDto.getTask().getStatus()!=null && commentDto.getTask().getStatus().getProject() != null){
                 listenerService.broadcast("exo.project.projectModified", null, commentDto.getTask().getStatus().getProject() );
             }
         } catch (Exception e) {

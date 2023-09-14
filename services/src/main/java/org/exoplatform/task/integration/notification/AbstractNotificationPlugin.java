@@ -16,6 +16,10 @@
  */
 package org.exoplatform.task.integration.notification;
 
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Set;
+
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
@@ -25,19 +29,12 @@ import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.RootContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.services.organization.OrganizationService;
-import org.exoplatform.task.domain.Project;
-import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.web.WebAppController;
-
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Set;
 
 public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin {
 
@@ -124,8 +121,10 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
     if (ctx != null) {
       receivers.remove(ctx.value(NotificationUtils.CREATOR));
     }
-    ProjectDto project = task.getStatus().getProject();
-    receivers.removeIf(user -> !ProjectUtil.isProjectParticipant(organizationService, user, project));
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
+      ProjectDto project = task.getStatus().getProject();
+      receivers.removeIf(user -> !ProjectUtil.isProjectParticipant(organizationService, user, project));
+    }
     return receivers;
   }
 
