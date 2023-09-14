@@ -16,6 +16,19 @@
  */
 package org.exoplatform.task.integration.notification;
 
+import java.io.IOException;
+import java.io.Writer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import org.gatein.common.text.EntityEncoder;
+
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.annotation.TemplateConfig;
 import org.exoplatform.commons.api.notification.annotation.TemplateConfigs;
@@ -41,18 +54,6 @@ import org.exoplatform.social.notification.plugin.SocialNotificationUtils;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.util.CommentUtil;
 import org.exoplatform.task.util.TaskUtil;
-import org.gatein.common.text.EntityEncoder;
-
-import java.io.IOException;
-import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 @TemplateConfigs(templates = {
     @TemplateConfig(pluginId = TaskAssignPlugin.ID, template = "war:/notification/templates/mail/TaskAssignPlugin.gtmpl"),

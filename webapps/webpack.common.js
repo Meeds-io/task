@@ -28,7 +28,8 @@ const config = {
     taskSearch: './src/main/webapp/vue-app/taskSearch/main.js',
     tasksManagement: './src/main/webapp/vue-app/tasks-management/main.js',
     taskCommentsDrawer: './src/main/webapp/vue-app/taskCommentsDrawer/main.js',
-    engagementCenterExtensions: './src/main/webapp/vue-app/engagementCenterExtensions/extensions.js'
+    engagementCenterExtensions: './src/main/webapp/vue-app/engagementCenterExtensions/extensions.js',
+    notificationExtension: './src/main/webapp/vue-app/notification-extension/main.js',
   },
   output: {
     filename: 'js/[name].bundle.js',
