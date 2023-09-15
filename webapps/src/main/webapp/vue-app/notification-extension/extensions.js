@@ -17,6 +17,20 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+extensionRegistry.registerExtension('WebNotification', 'notification-group-extension', {
+  rank: 50,
+  name: 'task',
+  plugins: [
+    'TaskCommentedPlugin',
+    'TaskMentionedPlugin',
+    'TaskEditionPlugin',
+    'TaskCompletedPlugin',
+    'TaskAssignPlugin',
+    'TaskCoworkerPlugin',
+    'TaskDueDatePlugin'
+  ],
+  icon: 'fa-tasks',
+});
 extensionRegistry.registerExtension('WebNotification', 'notification-content-extension', {
   type: 'TaskCommentedPlugin',
   rank: 10,
