@@ -63,7 +63,6 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
   }
 
   private NotificationContext buildContext(TaskDto task, CommentDto comment) {
-    ProjectDto project = task.getStatus().getProject();
     NotificationContext ctx = NotificationContextImpl.cloneInstance()
             .append(NotificationUtils.COMMENT, comment)
             .append(NotificationUtils.TASK, task);
@@ -111,10 +110,13 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
     // Get all mentioned
     Set<String> mentioned = comment.getMentionedUsers();
     if(mentioned==null){
-      mentioned = new HashSet<String>();
+      mentioned = new HashSet<>();
     }
     mentioned.remove(creator);
-    receiver.removeIf(user -> !ProjectUtil.isProjectParticipant(organizationService, user, project));
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
+      ProjectDto project = task.getStatus().getProject();
+      receiver.removeIf(user -> !ProjectUtil.isProjectParticipant(organizationService, user, project));
+    }
     ctx.append(NotificationUtils.RECEIVERS, receiver);
     ctx.append(NotificationUtils.MENTIONED, mentioned);
 

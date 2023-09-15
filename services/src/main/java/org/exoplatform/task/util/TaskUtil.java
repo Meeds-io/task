@@ -410,7 +410,7 @@ public final class TaskUtil {
 
     // Project manager can delete comment
     TaskDto task = comment.getTask();
-    if (task.getStatus() != null) {
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto pj = task.getStatus().getProject();
       return pj.canEdit(identity);
     }
@@ -602,7 +602,7 @@ public final class TaskUtil {
       return true;
     }
 
-    if (task.getStatus() != null) {
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
       if (project.canView(identity)) {
         return true;
@@ -623,6 +623,24 @@ public final class TaskUtil {
 
     if (task.getStatus() != null) {
       Project project = task.getStatus().getProject();
+      if (project.canView(identity)) {
+        return true;
+      }
+    }
+
+    return UserUtil.isPlatformAdmin(identity);
+  }
+
+  public static boolean hasEditPermission(TaskService taskService, TaskDto task, Identity identity) {
+    String userId = identity.getUserId();
+    if ((task.getAssignee() != null && task.getAssignee().equals(identity.getUserId())) ||
+        getCoworker(taskService, task.getId()).contains(userId) ||
+        (task.getCreatedBy() != null && task.getCreatedBy().equals(userId))) {
+      return true;
+    }
+
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
+      ProjectDto project = task.getStatus().getProject();
       if (project.canView(identity)) {
         return true;
       }
@@ -655,7 +673,7 @@ public final class TaskUtil {
       return true;
     }
 
-    if (task.getStatus() != null) {
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
       if (project.canEdit(identity)) {
         return true;
