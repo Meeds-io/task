@@ -122,11 +122,19 @@ export default {
       this.openDrawer();
       this.commentId = commentId;
       this.showNewCommentEditor = isNewComment;
-      this.openEditorToBottom(commentId);
+      if (isNewComment) {
+        this.$nextTick().then(() => this.openEditorToBottom(commentId));
+      }
     });
     this.$root.$on('hideTaskComment', () => {
       this.closeDrawer();
     });
+    if (this.$root.autoReply) {
+      window.setTimeout(() => {
+        this.$root.$emit('displayTaskComment', this.$root.autoReplyCommentId || null, true);
+      }, 300);
+      this.$root.autoReply = false;
+    }
   },
   methods: {
     addTaskComment() {

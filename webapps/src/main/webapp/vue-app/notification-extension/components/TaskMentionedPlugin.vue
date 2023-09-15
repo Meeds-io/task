@@ -12,7 +12,7 @@
       </div>
       <div class="my-1">
         <v-btn
-          :href="taskUrl"
+          :href="replyUrl"
           color="primary"
           elevation="0"
           small
@@ -37,6 +37,9 @@ export default {
   computed: {
     taskUrl() {
       return this.notification?.parameters?.taskUrl;
+    },
+    replyUrl() {
+      return `${this.taskUrl}#reply`;
     },
     profileFullName() {
       return this.notification?.from?.fullname;
