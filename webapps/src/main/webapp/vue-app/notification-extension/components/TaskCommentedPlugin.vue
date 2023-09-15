@@ -8,9 +8,13 @@
     <template #actions>
       <div class="text-truncate">
         <v-icon size="14" class="me-1">fa-tasks</v-icon>
+        {{ taskName }}
+      </div>
+      <div class="text-truncate my-2">
+        <v-icon size="14" class="me-1">fa-comments</v-icon>
         {{ commentText }}
       </div>
-      <div class="my-1">
+      <div class="mt-1">
         <v-btn
           :href="replyUrl"
           color="primary"
