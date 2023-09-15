@@ -124,8 +124,7 @@ public class TaskLoggingListener extends Listener<TaskService, TaskPayload> {
       } else {
         service.addTaskLog(after.getId(), username, "remove_project", "");
       }
-
-    } else if (before.getStatus().getId() != after.getStatus().getId()) {
+    } else if (isStatusChange(before, after)) {
       service.addTaskLog(after.getId(), username, "edit_status", after.getStatus().getName());
 
       NotificationContext ctx = buildContext(after);
@@ -162,19 +161,21 @@ public class TaskLoggingListener extends Listener<TaskService, TaskPayload> {
   }
 
   private boolean isProjectChange(TaskDto before, TaskDto after) {
-    if (before.getStatus().getId()==after.getStatus().getId()) {
+    if (!isStatusChange(before, after)) {
       return false;
-
-    } else if(before.getStatus() != null) {
-      if (after.getStatus() == null) {
-        return true;
-      } else {
-        return before.getStatus().getProject().getId()!=after.getStatus().getProject().getId();
-      }
     } else {
-      return true;
+      long beforeProjectId = before.getStatus() == null || before.getStatus().getProject() == null ? 0 : before.getStatus().getProject().getId();
+      long afterProjectId = after.getStatus() == null || after.getStatus().getProject() == null ? 0 : after.getStatus().getProject().getId();
+      return afterProjectId != beforeProjectId;
     }
   }
+
+  private boolean isStatusChange(TaskDto before, TaskDto after) {
+    long beforeStatusId = before.getStatus() == null ? 0 : before.getStatus().getId();
+    long afterStatusId = after.getStatus() == null ? 0 : after.getStatus().getId();
+    return afterStatusId != beforeStatusId;
+  }
+
   private boolean isDiff(Object before, Object after) {
     if (before == after) {
       return false;

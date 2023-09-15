@@ -585,7 +585,7 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
       try {
-        ProjectDto project = projectService.getProject(task.getStatus().getProject().getId());
+        ProjectDto project = task.getStatus() == null || task.getStatus().getProject() == null ? null : projectService.getProject(task.getStatus().getProject().getId());
         if (project == null) {
           return Response.status(Response.Status.NOT_FOUND).build();
         }
