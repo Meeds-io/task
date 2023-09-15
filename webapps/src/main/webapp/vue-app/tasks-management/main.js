@@ -56,10 +56,16 @@ const lang = eXo && tasksConstants.LANG || 'en';
 //should expose the locale ressources as REST API
 const url = `${tasksConstants.PORTAL}/${tasksConstants.PORTAL_REST}/i18n/bundle/locale.portlet.taskManagement-${lang}.json`;
 
+const autoReply = window.location.hash === '#reply';
+const autoReplyCommentId = autoReply && window.location.hash.replace('#reply', '');
 export function init() {
   exoi18n.loadLanguageAsync(lang, url).then(i18n => {
     // init Vue app when locale ressources are ready
     Vue.createApp({
+      data: {
+        autoReply,
+        autoReplyCommentId,
+      },
       template: '<tasks-management></tasks-management>',
       i18n,
       vuetify,
