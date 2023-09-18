@@ -29,6 +29,7 @@ import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.RootContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -126,6 +127,10 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
       receivers.removeIf(user -> !ProjectUtil.isProjectParticipant(organizationService, user, project));
     }
     return receivers;
+  }
+
+  protected String getPortalOwner() {
+    return CommonsUtils.getService(UserPortalConfigService.class).getDefaultPortal();
   }
 
   private String buildTaskUrl(TaskDto t, ExoContainer container, WebAppController controller) {
