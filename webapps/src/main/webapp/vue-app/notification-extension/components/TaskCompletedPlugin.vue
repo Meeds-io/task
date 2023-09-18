@@ -8,7 +8,7 @@
     <template #actions>
       <div class="text-truncate">
         <v-icon size="14" class="me-1">fa-tasks</v-icon>
-        <strike>{{ taskName }}</strike>
+        <del>{{ taskName }}</del>
       </div>
     </template>
   </user-notification-template>
