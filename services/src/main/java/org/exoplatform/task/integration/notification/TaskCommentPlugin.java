@@ -24,6 +24,7 @@ import java.util.Set;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.social.core.utils.MentionUtils;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.TaskDto;
 
@@ -48,7 +49,7 @@ public class TaskCommentPlugin extends AbstractNotificationPlugin {
     CommentDto comment = ctx.value(NotificationUtils.COMMENT);
     NotificationInfo info = super.makeNotification(ctx);
     info.with(NotificationUtils.TASKS, String.valueOf(task.getId()));
-    info.with(NotificationUtils.COMMENT_TEXT, comment.getComment());
+    info.with(NotificationUtils.COMMENT_TEXT, MentionUtils.substituteUsernames(getPortalOwner(), comment.getComment()));
     // Override the activityId
     String projectId = "project.";
     if (task.getStatus() != null && task.getStatus().getProject() != null) {
