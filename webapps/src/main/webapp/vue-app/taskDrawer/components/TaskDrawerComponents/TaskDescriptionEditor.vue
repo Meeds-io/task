@@ -201,9 +201,12 @@ export default {
         startupFocus: self.inputVal=== '' ? true :'end',
         autoGrow_onStartup: true,
         on: {
-          blur: function () {
-            $(document.body).trigger('click');
-            self.hideDescriptionEditor();
+          blur: function (event) {
+            const doc = event.editor.container.$.ownerDocument;
+            if (doc.activeElement.id.toString() !== 'saveDescriptionButton'){
+              $(document.body).trigger('click');
+              self.hideDescriptionEditor();
+            }
           },
           change: function(evt) {
             const newData = evt.editor.getData();
