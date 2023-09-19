@@ -33,8 +33,8 @@
     </div>
     <div class="commentBody ms-10 mt-1">
       <div
-        class="taskContentComment"
-        v-html="comment.formattedComment"></div>
+        class="taskContentComment reset-style-box rich-editor-content"
+        v-sanitized-html="comment.formattedComment"></div>
       <v-btn
         id="reply_btn"
         depressed

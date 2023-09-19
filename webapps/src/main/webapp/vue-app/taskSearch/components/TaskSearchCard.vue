@@ -20,10 +20,10 @@
     flat
     min-height="227">
     <a
+      v-sanitized-html="taskTitle"
       :title="taskTitleText"
       class="px-3 pt-2 pb-1 text-left text-truncate"
-      @click="openTaskDrawer"
-      v-html="taskTitle">
+      @click="openTaskDrawer">
     </a>
     <div class="mx-auto d-flex flex-grow-1 px-3 py-0">
       <div
