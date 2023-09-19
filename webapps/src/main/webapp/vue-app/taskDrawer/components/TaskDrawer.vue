@@ -635,7 +635,7 @@ export default {
       }
     },
     addTaskDescription(value) {
-      this.task.description = value;
+      this.taskDescription = value;
     },
     retrieveTaskLogs() {
       this.$taskDrawerApi.getTaskLogs(this.task.id).then(

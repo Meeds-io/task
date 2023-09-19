@@ -146,7 +146,7 @@ export default {
       this.hideDescriptionEditor();
     });
     document.addEventListener('onAddTask', () => {
-      this.$emit('addTaskDescription',this.inputVal);
+      this.$emit('addTaskDescription',this.value);
       this.hideDescriptionEditor();
     });
     this.inputVal = this.value || '';
