@@ -50,7 +50,7 @@
                     :url="null"
                     popover 
                     align-top />
-                  <div class="d-flex mt-n2" v-html="renderChangeHTML(item)"></div>
+                  <div class="d-flex mt-n2" v-sanitized-html="renderChangeHTML(item)"></div>
                 </div>
                 <div>
                   <div class="dateTime caption px-10 my-n3">
