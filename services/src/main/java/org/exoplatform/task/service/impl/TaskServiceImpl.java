@@ -78,7 +78,7 @@ public class TaskServiceImpl implements TaskService {
         TaskPayload event = new TaskPayload(null, result);
         try {
             listenerService.broadcast(TASK_CREATION, null, event);
-            if(result.getStatus()!=null){
+            if(result.getStatus()!=null && result.getStatus().getProject() != null){
                 listenerService.broadcast("exo.project.projectModified", null,result.getStatus().getProject() );
             }
         } catch (Exception e) {
@@ -100,7 +100,7 @@ public class TaskServiceImpl implements TaskService {
         TaskPayload event = new TaskPayload(oldTaskEntity, newTaskEntity);
         try {
             listenerService.broadcast(TASK_UPDATE, null, event);
-            if(task.getStatus()!=null){
+            if(task.getStatus()!=null && task.getStatus().getProject() != null){
                 listenerService.broadcast("exo.project.projectModified", null, task.getStatus().getProject() );
             }
         } catch (Exception e) {

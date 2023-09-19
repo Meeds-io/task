@@ -16,37 +16,43 @@
  */
 package org.exoplatform.task.integration.notification;
 
+import java.io.Writer;
+
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.annotation.TemplateConfig;
 import org.exoplatform.commons.api.notification.annotation.TemplateConfigs;
 import org.exoplatform.commons.api.notification.channel.template.AbstractTemplateBuilder;
+import org.exoplatform.commons.api.notification.channel.template.TemplateProvider;
 import org.exoplatform.commons.api.notification.model.MessageInfo;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.container.xml.InitParams;
 
-import java.io.Writer;
-import java.util.*;
+@TemplateConfigs(templates = {
+    @TemplateConfig(pluginId = TaskAssignPlugin.ID, template = "war:/notification/templates/push/TaskAssignPlugin.gtmpl"),
+    @TemplateConfig(pluginId = TaskCoworkerPlugin.ID, template = "war:/notification/templates/push/TaskCoworkerPlugin.gtmpl"),
+    @TemplateConfig(pluginId = TaskDueDatePlugin.ID, template = "war:/notification/templates/push/TaskDueDatePlugin.gtmpl"),
+    @TemplateConfig(pluginId = TaskCompletedPlugin.ID, template = "war:/notification/templates/push/TaskCompletedPlugin.gtmpl"),
+    @TemplateConfig(pluginId = TaskCommentPlugin.ID, template = "war:/notification/templates/push/TaskCommentPlugin.gtmpl"),
+    @TemplateConfig(pluginId = TaskMentionPlugin.ID, template = "war:/notification/templates/push/TaskMentionPlugin.gtmpl"),
+    @TemplateConfig(pluginId = TaskEditionPlugin.ID, template = "war:/notification/templates/push/TaskEditionPlugin.gtmpl") })
+public class PushTemplateProvider extends TemplateProvider {
 
-@TemplateConfigs (
-   templates = {
-       @TemplateConfig(pluginId=TaskAssignPlugin.ID, template="war:/notification/templates/push/TaskAssignPlugin.gtmpl"),
-       @TemplateConfig(pluginId=TaskCoworkerPlugin.ID, template="war:/notification/templates/push/TaskCoworkerPlugin.gtmpl"),
-       @TemplateConfig(pluginId=TaskDueDatePlugin.ID, template="war:/notification/templates/push/TaskDueDatePlugin.gtmpl"),
-       @TemplateConfig(pluginId=TaskCompletedPlugin.ID, template="war:/notification/templates/push/TaskCompletedPlugin.gtmpl"),
-       @TemplateConfig(pluginId=TaskCommentPlugin.ID, template="war:/notification/templates/push/TaskCommentPlugin.gtmpl"),
-       @TemplateConfig(pluginId=TaskMentionPlugin.ID, template="war:/notification/templates/push/TaskMentionPlugin.gtmpl"),
-       @TemplateConfig(pluginId=TaskEditionPlugin.ID, template="war:/notification/templates/push/TaskEditionPlugin.gtmpl")
-   }
-)
-public class PushTemplateProvider extends WebTemplateProvider {
-
-  private final Map<PluginKey, AbstractTemplateBuilder> webTemplateBuilders = new HashMap<>();
+  public PushTemplateProvider(InitParams initParams) {
+    super(initParams);
+    this.templateBuilders.put(PluginKey.key(TaskAssignPlugin.ID), new TemplateBuilder());
+    this.templateBuilders.put(PluginKey.key(TaskCoworkerPlugin.ID), new TemplateBuilder());
+    this.templateBuilders.put(PluginKey.key(TaskDueDatePlugin.ID), new TemplateBuilder());
+    this.templateBuilders.put(PluginKey.key(TaskCompletedPlugin.ID), new TemplateBuilder());
+    this.templateBuilders.put(PluginKey.key(TaskCommentPlugin.ID), new CommentTemplateBuilder());
+    this.templateBuilders.put(PluginKey.key(TaskMentionPlugin.ID), new TemplateBuilder());
+    this.templateBuilders.put(PluginKey.key(TaskEditionPlugin.ID), new TemplateBuilder());
+  }
 
   private class TemplateBuilder extends AbstractTemplateBuilder {
     @Override
     protected MessageInfo makeMessage(NotificationContext ctx) {
-      MessageInfo messageInfo = webTemplateBuilders.get(new PluginKey(TaskAssignPlugin.ID)).buildMessage(ctx);
+      MessageInfo messageInfo = templateBuilders.get(new PluginKey(TaskAssignPlugin.ID)).buildMessage(ctx);
 
       NotificationInfo notification = ctx.getNotificationInfo();
 
@@ -65,7 +71,7 @@ public class PushTemplateProvider extends WebTemplateProvider {
   private class CommentTemplateBuilder extends AbstractTemplateBuilder {
     @Override
     protected MessageInfo makeMessage(NotificationContext ctx) {
-      MessageInfo messageInfo = webTemplateBuilders.get(new PluginKey(TaskCommentPlugin.ID)).buildMessage(ctx);
+      MessageInfo messageInfo = templateBuilders.get(new PluginKey(TaskCommentPlugin.ID)).buildMessage(ctx);
 
       NotificationInfo notification = ctx.getNotificationInfo();
 
@@ -78,16 +84,5 @@ public class PushTemplateProvider extends WebTemplateProvider {
     protected boolean makeDigest(NotificationContext ctx, Writer writer) {
       return false;
     }
-  }
-
-  public PushTemplateProvider(InitParams initParams) {
-    super(initParams);
-    this.webTemplateBuilders.putAll(this.templateBuilders);
-    this.templateBuilders.put(PluginKey.key(TaskAssignPlugin.ID), new TemplateBuilder());
-    this.templateBuilders.put(PluginKey.key(TaskCoworkerPlugin.ID), new TemplateBuilder());
-    this.templateBuilders.put(PluginKey.key(TaskDueDatePlugin.ID), new TemplateBuilder());
-    this.templateBuilders.put(PluginKey.key(TaskCompletedPlugin.ID), new TemplateBuilder());
-    this.templateBuilders.put(PluginKey.key(TaskCommentPlugin.ID), new CommentTemplateBuilder());
-    this.templateBuilders.put(PluginKey.key(TaskMentionPlugin.ID), new TemplateBuilder());
   }
 }
