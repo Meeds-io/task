@@ -47,7 +47,8 @@
         :tag-enabled="false"
         ck-editor-type="taskContent"
         object-type="task"
-        autofocus />
+        autofocus
+        disable-suggester />
     </div>
     <v-btn
       v-if="task.id && displayEditor && editorReady"
