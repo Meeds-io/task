@@ -21,12 +21,12 @@
       :class="editorReady && 'active'"
       class="taskDescription richEditor">
       <div
+        v-sanitized-html="value"
         :data-text="placeholder"
         :title="$t('tooltip.clickToEdit')"
         contentEditable="true"
-        class="py-1 px-2 taskDescriptionToShow"
-        @click="showDescriptionEditor($event)"
-        v-sanitized-html="value">
+        class="py-1 px-2 taskDescriptionToShow reset-style-box rich-editor-content"
+        @click="showDescriptionEditor($event)">
         {{ placeholder }}
       </div>
 
