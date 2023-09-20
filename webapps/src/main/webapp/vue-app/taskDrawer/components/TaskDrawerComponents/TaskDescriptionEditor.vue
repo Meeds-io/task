@@ -87,7 +87,7 @@ export default {
       inputVal: '',
       editorReady: false,
       showEditor: false,
-      savingDescription: false,
+      savingDescription: false
     };
   },
   computed: {
@@ -147,7 +147,7 @@ export default {
     });
     document.addEventListener('onAddTask', () => {
       this.$emit('addTaskDescription',this.value);
-      this.hideDescriptionEditor();
+      this.showEditor = false;
     });
     this.inputVal = this.value || '';
     $('#task-Drawer').on('click', (event) => {
@@ -205,7 +205,7 @@ export default {
       } else if (event?.target?.nodeName === 'A') {
         window.open(event.target.href, '_blank');
       }
-    }
+    },
   }
 };
 </script>
