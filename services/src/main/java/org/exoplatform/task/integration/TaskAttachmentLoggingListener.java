@@ -3,16 +3,18 @@ package org.exoplatform.task.integration;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.social.attachment.model.ObjectAttachmentId;
+import org.exoplatform.task.service.TaskService;
 
 public class TaskAttachmentLoggingListener extends Listener<String, ObjectAttachmentId> {
 
   public static final String ATTACHMENT_TASK_OBJECT_TYPE = "task";
 
-  private org.exoplatform.task.service.TaskService taskService;
+  private final TaskService taskService;
 
-  public TaskAttachmentLoggingListener(org.exoplatform.task.service.TaskService taskService) {
+  public TaskAttachmentLoggingListener(TaskService taskService) {
     this.taskService = taskService;
   }
+
   @Override
   public void onEvent(Event<String, ObjectAttachmentId> event) throws Exception {
     String username = event.getSource();
