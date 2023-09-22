@@ -80,6 +80,11 @@
       <type>org.exoplatform.task.integration.TaskAttachmentLoggingListener</type>
     </component-plugin>
     <component-plugin>
+      <name>attachment.deleted</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.task.integration.TaskAttachmentLoggingListener</type>
+    </component-plugin>
+    <component-plugin>
       <name>exo.task.taskCommentCreation</name>
       <set-method>addListener</set-method>
       <type>org.exoplatform.task.integration.TaskCommentNotificationListener</type>
