@@ -27,6 +27,10 @@ public class TaskAttachmentLoggingListener extends Listener<String, ObjectAttach
 
   public static final String ATTACHMENT_TASK_OBJECT_TYPE = "task";
 
+  public static final String ATTACHMENT_CREATED_EVENT = "attachment.created";
+
+  public static final String ATTACHMENT_DELETED_EVENT = "attachment.deleted";
+
   private final TaskService taskService;
 
   public TaskAttachmentLoggingListener(TaskService taskService) {
@@ -39,7 +43,18 @@ public class TaskAttachmentLoggingListener extends Listener<String, ObjectAttach
     ObjectAttachmentId objectAttachment = event.getData();
 
     if (objectAttachment != null && ATTACHMENT_TASK_OBJECT_TYPE.equals(objectAttachment.getObjectType())) {
-      taskService.addTaskLog(Long.parseLong(objectAttachment.getObjectId()), username, "attach_image", "");
+      switch (event.getEventName()) {
+      case ATTACHMENT_CREATED_EVENT: {
+        taskService.addTaskLog(Long.parseLong(objectAttachment.getObjectId()), username, "attach_image", "");
+        break;
+      }
+      case ATTACHMENT_DELETED_EVENT: {
+        taskService.addTaskLog(Long.parseLong(objectAttachment.getObjectId()), username, "delete_image", "");
+        break;
+      }
+      default:
+        throw new IllegalArgumentException("Unexpected listener event name: " + event.getEventName());
+      }
     }
   }
 }
