@@ -73,7 +73,7 @@
     <component-plugin>
       <name>attachment.created</name>
       <set-method>addListener</set-method>
-      <type>org.exoplatform.analytics.listener.social.TaskAttachmentAnalyticsListener</type>
+      <type>org.exoplatform.tasks.listener.analytics.TaskAttachmentAnalyticsListener</type>
       <init-params>
         <values-param>
           <name>supported-type</name>
@@ -85,7 +85,7 @@
     <component-plugin>
       <name>attachment.deleted</name>
       <set-method>addListener</set-method>
-      <type>org.exoplatform.analytics.listener.social.TaskAttachmentAnalyticsListener</type>
+      <type>org.exoplatform.tasks.listener.analytics.TaskAttachmentAnalyticsListener</type>
       <init-params>
         <values-param>
           <name>supported-type</name>
