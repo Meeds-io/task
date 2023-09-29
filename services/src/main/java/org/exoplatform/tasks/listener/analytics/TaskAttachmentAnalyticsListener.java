@@ -33,30 +33,16 @@ public class TaskAttachmentAnalyticsListener extends BaseAttachmentAnalyticsList
   }
 
   @Override
-  protected void extendStatisticData(StatisticData statisticData, ObjectAttachmentId objectAttachment) {
-    if (objectAttachment != null) {
-      String objectType;
-      switch (objectAttachment.getObjectType()) {
-      case "task":
-        objectType = "taskDescription";
-        break;
-      case "taskComment":
-        objectType = "taskComment";
-        break;
-      default:
-        objectType = "task";
-      }
-      statisticData.addParameter("objectType", objectType);
-    }
-  }
-
-  @Override
-  protected String getModule() {
+  protected String getModule(ObjectAttachmentId objectAttachment) {
     return "tasks";
   }
 
   @Override
-  protected String getSubModule() {
-    return "task";
+  protected String getSubModule(ObjectAttachmentId objectAttachment) {
+    return switch (objectAttachment.getObjectType()) {
+      case "task" -> "taskDescription";
+      case "taskComment" -> "taskComment";
+      default -> "task";
+    };
   }
 }
