@@ -47,9 +47,10 @@
       </div>
       <div v-if="statistics.length < maxStatusToShow" class="projectStatusNumber ps-4">
         <p 
-          v-for="item in statistics" 
+          v-for="(item , index) in statistics" 
           :key="item.name" 
-          class="d-flex justify-space-between mb-1 taskToDoLabel">
+          class="d-flex justify-space-between mb-1"
+          :class="getStatusColor(statistics, index)">
           <span class="caption text-truncate">{{ item.name }}</span>
           <span>{{ item.value }}</span>
         </p>
@@ -72,6 +73,7 @@ export default {
   },
   data() {
     return {
+      statusStyle: ['taskToDoLabel','taskDoneLabel','taskWaitingOnLabel','taskInProgressLabel'],
       totalLeftTasks: 0,
       statistics: [],
       maxStatusToShow: 7,
@@ -103,12 +105,23 @@ export default {
             data: [],
           }
         ],
-        color: ['#476a9c', '#ffb441', '#bc4343', '#2eb58c']
+        color: ['#476a9c', '#2eb58c',  '#bc4343','#ffb441']
       }
     };
   },
 
   methods: {
+    getStatusColor(statusList, index) {
+      if (statusList.length>4){
+        let style = index;
+        if (index >= 4){
+          style -= 4;
+        }
+        return this.statusStyle[style];
+      } else {
+        return this.statusStyle[index];
+      }
+    },    
     initChart(option) {
       const holder_chart = $(`#echartProjectTasks${this.project.id}`)[0];
       if (holder_chart){
