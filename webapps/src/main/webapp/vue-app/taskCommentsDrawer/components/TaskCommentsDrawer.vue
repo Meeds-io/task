@@ -109,7 +109,9 @@ export default {
       commentId: '',
       showNewCommentEditor: false,
       test: false,
-      MESSAGE_MAX_LENGTH: 1250,
+      MESSAGE_MAX_LENGTH: 1300,
+      newComment: null,
+      newCommentId: null
     };
   },
   computed: {
@@ -138,20 +140,31 @@ export default {
   },
   methods: {
     addTaskComment() {
-      let comment = this.$refs.commentEditor.getMessage();
-      comment = this.urlVerify(comment);
-      this.$taskDrawerApi.addTaskComments(this.task.id,comment).then(comment => {
-        this.comments.push(comment);
-      }).then( () => {
-        this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
-      });
+      let comment = this.$refs.commentEditor.getMessage() || '';
+      comment = comment.length && this.urlVerify(comment) || '';
+      this.$taskDrawerApi.addTaskComments(this.task.id,comment)
+        .then(comment => {
+          this.newComment = comment;
+          return this.$refs.commentEditor.saveAttachments(comment.comment.id);
+        })
+        .then(() => {
+          this.comments.push(this.newComment);
+          this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
+        })
+        .finally(() => {
+          this.$root.$emit('task-comment-created');
+        });
     },
     closeDrawer() {
-      this.$refs.taskCommentDrawer.close();
+      if (this.$refs.taskCommentDrawer) {
+        this.$refs.taskCommentDrawer.close();
+      }
       document.dispatchEvent(new CustomEvent('Task-comments-drawer-closed'));
     },
     openDrawer() {
-      this.$refs.taskCommentDrawer.open();
+      if (this.$refs.taskCommentDrawer) {
+        this.$refs.taskCommentDrawer.open();
+      }
     },
     urlVerify(text) {
       return this.$taskDrawerApi.urlVerify(text);
