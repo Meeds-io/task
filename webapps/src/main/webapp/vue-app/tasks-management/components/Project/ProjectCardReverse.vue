@@ -45,16 +45,23 @@
           <span class="text-body-2 totalLabel">{{ $t('exo.tasks.label.leftTasks') }}</span>
         </div>
       </div>
-      <div v-if="statistics.length < maxStatusToShow" class="projectStatusNumber ps-4">
-        <p 
-          v-for="(item , index) in statistics" 
+
+      <div v-if="statistics.length <= maxStatusToShow" class="projectStatusNumber ps-4">
+          <p 
+          v-for="(item , index) in sorting.slice(0,5)"
           :key="item.name" 
           class="d-flex justify-space-between mb-1"
           :class="getStatusColor(statistics, index)">
           <span class="caption text-truncate">{{ item.name }}</span>
           <span>{{ item.value }}</span>
         </p>
+        <p class="d-flex justify-space-between mb-1 otherLabel" v-if="statistics.length > 5">
+          <span class="caption text-truncate">{{ 'Others' }}</span>
+          <span> {{ statistics.length-5 }}</span>
+        </p>       
       </div>
+     
+     
     </div>
     <div v-else class="noTasksProject">
       <div class="noTasksProjectIcon"><i class="uiIcon uiIconTask"></i></div>
@@ -73,10 +80,11 @@ export default {
   },
   data() {
     return {
-      statusStyle: ['taskToDoLabel','taskDoneLabel','taskWaitingOnLabel','taskInProgressLabel'],
+
+      statusStyle: ['taskToDoLabel','taskDoneLabel','taskWaitingOnLabel','taskInProgressLabel','fifthLabel'],
       totalLeftTasks: 0,
       statistics: [],
-      maxStatusToShow: 7,
+      maxStatusToShow: 10,
       option: {
         tooltip: {
           trigger: 'item',
@@ -105,22 +113,19 @@ export default {
             data: [],
           }
         ],
-        color: ['#476a9c', '#2eb58c',  '#bc4343','#ffb441']
+        color: ['#476a9c', '#2eb58c',  '#bc4343','#ffb441', '#9834eb']
       }
     };
   },
 
+  computed: {
+    sorting(){
+      return this.statistics.sort((a, b) => b.value - a.value);
+    }
+  },
   methods: {
     getStatusColor(statusList, index) {
-      if (statusList.length>4){
-        let style = index;
-        if (index >= 4){
-          style -= 4;
-        }
-        return this.statusStyle[style];
-      } else {
-        return this.statusStyle[index];
-      }
+      return this.statusStyle[index];
     },    
     initChart(option) {
       const holder_chart = $(`#echartProjectTasks${this.project.id}`)[0];
