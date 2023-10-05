@@ -31,8 +31,11 @@ import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.web.WebAppController;
@@ -53,11 +56,16 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
     //
     String projectName = "";
     String projectId = "";
+    long spaceId = 0l;
     ProjectDto project = null;
-    if (task.getStatus() != null) {
+    if (task.getStatus() != null && task.getStatus().getProject() != null) {
       project = task.getStatus().getProject();
       projectName = project.getName();
       projectId = String.valueOf(project.getId());
+      Space space = getProjectSpace(project);
+      if (space != null) {
+        spaceId = Long.parseLong(space.getId());
+      }
     }
     StringBuilder activityId = new StringBuilder(projectId);
     activityId.append("-").append(notificationCreator);
@@ -73,25 +81,26 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
     Set<String> receivers = getReceiver(task, ctx);
     String taskCreator= task.getCreatedBy();
     RequestLifeCycle.end();
-    
+
     return NotificationInfo.instance()
-                               .to(new LinkedList<String>(receivers))
-                               .with(NotificationUtils.TASK_TITLE, task.getTitle())
-                               .with(NotificationUtils.TASK_DESCRIPTION, task.getDescription())
-                               .with(NotificationUtils.CREATOR.getKey(), notificationCreator)
-                               .with(NotificationUtils.PROJECT_NAME, projectName)
-                               .with(NotificationUtils.ACTIVITY_ID, activityId.toString())
-                               .with(NotificationUtils.TASK_URL, taskUrl)
-                               .with(NotificationUtils.PROJECT_URL, projectUrl)
-                               .with(NotificationUtils.TASK_ASSIGNEE, assignee)
-                               .with(NotificationUtils.RECEIVERS.getKey(), String.valueOf(receivers))
-                               .with(NotificationUtils.TASK_COWORKERS, String.valueOf(listOfCoworker))
-                               .with(NotificationUtils.TASK_WATCHERS, String.valueOf(listOfWatcher))
-                               .with(NotificationUtils.ADDED_COWORKER, String.valueOf(coworker))
-                               .with(NotificationUtils.MENTIONED_USERS, String.valueOf(mentioned))
-                               .with(NotificationUtils.ACTION_NAME.getKey(),String.valueOf(actionName))
-                               .with(NotificationUtils.TASK_CREATOR, taskCreator)
-                               .key(getKey()).end();
+                           .to(new LinkedList<>(receivers))
+                           .setSpaceId(spaceId)
+                           .with(NotificationUtils.TASK_TITLE, task.getTitle())
+                           .with(NotificationUtils.TASK_DESCRIPTION, task.getDescription())
+                           .with(NotificationUtils.CREATOR.getKey(), notificationCreator)
+                           .with(NotificationUtils.PROJECT_NAME, projectName)
+                           .with(NotificationUtils.ACTIVITY_ID, activityId.toString())
+                           .with(NotificationUtils.TASK_URL, taskUrl)
+                           .with(NotificationUtils.PROJECT_URL, projectUrl)
+                           .with(NotificationUtils.TASK_ASSIGNEE, assignee)
+                           .with(NotificationUtils.RECEIVERS.getKey(), String.valueOf(receivers))
+                           .with(NotificationUtils.TASK_COWORKERS, String.valueOf(listOfCoworker))
+                           .with(NotificationUtils.TASK_WATCHERS, String.valueOf(listOfWatcher))
+                           .with(NotificationUtils.ADDED_COWORKER, String.valueOf(coworker))
+                           .with(NotificationUtils.MENTIONED_USERS, String.valueOf(mentioned))
+                           .with(NotificationUtils.ACTION_NAME.getKey(),String.valueOf(actionName))
+                           .with(NotificationUtils.TASK_CREATOR, taskCreator)
+                           .key(getKey()).end();
   }
 
   private ExoContainer getContainer() {
@@ -135,5 +144,18 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
 
   private String buildTaskUrl(TaskDto t, ExoContainer container, WebAppController controller) {
     return CommonsUtils.getCurrentDomain() + TaskUtil.buildTaskURL(t, CommonsUtils.getCurrentSite(), container, controller.getRouter());
+  }
+
+  private Space getProjectSpace(ProjectDto project) {
+    SpaceService spaceService = getContainer().getComponentInstanceOfType(SpaceService.class);
+    Space space = null;
+    for (String permission : project.getManager()) {
+      int index = permission.indexOf(':');
+      if (index > -1) {
+        String groupId = permission.substring(index + 1);
+        space = spaceService.getSpaceByGroupId(groupId);
+      }
+    }
+    return space;
   }
 }
