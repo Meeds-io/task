@@ -76,6 +76,7 @@
           <div
             v-if="task.labels && task.labels.length"
             :class="getClassLabels()"
+            class="text-truncate"
             @click="openTaskDrawer()">
             <v-chip
               v-if="task.labels && task.labels.length == 1"
