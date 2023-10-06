@@ -32,8 +32,8 @@
       body-classes="hide-scroll decrease-z-index-more"
       right
       @closed="onCloseDrawer">
-      <template 
-        v-if="task && task.id"
+      <template
+        v-if="drawer && task?.id"
         slot="title">
         <div class="drawerTitleAndProject d-flex">
           <i
@@ -66,7 +66,7 @@
           </v-menu>
         </div>
       </template>
-      <template v-else slot="title">
+      <template v-else-if="drawer" slot="title">
         <div class="drawerTitleAndProject d-flex">
           <i
             v-if="addBackArrow"
@@ -80,7 +80,7 @@
           </div>
         </div>
       </template>
-      <template slot="content">
+      <template v-if="drawer" slot="content">
         <div class="taskDrawerDetails pa-4">
           <div class="taskTitleAndMark d-flex">
             <v-btn
@@ -227,6 +227,7 @@ export default {
     return {
       displayActionMenu: false,
       menuActions: [],
+      drawer: false,
       reset: false,
       dates: [],
       commentPlaceholder: this.$t('comment.message.addYourComment'),

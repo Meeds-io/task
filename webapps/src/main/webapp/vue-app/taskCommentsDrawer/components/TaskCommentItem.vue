@@ -53,10 +53,11 @@
           class="taskContentComment reset-style-box rich-editor-content"
           v-sanitized-html="comment.formattedComment"></div>
          <attachments-image-items
-            :object-id="comment.comment.id"
-            object-type="taskComment"
-            :preview-width="250"
-            :preview-height="250" />
+           v-if="comment.comment.id"
+           :object-id="comment.comment.id"
+           :preview-width="250"
+           :preview-height="250"
+           object-type="taskComment" />
         <v-btn
           id="reply_btn"
           depressed

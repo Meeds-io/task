@@ -37,6 +37,7 @@
         class="taskContentComment reset-style-box rich-editor-content"
         v-sanitized-html="comment.formattedComment"></div>
       <attachments-image-items
+        v-if="comment.comment.id"
         :object-id="comment.comment.id"
         :preview-width="250"
         :preview-height="250"
