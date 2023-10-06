@@ -31,10 +31,11 @@
           {{ placeholder }}
         </div>
         <attachments-image-items
+          v-if="metadataObjectId"
           :object-id="metadataObjectId"
-          object-type="task"
           :preview-width="250"
-          :preview-height="250" />
+          :preview-height="250"
+          object-type="task" />
       </div>
       <rich-editor
         v-if="editorReady"
