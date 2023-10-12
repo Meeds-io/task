@@ -19,12 +19,6 @@
     id="tasks"
     class="VuetifyApp"
     flat>
-    <v-alert
-      v-model="alert"
-      :type="type"
-      dismissible>
-      {{ message }}
-    </v-alert>
     <v-container white pa-0>
       <v-layout
         row
@@ -196,9 +190,6 @@ export default {
         description: '',
         title: ''
       },
-      alert: false,
-      type: '',
-      message: '',
       priorityStatus: ['High', 'In Normal', 'Low', 'None', null],
     };
   },computed: {
@@ -252,9 +243,7 @@ export default {
       this.getMyTomorrowTasks();
       this.getMyUpcomingTasks();
     });
-    this.$root.$on('show-alert', message => {
-      this.displayMessage(message);
-    });
+    this.$root.$on('show-alert', this.displayMessage);
     this.$root.$on('open-task-drawer', task => {
       this.task=task;
       this.$refs.taskDrawer.open(this.task);
@@ -393,10 +382,7 @@ export default {
       }
     },
     displayMessage(message) {
-      this.message=message.message;
-      this.type=message.type;
-      this.alert = true;
-      window.setTimeout(() => this.alert = false, 5000);
+      this.$root.$emit('alert-message', message?.message, message?.type || 'success');
     }
   }
 };
