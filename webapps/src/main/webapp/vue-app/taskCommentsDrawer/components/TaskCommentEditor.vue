@@ -31,7 +31,7 @@
         :placeholder="placeholder"
         :object-id="newCommentId"
         :tag-enabled="false"
-        :suggester-space-url="getSpaceUrlFromProjectParticipator()"
+        :suggester-space-url="taskSpaceUrl"
         ck-editor-type="taskCommentContent"
         object-type="taskComment"
         autofocus
@@ -123,6 +123,16 @@ export default {
     postDisabled() {
       return !this.validMessage || (!this.inputVal && !this.taskCommentAttachmentsEdited);
     },
+    taskSpaceUrl() {
+      const projectMembers = this.task?.status?.project?.participator;
+      if (projectMembers?.length) {
+        const projectSpace = projectMembers.find(member => member.includes('/spaces/'));
+        if (projectSpace) {
+          return projectSpace.split('/spaces/')[1];
+        }
+      }
+      return null;
+    },
   },
   mounted() {
     this.$root.$on('task-comment-created', () => {
@@ -198,15 +208,6 @@ export default {
       this.$emit('attachments-edited');
       if (attachments?.length) {
         this.taskCommentAttachmentsEdited = true;
-      }
-    },
-    getSpaceUrlFromProjectParticipator() {
-      const participator = this.task.status.project.participator;
-      if (participator && participator.length > 0) {
-        const projectParticipator = participator.find((element) => element.startsWith('member:/spaces/'));
-        if (projectParticipator) {
-          return projectParticipator.substring(15);
-        }
       }
     },
   },
