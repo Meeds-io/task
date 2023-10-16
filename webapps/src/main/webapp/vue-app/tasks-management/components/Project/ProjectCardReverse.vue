@@ -119,7 +119,6 @@ export default {
       if (holder_chart){
         const chart = echarts.init(holder_chart);
         chart.setOption(option, true);
-
       }
     },
     getStats(project){
