@@ -31,7 +31,7 @@
         :placeholder="placeholder"
         :object-id="newCommentId"
         :tag-enabled="false"
-        :suggester-space-url="taskSpaceUrl"
+        :suggester-space-u-r-l="taskSpaceUrl"
         ck-editor-type="taskCommentContent"
         object-type="taskComment"
         autofocus
