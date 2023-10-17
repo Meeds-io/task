@@ -842,16 +842,13 @@ public class TaskRestService implements ResourceContainer {
           @ApiResponse(responseCode = "400", description = "Invalid query input"), 
           @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "404", description = "Resource not found") })
-  public Response addTaskComment(@Parameter(description = "Comment text", required = true) String commentText,
+  public Response addTaskComment(@Parameter(description = "Comment text", required = false) String commentText,
                                  @Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
     String currentUser = ConversationState.getCurrent().getIdentity().getUserId();
     TaskDto task = taskService.getTask(id);
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
-    }
-    if (commentText == null || commentText.isEmpty()) {
-      return Response.status(Response.Status.BAD_REQUEST).build();
     }
     if (!TaskUtil.hasEditPermission(taskService,task)) {
       return Response.status(Response.Status.FORBIDDEN).build();
@@ -881,7 +878,7 @@ public class TaskRestService implements ResourceContainer {
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "404", description = "Resource not found") })
-  public Response addTaskSubComment(@Parameter(description = "Comment text", required = true) String commentText,
+  public Response addTaskSubComment(@Parameter(description = "Comment text", required = false) String commentText,
                                     @Parameter(description = "Comment id", required = true) @PathParam("commentId") long commentId,
                                     @Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
@@ -892,9 +889,6 @@ public class TaskRestService implements ResourceContainer {
     }
     if (!TaskUtil.hasEditPermission(taskService,task)) {
       return Response.status(Response.Status.FORBIDDEN).build();
-    }
-    if (commentText == null || commentText.isEmpty()) {
-      return Response.status(Response.Status.BAD_REQUEST).build();
     }
 
     commentText = commentText.replaceAll(PERCENT_ENCODED_REGEX, "%25");

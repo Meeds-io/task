@@ -78,7 +78,7 @@ export default {
   },
   data() {
     return {
-      MESSAGE_MAX_LENGTH: 1250,
+      MESSAGE_MAX_LENGTH: 1300,
       lang: eXo.env.portal.language,
       commentId: '',
       commentToDelete: '',
@@ -89,6 +89,8 @@ export default {
         hour: '2-digit',
         minute: '2-digit',
       },
+      newComment: null,
+      newCommentId: null
     };
   },
   mounted() {
@@ -105,19 +107,28 @@ export default {
   },
   methods: {
     addTaskComment(commentId) {
-      let commentText = this.$refs.commentEditor.getMessage();
-      commentText = this.urlVerify(commentText);
+      let commentText = this.$refs.commentEditor.getMessage() || '';
+      commentText = commentText.length && this.urlVerify(commentText) || '';
       if (this.newCommentEditor) {
-        this.$taskDrawerApi.addTaskComments(this.task.id,commentText).then(comment => {
-          this.comments.push(comment);
-        }).then( () => {
-          this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
-        });
+        this.$taskDrawerApi.addTaskComments(this.task.id,commentText)
+          .then((comment) => {
+            this.comments.push(comment);
+            return this.$refs.commentEditor.saveAttachments(comment.comment.id);
+          })
+          .then( () => {
+            this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
+          }).finally(() => {
+            this.$root.$emit('task-comment-created');
+          });
       } else {
-        this.$taskDrawerApi.addTaskSubComment(this.task.id, commentId, commentText).then((comment => {
-          this.comment.subComments = this.comment.subComments || [];
-          this.comment.subComments.push(comment);
-        }));
+        this.$taskDrawerApi.addTaskSubComment(this.task.id, commentId, commentText)
+          .then(comment => {
+            this.comment.subComments = this.comment.subComments || [];
+            this.comment.subComments.push(comment);
+            return this.$refs.commentEditor.saveAttachments(comment.comment.id);
+          }).finally(() => {
+            this.$root.$emit('task-comment-created');
+          });
       }
     },
     removeTaskComment() {

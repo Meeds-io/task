@@ -20,32 +20,36 @@
       id="taskDescriptionId"
       :class="editorReady && 'active'"
       class="taskDescription richEditor">
-      <div
-        v-sanitized-html="value"
-        :data-text="placeholder"
-        :title="$t('tooltip.clickToEdit')"
-        contentEditable="true"
-        class="py-1 px-2 taskDescriptionToShow reset-style-box rich-editor-content"
-        @click="showDescriptionEditor($event)">
-        {{ placeholder }}
+      <div class="taskDescriptionToShow">
+        <div
+          v-sanitized-html="value"
+          :data-text="placeholder"
+          :title="$t('tooltip.clickToEdit')"
+          contentEditable="true"
+          class="py-1 px-2 reset-style-box rich-editor-content"
+          @click="showDescriptionEditor($event)">
+          {{ placeholder }}
+        </div>
+        <attachments-image-items
+          v-if="metadataObjectId"
+          :object-id="metadataObjectId"
+          :preview-width="250"
+          :preview-height="250"
+          object-type="task" />
       </div>
-
-      <textarea
-        id="descriptionContent"
-        ref="editor"
+      <rich-editor
+        v-if="editorReady"
+        ref="taskDescriptionEditor"
         v-model="value"
-        class="d-none"
-        cols="30"
-        rows="10"></textarea>
-
-      <div
-        v-if="displayEditor && editorReady"
-        :class="charsCount > MESSAGE_MAX_LENGTH ? 'tooManyChars' : ''"
-        class="activityCharsCount"
-        style="">
-        {{ charsCount }}/{{ MESSAGE_MAX_LENGTH }}
-        <i class="uiIconMessageLength"></i>
-      </div>
+        id="descriptionContent"
+        :max-length="MESSAGE_MAX_LENGTH"
+        :placeholder="placeholder"
+        :object-id="metadataObjectId"
+        :tag-enabled="false"
+        ck-editor-type="taskContent"
+        object-type="task"
+        autofocus
+        disable-suggester />
     </div>
     <v-btn
       v-if="task.id && displayEditor && editorReady"
@@ -55,7 +59,7 @@
       depressed
       outlined
       class="btn mt-2 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
-      @click="saveDescription">
+      @click="saveDescription($event)">
       {{ $t('label.apply') }}
     </v-btn>
   </div>
@@ -85,7 +89,7 @@ export default {
       inputVal: '',
       editorReady: false,
       showEditor: false,
-      savingDescription: false,
+      savingDescription: false
     };
   },
   computed: {
@@ -102,17 +106,19 @@ export default {
     displayEditor() {
       return this.showEditor;
     },
-
+    metadataObjectId() {
+      return this.task?.id || null;
+    }
   },
   watch: {
     inputVal(val) {
-      const editorData = CKEDITOR.instances['descriptionContent'] && CKEDITOR.instances['descriptionContent'].getData();
+      const editorData = this.$refs.taskDescriptionEditor && this.$refs.taskDescriptionEditor.getMessage();
       if (editorData != null && val !== editorData) {
         if (val === '') {
-          CKEDITOR.instances['descriptionContent'].setData('');
-          this.initCKEditor();
+          this.$refs.taskDescriptionEditor.initCKEditorData('');
+          this.$refs.taskDescriptionEditor.initCKEditor();
         } else {
-          CKEDITOR.instances['descriptionContent'].setData(val);
+          this.$refs.taskDescriptionEditor.initCKEditorData(val);
         }
       }
       if (this.editorReady) {
@@ -120,23 +126,16 @@ export default {
       }
     },
     editorReady(val) {
-      const ckeContent = document.querySelectorAll('[id=cke_descriptionContent]');
       if (val === true) {
-        this.initCKEditor();
-        if (ckeContent) {
-          for (let i = 0; i < ckeContent.length; i++) {
-            ckeContent[i].classList.remove('hiddenEditor');
-          }
+        if (this.$refs.taskDescriptionEditor) {
+          this.$refs.taskDescriptionEditor.initCKEditor();
         }
         document.getElementById('taskDescriptionId').classList.remove('taskDescription');
-        if (CKEDITOR.instances['descriptionContent']) {
-          CKEDITOR.instances['descriptionContent'].focus(true);
+        if (this.$refs.taskDescriptionEditor) {
+          this.$refs.taskDescriptionEditor.setFocus(true);
         }
       } else {
-        for (let i = 0; i < ckeContent.length; i++) {
-          ckeContent[i].classList.add('hiddenEditor');
-          document.getElementById('taskDescriptionId').classList.add('taskDescription');
-        }
+        document.getElementById('taskDescriptionId').classList.add('taskDescription');
       }
     },
     reset() {
@@ -149,14 +148,23 @@ export default {
       this.hideDescriptionEditor();
     });
     document.addEventListener('onAddTask', () => {
-      this.$emit('addTaskDescription',this.inputVal);
-      this.hideDescriptionEditor();
+      this.$emit('addTaskDescription',this.value);
+      this.showEditor = false;
     });
     this.inputVal = this.value || '';
+    $('#task-Drawer').on('click', (event) => {
+      if (this.showEditor && event?.target && !$(event.target).parents('#taskDescriptionId').length) {
+        this.hideDescriptionEditor();
+      }
+    });
   },
   methods: {
-    saveDescription() {
-      const newValue = this.inputVal?.replace('&nbsp;',' ');
+    saveDescription(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const newValue = this.value?.replace('&nbsp;',' ');
       if (this.task.id && !isNaN(this.task.id)) {
         this.savingDescription = true;
 
@@ -165,6 +173,7 @@ export default {
         this.$taskDrawerApi.updateTask(this.task.id , task)
           .then(() => {
             this.task.description = newValue;
+            this.$refs.taskDescriptionEditor.saveAttachments();
             this.$root.$emit('show-alert', {
               type: 'success',
               message: this.$t('alert.success.task.description')
@@ -179,55 +188,18 @@ export default {
           }).finally(() => this.savingDescription = false);
       }
     },
-    initCKEditor: function () {
-      CKEDITOR.plugins.addExternal('embedsemantic', '/commons-extension/eXoPlugins/embedsemantic/', 'plugin.js');
-      const toolbar = [
-        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote', 'emoji'],
-      ];
-      let extraPlugins = 'simpleLink,widget,embedsemantic,formatOption,emoji';
-      const windowWidth = $(window).width();
-      const windowHeight = $(window).height();
-      if (windowWidth > windowHeight && windowWidth < 768) {
-        extraPlugins = 'simpleLink,selectImage,embedsemantic,formatOption';
-      }
-      CKEDITOR.basePath = '/commons-extension/ckeditor/';
-      const self = this;
-      $(this.$refs.editor).ckeditor({
-        customConfig: `${eXo.env.portal.context}/${eXo.env.portal.rest}/richeditor/configuration?type=task-description&v=${eXo.env.client.assetsVersion}`,
-        extraPlugins: extraPlugins,
-        removePlugins: 'confirmBeforeReload,maximize,resize',
-        toolbar,
-        toolbarLocation: 'bottom',
-        startupFocus: self.inputVal=== '' ? true :'end',
-        autoGrow_onStartup: true,
-        on: {
-          blur: function (event) {
-            const doc = event.editor.container.$.ownerDocument;
-            if (doc.activeElement.id.toString() !== 'saveDescriptionButton'){
-              $(document.body).trigger('click');
-              self.hideDescriptionEditor();
-            }
-          },
-          change: function(evt) {
-            const newData = evt.editor.getData();
-            self.inputVal = newData;
-          },
-          destroy: function () {
-            self.editorReady = false;
-            self.showEditor = false;
-            self.inputVal = '';
-          }
-        },
-      });
-    },
     hideDescriptionEditor() {
-      if (CKEDITOR.instances['descriptionContent']) {
-        CKEDITOR.instances['descriptionContent'].destroy(true);
+      if (this.$refs.taskDescriptionEditor) {
+        this.$refs.taskDescriptionEditor.destroyCKEditor();
       }
       this.editorReady = false;
       this.showEditor = false;
     },
     showDescriptionEditor: function (event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       if (!this.showEditor && event?.target?.nodeName !== 'A') {
         this.inputVal = this.value;
         this.editorReady = true;
@@ -236,10 +208,6 @@ export default {
         window.open(event.target.href, '_blank');
       }
     },
-    urlVerify(text) {
-      return this.$taskDrawerApi.urlVerify(text);
-    }
-
   }
 };
 </script>

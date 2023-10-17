@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div :class="editorReady && 'activeEditor' || 'inactiveEditor'">
+  <div v-if="editorReady">
     <div class="comment d-flex align-start mb-2">
       <exo-user-avatar
         :profile-id="currentUserName"
@@ -23,24 +23,21 @@
         :url="null"
         extra-class="me-2" 
         avatar />
-      <div class="editorContainer richEditor">
-        <textarea 
-          :ref="`editor-${id}`"
-          :id="id" 
-          v-model="inputVal" 
-          :placeholder="placeholder" 
-          cols="30" 
-          rows="10" 
-          class="textarea"
-          autofocus></textarea>
-        <div
-          :class="charsCount > maxLength ? 'tooManyChars' : ''"
-          class="activityCharsCount"
-          style="">
-          {{ charsCount }}{{ maxLength > -1 ? ' / ' + maxLength : '' }}
-          <i class="uiIconMessageLength"></i>
-        </div>
-      </div>
+      <rich-editor
+        ref="taskCommentEditor"
+        v-model="inputVal"
+        :ck-editor-id="id"
+        :max-length="MESSAGE_MAX_LENGTH"
+        :placeholder="placeholder"
+        :object-id="newCommentId"
+        :tag-enabled="false"
+        :suggester-space-u-r-l="taskSpaceUrl"
+        ck-editor-type="taskCommentContent"
+        object-type="taskComment"
+        autofocus
+        class="editorContainer"
+        @attachments-edited="attachmentsEdit"
+        @validity-updated="validMessage = $event" />
     </div>
     <v-btn
       :disabled="postDisabled"
@@ -78,10 +75,6 @@ export default {
       type: String,
       default: ''
     },
-    editorReady: {
-      type: Boolean,
-      default: false
-    },
     showCommentEditor: {
       type: Boolean,
       default: false
@@ -97,26 +90,17 @@ export default {
   },
   data() {
     return {
-      inputVal: this.value,
+      inputVal: null,
       charsCount: 0,
       disabledComment: '',
-      MESSAGE_MAX_LENGTH: 1250,
+      MESSAGE_MAX_LENGTH: 1300,
       currentUserName: eXo.env.portal.userName,
-      currentCommentId: ''
+      currentCommentId: '',
+      newCommentId: null,
+      editorReady: false,
+      validMessage: true,
+      taskCommentAttachmentsEdited: false
     };
-  },
-  computed: {
-    postDisabled() {
-      if (this.disabledComment) {
-        return true;
-      } else if (this.inputVal !== null && this.inputVal!=='') {
-        let pureText = this.inputVal ? this.inputVal.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
-        const div = document.createElement('div');
-        div.innerHTML = pureText;
-        pureText = div.textContent || div.innerText || '';
-        return pureText.length > this.MESSAGE_MAX_LENGTH;
-      } else {return true;}
-    },
   },
   watch: {
     inputVal(val) {
@@ -125,27 +109,50 @@ export default {
     },
     editorReady ( val ) {
       if ( val === true ) {
-        this.initCKEditor();
+        if (this.$refs.taskCommentEditor) {
+          this.$refs.taskCommentEditor.initCKEditor();
+        }
       } else {
-        if (CKEDITOR.instances[this.id]) {
-          CKEDITOR.instances[this.id].destroy(true);
+        if (this.$refs.taskCommentEditor) {
+          this.$refs.taskCommentEditor.destroyCKEditor();
         }
       }
     }
   },
-  created() {
+  computed: {
+    postDisabled() {
+      return !this.validMessage || (!this.inputVal && !this.taskCommentAttachmentsEdited);
+    },
+    taskSpaceUrl() {
+      const projectMembers = this.task?.status?.project?.participator;
+      if (projectMembers?.length) {
+        const projectSpace = projectMembers.find(member => member.includes('/spaces/'));
+        if (projectSpace) {
+          return projectSpace.split('/spaces/')[1];
+        }
+      }
+      return null;
+    },
+  },
+  mounted() {
+    this.$root.$on('task-comment-created', () => {
+      this.reset();
+    });
+
+    document.addEventListener('Task-comments-drawer-closed', this.reset);
+
     this.$root.$on('showEditor', commentId => {
       this.$nextTick().then(() => {
         this.showEditor(commentId);
       });
     });
-  },
-  mounted() {
+    
     if ( this.showCommentEditor ) {
       this.editorReady = true;
     }
     this.$root.$on('newCommentEditor', (lastComment) => {
       this.editorReady = false;
+      this.newCommentId = null;
       window.setTimeout(() => {
         this.showCommentEditor = `commentContent-${lastComment}` === this.id;
         if (this.showCommentEditor) {
@@ -172,73 +179,37 @@ export default {
       });
     });
   },
+  beforeDestroy() {
+    document.removeEventListener('Task-comments-drawer-closed', this.reset);
+  },
   methods: {
-    initCKEditor() {
-      const toolbar = [
-        ['formatOption', 'Bold', 'Italic', 'BulletedList', 'NumberedList', 'Blockquote', 'emoji'],
-      ];
-      let extraPlugins = 'suggester,widget,embedsemantic,formatOption,emoji';
-      const windowWidth = $(window).width();
-      const windowHeight = $(window).height();
-      if (windowWidth > windowHeight && windowWidth < 768) {
-        // Disable suggester on smart-phone landscape
-        extraPlugins = 'selectImage';
-      }
-      CKEDITOR.basePath = '/commons-extension/ckeditor/';
-      const self = this;
-      $(this.$refs[`editor-${this.id}`]).ckeditor({
-        customConfig: `${eXo.env.portal.context}/${eXo.env.portal.rest}/richeditor/configuration?type=task-comment&v=${eXo.env.client.assetsVersion}`,
-        extraPlugins: extraPlugins,
-        removePlugins: 'confirmBeforeReload,maximize,resize',
-        toolbar,
-        autoGrow_onStartup: true,
-        on: {
-          instanceReady: function() {
-            self.setFocus();
-          },
-          change: function(evt) {
-            const newData = evt.editor.getData();
-            self.inputVal = newData;
-            let pureText = newData ? newData.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim() : '';
-            const div = document.createElement('div');
-            div.innerHTML = pureText;
-            pureText = div.textContent || div.innerText || '';
-            self.charsCount = pureText.length;
-          },
-          destroy: function () {
-            self.inputVal = '';
-            self.charsCount = 0;
-            self.editorReady = false;
-            self.showCommentEditor =false;
-          },
-        },
-        suggester: {
-          /* eslint-disable no-template-curly-in-string */
-          renderMenuItem: '<li data-value="${uid}"><div class="avatarSmall" style="display: inline-block;"><img src="${avatar}"></div>${name} (${uid})</li>',
-          renderItem: '<span class="exo-mention">${name}<a href="#" class="remove"><i class="uiIconClose uiIconLightGray"></i></a></span>',
-          sourceProviders: ['task:people']
-        },
-
-      });
-    },
-    getMessage() {
-      const newData = CKEDITOR.instances[this.id].getData();
-      return newData ? newData.trim() : '';
-    },
-    setFocus() {
-      CKEDITOR.instances[this.id].focus();
-    },
-    destroyEditor() {
-      CKEDITOR.instances[this.id].destroy();
-    },
     showEditor(commentId) {
       this.currentCommentId = commentId;
+      this.newCommentId = null;
       this.editorReady =  `commentContent-${commentId}`  === this.id;
+    },
+    getMessage() {
+      return this.inputVal;
     },
     addNewComment() {
       this.$emit('addNewComment', this.commentId);
-      this.destroyEditor();
-    }
+    },
+    reset() {
+      this.inputVal = '';
+      this.editorReady = false;
+      this.taskCommentAttachmentsEdited = false;
+    },
+    saveAttachments(commentId) {
+      this.newCommentId = commentId;
+      return this.$nextTick()
+        .then(() => this.$refs.taskCommentEditor.saveAttachments());
+    },
+    attachmentsEdit(attachments) {
+      this.$emit('attachments-edited');
+      if (attachments?.length) {
+        this.taskCommentAttachmentsEdited = true;
+      }
+    },
   },
 };
 </script>

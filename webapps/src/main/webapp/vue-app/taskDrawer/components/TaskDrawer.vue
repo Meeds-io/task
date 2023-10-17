@@ -26,13 +26,14 @@
     <exo-drawer
       id="task-Drawer"
       ref="addTaskDrawer"
+      v-model="drawer"
       :temporary="confirmDrawerClose"
       class="taskDrawer"
       body-classes="hide-scroll decrease-z-index-more"
       right
       @closed="onCloseDrawer">
-      <template 
-        v-if="task && task.id"
+      <template
+        v-if="drawer && task?.id"
         slot="title">
         <div class="drawerTitleAndProject d-flex">
           <i
@@ -65,7 +66,7 @@
           </v-menu>
         </div>
       </template>
-      <template v-else slot="title">
+      <template v-else-if="drawer" slot="title">
         <div class="drawerTitleAndProject d-flex">
           <i
             v-if="addBackArrow"
@@ -79,7 +80,7 @@
           </div>
         </div>
       </template>
-      <template slot="content">
+      <template v-if="drawer" slot="content">
         <div class="taskDrawerDetails pa-4">
           <div class="taskTitleAndMark d-flex">
             <v-btn
@@ -196,16 +197,20 @@
         </div>
       </template>
     </exo-drawer>
-    <task-comments-drawer
-      ref="taskCommentDrawer"
-      :task="task"
-      :comments="comments"
-      @confirmDialogOpened="isDrawerClose = false"
-      @confirmDialogClosed="isDrawerClose = true" />
-    <task-changes-drawer
-      ref="taskChangesDrawer"
-      :task="task"
-      :logs="logs" />
+    <template v-if="drawer">
+      <task-comments-drawer
+        ref="taskCommentDrawer"
+        :task="task"
+        :comments="comments"
+        @confirmDialogOpened="isDrawerClose = false"
+        @confirmDialogClosed="isDrawerClose = true" />
+      <task-changes-drawer
+        ref="taskChangesDrawer"
+        :task="task"
+        :logs="logs" />
+      <attachments-image-crop-drawer />
+      <attachments-image-preview-dialog />
+    </template>
   </div>
 </template>
 <script>
@@ -222,6 +227,7 @@ export default {
     return {
       displayActionMenu: false,
       menuActions: [],
+      drawer: false,
       reset: false,
       dates: [],
       commentPlaceholder: this.$t('comment.message.addYourComment'),
@@ -541,6 +547,21 @@ export default {
         }).finally(() => this.$root.$emit('task-due-date-updated', this.task));
       }
     },
+    postSaveMessage(task) {
+      const postSaveOperations = extensionRegistry.loadExtensions('task', 'saveAction');
+      if (postSaveOperations?.length) {
+        const promises = [];
+        postSaveOperations.forEach(extension => {
+          if (extension.postSave) {
+            const result = extension.postSave(task);
+            if (result?.then) {
+              promises.push(result);
+            }
+          }
+        });
+        return Promise.all(promises).then(() => task);
+      }
+    },
     addTask() {
       document.dispatchEvent(new CustomEvent('onAddTask'));
       this.task.description = this.taskDescription;
@@ -553,7 +574,11 @@ export default {
         this.labelsToAdd.forEach(item => {
           this.$taskDrawerApi.addTaskToLabel(task.id, item);
         });
-        
+        const taskObject = {
+          id: task.id,
+          type: 'task'
+        };
+        this.postSaveMessage(taskObject);
         this.$root.$emit('task-added', task);
         this.$root.$emit('show-alert', {
           type: 'success',
@@ -630,7 +655,7 @@ export default {
       }
     },
     addTaskDescription(value) {
-      this.task.description = value;
+      this.taskDescription = value;
     },
     retrieveTaskLogs() {
       this.$taskDrawerApi.getTaskLogs(this.task.id).then(
