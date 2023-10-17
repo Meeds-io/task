@@ -31,6 +31,7 @@
         :placeholder="placeholder"
         :object-id="newCommentId"
         :tag-enabled="false"
+        :suggester-space-u-r-l="taskSpaceUrl"
         ck-editor-type="taskCommentContent"
         object-type="taskComment"
         autofocus
@@ -121,6 +122,16 @@ export default {
   computed: {
     postDisabled() {
       return !this.validMessage || (!this.inputVal && !this.taskCommentAttachmentsEdited);
+    },
+    taskSpaceUrl() {
+      const projectMembers = this.task?.status?.project?.participator;
+      if (projectMembers?.length) {
+        const projectSpace = projectMembers.find(member => member.includes('/spaces/'));
+        if (projectSpace) {
+          return projectSpace.split('/spaces/')[1];
+        }
+      }
+      return null;
     },
   },
   mounted() {
