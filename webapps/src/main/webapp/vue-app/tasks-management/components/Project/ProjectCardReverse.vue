@@ -45,20 +45,24 @@
           <span class="text-body-2 totalLabel">{{ $t('exo.tasks.label.leftTasks') }}</span>
         </div>
       </div>
-      <div v-if="statistics.length < maxStatusToShow" class="projectStatusNumber ps-4">
-        <p 
-          v-for="item in statistics" 
+
+      <div v-if="statistics" class="projectStatusNumber ps-4">
+          <p 
+          v-for="(item , index) in statistics"
           :key="item.name" 
-          class="d-flex justify-space-between mb-1 taskToDoLabel">
+          class="d-flex justify-space-between mb-1"
+          :class="statusStyle[index]">
           <span class="caption text-truncate">{{ item.name }}</span>
           <span>{{ item.value }}</span>
-        </p>
+        </p> 
       </div>
+
+     
+     
     </div>
     <div v-else class="noTasksProject">
       <div class="noTasksProjectIcon"><i class="uiIcon uiIconTask"></i></div>
       <div class="noTasksProjectLabel"><span>{{ $t('label.noTasks') }}</span></div>
-      <!-- <div class="noTasksProjectLink"><a href="#">{{ $t('label.addTask') }}</a></div> -->
     </div>
   </v-card>
 </template>
@@ -72,9 +76,10 @@ export default {
   },
   data() {
     return {
+      statusStyle: ['blueLabel','greenLabel','redLabel','yellowLabel','purpleLabel', 'grayLabel'],
+      statusColors: ['#476a9c', '#2eb58c', '#bc4343', '#ffb441', '#9834eb', '#808080'],      
       totalLeftTasks: 0,
       statistics: [],
-      maxStatusToShow: 7,
       option: {
         tooltip: {
           trigger: 'item',
@@ -103,7 +108,7 @@ export default {
             data: [],
           }
         ],
-        color: ['#476a9c', '#ffb441', '#bc4343', '#2eb58c']
+        color: this.statusColors
       }
     };
   },
@@ -113,15 +118,21 @@ export default {
       const holder_chart = $(`#echartProjectTasks${this.project.id}`)[0];
       if (holder_chart){
         const chart = echarts.init(holder_chart);
-        chart.setOption(option, true);}
+        chart.setOption(option, true);
+      }
     },
     getStats(project){
       this.$projectService.getProjectStats(project.id).then(data => {
-        this.statistics = data.statusStats || [];
         this.totalLeftTasks = data.totalNumberTasks || 0;
-
-        if (this.statistics && this.statistics.length) {
-          this.option.series[0].data=this.statistics;
+        let otherTasksCount = 0;
+        this.statistics = data.statusStats.sort((a, b) => b.value - a.value);        
+        if (data.statusStats.length>5){
+          otherTasksCount= data.statusStats.length-5;
+          this.statistics.splice(5,otherTasksCount,{ 'name': this.$t('Others'), 'value': otherTasksCount });
+        }
+        if (this.statistics?.length) {
+          this.option.series[0].data = this.statistics;
+          this.option.color = this.statusColors;
           window.setTimeout(() => {
             this.initChart(this.option);
           },200);
