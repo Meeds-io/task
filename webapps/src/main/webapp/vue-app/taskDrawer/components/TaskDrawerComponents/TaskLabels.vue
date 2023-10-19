@@ -33,7 +33,8 @@
       prepend-icon
       solo
       @click="openLabelsList()"
-      @change="search = ''">
+      @change="search = ''"
+      @keyup.delete="onDeleteKeyPress()">
       <template #prepend>
         <i class="uiIconTag uiIconBlue"></i>
       </template>
@@ -100,6 +101,7 @@ export default {
       items: [],
       nonce: 1,
       model: [],
+      modelCopy: [],
       x: 0,
       search: null,
       y: 0,
@@ -206,6 +208,7 @@ export default {
           o.text = o.name;
           return o;
         });
+        this.modelCopy = this.model;
       });
     },
     addTaskToLabel(label) {
@@ -249,6 +252,15 @@ export default {
     },
     openLabelsList() {
       this.$emit('labelsListOpened');
+    },
+    onDeleteKeyPress() {
+      if (this.modelCopy.length > this.model.length) {
+        const deletedLabel = this.modelCopy.filter(itemA => !this.model.some(itemB => itemB.id === itemA.id));
+        if (deletedLabel.length > 0) {
+          this.removeTaskFromLabel(deletedLabel[0]);
+          this.modelCopy = this.model;
+        }
+      }
     }
   }
 };
