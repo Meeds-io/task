@@ -18,15 +18,16 @@
   <div
     :class="[getTaskPriorityColor(task.task.priority), removeCompletedTask && 'completedTask' || '']"
     class="taskListItemView px-4 py-3 d-flex align-center">
-    <div class="taskCheckBox">
+    <div class="taskCheckBox d-flex align-center justify-center">
       <v-switch
         ref="autoFocusInput2"
         class="d-none"
         true-value="true"
         false-value="false" />
       <i 
-        :title="$t(getTaskCompletedTitle())" 
-        :class="getTaskCompleted()" 
+        :title="$t(taskCompletedTitle)" 
+        :class="taskCompletedClass"
+        class="fa-xl primary--text d-block"
         @click="updateCompleted"></i>
     </div>
     <div class="taskTitle pe-10">
@@ -63,13 +64,13 @@
         v-else-if="task.labels && task.labels.length > 1"
         :title="getLabelsList(task.labels)"
         class="taskTags d-flex align-center justify-center">
-        <i class="uiIcon uiTagIcon me-1"></i>
+        <v-icon size="18" class="icon-default-color me-1">fa-tag</v-icon>
         <span class="taskAttachNumber caption">{{ task.labels.length }}</span>
       </div>
     </div>
     <div class="taskActions d-flex justify-center align-center pe-9" @click="openTaskDrawer()">
       <div v-if="task.commentCount" class="taskComment d-flex align-center">
-        <i class="far fa-comment uiCommentIcon"></i>
+        <v-icon size="20" class="me-1">far fa-comment</v-icon>
         <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
       </div>
     </div>
@@ -128,7 +129,22 @@ export default {
     },
     removeCompletedTask() {
       return this.task.task.completed === true && !this.showCompletedTasks;
-    }
+    },
+    taskCompletedClass() {
+      if (this.task.task.completed===true){
+        return 'fa fa-check-circle';
+      } else {
+        return 'far fa-circle';
+      }
+    },
+    taskCompletedTitle() {
+      if (this.task.task.completed===true){
+        return 'message.markAsUnCompleted';
+      }
+      else {
+        return 'message.markAsCompleted';
+      }
+    },
   },
   watch: {
     'task.assignee'() {
@@ -183,22 +199,6 @@ export default {
     },
     openTaskDrawer() {
       this.$root.$emit('open-task-drawer', this.task.task);
-    },
-    getTaskCompleted() {
-      if (this.task.task.completed===true){
-        return 'uiIconValidate';
-      }
-      else {
-        return 'uiIconCircle';
-      }
-    },
-    getTaskCompletedTitle() {
-      if (this.task.task.completed===true){
-        return 'message.markAsUnCompleted';
-      }
-      else {
-        return 'message.markAsCompleted';
-      }
     },
     updateCompleted() {
       const task = {

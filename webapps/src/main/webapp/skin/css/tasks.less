@@ -32,16 +32,6 @@
       .drawerContent {
         padding: 0 16px 0 16px;
         .addProjectTitle {
-          .uiIconProject {
-            .fa();
-            .fa-folder();
-            font-style: normal;
-            font-size: 20px;
-            color: @primaryColor;
-            margin-right: 4px ~'; /** orientation=lt */ ';
-            margin-left: 4px ~'; /** orientation=rt */ ';
-            margin-top: -4px;
-          }
           .projectInputTitle {
             margin-bottom:0px;
             border: none!important;
@@ -217,15 +207,9 @@
               }
             }
             .editManager,.editParticipant {
-              margin-left: 10px ~'; /** orientation=lt */ ';
-              margin-right: 10px ~'; /** orientation=rt */ ';
               margin-top: 10px;
               a.editManager,a.editParticipant {
                 text-decoration: underline;
-                i.fas.fa-pencil-alt.uiIconProject,i.fas.fa-plus {
-                  text-decoration: underline;
-                  font-size: 11px;
-                }
               }
               .v-select__selections{
                 min-height: 30px!important;
@@ -238,12 +222,6 @@
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-                i.uiIconInformation.uiIconProject {
-                  .fa();
-                  .fa-info-circle();
-                  font-size: 11px;
-                  color: @textLightColor;
-                }
               }
             }
           }
@@ -326,23 +304,6 @@
         margin-left: 5px;
         margin-right: 5px;
        }
-      .uiIconSocSimplePlus {
-        font-size: 16px;
-        margin-top: -3px;
-        color:@greyColorLighten1!important;
-      }
-      .uiIconSocSimplePlus:hover {
-        color:@primaryColor!important;
-        cursor: pointer;
-      }
-      i.uiIcon.uiIconMiniArrowDown,i.uiIcon.uiIconMiniArrowRight{
-        margin-right: 8px ~'; /** orientation=lt */ ';
-        margin-left: 8px ~'; /** orientation=rt */ ';
-        font-size: 13px;
-      }
-      .uiIconMiniArrowDown:before,.uiIconMiniArrowRight:before{
-        color:DarkGrey;
-      }
       .assigneeFilter{
         margin-left: 10px ~'; /** orientation=lt */ ';
         margin-right: 10px ~'; /** orientation=rt */ ';
@@ -447,22 +408,6 @@
             box-shadow: none;
           }
         }
-        .taskDisplay {
-          .uiIcon {
-            font-style: normal;
-            font-size: 16px;
-            padding-right: 10px ~'; /** orientation=lt */ ';
-            padding-left: 10px ~'; /** orientation=rt */ ';
-          }
-          .uiIconCards {
-            .far();
-            .fa-clipboard();
-          }
-          .uiIconList {
-            .fas();
-            .fa-list();
-          }
-        }
         .v-tabs-slider-wrapper {
           display: none;
         }
@@ -471,25 +416,6 @@
           border-radius: 5px 0 0 5px;
           height: 38px;
           min-height: 38px;
-        }
-        .taskTabList {
-          border: 1px solid @borderColor;
-          border-radius: 0 5px 5px 0;
-          height: 38px;
-          min-height: 38px;
-        }
-        .v-tab.v-tab--active {
-          border: 1px solid @primaryColor!important;
-          background-color: @tabNormalLinkBackground!important;
-        }
-        .filterTasksSetting {
-          .uiIconFilterSetting {
-            .fa();
-            .fa-sliders-h();
-            font-style: normal;
-            font-size: 16px;
-            color: @primaryColor;
-          }
         }
       }
       .filterTasksDrawer {
@@ -705,13 +631,6 @@
             margin-left: -16px ~'; /** orientation=lt */ ';
             margin-right: -16px ~'; /** orientation=rt */ ';
           }
-          .reset{
-            i.fas.fa-redo{
-              font-size: 11px;
-              margin-right: 5px ~'; /** orientation=lt */ ';
-              margin-left: 5px ~'; /** orientation=rt */ ';
-            }
-          }
         }
         .input-block-level {
           min-height: 40px!important;
@@ -832,14 +751,6 @@
                     padding-left: 8px ~'; /** orientation=lt */ ';
                     padding-right: 8px ~'; /** orientation=rt */ ';
                   }
-                  .uiIconInformation {
-                    font-size: 20px;
-                    margin-top: -3px;
-                  }
-                  .uiIconVerticalDots {
-                    font-size: 16px;
-                    margin-top: -3px;
-                  }
                   .projectCardTitle {
                     white-space: nowrap;
                     overflow: hidden;
@@ -947,13 +858,6 @@
                       border-radius: 25px;
                       z-index: 1;
                       background: white;
-                      .uiIconArrowBack {
-                        font-size: 12px;
-                        padding-top: 6px;
-                        padding-left: 4px ~'; /** orientation=lt */ ';
-                        padding-right: 4px ~'; /** orientation=rt */ ';
-                        cursor: pointer;
-                      }
                     }
                   }
                 }
@@ -994,14 +898,6 @@
                   text-align: center;
                   padding-top: 50px;
                   padding-bottom: 24px;
-
-                  .noTasksProjectIcon {
-                    .uiIconTask {
-                      color: @greyColor;
-                      font-size: 40px;
-                      padding-bottom: 10px;
-                    }
-                  }
                 }
                 .echartStatsContent {
                   justify-content: space-evenly;
@@ -1080,26 +976,8 @@
             left: auto ~'!important; /** orientation=lt */ ';
             right: auto ~'!important; /** orientation=rt */ ';
             top: 45px!important;
-            .VuetifyApp .theme--light.v-list-item:hover::before {
-              opacity: 0;
-              .uiIcon,span {
-                color: #ffffff!important;
-              }
-              background-image: linear-gradient(to bottom, @primaryColor, @primaryColor);
-            }
-            .v-list-item.menu-list,.v-list-item.draftButton, .v-list-item.clone{
-              &:hover{
-                .uiIcon,span {
-                  color: #ffffff!important;
-                }
-                background-image: linear-gradient(to bottom, @primaryColor, @primaryColor);
-              }
-            }
             .v-list-item {
               min-height: 30px!important;
-              .uiIcon {
-                font-size: 16px;
-              }
               .noColorLabel {
                 border: 1px solid @borderColor;
                 cursor: pointer;
@@ -1114,16 +992,6 @@
                   min-height: 20px;
                   margin: 2px;
                   cursor: pointer;
-                }
-                .isSelected {
-                  position: relative;
-                  text-align: center;
-                  .fa-check();
-                  &:before {
-                    .fa();
-                    color: white;
-                    font-size: 14px;
-                  }
                 }
               }
             }
@@ -1154,36 +1022,6 @@
           .v-toolbar__content {
             height: auto!important;
             padding: 0!important;
-            .taskDisplay {
-              .projectTasksViewTabs {
-                .v-tabs-bar {
-                  height: auto!important;
-                  .taskTabBoard {
-                    border: 1px solid @borderColor;
-                    border-radius: 5px 0 0 5px;
-                    height: 38px;
-                    min-height: 38px;
-                    .uiIconBoard {
-                      .far();
-                      .fa-clipboard();
-                    }
-                  }
-                  .taskTabList {
-                    border-radius: 0;
-                  }
-                  .taskTabGantt {
-                    border: 1px solid @borderColor;
-                    border-radius: 0 5px 5px 0;
-                    height: 38px;
-                    min-height: 38px;
-                    .uiIconGantt {
-                      .fas();
-                      .fa-stream();
-                    }
-                  }
-                }
-              }
-            }
           }
         }
         .tasksView {
@@ -1206,15 +1044,6 @@
                 min-height: 30px!important;
                 text-align: left!important;
                 max-width: 100%!important;
-              }
-              .uiIconSocSimplePlus {
-                font-size: 16px;
-                margin-top: -3px;
-                color:@greyColorLighten1!important;
-              }
-              .uiIconSocSimplePlus:hover {
-                color:@primaryColor!important;
-                cursor: pointer;
               }
             }
             .tasksViewHeader {
@@ -1248,36 +1077,6 @@
                 max-width: 100%;
                 padding-top: 0px;
                 width: 266px;
-              }
-
-              .taskNumberAndActions {
-                .uiIconVerticalDots,.uiIconSocSimplePlus {
-                    font-size: 16px;
-                    margin-top: -3px;
-                    min-width: 22px;
-                    color:@greyColorLighten1!important;
-                    &:before {
-                      margin: 0 auto;
-                    }
-                  }
-                .uiIconVerticalDots:hover,.uiIconSocSimplePlus:hover {
-                    color:@primaryColor!important;
-                  cursor: pointer;
-                }
-                .uiIconThreeDots {
-                  font-size: 15px;
-                  &:before {
-                    content: '\e79c';
-                  }
-                }
-                .showTasksPagination {
-                  .uiIconArrowNext {
-                    font-size: 14px;
-                    &:before {
-                      content: '\e925';
-                    }
-                  }
-                }
               }
               .taskStatusActionMenu {
                 right: 27px ~'; /** orientation=lt */ ';
@@ -1356,19 +1155,6 @@
         .taskCheckBox{
           padding-right: 10px ~'; /** orientation=lt */ ';
           padding-left: 10px ~'; /** orientation=rt */ ';
-          .uiIconCircle {
-            color: @primaryColor;
-            font-style: normal;
-            font-weight: bold;
-            font-size: 19px;
-            cursor: pointer;
-          }
-          .uiIconValidate{
-            font-style: normal;
-            font-weight: bold;
-            font-size: 19px;
-            cursor: pointer;
-          }
         }
         .taskTitle {
           cursor: pointer;
@@ -1467,18 +1253,6 @@
       border-left: 5px solid #476A9C ~'!important; /** orientation=lt */ ';
       //border-right: 5px solid @primaryColor ~'!important; /** orientation=rt */ ';
     }
-    .taskComment {
-      .uiCommentIcon {
-        margin-right: 5px ~'; /** orientation=lt */ ';
-        margin-left: 5px ~'; /** orientation=rt */ ';
-        &:before {
-          .far();
-          color: @likeButtonColor;
-          font-style: normal;
-          font-size: 20px;
-        }
-      }
-    }
     .taskActionsAndDate{
       cursor: pointer;
       .taskDueDate {
@@ -1503,19 +1277,6 @@
 
           .v-chip {
             cursor: pointer;
-          }
-        }
-        .taskTags {
-          .uiTagIcon {
-            padding-right: 2px ~'; /** orientation=lt */ ';
-            padding-left: 2px ~'; /** orientation=rt */ ';
-            .fa-tag();
-            &:before {
-              .fa();
-              color: @likeButtonColor;
-              font-style: normal;
-              font-size: 18px;
-            }
           }
         }
       }
@@ -1608,11 +1369,6 @@
         .noUnscheduledTasksFound {
           text-align: center;
           margin-top: 40%;
-          .noTasksIcon i {
-            font-size: 50px;
-            color: @greyColorDefault;
-            padding-bottom: 10px;
-          }
           .noTasksLabel span {
             font-size: 16px;
             color: @greyColorLighten1Default;
@@ -1636,26 +1392,6 @@
             font-size: 70px;
             color: @greyColor;
             padding-bottom: 20px;
-          }
-          .uiIconClipboard{
-            &:after {
-              content: '\e9d0';
-              font-size: 29.5px;
-              position: absolute;
-              bottom: 12px;
-              right: -5px ~'; /** orientation=lt */ ';
-              background: -webkit-linear-gradient(-45deg, transparent 0%, transparent 46%, white 46%, white 56%,transparent 56%, transparent 100%), -webkit-linear-gradient(45deg, transparent 0%, transparent 46%, white 46%, white 56%,transparent 56%, transparent 100%);
-            }
-          }
-          .uiIconTask {
-            &:after {
-              content: '\e9d0';
-              font-size: 29.5px;
-              position: absolute;
-              bottom: 12px;
-              right: -5px ~'; /** orientation=lt */ ';
-              background: white;
-            }
           }
         }
         .noTasksProjectLabel {
@@ -1827,21 +1563,6 @@
               align-self: flex-start!important;
               padding-right: 10px ~'; /** orientation=lt */ ';
               padding-left: 10px ~'; /** orientation=rt */ ';
-              .uiIconCircle {
-                color: @primaryColor;
-                font-style: normal;
-                font-weight: bold;
-                font-size: 19px;
-                padding-top: 5px;
-                cursor: pointer;
-              }
-              .uiIconValidate{
-                font-style: normal;
-                font-weight: bold;
-                font-size: 19px;
-                cursor: pointer;
-                padding-top: 5px;
-              }
             }
             .taskTitle {
               .strikethrough{
@@ -1905,17 +1626,6 @@
               width: 8%;
               text-align: center;
               cursor: pointer;
-              .taskTags {
-                .uiTagIcon {
-                  .fa-tag();
-                  &:before {
-                    .fa();
-                    color: @likeButtonColor;
-                    font-style: normal;
-                    font-size: 18px;
-                  }
-                }
-              }
             }
             .taskActions {
               max-width: 3%;
@@ -2136,13 +1846,6 @@
         padding: 2px 4px;
         padding-left: 0 ~'; /** orientation=lt */ ';
         padding-right: 0 ~'; /** orientation=rt */ ';
-        .uiIconArrowBack {
-          font-size: 12px;
-          padding-top: 6px;
-          padding-left: 4px ~'; /** orientation=lt */ ';
-          padding-right: 4px ~'; /** orientation=rt */ ';
-          cursor: pointer;
-        }
       }
       #TasksListToolbar {
         height: auto!important;
@@ -2306,14 +2009,6 @@
     .noTasksContent {
       text-align: center;
       margin: auto;
-      .uiNoTaskIcon {
-        color: #6d7d9821;
-        font-size: 60px;
-        font-style: normal;
-        font-weight: normal;
-        .fa();
-        .fa-clipboard-list();
-      }
       .noTasksTitle {
         color: #4d5466;
         font-weight: normal;
@@ -2440,11 +2135,6 @@
                   .noTasksProject {
                     padding-top: 24px;
                     padding-bottom: 24px;
-                    .noTasksProjectIcon {
-                      .uiIconTask {
-                        font-size: 30px;
-                      }
-                    }
                   }
                   .echartStatsContent {
                     .echartAndLabel {
@@ -2598,11 +2288,6 @@
         }
         .taskFilterMobile {
           margin-left: 2px;
-        }
-        .filterTasksSetting {
-          .uiIconFilterSetting {
-            padding-right: 0px !important;
-          }
         }
       }
     }
@@ -2869,26 +2554,8 @@
     cursor: pointer;
   }
 
-  .VuetifyApp .theme--light.v-list-item:hover::before {
-    opacity: 0;
-    .uiIcon,span {
-      color: #ffffff!important;
-    }
-    background-image: linear-gradient(to bottom, @primaryColor, @primaryColor);
-  }
-  .v-list-item.menu-list,.v-list-item.draftButton, .v-list-item.clone{
-    &:hover{
-      .uiIcon,span {
-        color: #ffffff!important;
-      }
-      background-image: linear-gradient(to bottom, @primaryColor, @primaryColor);
-    }
-  }
   .v-list-item {
     min-height: 30px!important;
-    .uiIcon {
-      font-size: 16px;
-    }
     .noColorLabel {
       border: 1px solid @borderColor;
       cursor: pointer;
@@ -2903,16 +2570,6 @@
         min-height: 20px;
         margin: 2px;
         cursor: pointer;
-      }
-      .isSelected {
-        position: relative;
-        text-align: center;
-        .fa();
-        &:before {
-          .fa-check();
-          color: white;
-          font-size: 14px;
-        }
       }
     }
   }

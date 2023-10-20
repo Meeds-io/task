@@ -20,21 +20,26 @@
     class="tasksViewHeaderStatus mr-2 d-flex justify-space-between align-center">
     <div
       class="d-flex align-center assigneeFilter pointer">
-      <a
-        class="toggle-collapse-group d-flex"
-        href="#"
+      <v-btn
+        icon
+        small
+        outlined
         @click="showDetailsTask(viewType,status.id)">
-        <i
-          :id="'uiIconMiniArrowDown'+viewType+status.id"
-          class="uiIcon uiIconMiniArrowDown"
-          style="display: block">
-        </i>
-        <i
-          :id="'uiIconMiniArrowRight'+viewType+status.id"
-          class="uiIcon  uiIconMiniArrowRight"
+        <v-icon
+          :id="`arrowDown${viewType}${status.id}`"
+          size="13"
+          class="mx-2 mt-1 my-auto"
+          style="display: inline-flex">
+          fa-angle-down
+        </v-icon>
+        <v-icon
+          :id="`arrowRight${viewType}${status.id}`"
+          size="13"
+          class="mx-2 mt-1 my-auto"
           style="display: none">
-        </i>
-      </a>
+          fa-angle-right
+        </v-icon>
+      </v-btn>
       <input
         v-if="editStatus || status.edit"
         ref="autoFocusInput1"
@@ -53,50 +58,13 @@
     </div>
     <v-divider class="mx-1" />
     <div class="taskNumberAndActions d-flex align-center mb-1">
-      <!-- <span v-if="tasksNumber < maxTasksToShow" class="caption">{{ tasksNumber }}</span>
-      <div v-else class="showTasksPagination">
-        <span class="caption">
-          {{ limitTasksToshow }} - {{ initialTasksToShow }} of {{ tasksNumber }}
-        </span>
-        <v-btn
-          :disabled="disableBtnLoadMore"
-          icon
-          small
-          @click="loadNextTasks">
-          <i class="uiIcon uiIconArrowNext text-color"></i>
-        </v-btn>
-
-      </div> -->
-      <i
+      <v-btn
+        :title="$t('label.addTask')"
         icon
         small
-        class="uiIconSocSimplePlus d-flex"
         @click="openTaskDrawer()">
-      </i>
-      <!--      <i
-        icon
-        small
-        class="uiIconVerticalDots taskInfoIcon d-flex"
-        @click="displayActionMenu = true">
-      </i>
-      <v-menu
-        v-model="displayActionMenu"
-        :attach="`#task-${viewType}-${status.id}`"
-        transition="slide-x-reverse-transition"
-        content-class="taskStatusActionMenu"
-        offset-y>
-        <v-list class="pa-0" dense>
-          <v-list-item
-            v-if="!project.canManage"
-            class="menu-list"
-            @click="openTaskDrawer()">
-            <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconTask pe-1"></i>
-              <span>{{ $t('label.addTask') }}</span>
-            </v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </v-menu>-->
+        <v-icon size="16">fa-plus</v-icon>
+      </v-btn>
     </div>
   </div>
 </template>
@@ -217,18 +185,19 @@ export default {
       }
     },
     showDetailsTask(viewType,id){
-      const uiIconMiniArrowDown = document.querySelector(`#${`uiIconMiniArrowDown${viewType}${id}`}`);
-      const uiIconMiniArrowRight = document.querySelector(`#${`uiIconMiniArrowRight${viewType}${id}`}`);
+      const arrowDown = document.querySelector(`#${`arrowDown${viewType}${id}`}`);
+      const arrowRight = document.querySelector(`#${`arrowRight${viewType}${id}`}`);
 
       const detailsTask = document.querySelector(`#${`taskView${id}`}`);
       if (detailsTask.style.display !== 'none') {
         detailsTask.style.display = 'none';
-        uiIconMiniArrowDown.style.display = 'none';
-        uiIconMiniArrowRight.style.display = 'block';
+        arrowDown.style.display = 'none';
+        arrowRight.style.display = 'inline-flex';
+      } else {
+        detailsTask.style.display = 'block';
+        arrowDown.style.display = 'inline-flex';
+        arrowRight.style.display = 'none';
       }
-      else {detailsTask.style.display = 'block';
-        uiIconMiniArrowDown.style.display = 'block';
-        uiIconMiniArrowRight.style.display = 'none';}
     },
   }
 };

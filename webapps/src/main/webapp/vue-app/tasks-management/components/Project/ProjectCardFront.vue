@@ -22,13 +22,15 @@
     outlined
     hover>
     <div class="taskItemToolbar d-flex px-2 align-center font-weight-bold">
-      <i
-        :class="project.color && 'white--text' || 'toolbarNoColor'"
+      <v-btn
+        class="d-flex info border-color"
+        height="24"
+        width="24"
         icon
-        small
-        class="uiIconInformation taskInfoIcon d-flex"
+        outlined
         @click="$emit('flip')">
-      </i>
+        <v-icon size="12">fa-info</v-icon>
+      </v-btn>
       <div class="spacer d-none d-sm-inline"></div>
       <span
         :class="project.color && 'white--text' || 'toolbarNoColor'"
@@ -37,14 +39,16 @@
         {{ project.name }}
       </span>
       <v-spacer />
-      <i
+      <v-btn
         v-if="project.canManage"
-        :class="project.color && 'white--text' || 'toolbarNoColor'"
+        class="d-flex"
+        height="24"
+        width="24"
         icon
-        small
-        class="uiIconVerticalDots taskInfoIcon d-flex"
+        outlined
         @click="displayActionMenu = true">
-      </i>
+        <v-icon size="18" class="icon-default-color">fa-ellipsis-v</v-icon>
+      </v-btn>
       <v-menu
         v-model="displayActionMenu"
         :attach="`#project-${project.id}`"
@@ -54,19 +58,19 @@
         <v-list class="pa-0" dense>
           <v-list-item class="menu-list" @click="openEditDrawer()">
             <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconEdit pe-1"></i>
+              <v-icon size="13" class="icon-default-color pe-1">fa-edit</v-icon>
               <span>{{ $t('label.edit') }}</span>
             </v-list-item-title>
           </v-list-item>
           <v-list-item class="draftButton" @click="confirmDeleteProject()">
             <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconTrash pe-1"></i>
+              <v-icon size="13" class="icon-default-color pe-1">fa-trash-alt</v-icon>
               <span>{{ $t('label.delete') }}</span>
             </v-list-item-title>
           </v-list-item>
           <v-list-item class="clone" @click="confirmCloneProject()">
             <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconCloneNode pe-1"></i>
+              <v-icon size="13" class="icon-default-color pe-1">fa-clone</v-icon>
               <span>{{ $t('label.clone') }}</span>
             </v-list-item-title>
           </v-list-item>
@@ -80,9 +84,16 @@
               <span
                 v-for="(color, i) in projectColors"
                 :key="i"
-                :class="[ color.class , color.class === project.color ? 'isSelected' : '']"
+                :class="color.class"
                 class="projectColorCell"
-                @click="changeColorProject(project,color.class)"></span>
+                @click="changeColorProject(project,color.class)">
+                <v-icon
+                  v-if="color.class === project.color"
+                  class="white--text ma-1"
+                  size="13">
+                  fa-check
+                </v-icon>
+              </span>
             </v-list-item-title>
           </v-list-item>
         </v-list>

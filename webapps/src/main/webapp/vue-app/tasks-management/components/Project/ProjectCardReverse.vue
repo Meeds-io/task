@@ -20,15 +20,18 @@
     flat
     outlined
     hover>
-    <div class="projectDetailsReverse pa-3">
-      <i
+    <div class="projectDetailsReverse px-2 d-flex">
+      <v-btn
+        class="d-flex info border-color my-auto"
+        height="24"
+        width="24"
         icon
-        small
-        class="uiIconInformation taskInfoIcon reverseInfoIcon d-flex"
+        outlined
         @click="$emit('flip')">
-      </i>
-      <div class="projectDetails d-flex">
-        <p class="font-weight-bold ma-auto ">{{ $t('label.projectDetail') }}</p>
+        <v-icon size="12">fa-info</v-icon>
+      </v-btn>
+      <div class="projectDetails font-weight-bold ma-auto pa-3">
+        {{ $t('label.projectDetail') }}
       </div>
     </div>
     <div 
@@ -47,7 +50,7 @@
       </div>
 
       <div v-if="statistics" class="projectStatusNumber ps-4">
-          <p 
+        <p 
           v-for="(item , index) in statistics"
           :key="item.name" 
           class="d-flex justify-space-between mb-1"
@@ -56,12 +59,11 @@
           <span>{{ item.value }}</span>
         </p> 
       </div>
-
-     
-     
     </div>
     <div v-else class="noTasksProject">
-      <div class="noTasksProjectIcon"><i class="uiIcon uiIconTask"></i></div>
+      <div class="noTasksProjectIcon">
+        <v-icon size="30" class="icon-default-color">fa-tasks</v-icon>
+      </div>
       <div class="noTasksProjectLabel"><span>{{ $t('label.noTasks') }}</span></div>
     </div>
   </v-card>

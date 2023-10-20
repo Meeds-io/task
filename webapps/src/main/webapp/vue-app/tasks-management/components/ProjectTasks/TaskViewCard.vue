@@ -26,7 +26,7 @@
         class="taskCard taskViewCard pa-2"
         flat>
         <div class="taskTitleId  d-flex justify-space-between">
-          <div class="taskCheckBox">
+          <div class="taskCheckBox d-flex align-center justify-center">
             <v-switch
               ref="autoFocusInput2"
               class="d-none"
@@ -34,7 +34,8 @@
               false-value="false" />
             <i
               :title="$t(taskCompletedTitle)"
-              :class="taskCompletedClass" 
+              :class="taskCompletedClass"
+              class="fa-xl primary--text d-block"
               @click="updateCompleted"></i>
           </div>
           <div class="taskTitle d-flex align-start" @click="openTaskDrawer()">
@@ -72,7 +73,7 @@
               v-if="task.commentCount"
               class="taskComment d-flex align-center pe-2"
               @click="openTaskDrawer()">
-              <i class="far fa-comment uiCommentIcon"></i>
+              <v-icon size="20" class="me-1">far fa-comment</v-icon>
               <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
             </div>
             <div
@@ -95,7 +96,7 @@
                 v-else-if="task.labels && task.labels.length > 1"
                 :title="getLabelsList(task.labels)"
                 class="taskTags d-flex align-center theme--light">
-                <i class="uiIcon uiTagIcon me-1"></i>
+                <v-icon size="18" class="icon-default-color me-1">fa-tag</v-icon>
                 <span class="taskAttachNumber caption">{{ task.labels.length }}</span>
               </div>
             </div>
@@ -163,7 +164,7 @@ export default {
       return this.taskDueDate || (this.task.labels && this.task.labels.length) || (this.assigneeAndCoworkerArray && this.assigneeAndCoworkerArray.length) || this.task.commentCount;
     },
     taskCompletedClass() {
-      return this.task.task.completed === true ? 'uiIconValidate' : 'uiIconCircle';
+      return this.task.task.completed === true ? 'fa fa-check-circle' : 'far fa-circle';
     },
     taskCompletedTitle() {
       return this.task.task.completed === true ? 'message.markAsUnCompleted' : 'message.markAsCompleted';

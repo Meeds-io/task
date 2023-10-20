@@ -24,15 +24,16 @@
       <v-layout column>
         <v-flex class="mx-0 drawerHeader flex-grow-0">
           <v-list-item class="pe-0">
-            <v-list-item-content class="drawerTitle d-flex text-header-title text-truncate">
-              <i class="uiIcon uiArrowBAckIcon" @click="closeDrawer"></i>
-              <span class="ps-2">{{ $t('label.changes') }}</span>
-            </v-list-item-content>
-            <v-list-item-action class="drawerIcons align-end d-flex flex-row">
-              <v-btn icon>
-                <v-icon @click="closeDrawer()">mdi-close</v-icon>
+            <v-list-item-action class="drawerIcons me-2">
+              <v-btn icon @click="closeDrawer()">
+                <v-icon size="20">
+                  {{ $vuetify.rtl && 'fa fa-arrow-right' || 'fa fa-arrow-left' }}
+                </v-icon>
               </v-btn>
             </v-list-item-action>
+            <v-list-item-content class="drawerTitle d-flex text-header-title text-truncate">
+              {{ $t('label.changes') }}
+            </v-list-item-content>
           </v-list-item>
         </v-flex>
         <v-divider class="my-0" />

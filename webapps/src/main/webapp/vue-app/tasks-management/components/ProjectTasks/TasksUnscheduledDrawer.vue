@@ -32,24 +32,26 @@
             clearable
             autofocus />
         </div>
-        <div class="unscheduledTasksAction">
-          <v-btn
-            v-if="!displayFilterArea && filtredTasks && filtredTasks.length"
-            class="filter-btn"
-            icon>
-            <v-icon @click="showFilter = !showFilter">mdi-filter</v-icon>
-          </v-btn>
-          <v-btn
-            v-if="displayFilterArea && filtredTasks && filtredTasks.length"
-            class="filter-btn"
-            icon>
-            <v-icon @click="showFilter = !showFilter">mdi-close-circle</v-icon>
-          </v-btn>
-          <v-btn icon>
-            <v-icon @click="openTaskDrawer()">mdi-plus</v-icon>
-          </v-btn>
-        </div>
       </div>
+    </template>
+    <template slot="titleIcons">
+      <v-btn
+        v-if="!displayFilterArea && filtredTasks && filtredTasks.length"
+        icon>
+        <v-icon @click="showFilter = !showFilter">mdi-filter</v-icon>
+      </v-btn>
+      <v-btn
+        v-if="displayFilterArea && filtredTasks && filtredTasks.length"
+        icon>
+        <v-icon @click="showFilter = !showFilter">mdi-close-circle</v-icon>
+      </v-btn>
+      <v-btn
+        icon
+        @click="openTaskDrawer()">
+        <v-icon size="14">
+          fa-plus
+        </v-icon>
+      </v-btn>
     </template>
     <template v-if="filtredTasks && filtredTasks.length" slot="content">
       <task-view-card
@@ -60,7 +62,9 @@
     </template>
     <template v-else slot="content">
       <div class="noUnscheduledTasksFound">
-        <div class="noTasksIcon"><i class="uiIcon uiIconTask"></i></div>
+        <div class="noTasksIcon pb-2">
+          <v-icon size="50" class="grey-color">fa-tasks</v-icon>
+        </div>
         <div class="noTasksLabel"><span>{{ $t('label.noTask') }}</span></div>
       </div>
     </template>

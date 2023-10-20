@@ -25,9 +25,11 @@
         <v-btn
           class="btn px-2 btn-primary addNewProjectButton"
           @click="openTaskDrawer()">
-          <v-icon dark class="d-block d-sm-none">mdi-plus</v-icon>
-          <span class="d-none font-weight-regular d-sm-inline">
-            + {{ $t('label.addTask') }}
+          <v-icon size="14" class="white--text">
+            fa-plus
+          </v-icon>
+          <span class="d-none ms-2 font-weight-regular d-sm-inline">
+            {{ $t('label.addTask') }}
           </span>
         </v-btn>
       </v-toolbar-title>
@@ -78,8 +80,8 @@
           class="btn px-2 btn-primary filterTasksSetting"
           outlined
           @click="openDrawer">
-          <i class="uiIcon uiIconFilterSetting pe-3"></i>
-          <span class="d-none font-weight-regular caption d-sm-inline">
+          <v-icon size="16">fa-sliders-h</v-icon>
+          <span class="d-none ms-2 font-weight-regular caption d-sm-inline">
             {{ $t('label.filter') }} {{ getFilterNum() }}
           </span>
         </v-btn>

@@ -18,7 +18,7 @@
   <div
     :class="[getTaskPriorityColor(task.task.priority), removeCompletedTask && 'completedTask' || '']"
     class="taskListItemView  px-4 py-3 d-flex align-center">
-    <div class="taskCheckBox">
+    <div class="taskCheckBox d-flex align-center justify-center">
       <v-switch
         ref="autoFocusInput2"
         class="d-none"
@@ -26,8 +26,9 @@
         true-value="true"
         false-value="false" />
       <i 
-        :title="$t(getTaskCompletedTitle())" 
-        :class="getTaskCompleted()"
+        :title="$t(taskCompletedTitle)" 
+        :class="taskCompletedClass"
+        class="fa-xl primary--text"
         @click="updateCompleted"></i>
     </div>
     <div class="taskTitleAndId ps-2 d-lg-none" @click="openTaskDrawer()">
@@ -37,7 +38,7 @@
       <div class="taskTitle pe-3">
         <a
           ref="tooltip"
-          :class="getTitleTaskClass()"
+          :class="titleTaskClass"
           :title="task.task.title"
           class="text-truncate">
           {{ task.task.title }}
@@ -47,7 +48,7 @@
     <div class="taskTitle pe-14 d-lg-block d-md-none" @click="openTaskDrawer()">
       <a
         ref="tooltip"
-        :class="getTitleTaskClass()"
+        :class="titleTaskClass"
         :title="task.task.title"
         class="text-truncate">
         {{ task.task.title }}
@@ -113,13 +114,13 @@
         v-else-if="task.labels && task.labels.length > 1"
         :title="getLabelsList(task.labels)"
         class="taskTags d-flex align-center justify-center">
-        <i class="uiIcon uiTagIcon me-1"></i>
+        <v-icon size="18" class="icon-default-color me-1">fa-tag</v-icon>
         <span class="taskAttachNumber caption">{{ task.labels.length }}</span>
       </div>
     </div>
     <div class="taskActions d-flex justify-center pe-9 align-center " @click="openTaskDrawer()">
       <div v-if="task.commentCount" class="taskComment d-flex align-center">
-        <i class="far fa-comment uiCommentIcon"></i>
+        <v-icon size="20" class="me-1">far fa-comment</v-icon>
         <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
       </div>
     </div>
@@ -186,7 +187,28 @@ export default {
     },
     removeCompletedTask() {
       return this.task.task.completed === true && !this.showCompletedTasks;
-    }
+    },
+    titleTaskClass() {
+      if (this.task.task.completed === true){
+        return 'text-color strikethrough';
+      } else {
+        return 'text-color';
+      }
+    },
+    taskCompletedClass() {
+      if (this.task.task.completed===true){
+        return 'fa fa-check-circle';
+      } else {
+        return 'far fa-circle';
+      }
+    },
+    taskCompletedTitle() {
+      if (this.task.task.completed===true){
+        return 'message.markAsUnCompleted';
+      } else {
+        return 'message.markAsCompleted';
+      }
+    },
   },
   watch: {
     'task.assignee'() {
@@ -312,7 +334,6 @@ export default {
         return null;
       }
     },
-      
     updateCompleted() {
       const task = {
         id: this.task.task.id,
@@ -337,32 +358,6 @@ export default {
           });
           this.postProject = false;
         });
-      }
-
-
-    },
-    getTaskCompleted() {
-      if (this.task.task.completed===true){
-        return 'uiIconValidate';
-      }
-      else {
-        return 'uiIconCircle';
-      }
-    },
-    getTitleTaskClass() {
-      if (this.task.task.completed===true){
-        return 'text-color strikethrough';
-      }
-      else {
-        return 'text-color';
-      }
-    },
-    getTaskCompletedTitle() {
-      if (this.task.task.completed===true){
-        return 'message.markAsUnCompleted';
-      }
-      else {
-        return 'message.markAsCompleted';
       }
     },
     getNameProject(){

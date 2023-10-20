@@ -65,9 +65,11 @@
         v-if="!quickAddTask"
         class="btn px-2 quickAddNewTaskButton"
         @click="quickAddTask=true">
-        <v-icon dark class="d-block d-sm-none">mdi-plus</v-icon>
-        <span class="d-none font-weight-regular d-sm-inline">
-          + {{ $t('label.addTask') }}
+        <v-icon size="14">
+          fa-plus
+        </v-icon>
+        <span class="d-none ms-1 font-weight-regular d-sm-inline">
+          {{ $t('label.addTask') }}
         </span>
       </v-btn>
     </draggable>

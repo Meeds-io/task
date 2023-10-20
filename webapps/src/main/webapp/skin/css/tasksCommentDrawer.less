@@ -3,24 +3,6 @@
 
 .taskCommentsAndChanges {
   .taskComments {
-    .addCommentBtn {
-      .uiIconTaskAddComment {
-        position: relative;
-        cursor: pointer;
-        margin-top: 2px;
-        .fa-comment-medical();
-        &:before {
-          .fa();
-          font-size: 16px;
-          color: @primaryColor;
-        }
-        &:hover {
-          &:before {
-            color: @primaryColor
-          }
-        }
-      }
-    }
     .lastCommentLabel {
       font-size: 16px;
       color: @greyColorLighten1;
@@ -78,17 +60,6 @@
       }
     }
     .taskCommentEmpty {
-      .uiIconComment{
-        display: block;
-        margin-bottom: 10px;
-        .fa-comments();
-        &:before {
-          .fa();
-          font-style: normal;
-          font-size: 34px;
-          color: @greyColor;
-        }
-      }
       .noCommentLabel {
         display: block;
         color: @greyColorLighten1;
@@ -112,39 +83,12 @@
 }
 
 .taskCommentDrawer {
-  .addCommentBtn {
-    .uiIconTaskAddComment {
-      position: relative;
-      cursor: pointer;
-      top: 0px;
-      .fa-comment-medical();
-      &:before {
-        .fa();
-        font-size: 18px;
-        color: @primaryColor;
-      }
-      &:hover {
-        &:before {
-          color: @primaryColor
-        }
-      }
-    }
-  }
   .drawerTitle > * {
     flex: 0 0 auto!important;
   }
   .drawerHeader {
     .v-list-item__content {
       padding: 0 !important;
-    }
-  }
-  .uiArrowBAckIcon {
-    cursor: pointer;
-    color: @btnDisableColor!important;
-    margin-bottom: 0 !important;
-    &:before {
-      font-style: normal;
-      font-size: 18px;
     }
   }
   .drawerContent {
@@ -166,9 +110,6 @@
             .deleteComment {
               right: 0;
               top:0;
-              .uiIconTrashMini {
-                font-size: 12px;
-              }
             }
           }
           .externalTagClass {

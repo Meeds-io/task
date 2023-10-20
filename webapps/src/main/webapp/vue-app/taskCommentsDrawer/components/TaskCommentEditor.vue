@@ -135,10 +135,7 @@ export default {
     },
   },
   mounted() {
-    this.$root.$on('task-comment-created', () => {
-      this.reset();
-    });
-
+    this.$root.$on('task-comment-created', this.reset);
     document.addEventListener('Task-comments-drawer-closed', this.reset);
 
     this.$root.$on('showEditor', commentId => {
@@ -180,7 +177,8 @@ export default {
     });
   },
   beforeDestroy() {
-    document.removeEventListener('Task-comments-drawer-closed', this.reset);
+    document.addEventListener('Task-comments-drawer-closed', this.reset);
+    this.$root.$off('task-comment-created', this.reset);
   },
   methods: {
     showEditor(commentId) {

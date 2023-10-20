@@ -33,7 +33,7 @@
         <div 
           ref="addProjectTitle" 
           class="addProjectTitle d-flex align-center my-3">
-          <i class="uiIcon uiIconProject"></i>
+          <v-icon size="20" class="primary--text me-1 my-auto">fa fa-folder</v-icon>
           <input
             ref="autoFocusInput1"
             v-model="projectInformation.name"
@@ -49,7 +49,6 @@
             <div class="editManager">
               <div class="permisionLabel body-1"> {{ $t('label.projectManagers') }}</div>
               <label class="editManagerInfo">
-                <i class="uiIconInformation uiIconProject"></i>
                 {{ $t('label.editManagerInfo') }}
               </label>
               <project-assignee-manager
@@ -64,7 +63,6 @@
             <div class="editParticipant">
               <div class="permisionLabel body-1"> {{ $t('label.projectParticipants') }}</div>
               <label class="editParticipantInfo">
-                <i class="uiIconInformation uiIconProject"></i>
                 {{ $t('label.editParticipantInfo') }}
               </label>
               <project-assignee-participator

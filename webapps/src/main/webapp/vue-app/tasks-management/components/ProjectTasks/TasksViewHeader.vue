@@ -16,26 +16,31 @@
 -->
 <template>
   <div
-    :id="'task-'+viewType+'-'+status.id"
-    class="tasksViewHeader  d-flex justify-space-between align-center">
+    :id="`task-${viewType}-${status.id}`"
+    class="tasksViewHeader d-flex justify-space-between align-center">
     <div
       class="d-flex tasksViewHeaderLeft">
-      <a
-        v-if="viewType=== 'list'"
-        class="toggle-collapse-group d-flex"
-        href="#"
+      <v-btn
+        v-if="viewType === 'list'"
+        icon
+        small
+        outlined
         @click="showDetailsTask(viewType,status.id)">
-        <i
-          :id="'uiIconMiniArrowDown'+viewType+status.id"
-          class="uiIcon uiIconMiniArrowDown"
-          style="display: block">
-        </i>
-        <i
-          :id="'uiIconMiniArrowRight'+viewType+status.id"
-          class="uiIcon  uiIconMiniArrowRight"
+        <v-icon
+          :id="`arrowDown${viewType}${status.id}`"
+          size="13"
+          class="mx-2 mt-1 my-auto"
+          style="display: inline-flex">
+          fa-angle-down
+        </v-icon>
+        <v-icon
+          :id="`arrowRight${viewType}${status.id}`"
+          size="13"
+          class="mx-2 mt-1 my-auto"
           style="display: none">
-        </i>
-      </a>
+          fa-angle-right
+        </v-icon>
+      </v-btn>
       <div v-if="(editStatus || status.edit) && project.canManage">
         <v-text-field
           v-if="editStatus || status.edit"
@@ -52,18 +57,30 @@
           outlined
           dense
           @keyup="checkInput($event,index)">
-          <i
-            dark
-            class="uiIconTick success--text clickable ma-1"
-            slot="append"
-            @click="checkInput(13,status.name)">
-          </i>
-          <i
-            dark
-            class="uiIconClose error--text clickable ma-1"
-            slot="append"
-            @click="cancelAddColumn(status.name)">
-          </i>
+          <template #append>
+            <v-btn
+              icon
+              small
+              class="mt-0"
+              @click="checkInput(13,status.name)">
+              <v-icon
+                small
+                class="success--text">
+                fa fa-check
+              </v-icon>
+            </v-btn>
+            <v-btn
+              icon
+              small
+              class="mt-0"
+              @click="cancelAddColumn(status.name)">
+              <v-icon
+                small
+                class="error--text">
+                fa fa-times
+              </v-icon>
+            </v-btn>
+          </template>
         </v-text-field>
       </div>
 
@@ -82,34 +99,21 @@
     <div
       class="taskNumberAndActions d-flex align-center mb-1"
       @click="editStatus = false">
-      <!-- <span v-if="tasksNumber < maxTasksToShow" class="caption">{{ tasksNumber }}</span>
-      <div v-else class="showTasksPagination">
-        <span class="caption">
-          {{ limitTasksToshow }} - {{ initialTasksToShow }} of {{ tasksNumber }}
-        </span>
-        <v-btn
-          :disabled="disableBtnLoadMore"
-          icon
-          small
-          @click="loadNextTasks">
-          <i class="uiIcon uiIconArrowNext text-color"></i>
-        </v-btn>
-
-      </div> -->
-      <i
+      <v-btn
+        :title="$t('label.addTask')"
         icon
         small
-        :title="this.$t('label.addTask')"
-        class="uiIconSocSimplePlus d-flex"
         @click="openTaskDrawer()">
-      </i>
-      <i
+        <v-icon size="16">fa-plus</v-icon>
+      </v-btn>
+      <v-btn
         v-if="project.canManage"
+        :title="$t('label.addTask')"
         icon
         small
-        class="uiIconVerticalDots taskInfoIcon d-flex"
         @click="displayActionMenu = true">
-      </i>
+        <v-icon size="16">fa-ellipsis-v</v-icon>
+      </v-btn>
       <v-menu
         v-model="displayActionMenu"
         v-if="project.canManage"
@@ -123,7 +127,7 @@
             class="menu-list"
             @click="moveAfterColumn(index)">
             <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconArrowRight pe-1"></i>
+              <v-icon size="13" class="pe-1 icon-default-color">fa fa-angle-right</v-icon>
               <span> {{ $t('label.status.move.after') }}</span>
             </v-list-item-title>
           </v-list-item>
@@ -132,7 +136,7 @@
             class="menu-list"
             @click="moveBeforeColumn(index)">
             <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconArrowLeft pe-1"></i>
+              <v-icon size="13" class="pe-1 icon-default-color">fa fa-angle-left</v-icon>
               <span>{{ $t('label.status.move.before') }}</span>
             </v-list-item-title>
           </v-list-item>
@@ -140,7 +144,7 @@
             class="menu-list"
             @click="addColumn(index)">
             <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconRotateLeft pe-1"></i>
+              <v-icon size="13" class="pe-1 icon-default-color">fa fa-undo</v-icon>
               <span>{{ $t('label.status.before') }}</span>
             </v-list-item-title>
           </v-list-item>
@@ -148,7 +152,8 @@
             class="menu-list"
             @click="addColumn(index+1)">
             <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconRotateRight ps-1"></i>
+              <!-- ps-1 instead of pe-1 due to flip rotation -->
+              <v-icon size="13" class="ps-1 icon-default-color">fa fa-undo fa-flip-horizontal</v-icon>
               <span> {{ $t('label.status.after') }} </span>
             </v-list-item-title>
           </v-list-item>
@@ -156,7 +161,7 @@
             class="menu-list"
             @click="deleteStatus()">
             <v-list-item-title class="subtitle-2">
-              <i class="uiIcon uiIconDelete pe-1"></i>
+              <v-icon size="13" class="pe-1 icon-default-color">fa-trash-alt</v-icon>
               <span>{{ $t('label.delete') }}</span>
             </v-list-item-title>
           </v-list-item>
@@ -308,18 +313,19 @@ export default {
       return  fieldLabelI18NValue === fieldLabelI18NKey ? label : fieldLabelI18NValue;
     },
     showDetailsTask(viewType,id){
-      const uiIconMiniArrowDown = document.querySelector(`#${`uiIconMiniArrowDown${viewType}${id}`}`);
-      const uiIconMiniArrowRight = document.querySelector(`#${`uiIconMiniArrowRight${viewType}${id}`}`);
+      const arrowDown = document.querySelector(`#${`arrowDown${viewType}${id}`}`);
+      const arrowRight = document.querySelector(`#${`arrowRight${viewType}${id}`}`);
 
       const detailsTask = document.querySelector(`#${`taskView${id}`}`);
       if (detailsTask.style.display !== 'none') {
         detailsTask.style.display = 'none';
-        uiIconMiniArrowDown.style.display = 'none';
-        uiIconMiniArrowRight.style.display = 'block';
+        arrowDown.style.display = 'none';
+        arrowRight.style.display = 'inline-flex';
+      } else {
+        detailsTask.style.display = 'block';
+        arrowDown.style.display = 'inline-flex';
+        arrowRight.style.display = 'none';
       }
-      else {detailsTask.style.display = 'block';
-        uiIconMiniArrowDown.style.display = 'block';
-        uiIconMiniArrowRight.style.display = 'none';}
     },
   }
 };

@@ -2,15 +2,17 @@
   <div class="taskComments">
     <div v-if="comments && comments.length" class="taskCommentNumber d-flex pb-3">
       <span class="ViewAllCommentLabel" @click="$root.$emit('displayTaskComment')">{{ $t('comment.message.viewAllComment') }} ({{ comments.length }})</span>
-      <div
+      <v-btn
         :title="$t('comment.message.addYourComment')"
-        class="addCommentBtn ps-3"
+        icon
+        x-small
+        class="addCommentBtn ms-3 transparent my-auto"
         @click="openCommentDrawer">
-        <i class="uiIcon uiIconTaskAddComment"></i>
-      </div>
+        <v-icon size="18" class="primary--text">fa fa-comment-medical</v-icon>
+      </v-btn>
     </div>
     <div v-else class="taskCommentEmpty align-center pt-6 pb-3">
-      <i class="uiIcon uiIconComment"></i>
+      <v-icon size="34" class="mb-4 grey-text">fa fa-comments</v-icon>
       <span class="noCommentLabel">{{ $t('comment.message.noComment') }}</span>
       <span class="ViewAllCommentText" @click="$root.$emit('displayTaskComment')">{{ $t('comment.message.addYourComment') }}</span>
     </div>

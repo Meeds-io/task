@@ -43,7 +43,7 @@
       class="editManager"
       @click="showManager_(true)">
       <a href="#" class="editManager">
-        <i class="fas fa-pencil-alt uiIconProject"></i>
+        <v-icon size="11" class="primary--text">fas fa-pencil-alt</v-icon>
         {{ $t('label.editManager') }}
       </a>
     </div>
