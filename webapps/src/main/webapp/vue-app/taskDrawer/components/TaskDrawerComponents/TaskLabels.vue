@@ -36,7 +36,7 @@
       @change="search = ''"
       @keyup.delete="onDeleteKeyPress()">
       <template #prepend>
-        <i class="uiIconTag uiIconBlue"></i>
+        <v-icon size="18" class="text-light-color mt-1">fa fa-tag</v-icon>
       </template>
       <template #no-data>
         <v-list-item>

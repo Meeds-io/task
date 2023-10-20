@@ -171,12 +171,10 @@
     <template slot="footer">
       <div class="VuetifyApp flex d-flex">
         <v-btn
-          class="reset"
+          outlined
           @click="reset">
-          <template>
-            <i class="fas fa-redo"></i>
-            {{ $t('popup.reset') }}
-          </template>
+          <v-icon size="16" class="pe-2 primary--text">fa-redo</v-icon>
+          <span class=" primary--text">{{ $t('popup.reset') }}</span>
         </v-btn>
         <v-spacer />
         <div class="d-btn">

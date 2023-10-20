@@ -25,10 +25,10 @@
         <v-btn
           class="btn px-2 btn-primary addNewProjectButton"
           @click="openDrawer">
-          <!--<i class="uiIcon uiIconPlus"></i>-->
-          <v-icon dark class="d-block d-sm-none">mdi-plus</v-icon>
           <span class="d-none font-weight-regular d-sm-flex align-center">
-            <i class="uiIcon uiIconPlus"></i>
+            <v-icon size="14" class="white--text me-1">
+              fa-plus
+            </v-icon>
             <span class="addProject">{{ $t('label.addProject') }}</span> 
           </span>
         </v-btn>

@@ -66,18 +66,28 @@
               autofocus
               outlined
               dense>
-              <i
-                dark
-                class="uiIconTick success--text clickable label-btn ma-1"
-                slot="append"
-                @click="editLabel()">
-              </i>
-              <i
-                dark
-                class="uiIconClose error--text clickable label-btn ma-1"
-                slot="append"
-                @click="cancel($event)">
-              </i>
+              <template #append>
+                <v-btn
+                  icon
+                  x-small
+                  @click="editLabel()">
+                  <v-icon
+                    small
+                    class="success--text">
+                    fa fa-check
+                  </v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  x-small
+                  @click="cancel($event)">
+                  <v-icon
+                    small
+                    class="error--text">
+                    fa fa-times
+                  </v-icon>
+                </v-btn>
+              </template>
             </v-text-field>
           </v-list-item-content>
         </v-list-item>
@@ -92,9 +102,16 @@
             <span
               v-for="(color, i) in labelColors"
               :key="i"
-              :class="[ color.class , color.class === item.color ? 'isSelected' : '']"
+              :class="color.class"
               class="projectColorCell"
-              @click="item.color=color.class;editLabel()"></span>
+              @click="item.color=color.class;editLabel()">
+              <v-icon
+                v-if="color.class === item.color"
+                class="white--text ma-1"
+                size="13">
+                fa-check
+              </v-icon>
+            </span>
           </v-list-item-title>
         </v-list-item>
       </v-list>

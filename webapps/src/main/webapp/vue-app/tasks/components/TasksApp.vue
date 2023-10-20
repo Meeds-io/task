@@ -48,7 +48,9 @@
                   icon
                   text
                   @click="openTaskDrawer">
-                  <v-icon>mdi-plus</v-icon>
+                  <v-icon size="14">
+                    fa-plus
+                  </v-icon>
                 </v-btn>
               </v-flex>
             </v-flex>
@@ -146,7 +148,7 @@
 
               <div v-if="!loadingTasks && tasks.length===0" class="noTasks">
                 <div class="noTasksContent">
-                  <i class="uiNoTaskIcon"></i>
+                  <v-icon size="60" class="grey-color">fa-clipboard-list</v-icon>
                   <div class="noTasksTitle">{{ $t('label.noTask') }}</div>
                 </div>
               </div>

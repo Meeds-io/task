@@ -15,59 +15,58 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app>
-    <v-toolbar
-      id="TasksDashboardToolbar"
-      flat
-      class="tasksToolbar">
-      <div class="taskDisplay">
-        <v-tabs
-          class="projectTasksViewTabs">
-          <v-tab
-            :href="taskCardTabView"
-            class="taskTabBoard"
-            @change="changeTaskViewTab('board')">
-            <i class="uiIcon uiIconBoard"></i>
-            <span>{{ $t('label.boardView') }}</span>
-          </v-tab>
-          <v-tab
-            :href="taskListTabView"
-            class="taskTabList"
-            @change="changeTaskViewTab('list')">
-            <i class="uiIcon uiIconList"></i>
-            <span>{{ $t('label.listView') }}</span>
-          </v-tab>
-          <v-tab
-            :href="taskGanttTabView"
-            class="taskTabGantt"
-            @change="changeTaskViewTab('gantt')">
-            <i class="uiIcon uiIconGantt"></i>
-            <span>{{ $t('label.ganttView') }}</span>
-          </v-tab>
-        </v-tabs>
-      </div>
-      <v-spacer />
-      <v-scale-transition>
-        <v-text-field
-          v-if="taskViewTabName != 'gantt'"
-          v-model="keyword"
-          :placeholder=" $t('label.filterTask') "
-          prepend-inner-icon="fa-filter"
-          class="inputTasksFilter pa-0 me-3 my-auto"
-          clearable />
-      </v-scale-transition>
-      <v-scale-transition>
-        <v-btn
-          class="btn px-2 btn-primary filterTasksSetting"
-          outlined
-          @click="openDrawer">
-          <i class="uiIcon uiIconFilterSetting pe-3"></i>
-          <span class="d-none font-weight-regular caption d-sm-inline">
-            {{ $t('label.filter') }} {{ getFilterNum() }}
-          </span>
-        </v-btn>
-      </v-scale-transition>
-    </v-toolbar>
+  <div>
+    <application-toolbar
+      :center-button-toggle="{
+        selected: taskViewTabName,
+        hide: false,
+        buttons: [{
+          value: 'board',
+          text: $t('label.boardView'),
+          icon: 'far fa-clipboard',
+        }, {
+          value: 'list',
+          text: $t('label.listView'),
+          icon: 'fa-list',
+        }, {
+          value: 'gantt',
+          text: $t('label.ganttView'),
+          icon: 'fa-stream',
+        }]
+      }"
+      :right-text-filter="taskViewTabName != 'gantt' && {
+        minCharacters: 3,
+        placeholder: $t('label.filterTask'),
+        tooltip: $t('label.filterTask'),
+      }"
+      :right-filter-button="{
+        text: $t('label.filter'),
+      }"
+      :filters-count="filterNumber"
+      @toggle-select="changeTaskViewTab($event)"
+      @filter-text-input-end-typing="keyword = $event"
+      @filter-button-click="openDrawer">
+      >
+      <v-btn
+        id="applicationToolbarLeftButton"
+        slot="left"
+        :class="isMobile && 'px-0'"
+        class="text-truncate"
+        outlined
+        @click="$emit('close-project')">
+        <v-icon
+          :class="!isMobile && 'me-2'"
+          class="icon-default-color"
+          size="18">
+          {{ $vuetify.rtl && 'fa fa-arrow-right' || 'fa fa-arrow-left' }}
+        </v-icon>
+        <span
+          v-if="!isMobile"
+          class="text-truncate text-none text-subtitle-1">
+          {{ project.name }}
+        </span>
+      </v-btn>
+    </application-toolbar>
     <tasks-filter-drawer
       ref="filterTasksDrawer"
       :project="project.id"
@@ -78,7 +77,7 @@
       @filter-num-changed="filterNumChanged"
       @filter-task="filterTasks"
       @reset-filter-task="resetFilterTask" />
-  </v-app>
+  </div>
 </template>
 <script>
 export default {
@@ -177,19 +176,7 @@ export default {
       } return '';
     },
     changeTaskViewTab(view){
-      $('a.v-tab').removeClass('v-tab--active');
-      if ( view === 'list') {
-        $('a.taskTabList').addClass('v-tab--active');
-      }
-
-      if ( view === 'board') {
-        $('a.taskTabBoard').addClass('v-tab--active');
-      }
-
-      if ( view === 'gantt') {
-        $('a.taskTabGantt').addClass('v-tab--active');
-      }
-      this.taskViewTabName=view;
+      this.taskViewTabName = view;
       this.$emit('taskViewChangeTab', view);
     }
   }

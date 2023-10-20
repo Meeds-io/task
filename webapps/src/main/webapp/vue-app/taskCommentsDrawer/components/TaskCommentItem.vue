@@ -43,7 +43,7 @@
             small
             @click="$emit('openConfirmDeleteDialog', comment.comment.id)"
             v-on="on">
-            <v-icon class="icon-default-color" size="16">fa-trash</v-icon>
+            <v-icon class="icon-default-color" size="13">fa-trash-alt</v-icon>
           </v-btn>
         </div>
       </div>
@@ -52,12 +52,12 @@
           v-if="comment?.formattedComment?.length"
           class="taskContentComment reset-style-box rich-editor-content"
           v-sanitized-html="comment.formattedComment"></div>
-         <attachments-image-items
-           v-if="comment.comment.id"
-           :object-id="comment.comment.id"
-           :preview-width="250"
-           :preview-height="250"
-           object-type="taskComment" />
+        <attachments-image-items
+          v-if="comment.comment.id"
+          :object-id="comment.comment.id"
+          :preview-width="250"
+          :preview-height="250"
+          object-type="taskComment" />
         <v-btn
           id="reply_btn"
           depressed

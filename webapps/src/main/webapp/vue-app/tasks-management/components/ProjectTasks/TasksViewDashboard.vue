@@ -26,29 +26,40 @@
       :ok-label="$t('label.ok')"
       :cancel-label="$t('popup.cancel')"
       @ok="deleteConfirm()" />
-    <div class="projectTasksWrapper d-flex justify-space-between">
-      <div class="taskViewBreadcrumb text-truncate px-0 pt-1 pb-5">
-        <a
-          class="text-color"
-          @click="hideProjectDetails()">
-          <i class="uiIcon uiBackIcon"></i>
-          <span>{{ project.name }}</span>
-        </a>
-      </div>
-      <div class="projectTasksTabFilter">
-        <tasks-view-toolbar
-          :project="project"
-          :status-list="statusList"
-          :task-card-tab-view="'#tasks-view-board'"
-          :task-list-tab-view="'#tasks-view-list'"
-          :task-gantt-tab-view="'#tasks-view-gantt'"
-          :show-completed-tasks="showCompletedTasks"
-          @keyword-changed="filterByKeyword"
-          @taskViewChangeTab="getChangeTabValue"
-          @filter-task-dashboard="filterTaskDashboard"
-          @reset-filter-task-dashboard="resetFiltertaskDashboard" />
-      </div>
-    </div>
+    <tasks-view-toolbar
+      :project="project"
+      :status-list="statusList"
+      :task-card-tab-view="'#tasks-view-board'"
+      :task-list-tab-view="'#tasks-view-list'"
+      :task-gantt-tab-view="'#tasks-view-gantt'"
+      :show-completed-tasks="showCompletedTasks"
+      class="mt-n4 mx-n4"
+      @keyword-changed="filterByKeyword"
+      @taskViewChangeTab="getChangeTabValue"
+      @filter-task-dashboard="filterTaskDashboard"
+      @reset-filter-task-dashboard="resetFiltertaskDashboard"
+      @close-project="hideProjectDetails()">
+      <v-btn
+        v-if="showLeftButton"
+        id="applicationToolbarLeftButton"
+        :href="leftButton.href"
+        :class="isMobile && 'px-0'"
+        class="btn text-truncate"
+        @click="$emit('left-button-click', $event)">
+        <v-icon
+          v-if="leftButton.icon"
+          :class="!isMobile && 'me-2'"
+          size="18"
+          dark>
+          {{ leftButton.icon }}
+        </v-icon>
+        <span
+          v-if="leftButton.text && (!isMobile || !leftButton.icon)"
+          class="text-truncate text-none">
+          {{ leftButton.text }}
+        </span>
+      </v-btn>
+    </tasks-view-toolbar>
     <div v-if="filterProjectActive && groupName && groupName.projectName" class="px-0 ">
       <div 
         v-for="(projectItem,i) in groupName.projectName" 
@@ -57,21 +68,26 @@
         <div
           v-if=" projectItem.value && projectItem.value.displayName && projectItem.name!==''"
           class="d-flex align-center mr-3 assigneeFilter pointer">
-          <a
-            class="toggle-collapse-group"
-            href="#"
+          <v-btn
+            icon
+            small
+            outlined
             @click="showDetailsTask(projectItem.rank)">
-            <i
-              :id="'uiIconMiniArrowDown'+projectItem.rank"
-              class="uiIcon uiIconMiniArrowDown"
-              style="display: block">
-            </i>
-            <i
-              :id="'uiIconMiniArrowRight'+projectItem.rank"
-              class="uiIcon  uiIconMiniArrowRight"
+            <v-icon
+              :id="`arrowDown${projectItem.rank}`"
+              size="13"
+              class="mx-2 mt-1 my-auto"
+              style="display: inline-flex">
+              fa-angle-down
+            </v-icon>
+            <v-icon
+              :id="`arrowRight${projectItem.rank}`"
+              size="13"
+              class="mx-2 mt-1 my-auto"
               style="display: none">
-            </i>
-          </a>
+              fa-angle-right
+            </v-icon>
+          </v-btn>
           <exo-user-avatar
             v-if="projectItem.value.avatar"
             :profile-id="projectItem.value.username"
@@ -84,33 +100,38 @@
             role="separator"
             aria-orientation="horizontal"
             class="my-0 v-divider theme--light">
-          <i
+          <v-btn
             v-if="taskViewTabName==='list'"
             icon
             small
-            class="uiIconSocSimplePlus d-flex"
             @click="openTaskDrawer()">
-          </i>
+            <v-icon size="16">fa-plus</v-icon>
+          </v-btn>
         </div>
         <div
           v-else
           class="d-flex align-center mr-3 assigneeFilter pointer">
-          <a
+          <v-btn
             :id="'iconTask'+projectItem.rank"
-            class="toggle-collapse-group"
-            href="#"
+            icon
+            small
+            outlined
             @click="showDetailsTask(projectItem.rank)">
-            <i
-              :id="'uiIconMiniArrowDown'+projectItem.rank"
-              class="uiIcon uiIconMiniArrowDown"
-              style="display: block">
-            </i>
-            <i
-              :id="'uiIconMiniArrowRight'+projectItem.rank"
-              class="uiIcon  uiIconMiniArrowRight"
+            <v-icon
+              :id="`arrowDown${projectItem.rank}`"
+              size="13"
+              class="mx-2 mt-1 my-auto"
+              style="display: inline-flex">
+              fa-angle-down
+            </v-icon>
+            <v-icon
+              :id="`arrowRight${projectItem.rank}`"
+              size="13"
+              class="mx-2 mt-1 my-auto"
               style="display: none">
-            </i>
-          </a>
+              fa-angle-right
+            </v-icon>
+          </v-btn>
           <div v-if="projectItem.name==='Unassigned' || projectItem.name===''" class="defaultAvatar">
             <img :src="defaultAvatar">
           </div>
@@ -121,13 +142,13 @@
             role="separator"
             aria-orientation="horizontal"
             class="my-0 v-divider theme--light">
-          <i
+          <v-btn
             v-if="taskViewTabName==='list'"
             icon
             small
-            class="uiIconSocSimplePlus d-flex"
             @click="openTaskDrawer()">
-          </i>
+            <v-icon size="16">fa-plus</v-icon>
+          </v-btn>
         </div>
         <div :id="'taskView'+projectItem.rank" class="view-project-group-sort">
           <div
@@ -469,18 +490,19 @@ export default {
 
     },
     showDetailsTask(id){
-      const uiIconMiniArrowDown = document.querySelector(`#${`uiIconMiniArrowDown${id}`}`);
-      const uiIconMiniArrowRight = document.querySelector(`#${`uiIconMiniArrowRight${id}`}`);
+      const arrowDown = document.querySelector(`#${`arrowDown${id}`}`);
+      const arrowRight = document.querySelector(`#${`arrowRight${id}`}`);
 
       const detailsTask = document.querySelector(`#${`taskView${id}`}`);
       if (detailsTask.style.display !== 'none') {
         detailsTask.style.display = 'none';
-        uiIconMiniArrowDown.style.display = 'none';
-        uiIconMiniArrowRight.style.display = 'block';
+        arrowDown.style.display = 'none';
+        arrowRight.style.display = 'inline-flex';
+      } else {
+        detailsTask.style.display = 'block';
+        arrowDown.style.display = 'inline-flex';
+        arrowRight.style.display = 'none';
       }
-      else {detailsTask.style.display = 'block';
-        uiIconMiniArrowDown.style.display = 'block';
-        uiIconMiniArrowRight.style.display = 'none';}
     },
     deleteStatus(status) {
       this.deleteConfirmMessage = `${this.$t('popup.msg.deleteStatus')} : ${status.name}? `;

@@ -17,7 +17,7 @@
 <template>
   <div class="d-flex flex-column">
     <div class="taskPlanDateCalender d-flex col ps-0 align-center">
-      <i class="uiIconStartDate uiIconBlue"></i>
+      <v-icon size="24" class="primary--text">fa fa-calendar-plus</v-icon>
       <date-picker
         ref="taskStartDate"
         v-model="startDate"
@@ -72,7 +72,7 @@
       </date-picker>
     </div>
     <div class="taskDueDateCalender d-flex col ps-0 align-center">
-      <i class="uiIconDueDate uiIconBlue"></i>
+      <v-icon size="25" class="primary--text px-1px">fa fa-calendar-check</v-icon>
       <date-picker
         ref="taskDueDate"
         v-model="dueDate"

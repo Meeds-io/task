@@ -46,9 +46,8 @@
             v-if="taskCoworkers.length > 0"
             class="user-name coworkerNumber pe-2 caption font-italic lighten-2"> +{{ taskCoworkers.length }} {{ $t('label.coworker') }}
           </span>
-          <a
-            class="taskAssignBtn mt-n1">
-            <i class="uiIcon uiAddAssignIcon"></i>
+          <a class="taskAssignBtn mt-n1">
+            <v-icon size="15" class="my-auto me-1 icon-default-color">fa fa-user-plus</v-icon>
             <span class="text-decoration-underline">{{ $t('label.assign') }}</span>
           </a>
         </div>
@@ -57,7 +56,7 @@
         <v-card-text class="assignTaskMenu pb-0 d-flex justify-space-between">
           <span>{{ $t('label.assignTo') }} :</span>
           <a class="ms-4" @click="assignToMe()">
-            <i class="uiIcon uiAssignToMeIcon"></i>
+            <v-icon size="16" class="primary--text me-1">fa fa-user</v-icon>
             <span>{{ $t('label.addMe') }}</span>
           </a>
         </v-card-text>
@@ -76,7 +75,7 @@
         <v-card-text class="assignTaskMenu pt-0 pb-0 d-flex justify-space-between">
           <span>{{ $t('label.coworkers') }} :</span>
           <a class="ms-4" @click="setMeAsCoworker()">
-            <i class="uiIcon uiAddMeCoworkerIcon"></i>
+            <v-icon size="16" class="primary--text me-1">fa fa-user-friends</v-icon>
             <span>{{ $t('label.addMe') }}</span>
           </a>
         </v-card-text>

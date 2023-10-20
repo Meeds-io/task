@@ -78,7 +78,7 @@
           class="btn px-2 btn-primary filterTasksSetting"
           outlined
           @click="openDrawer">
-          <i class="uiIcon uiIconFilterSetting pe-3"></i>
+          <v-icon size="16" class="me-2">fa-sliders-h</v-icon>
           <span class="d-none font-weight-regular caption d-sm-inline">
             {{ $t('label.filter') }} {{ getFilterNum() }}
           </span>

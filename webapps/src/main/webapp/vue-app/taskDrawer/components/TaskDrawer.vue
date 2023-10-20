@@ -28,6 +28,7 @@
       ref="addTaskDrawer"
       v-model="drawer"
       :temporary="confirmDrawerClose"
+      :go-back-button="addBackArrow"
       class="taskDrawer"
       body-classes="hide-scroll decrease-z-index-more"
       right
@@ -36,10 +37,6 @@
         v-if="drawer && task?.id"
         slot="title">
         <div class="drawerTitleAndProject d-flex">
-          <i
-            v-if="addBackArrow"
-            class="uiIcon uiArrowBAckIcon"
-            @click="closeTaskDrawer"></i>
           <span>{{ $t('label.project') }}</span>
           <div class="taskProjectName">
             <task-projects
@@ -48,7 +45,6 @@
           </div>
         </div>
         <div v-if="menuActions.length" id="taskActionMenu">
-          <i class="uiIcon uiThreeDotsIcon" @click="displayActionMenu = true"></i>
           <v-menu
             v-model="displayActionMenu"
             :attach="'#taskActionMenu'"
@@ -56,9 +52,12 @@
             content-class="taskActionMenu"
             offset-y>
             <v-list class="pa-0" dense>
-              <v-list-item v-for="menuAction in menuActions" :key="menuAction.title">
-                <v-list-item-title class="subtitle-2" @click="menuAction.action">
-                  <i :class="`uiIcon ${menuAction.uiIcon} pe-2`"></i>
+              <v-list-item
+                v-for="menuAction in menuActions"
+                :key="menuAction.title"
+                @click="menuAction.action">
+                <v-list-item-title class="subtitle-2">
+                  <v-icon size="13" class="pe-1">{{ menuAction.icon }}</v-icon>
                   <span>{{ menuAction.title }}</span>
                 </v-list-item-title>
               </v-list-item>
@@ -68,10 +67,6 @@
       </template>
       <template v-else-if="drawer" slot="title">
         <div class="drawerTitleAndProject d-flex">
-          <i
-            v-if="addBackArrow"
-            class="uiIcon uiArrowBAckIcon"
-            @click="closeTaskDrawer"></i>
           <span>{{ $t('label.drawer.header.add') }}</span>
           <div class="taskProjectName">
             <task-projects
@@ -79,6 +74,19 @@
               @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
           </div>
         </div>
+      </template>
+      <template v-if="drawer && task?.id && menuActions.length" slot="titleIcons">
+        <v-btn
+          icon
+          small
+          class="transparent my-auto"
+          @click="displayActionMenu = true">
+          <v-icon
+            size="16"
+            class="icon-default-color clickable">
+            fa fa-ellipsis-v
+          </v-icon>
+        </v-btn>
       </template>
       <template v-if="drawer" slot="content">
         <div class="taskDrawerDetails pa-4">
@@ -230,8 +238,6 @@ export default {
       drawer: false,
       reset: false,
       dates: [],
-      commentPlaceholder: this.$t('comment.message.addYourComment'),
-      descriptionPlaceholder: this.$t('editinline.taskDescription.empty'),
       chips: [],
       autoSaveDelay: 1000,
       saveDescription: '',
@@ -267,6 +273,12 @@ export default {
     };
   },
   computed: {
+    commentPlaceholder() {
+      return this.$t('comment.message.addYourComment');
+    },
+    descriptionPlaceholder() {
+      return this.$t('editinline.taskDescription.empty');
+    },
     confirmDrawerClose() {
       return this.isDrawerClose;
     },
@@ -789,29 +801,30 @@ export default {
         });
       });
     },
-    addMenuAction(title, uiIcon, enabled, actionFunctionName) {
+    addMenuAction(title, icon, enabled, actionFunctionName) {
       this.menuActions.push({
         title: title,
-        uiIcon: uiIcon,
+        icon: icon,
         enabled: enabled,
         action: this[actionFunctionName]
       });
     },
     displayDrawerMenuAction( task ) {
       this.menuActions = [];
-      if (task && task.status && task.status.project && task.status.project.id ) {
-        this.$projectService.getProject(task.status.project.id, true).then(data => {
-          this.enableDelete = data.managerIdentities.some(manager => manager.username === eXo.env.portal.userName);
-          this.enableClone = this.enableDelete || data.participatorIdentities.some(participator => participator.username === eXo.env.portal.userName);
-          this.addMenuAction(this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask');
-          this.addMenuAction(this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask');
-          this.menuActions = this.menuActions.filter(menuAction => menuAction.enabled);
-        });
-      } else if ( task && task.id ) {
+      if (task?.status?.project?.id) {
+        this.$projectService.getProject(task.status.project.id, true)
+          .then(data => {
+            this.enableDelete = data.managerIdentities.some(manager => manager.username === eXo.env.portal.userName);
+            this.enableClone = this.enableDelete || data.participatorIdentities.some(participator => participator.username === eXo.env.portal.userName);
+            this.addMenuAction(this.$t('label.delete'), 'fa-trash-alt', this.enableDelete, 'deleteTask');
+            this.addMenuAction(this.$t('label.clone'), 'fa-clone', this.enableClone, 'cloneTask');
+            this.menuActions = this.menuActions.filter(menuAction => menuAction.enabled);
+          });
+      } else if (task?.id) {
         this.enableDelete = task.createdBy === eXo.env.portal.userName;
         this.enableClone = task.assignee === eXo.env.portal.userName || this.task.coworker.includes(eXo.env.portal.userName);
-        this.addMenuAction(this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask');
-        this.addMenuAction(this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask');
+        this.addMenuAction(this.$t('label.delete'), 'fa-trash-alt', this.enableDelete, 'deleteTask');
+        this.addMenuAction(this.$t('label.clone'), 'fa-clone', this.enableClone, 'cloneTask');
         this.menuActions = this.menuActions.filter(menuAction => menuAction.enabled);
       }
     },

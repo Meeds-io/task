@@ -17,7 +17,9 @@
 <template>
   <div v-if="hideGantt">
     <div class="noTasksProject">
-      <div class="noTasksProjectIcon"><i class="uiIcon uiIconTask"></i></div>
+      <div class="noTasksProjectIcon">
+        <v-icon size="50" class="grey-color">fa-tasks</v-icon>
+      </div>
       <div class="noTasksProjectLabel"><span>{{ $t('label.noTasks') }}</span></div>
       <div class="addunscheduledTask">
         <v-btn @click="$root.$emit('displayTasksUnscheduledDrawer', unscheduledTaskList)" text>

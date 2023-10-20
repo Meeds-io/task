@@ -35,7 +35,9 @@
       @click="openLabelsList()"
       @change="search = ''">
       <template #prepend>
-        <i class="uiIconTag uiIconBlue"></i>
+        <v-icon size="16" class="icon-default-color">
+          fa-tags
+        </v-icon>
       </template>
       <template #no-data>
         <v-list-item>

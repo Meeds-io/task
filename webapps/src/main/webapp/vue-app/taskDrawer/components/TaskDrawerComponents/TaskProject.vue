@@ -97,14 +97,14 @@ export default {
   },
   watch: {
     projectModel () {
-      if (this.$refs.select && this.$refs.select.isMenuActive) {
+      if (this.$refs?.select?.isMenuActive) {
         setTimeout(() => {
           this.$refs.select.isMenuActive = false;
         }, 50);
       }
     },
     task() {
-      if (this.task && this.task.status && this.task.status.project && !this.task.status.name) {
+      if (this.task?.status?.project && !this.task.status.name) {
         this.$taskDrawerApi.getDefaultStatusByProjectId(this.task.status.project.id).then((status) => {
           this.task.status = status;
         });
@@ -113,37 +113,31 @@ export default {
   },
   created() {
     this.getProjects();
-    $(document).on('mousedown', () => {
-      if (this.$refs.select.isMenuActive) {
-        window.setTimeout(() => {
-          this.$refs.select.isMenuActive = false;
-        }, 200);
-      }
-    });
-    document.addEventListener('closeProjectList',()=> {
-      setTimeout(() => {
-        if (typeof this.$refs.select !== 'undefined') {
-          this.$refs.select.isMenuActive = false;
-        }
-      }, 100);
-    });
-    document.addEventListener('loadProjectName', event => {
+    $(document).on('mousedown', this.closeMenu);
+    document.addEventListener('closeProjectList', this.closeMenu);
+    document.addEventListener('loadProjectName', this.loadProjectName);
+  },
+  beforeDestroy() {
+    document.removeEventListener('loadProjectName', this.loadProjectName);
+    document.removeEventListener('closeProjectList', this.closeMenu);
+    $(document).off('mousedown', this.closeMenu);
+  },
+  methods: {
+    loadProjectName(event) {
       if (event && event.detail) {
         const task = event.detail;
-        if (task.id!=null && task.status && task.status.project) {
-          this.projectModel = this.task.status.project;
+        if (task.id!=null && task?.status?.project) {
+          this.projectModel = task?.status?.project;
           this.projectLabel = this.$t('label.tapProject.name');
-        } else if (task.id==null && task.status && task.status.project){
-          this.projectModel = this.task.status.project;
+        } else if (task.id==null && task.status.project){
+          this.projectModel = task?.status?.project;
           this.projectLabel = this.$t('label.tapProject.name');
         } else {
           this.projectModel = null;
           this.projectLabel = this.$t('label.noProject');
         }
       }
-    });
-  },
-  methods: {
+    },
     getProjects() {
       this.$taskDrawerApi.getProjects().then((projects) => {
         this.projects = projects.projects;
@@ -177,6 +171,13 @@ export default {
       this.updateTask();
       event.preventDefault();
       event.stopPropagation();
+    },
+    closeMenu() {
+      if (this.$refs?.select?.isMenuActive) {
+        window.setTimeout(() => {
+          this.$refs.select.isMenuActive = false;
+        }, 200);
+      }
     },
   }
 };

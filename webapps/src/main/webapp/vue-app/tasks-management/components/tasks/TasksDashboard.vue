@@ -33,7 +33,9 @@
     <div
       v-if="(!tasks || !tasks.length) && !loadingTasks && !filterActive"
       class="noTasksProject">
-      <div class="noTasksProjectIcon"><i class="uiIcon uiIconTask"></i></div>
+      <div class="noTasksProjectIcon">
+        <v-icon size="70" class="grey-color">fa-tasks</v-icon>
+      </div>
       <div class="noTasksProjectLabel"><span>{{ $t('label.noTask') }}</span></div>
     </div>
     <div v-else>
@@ -43,21 +45,27 @@
           :key="project.name" 
           class="pt-5">
           <div v-if=" project.value && project.value.displayName" class="d-flex align-center assigneeFilter">
-            <a
-              class="toggle-collapse-group pointer"
-              href="#"
+            <v-btn
+              :id="`iconTask${project.rank}`"
+              icon
+              small
+              outlined
               @click="showDetailsTask(project.rank)">
-              <i
-                :id="'uiIconMiniArrowDown'+project.rank"
-                class="uiIcon uiIconMiniArrowDown"
-                style="display: block">
-              </i>
-              <i
-                :id="'uiIconMiniArrowRight'+project.rank"
-                class="uiIcon  uiIconMiniArrowRight"
+              <v-icon
+                :id="`arrowDown${project.rank}`"
+                size="13"
+                class="mx-2 mt-1 my-auto"
+                style="display: inline-flex">
+                fa-angle-down
+              </v-icon>
+              <v-icon
+                :id="`arrowRight${project.rank}`"
+                size="13"
+                class="mx-2 mt-1 my-auto"
                 style="display: none">
-              </i>
-            </a>
+                fa-angle-right
+              </v-icon>
+            </v-btn>
             <exo-user-avatar
               v-if="project.value.avatar"
               :profile-id="project.value.username"
@@ -71,22 +79,27 @@
               class="my-0 v-divider theme--light">
           </div>
           <div v-else class="d-flex align-center assigneeFilter">
-            <a
-              :id="'iconTask'+project.rank"
-              class="toggle-collapse-group pointer"
-              href="#"
+            <v-btn
+              :id="`iconTask${project.rank}`"
+              icon
+              small
+              outlined
               @click="showDetailsTask(project.rank)">
-              <i
-                :id="'uiIconMiniArrowDown'+project.rank"
-                class="uiIcon uiIconMiniArrowDown"
-                style="display: block">
-              </i>
-              <i
-                :id="'uiIconMiniArrowRight'+project.rank"
-                class="uiIcon  uiIconMiniArrowRight"
+              <v-icon
+                :id="`arrowDown${project.rank}`"
+                size="13"
+                class="mx-2 mt-1 my-auto"
+                style="display: inline-flex">
+                fa-angle-down
+              </v-icon>
+              <v-icon
+                :id="`arrowRight${project.rank}`"
+                size="13"
+                class="mx-2 mt-1 my-auto"
                 style="display: none">
-              </i>
-            </a>
+                fa-angle-right
+              </v-icon>
+            </v-btn>
             <div v-if="project.name==='Unassigned'" class="defaultAvatar">
               <img :src="defaultAvatar">
             </div>
@@ -463,18 +476,19 @@ export default {
       return name;
     },
     showDetailsTask(id){
-      const uiIconMiniArrowDown = document.querySelector(`#uiIconMiniArrowDown${id}`);
-      const uiIconMiniArrowRight = document.querySelector(`#uiIconMiniArrowRight${id}`);
+      const arrowDown = document.querySelector(`#arrowDown${id}`);
+      const arrowRight = document.querySelector(`#arrowRight${id}`);
 
       const detailsTask = document.querySelector(`#taskView${id}`);
       if (detailsTask.style.display !== 'none') {
         detailsTask.style.display = 'none';
-        uiIconMiniArrowDown.style.display = 'none';
-        uiIconMiniArrowRight.style.display = 'block';
+        arrowDown.style.display = 'none';
+        arrowRight.style.display = 'inline-flex';
+      } else {
+        detailsTask.style.display = 'block';
+        arrowDown.style.display = 'inline-flex';
+        arrowRight.style.display = 'none';
       }
-      else {detailsTask.style.display = 'block';
-        uiIconMiniArrowDown.style.display = 'block';
-        uiIconMiniArrowRight.style.display = 'none';}
     },
     getFilterProject(){
       return this.$projectService.getFilterSettings('None','list').then((resp) =>{

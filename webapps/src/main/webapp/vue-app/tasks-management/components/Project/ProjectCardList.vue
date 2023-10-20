@@ -19,8 +19,12 @@
     <div
       v-if="(!projects || !projects.length) && !loadingProjects"
       class="noTasksProject">
-      <div class="noTasksProjectIcon"><i class="uiIcon uiIconClipboard"></i></div>
-      <div class="noTasksProjectLabel"><span>{{ $t('label.noProjects') }}</span></div>
+      <div class="noTasksProjectIcon">
+        <v-icon size="40" class="ma-auto grey-color">fa fa-clipboard</v-icon>
+      </div>
+      <div class="noTasksProjectLabel">
+        <span>{{ $t('label.noProjects') }}</span>
+      </div>
     </div>
     <div v-else>
       <v-card flat>
