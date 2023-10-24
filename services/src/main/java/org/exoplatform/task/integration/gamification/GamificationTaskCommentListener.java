@@ -5,8 +5,9 @@ import static io.meeds.gamification.constant.GamificationConstant.OBJECT_ID_PARA
 import static io.meeds.gamification.constant.GamificationConstant.OBJECT_TYPE_PARAM;
 import static io.meeds.gamification.constant.GamificationConstant.RECEIVER_ID;
 import static io.meeds.gamification.constant.GamificationConstant.SENDER_ID;
+import static io.meeds.gamification.listener.GamificationGenericListener.DELETE_EVENT_NAME;
 import static io.meeds.gamification.listener.GamificationGenericListener.GENERIC_EVENT_NAME;
-import static org.exoplatform.task.util.TaskUtil.TASK_OBJECT_TYPE;
+import static org.exoplatform.task.util.TaskUtil.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,40 +29,27 @@ public class GamificationTaskCommentListener extends Listener<TaskService, Comme
 
   protected ListenerService   listenerService;
 
-  public GamificationTaskCommentListener(IdentityManager identityManager,
-                                         ListenerService listenerService) {
+  public GamificationTaskCommentListener(IdentityManager identityManager, ListenerService listenerService) {
     this.identityManager = identityManager;
     this.listenerService = listenerService;
   }
 
   @Override
-  public void onEvent(Event<TaskService, CommentDto> event) {
+  public void onEvent(Event<TaskService, CommentDto> event) throws Exception {
     String actorUsername = ConversationState.getCurrent().getIdentity().getUserId();
     TaskDto task = event.getData().getTask();
     // Compute user id
     String actorId = identityManager.getOrCreateUserIdentity(actorUsername).getId();
 
-    createGamificationRealization(actorId,
-                                  actorId,
-                                  GAMIFICATION_TASK_ADDON_COMMENT_TASK,
-                                  String.valueOf(task.getId()));
-  }
-
-  private void createGamificationRealization(String earnerIdentityId,
-                                             String receiverId,
-                                             String gamificationEventName,
-                                             String taskId) {
     Map<String, String> gam = new HashMap<>();
-    try {
-      gam.put(EVENT_NAME, gamificationEventName);
-      gam.put(OBJECT_ID_PARAM, taskId);
-      gam.put(OBJECT_TYPE_PARAM, TASK_OBJECT_TYPE);
-      gam.put(SENDER_ID, earnerIdentityId);
-      gam.put(RECEIVER_ID, receiverId);
-      listenerService.broadcast(GENERIC_EVENT_NAME, gam, null);
-    } catch (Exception e) {
-      throw new IllegalStateException("Error triggering Gamification Listener Event: " + gam, e);
-    }
-  }
+    gam.put(EVENT_NAME, GAMIFICATION_TASK_ADDON_COMMENT_TASK);
+    gam.put(OBJECT_ID_PARAM, String.valueOf(task.getId()));
+    gam.put(OBJECT_TYPE_PARAM, TASK_OBJECT_TYPE);
+    gam.put(SENDER_ID, actorId);
+    gam.put(RECEIVER_ID, actorId);
 
+    String gamificationEventName = event.getEventName().equals(TASK_COMMENT_DELETED) ? DELETE_EVENT_NAME : GENERIC_EVENT_NAME;
+    listenerService.broadcast(gamificationEventName, gam, String.valueOf(task.getId()));
+
+  }
 }

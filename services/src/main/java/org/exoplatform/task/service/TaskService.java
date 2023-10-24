@@ -35,12 +35,6 @@ import java.util.TimeZone;
 
 public interface TaskService {
 
-    String TASK_CREATION = "exo.task.taskCreation";
-
-    String TASK_UPDATE = "exo.task.taskUpdate";
-
-    String TASK_COMMENT_CREATION = "exo.task.taskCommentCreation";
-
     /**
      * Create a new task.
      * @param task the given task.
