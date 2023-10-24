@@ -17,18 +17,17 @@
 <template>
   <div
     :class="[getTaskPriorityColor(task.task.priority), removeCompletedTask && 'completedTask' || '']"
-    class="taskListItemView px-4 py-3 d-flex align-center">
+    class="taskListItemView px-4 py-3 d-flex align-center justify-center">
     <div class="taskCheckBox d-flex align-center justify-center">
-      <v-switch
-        ref="autoFocusInput2"
-        class="d-none"
-        true-value="true"
-        false-value="false" />
-      <i 
-        :title="$t(taskCompletedTitle)" 
-        :class="taskCompletedClass"
-        class="fa-xl primary--text d-block"
-        @click="updateCompleted"></i>
+      <v-btn
+        :title="$t(taskCompletedTitle)"
+        icon
+        small
+        @click="updateCompleted">
+        <v-icon class="primary--text">
+          {{ taskCompletedClass }}
+        </v-icon>
+      </v-btn>
     </div>
     <div class="taskTitle pe-10">
       <a

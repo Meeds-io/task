@@ -22,18 +22,17 @@
       :class="[getTaskPriorityColor(task.task.priority)]"
       class="taskCard taskViewCard pa-2"
       flat>
-      <div class="taskTitleId  d-flex justify-space-between">
+      <div class="taskTitleId  d-flex align-center justify-center">
         <div class="taskCheckBox d-flex align-center justify-center">
-          <v-switch
-            ref="autoFocusInput2"
-            class="d-none"
-            true-value="true"
-            false-value="false" />
-          <i
+          <v-btn
             :title="$t(taskCompletedTitle)"
-            :class="taskCompletedClass"
-            class="fa-xl primary--text d-block"
-            @click="updateCompleted"></i>
+            icon
+            small
+            @click="updateCompleted">
+            <v-icon class="primary--text">
+              {{ taskCompletedClass }}
+            </v-icon>
+          </v-btn>
         </div>
         <div class="taskTitle d-flex align-start" @click="openTaskDrawer()">
           <a
