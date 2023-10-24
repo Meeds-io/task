@@ -46,6 +46,8 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
 
+import static org.exoplatform.task.util.TaskUtil.*;
+
 
 @Singleton
 public class TaskServiceImpl implements TaskService {
@@ -73,41 +75,29 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @ExoTransactional
     public TaskDto createTask(TaskDto task) {
-        TaskDto result = taskStorage.createTask(task);
-        //
-        TaskPayload event = new TaskPayload(null, result);
-        try {
-            listenerService.broadcast(TASK_CREATION, null, event);
-            if(result.getStatus()!=null && result.getStatus().getProject() != null){
-                listenerService.broadcast("exo.project.projectModified", null,result.getStatus().getProject() );
-            }
-        } catch (Exception e) {
-            LOG.error("Error while broadcasting task creation event", e);
-        }
-
-        return result;
+      TaskDto result = taskStorage.createTask(task);
+      TaskPayload event = new TaskPayload(null, result);
+      broadcastEvent(listenerService, TASK_CREATED, null, event);
+      if (result.getStatus() != null && result.getStatus().getProject() != null) {
+        broadcastEvent(listenerService, "exo.project.projectModified", null, result.getStatus().getProject());
+      }
+      return result;
     }
 
     @Override
     @ExoTransactional
     public TaskDto updateTask(TaskDto task) {
-        if (task == null) {
-            throw new IllegalArgumentException("TaskDto must not be NULL");
-        }
-
-        TaskDto oldTaskEntity = taskStorage.getTaskWithCoworkers(task.getId());
-        TaskDto newTaskEntity = taskStorage.update(task);
-        TaskPayload event = new TaskPayload(oldTaskEntity, newTaskEntity);
-        try {
-            listenerService.broadcast(TASK_UPDATE, null, event);
-            if(task.getStatus()!=null && task.getStatus().getProject() != null){
-                listenerService.broadcast("exo.project.projectModified", null, task.getStatus().getProject() );
-            }
-        } catch (Exception e) {
-            LOG.error("Error while broadcasting task creation event", e);
-        }
-
-        return newTaskEntity;
+      if (task == null) {
+        throw new IllegalArgumentException("TaskDto must not be NULL");
+      }
+      TaskDto oldTaskEntity = taskStorage.getTaskWithCoworkers(task.getId());
+      TaskDto newTaskEntity = taskStorage.update(task);
+      TaskPayload event = new TaskPayload(oldTaskEntity, newTaskEntity);
+      broadcastEvent(listenerService, TASK_UPDATED, null, event);
+      if (task.getStatus() != null && task.getStatus().getProject() != null) {
+        broadcastEvent(listenerService, "exo.project.projectModified", null, task.getStatus().getProject());
+      }
+      return newTaskEntity;
     }
 
     @Override
@@ -121,7 +111,7 @@ public class TaskServiceImpl implements TaskService {
     public void removeTask(long id) throws EntityNotFoundException {
         TaskDto task = getTask(id);// Can throw TaskNotFoundException
         taskStorage.delete(task);
-        LOG.info("Task {} removed", id);
+        broadcastEvent(listenerService, TASK_DELETED, null, new TaskPayload(null, task));
     }
 
     @Override
@@ -495,5 +485,4 @@ public class TaskServiceImpl implements TaskService {
             OrganizationIdentityProvider.NAME, userId);
         return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");
     }
-
 }

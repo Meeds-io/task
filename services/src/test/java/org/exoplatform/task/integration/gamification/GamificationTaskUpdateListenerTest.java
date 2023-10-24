@@ -25,6 +25,8 @@ import static org.exoplatform.task.integration.gamification.GamificationTaskUpda
 import static org.exoplatform.task.integration.gamification.GamificationTaskUpdateListener.GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER;
 import static org.exoplatform.task.integration.gamification.GamificationTaskUpdateListener.GAMIFICATION_TASK_ADDON_CREATE_TASK;
 import static org.exoplatform.task.integration.gamification.GamificationTaskUpdateListener.GAMIFICATION_TASK_ADDON_UPDATE_TASK;
+import static org.exoplatform.task.util.TaskUtil.TASK_CREATED;
+import static org.exoplatform.task.util.TaskUtil.TASK_UPDATED;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,7 +38,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 
 import org.junit.After;
 import org.junit.Before;
@@ -58,7 +59,7 @@ import org.exoplatform.task.service.TaskService;
 @RunWith(MockitoJUnitRunner.class)
 public class GamificationTaskUpdateListenerTest {
 
-  private static final long   TASK_ID   = 2l;
+  private static final long   TASK_ID   = 2L;
 
   private static final String USERNAME  = "test";
 
@@ -102,14 +103,14 @@ public class GamificationTaskUpdateListenerTest {
     Identity userIdentity = mock(Identity.class);
     when(userIdentity.getId()).thenReturn("1");
     when(identityManager.getOrCreateUserIdentity(USERNAME)).thenReturn(userIdentity);
-    Event<TaskService, TaskPayload> event = new Event<TaskService, TaskPayload>(null, null, new TaskPayload(null, task));
+    Event<TaskService, TaskPayload> event = new Event<TaskService, TaskPayload>(TASK_CREATED, null, new TaskPayload(null, task));
     gamificationTaskUpdateListener.onEvent(event);
 
     verify(listenerService,
            times(1)).broadcast(eq(GENERIC_EVENT_NAME),
                                argThat((Map<String, String> source) -> source.get(EVENT_NAME)
                                                                              .equals(GAMIFICATION_TASK_ADDON_CREATE_TASK)),
-                               argThat(Objects::isNull));
+                               eq("2"));
 
   }
 
@@ -130,58 +131,58 @@ public class GamificationTaskUpdateListenerTest {
 
     new GamificationTaskUpdateListener(taskService,
                                        identityManager,
-                                       listenerService).onEvent(new Event<TaskService, TaskPayload>(null, null, new TaskPayload(oldTask, task)));
+                                       listenerService).onEvent(new Event<TaskService, TaskPayload>(TASK_UPDATED, null, new TaskPayload(oldTask, task)));
 
     verify(listenerService,
            times(1)).broadcast(eq(GENERIC_EVENT_NAME),
                                argThat((Map<String, String> source) -> source.get(EVENT_NAME)
                                                                              .equals(GAMIFICATION_TASK_ADDON_UPDATE_TASK)),
-                               eq(null));
+                               eq("2"));
     verify(listenerService,
            never()).broadcast(eq(GENERIC_EVENT_NAME),
                               argThat((Map<String, String> source) -> source.get(EVENT_NAME)
                                                                             .equals(GAMIFICATION_TASK_ADDON_COMPLETED_TASK)),
-                              eq(null));
+                              eq(TASK_ID));
 
     when(task.isCompleted()).thenReturn(true);
     new GamificationTaskUpdateListener(taskService,
                                        identityManager,
-                                       listenerService).onEvent(new Event<TaskService, TaskPayload>(null, null, new TaskPayload(oldTask, task)));
+                                       listenerService).onEvent(new Event<TaskService, TaskPayload>(TASK_UPDATED, null, new TaskPayload(oldTask, task)));
 
     verify(listenerService,
            times(1)).broadcast(eq(GENERIC_EVENT_NAME),
                                argThat((Map<String, String> source) -> source.get(EVENT_NAME)
                                                                              .equals(GAMIFICATION_TASK_ADDON_UPDATE_TASK)),
-                               eq(null));
+                               eq("2"));
 
     verify(listenerService,
            times(1)).broadcast(eq(GENERIC_EVENT_NAME),
                                argThat((Map<String, String> source) -> source.get(EVENT_NAME)
                                                                              .equals(GAMIFICATION_TASK_ADDON_COMPLETED_TASK_ASSIGNED)),
-                               eq(null));
+                               eq("2"));
     verify(listenerService,
            times(3)).broadcast(eq(GENERIC_EVENT_NAME),
                                argThat((Map<String, String> source) -> source.get(EVENT_NAME)
                                                                              .equals(GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER)),
-                               eq(null));
+                               eq("2"));
     verify(listenerService,
            times(1)).broadcast(eq(GENERIC_EVENT_NAME),
                                argThat((Map<String, String> source) -> source.get(EVENT_NAME)
                                                                              .equals(GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER)
                                    && source.get(SENDER_ID).equals("2")),
-                               eq(null));
+                               eq("2"));
     verify(listenerService,
            times(1)).broadcast(eq(GENERIC_EVENT_NAME),
                                argThat((Map<String, String> source) -> source.get(EVENT_NAME)
                                                                              .equals(GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER)
                                    && source.get(SENDER_ID).equals("3")),
-                               eq(null));
+                               eq("2"));
     verify(listenerService,
            times(1)).broadcast(eq(GENERIC_EVENT_NAME),
                                argThat((Map<String, String> source) -> source.get(EVENT_NAME)
                                                                              .equals(GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER)
                                    && source.get(SENDER_ID).equals("4")),
-                               eq(null));
+                               eq("2"));
   }
 
   private ChangeLogEntry newChangeLogEntry(String logName, String target) {
