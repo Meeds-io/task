@@ -24,10 +24,7 @@ import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.service.LinkProvider;
 import org.exoplatform.task.dao.DAOHandler;
-import org.exoplatform.task.domain.Comment;
-import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.dto.CommentDto;
-import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.CommentService;
@@ -35,11 +32,12 @@ import org.exoplatform.task.storage.CommentStorage;
 import org.exoplatform.task.storage.TaskStorage;
 
 import javax.inject.Inject;
-import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static org.exoplatform.task.util.TaskUtil.*;
 
 public class CommentServiceImpl implements CommentService {
     private static final Log LOG = ExoLogger.getExoLogger(CommentServiceImpl.class);
@@ -103,21 +101,18 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @ExoTransactional
-    public CommentDto addComment(TaskDto task, long parentCommentId, String username, String comment) throws EntityNotFoundException {
-
-
-        CommentDto commentDto = commentStorage.addComment(task,parentCommentId,username,comment);
-
-        try {
-            listenerService.broadcast(TASK_COMMENT_CREATION, commentDto.getTask(), commentDto);
-            if(commentDto.getTask().getStatus()!=null && commentDto.getTask().getStatus().getProject() != null){
-                listenerService.broadcast("exo.project.projectModified", null, commentDto.getTask().getStatus().getProject() );
-            }
-        } catch (Exception e) {
-            LOG.error("Error while broadcasting task creation event", e);
+    public CommentDto addComment(TaskDto task,
+                                 long parentCommentId,
+                                 String username,
+                                 String comment) throws EntityNotFoundException {
+      CommentDto commentDto = commentStorage.addComment(task, parentCommentId, username, comment);
+      if (commentDto != null) {
+        broadcastEvent(listenerService, TASK_COMMENT_CREATED, commentDto.getTask(), commentDto);
+        if (commentDto.getTask().getStatus() != null && commentDto.getTask().getStatus().getProject() != null) {
+          broadcastEvent(listenerService, "exo.project.projectModified", null, commentDto.getTask().getStatus().getProject());
         }
-
-        return commentDto;
+      }
+      return commentDto;
     }
 
     @Override
@@ -130,14 +125,14 @@ public class CommentServiceImpl implements CommentService {
     @ExoTransactional
     public void removeComment(long commentId) throws EntityNotFoundException {
 
-        CommentDto comment = commentStorage.getComment(commentId);
+      CommentDto comment = commentStorage.getComment(commentId);
 
-        if (comment == null) {
-            LOG.info("Can not find comment with ID: " + commentId);
-            throw new EntityNotFoundException(commentId, CommentDto.class);
-        }
-
-        commentStorage.removeComment(commentId);
+      if (comment == null) {
+        LOG.info("Can not find comment with ID: " + commentId);
+        throw new EntityNotFoundException(commentId, CommentDto.class);
+      }
+      commentStorage.removeComment(commentId);
+      broadcastEvent(listenerService, TASK_COMMENT_DELETED, comment.getTask(), comment);
     }
 
     private String substituteUsernames(String message) {

@@ -29,7 +29,17 @@
       <type>org.exoplatform.task.integration.gamification.GamificationTaskUpdateListener</type>
     </component-plugin>
     <component-plugin>
+      <name>exo.task.taskDeleted</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.task.integration.gamification.GamificationTaskUpdateListener</type>
+    </component-plugin>
+    <component-plugin>
       <name>exo.task.taskCommentCreation</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.task.integration.gamification.GamificationTaskCommentListener</type>
+    </component-plugin>
+    <component-plugin>
+      <name>exo.task.taskCommentDeletion</name>
       <set-method>addListener</set-method>
       <type>org.exoplatform.task.integration.gamification.GamificationTaskCommentListener</type>
     </component-plugin>
