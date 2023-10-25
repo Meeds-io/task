@@ -16,12 +16,12 @@
  */
 package org.exoplatform.task.util;
 
-
 import java.text.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import org.exoplatform.portal.localization.LocaleContextInfoUtils;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.resources.LocaleContextInfo;
 import org.exoplatform.services.resources.LocalePolicy;
 import org.exoplatform.services.resources.ResourceBundleService;
@@ -53,10 +53,20 @@ import org.exoplatform.web.controller.router.Router;
  */
 public final class TaskUtil {
   public static final String URL_TASK_DETAIL = "/taskDetail/";
-  
+
   private static final Log LOG = ExoLogger.getExoLogger(TaskUtil.class.getName());
 
-  public static final String TITLE = "title";  
+  public static final String           TASK_CREATED         = "exo.task.taskCreation";
+
+  public static final String           TASK_UPDATED         = "exo.task.taskUpdate";
+
+  public static final String           TASK_DELETED         = "exo.task.taskDeleted";
+
+  public static final String           TASK_COMMENT_CREATED = "exo.task.taskCommentCreation";
+
+  public static final String           TASK_COMMENT_DELETED = "exo.task.taskCommentDeletion";
+
+  public static final String TITLE = "title";
   public static final String PRIORITY = "priority";
   public static final String DUEDATE = "dueDate";
   public static final String CREATED_TIME = "createdTime";
@@ -84,7 +94,7 @@ public final class TaskUtil {
       return 0;
     }
   };
-  
+
   public static enum DUE {
     OVERDUE, TODAY, TOMORROW, UPCOMING
   }
@@ -95,7 +105,7 @@ public final class TaskUtil {
   public static Map<String, String> getDefOrders(ResourceBundle bundle) {
     return resolve(Arrays.asList(TITLE, PRIORITY, DUEDATE, CREATED_TIME), bundle);
   }
-  
+
   public static Map<String, String> getDefGroupBys(long currentProject, ResourceBundle bundle) {
     if (currentProject == -1) {
       return resolve(Arrays.asList(NONE, ASSIGNEE, LABEL, DUEDATE), bundle);
@@ -103,8 +113,8 @@ public final class TaskUtil {
       return resolve(Arrays.asList(NONE, ASSIGNEE, LABEL, DUEDATE, STATUS), bundle);
     }
   }
-  
-  public static Map<String, String> resolve(List<String> keys, ResourceBundle bundle) {    
+
+  public static Map<String, String> resolve(List<String> keys, ResourceBundle bundle) {
     Map<String, String> labels = new LinkedHashMap<String, String>();
     for (String k : keys) {
       if (k.isEmpty()) {
@@ -121,7 +131,7 @@ public final class TaskUtil {
     }
     return labels;
   }
-  
+
   public static TaskQuery buildTaskQuery(TaskQuery query, String keyword,
                                    List<Long> searchLabelIds,
                                    Status status,
@@ -144,15 +154,15 @@ public final class TaskUtil {
       query.setDueDateTo(due[1]);
     }
     if (priority != null) {
-      query.setPriority(priority);      
+      query.setPriority(priority);
     }
-    if (searchAssignee != null && !searchAssignee.isEmpty()) {      
-      query.setAssignee(searchAssignee);      
+    if (searchAssignee != null && !searchAssignee.isEmpty()) {
+      query.setAssignee(searchAssignee);
     }
     if (showCompleted != null && !showCompleted) {
       query.setCompleted(showCompleted);
     }
-    
+
     return query;
   }
 
@@ -417,14 +427,14 @@ public final class TaskUtil {
 
     return false;
   }
-  
+
   public static TaskDto saveTaskField(TaskDto task, Identity userId, String param, String[] values, TimeZone timezone, TaskService taskService, LabelService labelService, StatusService statusService)
       throws EntityNotFoundException, ParameterEntityException {
 
     if (timezone == null) {
       timezone = TimeZone.getDefault();
     }
-    
+
     // Load coworker to avoid they will be deleted when save task
     //This issue caused because we alway clone entity from DAO, but Coworker are loaded lazily
     //This is need for TA-421
@@ -447,7 +457,7 @@ public final class TaskUtil {
           wpf.setTimeZone(timezone);
           Date startDate = wpf.parse(values[0]);
           Date endDate = wpf.parse(values[1]);
-          
+
           task.setStartDate(startDate);
           task.setEndDate(endDate);
         } catch (ParseException ex) {
@@ -577,7 +587,7 @@ public final class TaskUtil {
           l = labelService.createLabel(l);
           ids.add(l.getId());
         }
-        
+
         for (Long labelId : ids) {
           if (!persisted.contains(labelId)) {
             labelService.addTaskToLabel(task, labelId);
@@ -721,7 +731,7 @@ public final class TaskUtil {
   }
 
   /**
-   * 
+   *
    * Added for tests using a specific instance of taskService
    * 
    * @param taskService TaskService instance
@@ -744,6 +754,14 @@ public final class TaskUtil {
       return true;
     } else {
       return false;
+    }
+  }
+
+  public static void broadcastEvent(ListenerService listenerService, String eventName, Object source, Object data) {
+    try {
+      listenerService.broadcast(eventName, source, data);
+    } catch (Exception var5) {
+      LOG.warn("Error broadcasting event '" + eventName + "' using source '" + source + "' and data " + data, var5);
     }
   }
 }

@@ -24,8 +24,6 @@ import org.exoplatform.task.exception.EntityNotFoundException;
 
 public interface CommentService {
 
-  String TASK_COMMENT_CREATION = "exo.task.taskCommentCreation";
-
   CommentDto getComment(long commentId);
 
   CommentDto addComment(TaskDto task, String username, String commentText) throws EntityNotFoundException;
