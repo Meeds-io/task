@@ -85,68 +85,78 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
     String actorUsername = ConversationState.getCurrent().getIdentity().getUserId();
     String actorId = identityManager.getOrCreateUserIdentity(actorUsername).getId();
     long taskId = after.getId();
+    List<ChangeLogEntry> taskLogs = taskService.getTaskLogs(taskId, 0, -1);
 
     if (!before.isCompleted() && after.isCompleted()) {// Task marked as
                                                        // completed
-      List<ChangeLogEntry> taskLogs = taskService.getTaskLogs(taskId, 0, -1);
-      createGamificationRealization(taskId, GAMIFICATION_TASK_ADDON_COMPLETED_TASK_ASSIGNED, taskLogs, "assign");
-      createGamificationRealization(taskId, GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER, taskLogs, "assignCoworker");
+      createGamificationRealization(GENERIC_EVENT_NAME,
+                                    taskId,
+                                    GAMIFICATION_TASK_ADDON_COMPLETED_TASK_ASSIGNED,
+                                    taskLogs,
+                                    "assign");
+      createGamificationRealization(GENERIC_EVENT_NAME,
+                                    taskId,
+                                    GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER,
+                                    taskLogs,
+                                    "assignCoworker");
       Map<String, String> gam = buildGamificationEventDetails(GAMIFICATION_TASK_ADDON_COMPLETED_TASK,
-              actorId,
-              actorId,
-              String.valueOf(taskId));
-      listenerService.broadcast(getGamificationEventName(eventName), gam, String.valueOf(taskId));
+                                                              actorId,
+                                                              actorId,
+                                                              String.valueOf(taskId));
+      listenerService.broadcast(GENERIC_EVENT_NAME, gam, String.valueOf(taskId));
+    } else if (before.isCompleted() && !after.isCompleted()) {
+      createGamificationRealization(CANCEL_EVENT_NAME,
+                                    taskId,
+                                    GAMIFICATION_TASK_ADDON_COMPLETED_TASK_ASSIGNED,
+                                    taskLogs,
+                                    "assign");
+      createGamificationRealization(CANCEL_EVENT_NAME,
+                                    taskId,
+                                    GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER,
+                                    taskLogs,
+                                    "assignCoworker");
+      Map<String, String> gam = buildGamificationEventDetails(GAMIFICATION_TASK_ADDON_COMPLETED_TASK,
+                                                              actorId,
+                                                              actorId,
+                                                              String.valueOf(taskId));
+      listenerService.broadcast(CANCEL_EVENT_NAME, gam, String.valueOf(taskId));
     } else {
       Map<String, String> gam = buildGamificationEventDetails(GAMIFICATION_TASK_ADDON_UPDATE_TASK,
-              actorId,
-              actorId,
-              String.valueOf(taskId));
+                                                              actorId,
+                                                              actorId,
+                                                              String.valueOf(taskId));
       listenerService.broadcast(getGamificationEventName(eventName), gam, String.valueOf(taskId));
     }
   }
 
-  private void createGamificationRealization(long taskId, String eventName, List<ChangeLogEntry> taskLogs, String taskLogName) {
+  private void createGamificationRealization(String gamificationEventName,
+                                             long taskId,
+                                             String eventName,
+                                             List<ChangeLogEntry> taskLogs,
+                                             String taskLogName) {
     Set<String> usernames = taskLogs.stream()
                                     .filter(taskLog -> StringUtils.equals(taskLogName, taskLog.getActionName()))
                                     .map(ChangeLogEntry::getTarget)
                                     .collect(Collectors.toSet());
-    createGamificationRealization(taskId, usernames, eventName);
+    createGamificationRealization(gamificationEventName, taskId, usernames, eventName);
   }
 
-  private void createGamificationRealization(long taskId, Set<String> usernames, String eventName) {
+  private void createGamificationRealization(String gamificationEventName, long taskId, Set<String> usernames, String eventName) {
     usernames.forEach(username -> {
       Identity identity = identityManager.getOrCreateUserIdentity(username);
       if (identity == null || !identity.isEnable() || identity.isDeleted()) {
         return;
       }
       Map<String, String> gam = buildGamificationEventDetails(eventName,
-              identity.getId(),
-              identity.getId(),
-              String.valueOf(taskId));
+                                                              identity.getId(),
+                                                              identity.getId(),
+                                                              String.valueOf(taskId));
       try {
-        listenerService.broadcast(getGamificationEventName(eventName), gam, String.valueOf(taskId));
+        listenerService.broadcast(gamificationEventName, gam, String.valueOf(taskId));
       } catch (Exception e) {
         LOG.warn("An error occurred while broadcasting event {}", eventName, e);
       }
     });
-  }
-
-  /**
-   * Check whether a task has been updated
-   *
-   * @param  before : Task data before modification
-   * @param  after  : Task data after modification
-   * @return        a boolean if task has been changed false else
-   */
-  protected boolean isDiff(Object before, Object after) {
-    if (before == after) {
-      return false;
-    }
-    if (before != null) {
-      return !before.equals(after);
-    } else {
-      return true;
-    }
   }
 
   private String getGamificationEventName(String eventName) {
