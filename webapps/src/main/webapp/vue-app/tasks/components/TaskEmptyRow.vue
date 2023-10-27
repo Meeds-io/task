@@ -5,7 +5,3 @@
     <v-btn class="btn btn-primary d-inline" @click="$emit('open-task-drawer')">{{ $t('label.addTask') }}</v-btn>
   </div> 
 </template>
-<script>
-export default {
-};
-</script>
