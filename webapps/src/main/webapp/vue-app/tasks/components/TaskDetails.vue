@@ -15,19 +15,19 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-list class="border-color border-radius border-light-color py-0 my-2">
+  <v-list class="py-0 my-2">
     <v-list-item 
       :style="taskBorderColor" 
-      class="py-0 px-1 border-radius"
+      class="py-0 ps-2 pe-0 border-radius"
       @click="openTaskDrawer">
-      <v-list-item-content class="py-1">
+      <v-list-item-content class="py-0">
         <v-list-item-title 
-          class="d-flex flex justify-between align-center subtitle-2 pb-1 clickable">
+          class="d-flex flex justify-between align-center subtitle-2 mb-0 clickable">
           <span class="text-truncate">{{ title }}</span>
           <v-spacer></v-spacer>
           <span :class="isOutdated && 'red--text' || ''">{{ dueDate }}</span>
         </v-list-item-title>
-        <v-list-item-subtitle class="d-flex align-center">
+        <v-list-item-subtitle v-if="commentCount || labels" class="d-flex align-center mt-1">
           <div v-if="commentCount">
             <v-icon 
               size="14">far fa-comment</v-icon>
