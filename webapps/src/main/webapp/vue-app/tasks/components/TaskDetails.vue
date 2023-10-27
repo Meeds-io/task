@@ -33,7 +33,7 @@
               size="14">far fa-comment</v-icon>
             <span>{{ commentCount }}</span>
           </div>
-          <div v-if="labels" class="ps-3">
+          <div v-if="labels" :class="commentCount && 'ps-3' || ''">
             <v-chip
               v-if="labels == 1"
               :color="labelColor"
