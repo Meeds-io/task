@@ -82,9 +82,12 @@
             @removeTask="removeTask" />
         </div>
       </div>
-      <div v-else>
-        <task-empty-row @open-task-drawer="openTaskDrawer" />
-      </div>
+      <v-card 
+        v-else 
+        min-height="188"
+        flat>
+        <task-empty-row v-if="!loadingTasks" @open-task-drawer="openTaskDrawer" />
+      </v-card>
     </widget-wrapper>
     <task-drawer
       ref="taskDrawer"
