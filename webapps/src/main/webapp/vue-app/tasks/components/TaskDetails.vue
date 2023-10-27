@@ -15,71 +15,47 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-layout
-    row
-    mx-0
-    class="white">
-    <v-flex
-      d-flex
-      xs12
-      ps-3>
-      <v-layout
-        row
-        mx-0>
-        <v-flex
-          d-flex
-          xs6>
-          <v-list-item-content
-            class="py-0"
-            style="max-width: 350px ">
-            <a
-              ref="tooltip"
-              :title="task.task.title"
-              class="taskTitle"
-              @click="openTaskDrawer()">
-              <v-list-item-title
-                v-text="task.task.title" />
-              <v-list-item-subtitle><div class="color-title">{{ dateFormatter(task.dueDate) }}</div></v-list-item-subtitle>
-            </a>
-          </v-list-item-content>
-        </v-flex>
-        <v-flex
-          v-if="(task.status != null)"
-          mt-n2
-          d-flex
-          xs6
-          justify-end
-          align>
-          <v-card
-            :title="task.status.project.name"
-            :color="task.status.project.color"
-            flex
-            width="200"
-            class="my-3 projectCard text-center flexCard taskTitle"
-            flat
-            @click="navigateTo(task.status.project.id)">
-            <span>{{ task.status.project.name }}</span>
-          </v-card>
-          <v-card
-            :class="projectBorder"
-            width="18"
-            height="21"
-            class="my-3 flagCard"
-            flat
-            center
-            @click="openTaskDrawer()">
-            <v-icon
-              :color="getTaskPriorityColor(task.task.priority)"
-              class="ms-n1">
-              mdi-flag-variant
-            </v-icon>
-          </v-card>
-        </v-flex>
-      </v-layout>
-    </v-flex>
-  </v-layout>
+  <v-list class="py-0 my-2">
+    <v-list-item 
+      :style="taskBorderColor" 
+      class="py-0 ps-2 pe-0 border-radius"
+      @click="openTaskDrawer">
+      <v-list-item-content class="py-0">
+        <v-list-item-title 
+          class="d-flex flex justify-between align-center subtitle-2 mb-0 clickable">
+          <span class="text-truncate">{{ title }}</span>
+          <v-spacer></v-spacer>
+          <span :class="isOutdated && 'red--text' || ''">{{ dueDate }}</span>
+        </v-list-item-title>
+        <v-list-item-subtitle v-if="commentCount || labels" class="d-flex align-center mt-1">
+          <div v-if="commentCount">
+            <v-icon 
+              size="14">far fa-comment</v-icon>
+            <span>{{ commentCount }}</span>
+          </div>
+          <div v-if="labels" :class="commentCount && 'ps-3' || ''">
+            <v-chip
+              v-if="labels == 1"
+              :color="labelColor"
+              :title="labelName"
+              class="mx-1"
+              label
+              x-small>
+              <span class="text-truncate">
+                {{ labelName }}
+              </span>
+            </v-chip>
+            <div v-else>
+              <v-icon 
+                size="14">fas fa-tag</v-icon>
+              <span>{{ labels }}</span>
+            </div>
+          </div>
+        </v-list-item-subtitle>  
+      </v-list-item-content>
+    </v-list-item>
+  </v-list>
 </template>
-
 <script>
 export default {
   props: {
@@ -89,6 +65,10 @@ export default {
         return {};
       }
     },
+    isOutdated: {
+      type: Boolean,
+      default: false,
+    }
   },
   data() {
     return {
@@ -96,8 +76,26 @@ export default {
     };
   },
   computed: {
-    projectBorder() {
-      return `${this.task.status.project.color  }_border`;
+    title() {
+      return this.task?.task?.title;
+    },
+    dueDate() {
+      return this.task?.dueDate && this.dateFormatter(this.task?.dueDate) || '';
+    },
+    commentCount() {
+      return this.task?.commentCount || 0;
+    },
+    taskBorderColor() {
+      return this.task?.task?.priority && `border-left: 5px solid ${this.getTaskPriorityColor(this.task.task.priority)}` || '';
+    },
+    labels() {
+      return this.task?.labels?.length;
+    },
+    labelName() {
+      return this.labels && this.task.labels[0].name;
+    },
+    labelColor() {
+      return this.labels && this.task.labels[0].color;
     }
   },
   created() {
@@ -132,9 +130,6 @@ export default {
     },
     openTaskDrawer() {
       this.$root.$emit('open-task-drawer', this.task.task);
-    },
-    navigateTo(pagelink) {
-      location.href=`${ eXo.env.portal.context }/${ eXo.env.portal.portalName }/tasks/projectDetail/${ pagelink }` ;
     },
   }
 };
