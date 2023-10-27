@@ -16,13 +16,13 @@
 -->
 <template>
   <v-app>
-    <widget-wrapper>
+    <widget-wrapper :loading="loadingTasks">
       <template #title>
         <a 
           class="widget-text-header text-truncate" 
           @click="navigateTo('tasks/myTasks','ALL')">{{ $t('label.tasks.header') }}</a>
       </template>
-      <template #action>
+      <template v-if="tasksSize" #action>
         <v-btn
           :title="$t('label.addTask')"
           icon
@@ -31,7 +31,7 @@
           <v-icon>mdi-plus</v-icon>
         </v-btn>
       </template>
-      <div v-if="tasks.length > 0">
+      <div v-if="tasksSize">
         <div v-if="tasksOverdueList.length > 0">
           <div class="d-flex align-center">
             <span class="me-2 subtitle-1">{{ $t('label.overdue') }}</span>
@@ -124,6 +124,9 @@ export default {
       priorityStatus: ['High', 'In Normal', 'Low', 'None', null],
     };
   },computed: {
+    tasksSize() {
+      return this.tasks?.length;
+    },
     tasksOverdueList(){
       if (this.tasksOverdue){
         if (!this.tasksToday && !this.tasksTomorrow && !this.tasksUpcoming) {
