@@ -196,7 +196,6 @@ export default {
     },
     reset() {
       this.inputVal = '';
-      this.editorReady = false;
       this.taskCommentAttachmentsEdited = false;
     },
     saveAttachments(commentId) {
