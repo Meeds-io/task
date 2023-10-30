@@ -16,7 +16,7 @@
 -->
 <template>
   <v-app>
-    <widget-wrapper :loading="loadingTasks" :min-height="'188'">
+    <widget-wrapper :loading="loadingTasks">
       <template #title>
         <a 
           class="widget-text-header text-truncate" 
@@ -82,9 +82,12 @@
             @removeTask="removeTask" />
         </div>
       </div>
-      <div v-else>
+      <v-card 
+        v-else 
+        min-height="188"
+        flat>
         <task-empty-row v-if="!loadingTasks" @open-task-drawer="openTaskDrawer" />
-      </div>
+      </v-card>
     </widget-wrapper>
     <task-drawer
       ref="taskDrawer"
