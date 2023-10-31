@@ -54,6 +54,9 @@
                                         <field name="uri">
                                             <string>tasks</string>
                                         </field>
+                                        <field name="icon">
+                                            <string>fas fa-tasks</string>
+                                        </field>
                                     </object>
                                 </value>
                             </collection>
@@ -95,6 +98,9 @@
                                         </field>
                                         <field name="uri">
                                             <string>tasks</string>
+                                        </field>
+                                        <field name="icon">
+                                            <string>fas fa-tasks</string>
                                         </field>
                                     </object>
                                 </value>
