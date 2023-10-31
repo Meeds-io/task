@@ -19,6 +19,7 @@
     <exo-drawer
       @closed="closeDrawer"
       id="taskCommentDrawer"
+      v-model="drawer"
       class="taskCommentDrawer"
       ref="taskCommentDrawer"
       right>
@@ -62,7 +63,7 @@
                 @confirmDialogClosed="$emit('confirmDialogClosed')" />
             </div>
           </div>
-          <div v-else>
+          <div v-else-if="drawer">
             <div class="editorContent commentEditorContainer newCommentEditor">
               <task-comment-editor
                 ref="commentEditor"
@@ -108,6 +109,7 @@ export default {
     return {
       commentId: '',
       showNewCommentEditor: false,
+      drawer: false,
       test: false,
       MESSAGE_MAX_LENGTH: 1300,
       newComment: null,
