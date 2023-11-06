@@ -23,7 +23,7 @@
       <div class="noTasksProjectLabel"><span>{{ $t('label.noProjects') }}</span></div>
     </div>
     <div v-else>
-      <v-card flat>
+      <v-card flat class="transparent">
         <v-item-group class="pa-4">
           <v-container class="pa-0">
             <v-row class="ma-0 border-box-sizing">
