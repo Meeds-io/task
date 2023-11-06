@@ -20,7 +20,7 @@
       id="ProjectListToolbar"
       :class="showMobileTaskFilter && 'toolbarLarge'"
       flat
-      class="tasksToolbar pb-3">
+      class="tasksToolbar pb-3 transparent">
       <v-toolbar-title v-if="enableCreateButton">
         <v-btn
           class="btn px-2 btn-primary addNewProjectButton"
