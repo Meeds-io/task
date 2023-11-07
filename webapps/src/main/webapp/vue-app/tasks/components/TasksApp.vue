@@ -45,7 +45,7 @@
             is-outdated
             @removeTask="removeTask" />
         </div>
-        <div v-if="tasksTodayList.length > 0" class="mt-5">
+        <div v-if="tasksTodayList.length > 0" :class="tasksOverdueList.length > 0 && 'mt-5' || ''">
           <div class="d-flex align-center">
             <span class="me-2 subtitle-1">{{ $t('label.today') }}</span>
             <v-divider />
@@ -57,7 +57,7 @@
             class="px-0"
             @removeTask="removeTask" />
         </div>
-        <div v-if="tasksTomorrowList.length > 0" class="mt-5">
+        <div v-if="tasksTomorrowList.length > 0" :class="tasksTodayList.length > 0 && 'mt-5' || ''">
           <div class="d-flex align-center">
             <span class="me-2 subtitle-1">{{ $t('label.tomorrow') }}</span>
             <v-divider />
@@ -69,7 +69,7 @@
             class="px-0"
             @removeTask="removeTask" />
         </div>
-        <div v-if="tasksUpcomingList.length > 0" class="mt-5">
+        <div v-if="tasksUpcomingList.length > 0" :class="tasksTomorrowList.length > 0 && 'mt-5' || ''">
           <div class="d-flex align-center">
             <span class="me-2 subtitle-1">{{ $t('label.upcoming') }}</span>
             <v-divider />
@@ -83,10 +83,10 @@
         </div>
       </div>
       <v-card 
-        v-else 
+        v-else
         min-height="188"
         flat>
-        <task-empty-row v-if="!loadingTasks" @open-task-drawer="openTaskDrawer" />
+        <task-empty-row v-if="displayPlaceholder" @open-task-drawer="openTaskDrawer" />
       </v-card>
     </widget-wrapper>
     <task-drawer
@@ -116,7 +116,6 @@ export default {
       primaryFilterSelected: 'ALL',
       loadingTasks: true,
       TasksWithoutUpcomingSize: '',
-      TasksSize: '',
       task: {
         id: null,
         status: {project: this.project},
@@ -126,9 +125,13 @@ export default {
       },
       priorityStatus: ['High', 'In Normal', 'Low', 'None', null],
     };
-  },computed: {
+  },
+  computed: {
     tasksSize() {
       return this.tasks?.length;
+    },
+    displayPlaceholder() {
+      return !this.tasksSize && !this.loadingTasks;
     },
     tasksOverdueList(){
       if (this.tasksOverdue){
@@ -189,7 +192,7 @@ export default {
       } else {return [];}
     },
   },
-  created(){
+  mounted(){
     this.$root.$on('task-updated',task => {
       this.task=task;
     });
@@ -212,7 +215,10 @@ export default {
       this.getMyTodayTasks(),
       this.getMyTomorrowTasks(),
       this.getMyUpcomingTasks()
-    ]).finally(() => this.$root.$applicationLoaded());
+    ]).finally(() => {
+      this.$root.$applicationLoaded();
+      this.loadingTasks = false;
+    });
   },
   methods: {
     getMyOverDueTasks() {
@@ -230,9 +236,8 @@ export default {
           });
           this.tasksOverdueSize=data.tasksNumber;
           this.tasks = this.tasks.concat(this.tasksOverdue);
-          this.loadingTasks = false;
-        }
-      );
+          
+        });
     },
     getMyTodayTasks() {
       const task = {
@@ -249,9 +254,7 @@ export default {
           });
           this.tasksTodaySize=data.tasksNumber;
           this.tasks = this.tasks.concat(this.tasksToday);
-          this.loadingTasks = false;
-        }
-      );
+        });
     },
     getMyTomorrowTasks() {
       const task = {
@@ -268,9 +271,7 @@ export default {
           });
           this.tasksTomorrowSize=data.tasksNumber;
           this.tasks = this.tasks.concat(this.tasksTomorrow);
-          this.loadingTasks = false;
-        }
-      );
+        });
     },
     getMyUpcomingTasks() {
       const task = {
@@ -286,9 +287,7 @@ export default {
           });
           this.tasksUpcomingSize=data.tasksNumber;
           this.tasks = this.tasks.concat(this.tasksUpcoming);
-          this.loadingTasks = false;
-        }
-      );
+        });
     },
     openTaskDrawer() {
       const defaultTask={
