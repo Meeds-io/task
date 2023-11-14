@@ -15,149 +15,83 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app
-    id="tasks"
-    class="VuetifyApp"
-    flat>
-    <v-container white pa-0>
-      <v-layout
-        row
-        mx-3
-        class="white">
-        <v-flex
-          d-flex
-          xs12>
-          <v-layout
-            row
-            mx-0
-            align-center>
-            <v-flex
-              d-flex
-              xs12>
-              <v-flex class="d-flex my-2">
-                <div class="d-flex align-center">
-                  <a
-                    class="body-1 text-uppercase color-title px-0"
-                    @click="navigateTo('tasks/myTasks','ALL')">
-                    {{ $t('label.tasks.header') }}
-                  </a>
-                </div>
-                <v-spacer />
-                <v-btn
-                  :title="$t('label.addTask')"
-                  icon
-                  text
-                  @click="openTaskDrawer">
-                  <v-icon>mdi-plus</v-icon>
-                </v-btn>
-              </v-flex>
-            </v-flex>
-          </v-layout>
-        </v-flex>
-        <v-flex
-          :class="tasks.length > 0"
-          d-flex
-          xs12>
-          <v-layout
-            row
-            mx-0>
-            <v-flex
-              xs12>
-              <div v-if="tasks.length > 0">
-                <div v-if="tasksOverdueSize > 0">
-                  <div class="nameGroup">
-                    <span class="nameGroup">{{ $t('label.overdue') }}</span>
-                    <div class="amount-item pointer" @click="navigateTo('tasks/myTasks','OVERDUE')">{{ tasksOverdueSize }}</div>
-                    <hr
-                      role="separator"
-                      aria-orientation="horizontal"
-                      class="v-divider theme&#45;&#45;light separator">
-                  </div>
-                  <div
-                    v-for="taskItem in tasksOverdueList"
-                    :key="taskItem.id"
-                    class="list-item">
-                    <task-details :task="taskItem" @removeTask="removeTask" />
-                  </div>
-                </div>
-                <div v-if="tasksTodaySize > 0">
-                  <div class="nameGroup">
-                    <span class="nameGroup">{{ $t('label.today') }}</span>
-                    <div class="amount-item pointer" @click="navigateTo('tasks/myTasks','TODAY')">{{ tasksTodaySize }}</div>
-                    <hr
-                      role="separator"
-                      aria-orientation="horizontal"
-                      class="v-divider theme&#45;&#45;light separator">
-                  </div>
-
-                  <div
-                    v-for="taskItem in tasksTodayList"
-                    :key="taskItem.id"
-                    class="list-item">
-                    <task-details :task="taskItem" @removeTask="removeTask" />
-                  </div>
-                </div>
-
-                <div v-if="tasksTomorrowSize > 0">
-                  <div class="nameGroup">
-                    <span class="nameGroup">{{ $t('label.tomorrow') }}</span>
-                    <div class="amount-item pointer" @click="navigateTo('tasks/myTasks','TOMORROW')">{{ tasksTomorrowSize }}</div>
-                    <hr
-                      role="separator"
-                      aria-orientation="horizontal"
-                      class="v-divider theme&#45;&#45;light separator">
-                  </div>
-
-                  <div
-                    v-for="taskItem in tasksTomorrowList"
-                    :key="taskItem.id"
-                    class="list-item">
-                    <task-details :task="taskItem" @removeTask="removeTask" />
-                  </div>
-                </div>
-
-                <div v-if="tasksUpcomingSize > 0">
-                  <div class="nameGroup">
-                    <span class="nameGroup">{{ $t('label.upcoming') }}</span>
-                    <div class="amount-item pointer" @click="navigateTo('tasks/myTasks','UPCOMING')">{{ tasksUpcomingSize }}</div>
-                    <hr
-                      role="separator"
-                      aria-orientation="horizontal"
-                      class="v-divider theme&#45;&#45;light separator">
-                  </div>
-
-                  <div
-                    v-for="taskItem in tasksUpcomingList"
-                    :key="taskItem.id"
-                    class="list-item">
-                    <task-details :task="taskItem" @removeTask="removeTask" />
-                  </div>
-                </div>
-
-                <div class="text-center">
-                  <button
-                    type="button"
-                    class="btn color-title btn-show"
-                    @click="navigateTo('tasks/myTasks','ALL')">
-                    {{ $t('label.tasks.btn.show') }}
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="!loadingTasks && tasks.length===0" class="noTasks">
-                <div class="noTasksContent">
-                  <i class="uiNoTaskIcon"></i>
-                  <div class="noTasksTitle">{{ $t('label.noTask') }}</div>
-                </div>
-              </div>
-            </v-flex>
-          </v-layout>
-        </v-flex>
-      </v-layout>
-      <task-drawer
-        ref="taskDrawer"
-        :task="task" />
-    </v-container>
+  <v-app>
+    <widget-wrapper :loading="loadingTasks">
+      <template #title>
+        <a 
+          class="widget-text-header text-truncate" 
+          @click="navigateTo('tasks/myTasks','ALL')">{{ $t('label.tasks.header') }}</a>
+      </template>
+      <template v-if="tasksSize" #action>
+        <v-btn
+          :title="$t('label.addTask')"
+          icon
+          text
+          @click="openTaskDrawer">
+          <v-icon>mdi-plus</v-icon>
+        </v-btn>
+      </template>
+      <div v-if="tasksSize">
+        <div v-if="tasksOverdueList.length > 0">
+          <div class="d-flex align-center">
+            <span class="me-2 subtitle-1">{{ $t('label.overdue') }}</span>
+            <v-divider />
+          </div>
+          <task-details
+            v-for="taskItem in tasksOverdueList"
+            :key="taskItem.id"
+            :task="taskItem"
+            class="px-0"
+            is-outdated
+            @removeTask="removeTask" />
+        </div>
+        <div v-if="tasksTodayList.length > 0" :class="tasksOverdueList.length > 0 && 'mt-5' || ''">
+          <div class="d-flex align-center">
+            <span class="me-2 subtitle-1">{{ $t('label.today') }}</span>
+            <v-divider />
+          </div>
+          <task-details
+            v-for="taskItem in tasksTodayList"
+            :key="taskItem.id"
+            :task="taskItem"
+            class="px-0"
+            @removeTask="removeTask" />
+        </div>
+        <div v-if="tasksTomorrowList.length > 0" :class="tasksTodayList.length > 0 && 'mt-5' || ''">
+          <div class="d-flex align-center">
+            <span class="me-2 subtitle-1">{{ $t('label.tomorrow') }}</span>
+            <v-divider />
+          </div>
+          <task-details
+            v-for="taskItem in tasksTomorrowList"
+            :key="taskItem.id"
+            :task="taskItem"
+            class="px-0"
+            @removeTask="removeTask" />
+        </div>
+        <div v-if="tasksUpcomingList.length > 0" :class="tasksTomorrowList.length > 0 && 'mt-5' || ''">
+          <div class="d-flex align-center">
+            <span class="me-2 subtitle-1">{{ $t('label.upcoming') }}</span>
+            <v-divider />
+          </div>
+          <task-details
+            v-for="taskItem in tasksUpcomingList"
+            :key="taskItem.id"
+            :task="taskItem"
+            class="px-0"
+            @removeTask="removeTask" />
+        </div>
+      </div>
+      <v-card 
+        v-else
+        min-height="188"
+        flat>
+        <task-empty-row v-if="displayPlaceholder" @open-task-drawer="openTaskDrawer" />
+      </v-card>
+    </widget-wrapper>
+    <task-drawer
+      ref="taskDrawer"
+      :task="task" />
   </v-app>
 </template>
 
@@ -182,7 +116,6 @@ export default {
       primaryFilterSelected: 'ALL',
       loadingTasks: true,
       TasksWithoutUpcomingSize: '',
-      TasksSize: '',
       task: {
         id: null,
         status: {project: this.project},
@@ -192,46 +125,74 @@ export default {
       },
       priorityStatus: ['High', 'In Normal', 'Low', 'None', null],
     };
-  },computed: {
+  },
+  computed: {
+    tasksSize() {
+      return this.tasks?.length;
+    },
+    displayPlaceholder() {
+      return !this.tasksSize && !this.loadingTasks;
+    },
     tasksOverdueList(){
       if (this.tasksOverdue){
-        if (this.tasksOverdueSize>10){
-          return  this.tasksOverdue.slice(0, 10);
+        if (!this.tasksToday && !this.tasksTomorrow && !this.tasksUpcoming) {
+          if (this.tasksOverdueSize>6){
+            return  this.tasksOverdue.slice(0, 6);
+          } else {
+            return this.tasksOverdue;
+          }
         } else {
-          return this.tasksOverdue;
+          return this.tasksOverdue.slice(0, 2);
         }
       }
-      else {return this.tasksOverdue;}
+      else {return [];}
     },
     tasksTodayList(){
       if (this.tasksToday){
-        if (this.tasksTodaySize && this.tasksOverdueSize<11){
-          return  this.tasksToday.slice(0, 10-this.tasksOverdueSize);
+        if (!this.tasksOverdue && !this.tasksTomorrow && !this.tasksUpcoming) {
+          if (this.tasksTodaySize>6){
+            return  this.tasksOverdue.slice(0, 6);
+          } else {
+            return this.tasksToday;
+          }
         } else {
-          return '';
+          return this.tasksToday.slice(0, 2);
         }
-      } else {return this.tasksToday.slice(0, 0);}
+      } else {return [];}
 
     },
     tasksTomorrowList(){
       if (this.tasksTomorrow){
-        if (this.tasksTomorrowSize && this.tasksOverdueSize+this.tasksTodaySize<11){
-          return  this.tasksTomorrow.slice(0, 10-this.tasksOverdueSize-this.tasksTodaySize);
+        if (!this.tasksOverdue && !this.tasksToday && !this.tasksUpcoming) {
+          if (this.tasksTomorrowSize>6){
+            return  this.tasksTomorrow.slice(0, 6);
+          } else {
+            return this.tasksTomorrow;
+          }
         } else {
-          return '';
+          return this.tasksTomorrow.slice(0, 2);
         }
-      } else {return this.tasksTomorrow.slice(0, 0);}
+      } else {return [];}
     },
     tasksUpcomingList(){
       if (this.tasksUpcoming){
-        if (this.tasksUpcomingSize && this.tasksOverdueSize+this.tasksTodaySize+this.tasksTomorrowSize<11){
-          return  this.tasksUpcoming.slice(0, 10-this.tasksOverdueSize-this.tasksTodaySize-this.tasksTomorrowSize);
+        if (!this.tasksOverdue && !this.tasksToday && !this.tasksTomorrow) {
+          if (this.tasksUpcomingSize>6){
+            return  this.tasksUpcoming.slice(0, 6);
+          } else {
+            return this.tasksUpcoming;
+          }
+        } else {
+          if (this.tasksOverdueSize > 0 && this.tasksTodaySize > 0  && this.tasksTomorrowSize > 0 ) {
+            return [];
+          } else {
+            return this.tasksUpcoming.slice(0, 2);
+          }
         }
-      } else {return this.tasksUpcoming.slice(0, 0);}
-      return '';
+      } else {return [];}
     },
   },
-  created(){
+  mounted(){
     this.$root.$on('task-updated',task => {
       this.task=task;
     });
@@ -254,7 +215,10 @@ export default {
       this.getMyTodayTasks(),
       this.getMyTomorrowTasks(),
       this.getMyUpcomingTasks()
-    ]).finally(() => this.$root.$applicationLoaded());
+    ]).finally(() => {
+      this.$root.$applicationLoaded();
+      this.loadingTasks = false;
+    });
   },
   methods: {
     getMyOverDueTasks() {
@@ -272,9 +236,8 @@ export default {
           });
           this.tasksOverdueSize=data.tasksNumber;
           this.tasks = this.tasks.concat(this.tasksOverdue);
-          this.loadingTasks = false;
-        }
-      );
+          
+        });
     },
     getMyTodayTasks() {
       const task = {
@@ -291,9 +254,7 @@ export default {
           });
           this.tasksTodaySize=data.tasksNumber;
           this.tasks = this.tasks.concat(this.tasksToday);
-          this.loadingTasks = false;
-        }
-      );
+        });
     },
     getMyTomorrowTasks() {
       const task = {
@@ -310,9 +271,7 @@ export default {
           });
           this.tasksTomorrowSize=data.tasksNumber;
           this.tasks = this.tasks.concat(this.tasksTomorrow);
-          this.loadingTasks = false;
-        }
-      );
+        });
     },
     getMyUpcomingTasks() {
       const task = {
@@ -328,9 +287,7 @@ export default {
           });
           this.tasksUpcomingSize=data.tasksNumber;
           this.tasks = this.tasks.concat(this.tasksUpcoming);
-          this.loadingTasks = false;
-        }
-      );
+        });
     },
     openTaskDrawer() {
       const defaultTask={

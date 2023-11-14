@@ -16,10 +16,12 @@
  */
 import TasksApp from './components/TasksApp.vue';
 import TaskDetails from './components/TaskDetails.vue';
+import TaskEmptyRow from './components/TaskEmptyRow.vue';
 
 const components = {
   'my-tasks-app': TasksApp,
   'task-details': TaskDetails,
+  'task-empty-row': TaskEmptyRow,
 };
 
 for (const key in components) {
