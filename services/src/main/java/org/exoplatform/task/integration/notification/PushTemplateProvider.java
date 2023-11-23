@@ -60,6 +60,8 @@ import org.exoplatform.social.core.identity.model.Profile;
     @TemplateConfig(pluginId = TaskEditionPlugin.ID, template = "war:/notification/templates/push/TaskEditionPlugin.gtmpl") })
 public class PushTemplateProvider extends TemplateProvider {
 
+  public static final String EXTERNAL_LABEL_TAG = "external.label.tag";
+
   public PushTemplateProvider(InitParams initParams) {
     super(initParams);
     this.templateBuilders.put(PluginKey.key(TaskAssignPlugin.ID), new TemplateBuilder());
@@ -120,7 +122,7 @@ public class PushTemplateProvider extends TemplateProvider {
       Profile profile = identity.getProfile();
       String fullName = profile.getFullName();
       if(CommentUtil.isExternal(identity.getRemoteId())) {
-        fullName += " " + "(" + TaskUtil.getResourceBundleLabel(new Locale(TaskUtil.getUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
+        fullName += " " + "(" + TaskUtil.getResourceBundleLabel(new Locale(TaskUtil.getUserLanguage(identity.getRemoteId())), EXTERNAL_LABEL_TAG) + ")";
       }
       templateContext.put("USER", encoder.encode(fullName));
       templateContext.put("AVATAR", profile.getAvatarUrl() != null ? profile.getAvatarUrl() : LinkProvider.PROFILE_DEFAULT_AVATAR_URL);
@@ -147,7 +149,7 @@ public class PushTemplateProvider extends TemplateProvider {
       //binding the exception throws by processing template
       ctx.setException(templateContext.getException());
       MessageInfo messageInfo = new MessageInfo();
-      return messageInfo.body(body).end();
+      return messageInfo.body(body).subject(taskUrl).end();
     }
 
     @Override
@@ -221,7 +223,7 @@ public class PushTemplateProvider extends TemplateProvider {
       Profile lastUser = identity.getProfile();
       String fullName = lastUser.getFullName();
       if(CommentUtil.isExternal(identity.getRemoteId())) {
-        fullName += " " + "(" + TaskUtil.getResourceBundleLabel(new Locale(TaskUtil.getUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
+        fullName += " " + "(" + TaskUtil.getResourceBundleLabel(new Locale(TaskUtil.getUserLanguage(identity.getRemoteId())), EXTERNAL_LABEL_TAG) + ")";
       }
       templateContext.put("AVATAR", lastUser.getAvatarUrl() != null ? lastUser.getAvatarUrl() : LinkProvider.PROFILE_DEFAULT_AVATAR_URL);
       templateContext.put("USER", encoder.encode(fullName));
@@ -232,7 +234,7 @@ public class PushTemplateProvider extends TemplateProvider {
         Profile lastUser2 = identity.getProfile();
         String fullName2 = lastUser2.getFullName();
         if(CommentUtil.isExternal(identity.getRemoteId())) {
-          fullName2 += " " + "(" + TaskUtil.getResourceBundleLabel(new Locale(TaskUtil.getUserLanguage(identity.getRemoteId())), "external.label.tag") + ")";
+          fullName2 += " " + "(" + TaskUtil.getResourceBundleLabel(new Locale(TaskUtil.getUserLanguage(identity.getRemoteId())), EXTERNAL_LABEL_TAG) + ")";
         }
         templateContext.put("USER2", encoder.encode(fullName2));
         templateContext.put("PROFILE_URL2", LinkProviderUtils.getRedirectUrl("user", (String)lastUser2.getProperty(Profile.USERNAME)));
@@ -259,7 +261,7 @@ public class PushTemplateProvider extends TemplateProvider {
       //binding the exception throws by processing template
       ctx.setException(templateContext.getException());
       MessageInfo messageInfo = new MessageInfo();
-      return messageInfo.body(body).end();
+      return messageInfo.body(body).subject(taskUrl).end();
     }
 
     @Override
