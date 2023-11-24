@@ -19,7 +19,6 @@
     <v-list-item 
       :style="taskBorderColor" 
       class="py-0 ps-2 pe-0 border-radius"
-      :class="isHidden && 'hidden' || ''"
       @click="openTaskDrawer">
       <v-list-item-content class="py-0">
         <v-list-item-title 
@@ -78,8 +77,7 @@ export default {
   data() {
     return {
       drawer: false,
-      currentTask: null,
-      isCompleted: false
+      currentTask: null
     };
   },
   computed: {
@@ -87,7 +85,7 @@ export default {
       return this.currentTask?.task?.title;
     },
     dueDate() {
-      return this.currentTask?.dueDate && this.dateFormatter(this.currentTask?.dueDate) || '';
+      return this.task?.dueDate && this.dateFormatter(this.task?.dueDate) || '';
     },
     commentCount() {
       return this.currentTask?.commentCount || 0;
@@ -125,7 +123,6 @@ export default {
       if (this.task.id === id) {
         this.currentTask.task.completed = value;
         if (this.currentTask.task.completed === true) {
-          this.isCompleted = true;
           this.$emit('update-task-completed', this.currentTask.task);
         }
       }
