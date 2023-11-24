@@ -43,7 +43,8 @@
             :task="taskItem"
             class="px-0"
             is-outdated
-            @removeTask="removeTask" />
+            @removeTask="removeTask"
+            @update-task-completed="removeCompletedTask(tasksOverdue, taskItem.id)" />
         </div>
         <div v-if="tasksTodayList.length > 0" :class="tasksOverdueList.length > 0 && 'mt-5' || ''">
           <div class="d-flex align-center">
@@ -55,7 +56,8 @@
             :key="taskItem.id"
             :task="taskItem"
             class="px-0"
-            @removeTask="removeTask" />
+            @removeTask="removeTask"
+            @update-task-completed="removeCompletedTask(tasksToday, taskItem.id)" />
         </div>
         <div v-if="tasksTomorrowList.length > 0" :class="tasksTodayList.length > 0 && 'mt-5' || ''">
           <div class="d-flex align-center">
@@ -67,7 +69,8 @@
             :key="taskItem.id"
             :task="taskItem"
             class="px-0"
-            @removeTask="removeTask" />
+            @removeTask="removeTask"
+            @update-task-completed="removeCompletedTask(tasksTomorrow, taskItem.id)" />
         </div>
         <div v-if="tasksUpcomingList.length > 0" :class="tasksTomorrowList.length > 0 && 'mt-5' || ''">
           <div class="d-flex align-center">
@@ -79,7 +82,8 @@
             :key="taskItem.id"
             :task="taskItem"
             class="px-0"
-            @removeTask="removeTask" />
+            @removeTask="removeTask"
+            @update-task-completed="removeCompletedTask(tasksUpcoming, taskItem.id)" />
         </div>
       </div>
       <v-card 
@@ -288,6 +292,13 @@ export default {
           this.tasksUpcomingSize=data.tasksNumber;
           this.tasks = this.tasks.concat(this.tasksUpcoming);
         });
+    },
+    removeCompletedTask(tasksList, taskId) {
+      if (tasksList && taskId) {
+        const taskIndex = tasksList.findIndex((task) => task.id = taskId);
+        tasksList.splice(taskIndex, 1);
+        this.removeTask(taskId);
+      }
     },
     openTaskDrawer() {
       const defaultTask={
