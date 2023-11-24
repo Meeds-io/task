@@ -24,13 +24,15 @@
         <v-list-item-title 
           class="d-flex flex justify-between align-center subtitle-2 mb-0 clickable">
           <span class="text-truncate">{{ title }}</span>
-          <v-spacer></v-spacer>
+          <v-spacer />
           <span :class="isOutdated && 'red--text' || ''">{{ dueDate }}</span>
         </v-list-item-title>
         <v-list-item-subtitle v-if="commentCount || labels" class="d-flex align-center mt-1">
           <div v-if="commentCount">
             <v-icon 
-              size="14">far fa-comment</v-icon>
+              size="14">
+              far fa-comment
+            </v-icon>
             <span>{{ commentCount }}</span>
           </div>
           <div v-if="labels" :class="commentCount && 'ps-3' || ''">
@@ -47,7 +49,9 @@
             </v-chip>
             <div v-else>
               <v-icon 
-                size="14">fas fa-tag</v-icon>
+                size="14">
+                fas fa-tag
+              </v-icon>
               <span>{{ labels }}</span>
             </div>
           </div>
@@ -73,35 +77,54 @@ export default {
   data() {
     return {
       drawer: false,
+      currentTask: null
     };
   },
   computed: {
     title() {
-      return this.task?.task?.title;
+      return this.currentTask?.task?.title;
     },
     dueDate() {
       return this.task?.dueDate && this.dateFormatter(this.task?.dueDate) || '';
     },
     commentCount() {
-      return this.task?.commentCount || 0;
+      return this.currentTask?.commentCount || 0;
     },
     taskBorderColor() {
-      return this.task?.task?.priority && `border-left: 5px solid ${this.getTaskPriorityColor(this.task.task.priority)}` || '';
+      return this.currentTask?.task?.priority && `border-left: 5px solid ${this.getTaskPriorityColor(this.currentTask.task.priority)}` || '';
     },
     labels() {
-      return this.task?.labels?.length;
+      return this.currentTask?.labels?.length;
     },
     labelName() {
-      return this.labels && this.task.labels[0].name;
+      return this.labels && this.currentTask.labels[0].name;
     },
     labelColor() {
-      return this.labels && this.task.labels[0].color;
+      return this.labels && this.currentTask.labels[0].color;
+    },
+    isHidden() {
+      return this.isCompleted;
     }
   },
   created() {
+    this.currentTask = this.task && JSON.parse(JSON.stringify(this.task)) || {};
     this.$root.$on('task-updated', task => {
-      if (this.task?.task?.id === task?.id) {
-        this.task.task = task;
+      if (this.currentTask?.task?.id === task?.id) {
+        this.currentTask.task = task;
+      }
+    });
+    this.$root.$on('update-task-comments',(value,id)=>{
+      this.updateTaskComments(value,id);
+    });
+    this.$root.$on('update-task-labels',(value,id)=>{
+      this.updateTaskLabels(value,id);
+    });
+    this.$root.$on('update-completed-task', (value, id) => {
+      if (this.task.id === id) {
+        this.currentTask.task.completed = value;
+        if (this.currentTask.task.completed === true) {
+          this.$emit('update-task-completed', this.currentTask.task);
+        }
       }
     });
   },
@@ -129,7 +152,17 @@ export default {
       }
     },
     openTaskDrawer() {
-      this.$root.$emit('open-task-drawer', this.task.task);
+      this.$root.$emit('open-task-drawer', this.currentTask.task);
+    },
+    updateTaskComments(value,id){
+      if (this.currentTask.id === id){
+        this.currentTask.commentCount=value;
+      }
+    },
+    updateTaskLabels(value,id){
+      if (this.currentTask.id === id){
+        this.currentTask.labels.push(value);
+      }
     },
   }
 };
