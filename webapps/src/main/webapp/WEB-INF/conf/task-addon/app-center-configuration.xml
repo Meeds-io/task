@@ -49,19 +49,17 @@
               <string>Tasks application</string>
             </field>
             <field name="permissions">
-              <collection type="java.util.ArrayList" item-type="java.lang.String">
+              <collection type="java.util.ArrayList"
+                item-type="java.lang.String">
                 <value>
                   <string>*:/platform/users</string>
                 </value>
-				<value>
+                <value>
                   <string>*:/platform/externals</string>
                 </value>
               </collection>
-			</field>
-            <field name="active">
-              <boolean>true</boolean>
             </field>
-            <field name="isMandatory">
+            <field name="active">
               <boolean>true</boolean>
             </field>
             <field name="isMobile">
