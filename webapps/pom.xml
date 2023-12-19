@@ -20,7 +20,7 @@
   <parent>
     <artifactId>task-management-parent</artifactId>
     <groupId>org.exoplatform.addons.task</groupId>
-    <version>3.6.x-meed-SNAPSHOT</version>
+    <version>3.6.0-meed-20231219</version>
   </parent>
   <artifactId>task-management-webapps</artifactId>
   <packaging>war</packaging>
