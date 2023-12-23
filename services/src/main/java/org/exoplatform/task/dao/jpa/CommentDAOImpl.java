@@ -23,7 +23,7 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.dao.CommentHandler;
 import org.exoplatform.task.domain.Comment;
 
-import javax.persistence.TypedQuery;
+import jakarta.persistence.TypedQuery;
 
 import java.util.Collections;
 import java.util.HashSet;
