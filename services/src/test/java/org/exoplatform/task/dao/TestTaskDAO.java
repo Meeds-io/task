@@ -29,7 +29,6 @@ import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.service.impl.TaskServiceImpl;
 import org.exoplatform.task.storage.ProjectStorage;
-import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
 import org.exoplatform.task.util.ListUtil;
@@ -654,7 +653,6 @@ public class TestTaskDAO extends AbstractTest {
     taskQuery.setProjectIds(Arrays.asList(project.getId()));
     
     ListAccess<Task> tasks = tDAO.findTasks(taskQuery);
-    System.out.println("****************************" + tasks.getSize());
 
 //    List<Status> statuses = tDAO.selectTaskField(taskQuery, "status");
 //    Assert.assertEquals(2, statuses.size());
@@ -761,11 +759,10 @@ public class TestTaskDAO extends AbstractTest {
     // Test GetWatchers of task
     Task task = newTaskInstance("Task ", "", null);
     Set<String> watchers = new HashSet<String>();
+    task = tDAO.create(task);
     tDAO.addWatcherToTask("john",task);
-    tDAO.create(task);
     //Add watcher to task
     tDAO.addWatcherToTask("marry",task);
-    tDAO.update(task);
 
     //Then Test getWatchersOfTask after adding a watcher
     Assert.assertEquals(2, tDAO.getWatchersOfTask(task).size());

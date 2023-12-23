@@ -19,7 +19,8 @@ package org.exoplatform.task.dao.jpa;
 import java.lang.reflect.Array;
 import java.util.List;
 
-import javax.persistence.TypedQuery;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TypedQuery;
 
 import org.exoplatform.commons.utils.ListAccess;
 
@@ -29,11 +30,11 @@ import org.exoplatform.commons.utils.ListAccess;
 public class JPAQueryListAccess<E> implements ListAccess<E> {
   private final Class<E> clazz;
   private final TypedQuery<Long> countQuery;
-  private final TypedQuery<E> selectQuery;
+  private final TypedQuery<?> selectQuery;
 
   private long size = -1;
 
-  public JPAQueryListAccess(Class<E> clazz, TypedQuery<Long> countQuery, TypedQuery<E> selectQuery) {
+  public JPAQueryListAccess(Class<E> clazz, TypedQuery<Long> countQuery, TypedQuery<?> selectQuery) {
     this.clazz = clazz;
     this.countQuery = countQuery;
     this.selectQuery = selectQuery;
@@ -47,14 +48,16 @@ public class JPAQueryListAccess<E> implements ListAccess<E> {
       // Load all
       selectQuery.setFirstResult(0).setMaxResults(Integer.MAX_VALUE);
     }
-    List<E> list = selectQuery.getResultList();
+    List<?> list = selectQuery.getResultList();
 
     E[] e = (E[])Array.newInstance(clazz, list.size());
     for (int i = 0; i < e.length; i++) {
       Object obj = list.get(i);
       E entity = null;
       if (clazz.isInstance(obj)) {
-        entity = (E)obj;
+        entity = (E) obj;
+      } else if (obj instanceof Tuple tuple){
+        entity = (E) tuple.get(0);
       } else if (obj instanceof Object[]){
         for (Object o : (Object[])obj) {
           if (clazz.isInstance(o)) {
