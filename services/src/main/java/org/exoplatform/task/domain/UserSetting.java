@@ -18,7 +18,7 @@ package org.exoplatform.task.domain;
 
 import org.exoplatform.commons.api.persistence.ExoEntity;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
 

@@ -18,26 +18,26 @@ package org.exoplatform.task.domain;
 
 import java.util.*;
 
-import javax.persistence.CascadeType;
-import javax.persistence.CollectionTable;
-import javax.persistence.Column;
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 
 import org.exoplatform.commons.api.persistence.ExoEntity;
 import org.exoplatform.task.dto.StatusDto;
@@ -49,105 +49,114 @@ import org.exoplatform.task.service.TaskBuilder;
 @Entity(name = "TaskTask")
 @ExoEntity
 @Table(name = "TASK_TASKS")
-@NamedQueries({
-    @NamedQuery(name = "Task.findByMemberships",
-        query = "SELECT ta FROM TaskTask ta LEFT JOIN ta.coworker coworkers " +
-            "WHERE ta.assignee = :userName " +
-            "OR ta.createdBy = :userName " +
-            "OR coworkers = :userName " +
-            "OR ta.status IN (SELECT st.id FROM TaskStatus st " +
-            "WHERE project IN " +
-            "(SELECT pr1.id FROM TaskProject pr1 LEFT JOIN pr1.manager managers WHERE managers IN :memberships) " +
-            "OR project IN " +
-            "(SELECT pr2.id FROM TaskProject pr2 LEFT JOIN pr2.participator participators " +
-            "WHERE participators IN :memberships) " +
-            ") "),
-    @NamedQuery(name = "Task.findTaskByProject",
-        query = "SELECT t FROM TaskTask t WHERE t.status.project.id = :projectId"),
-    @NamedQuery(name = "Task.findTaskByActivityId",
-        query = "SELECT t FROM TaskTask t WHERE t.activityId = :activityId"),
-    @NamedQuery(name = "Task.getCoworker",
-        query = "SELECT c FROM TaskTask t inner join t.coworker c WHERE t.id = :taskid"),
-    @NamedQuery(name = "Task.getWatcher",
-        query = "SELECT w FROM TaskTask t inner join t.watcher w WHERE t.id = :taskid"),
-    @NamedQuery(name = "Task.updateStatus",
-        query = "UPDATE TaskTask t SET t.status = :status_new WHERE t.status = :status_old"),
-    @NamedQuery(name = "Task.getTaskWithCoworkers",
-        query = "SELECT t FROM TaskTask t LEFT JOIN FETCH t.coworker c WHERE t.id = :taskid"),
-    @NamedQuery(name = "Task.getUncompletedTasks",
-        query = "SELECT ta FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND (ta.assignee = :userName " +
-                "OR :userName in (select co FROM ta.coworker co) " +
-                ")"),
-    @NamedQuery(name = "Task.countUncompletedTasks",
-        query = "SELECT COUNT(ta) FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND (ta.assignee = :userName " +
-                "OR :userName in (select co FROM ta.coworker co) " +
-                ")"),
-    @NamedQuery(name = "Task.getCollaboratedTasks",
-        query = "SELECT ta FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND :userName in (select co FROM ta.coworker co) "),
-    @NamedQuery(name = "Task.countCollaboratedTasks",
-        query = "SELECT COUNT(ta) FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND :userName in (select co FROM ta.coworker co) "),
+@NamedQuery(
+    name = "Task.findByMemberships",
+    query = """
+  SELECT ta FROM TaskTask ta
+  LEFT JOIN ta.coworker coworkers
+  WHERE ta.assignee = :userName
+  OR ta.createdBy = :userName
+  OR coworkers = :userName
+  OR ta.status.id IN (
+    SELECT st.id FROM TaskStatus st
+    INNER JOIN st.project project
+    WHERE project.id IN (
+      SELECT pr1.id FROM TaskProject pr1
+      LEFT JOIN pr1.manager managers
+      WHERE managers IN :memberships
+    )
+    OR project.id IN (
+      SELECT pr2.id FROM TaskProject pr2
+      LEFT JOIN pr2.participator participators
+      WHERE participators IN :memberships
+    )
+  )
+""")
+@NamedQuery(name = "Task.findTaskByProject",
+    query = "SELECT t FROM TaskTask t WHERE t.status.project.id = :projectId")
+@NamedQuery(name = "Task.findTaskByActivityId",
+    query = "SELECT t FROM TaskTask t WHERE t.activityId = :activityId")
+@NamedQuery(name = "Task.getCoworker",
+    query = "SELECT c FROM TaskTask t inner join t.coworker c WHERE t.id = :taskid")
+@NamedQuery(name = "Task.getWatcher",
+    query = "SELECT w FROM TaskTask t inner join t.watcher w WHERE t.id = :taskid")
+@NamedQuery(name = "Task.updateStatus",
+    query = "UPDATE TaskTask t SET t.status = :status_new WHERE t.status = :status_old")
+@NamedQuery(name = "Task.getTaskWithCoworkers",
+    query = "SELECT t FROM TaskTask t LEFT JOIN FETCH t.coworker c WHERE t.id = :taskid")
+@NamedQuery(name = "Task.getUncompletedTasks",
+    query = "SELECT ta FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND (ta.assignee = :userName " +
+            "OR :userName in (select co FROM ta.coworker co) " +
+            ")")
+@NamedQuery(name = "Task.countUncompletedTasks",
+    query = "SELECT COUNT(ta) FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND (ta.assignee = :userName " +
+            "OR :userName in (select co FROM ta.coworker co) " +
+            ")")
+@NamedQuery(name = "Task.getCollaboratedTasks",
+    query = "SELECT ta FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND :userName in (select co FROM ta.coworker co) ")
+@NamedQuery(name = "Task.countCollaboratedTasks",
+    query = "SELECT COUNT(ta) FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND :userName in (select co FROM ta.coworker co) ")
 
-   @NamedQuery(name = "Task.getAssignedTasks",
-        query = "SELECT ta FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND ta.assignee = :userName "),
+ @NamedQuery(name = "Task.getAssignedTasks",
+    query = "SELECT ta FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND ta.assignee = :userName ")
 
-   @NamedQuery(name = "Task.countAssignedTasks",
-        query = "SELECT COUNT(ta)  FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND ta.assignee = :userName "),
+ @NamedQuery(name = "Task.countAssignedTasks",
+    query = "SELECT COUNT(ta)  FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND ta.assignee = :userName ")
 
-   @NamedQuery(name = "Task.getWatchedTasks",
-        query = "SELECT ta FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND :userName in (select wa FROM ta.watcher wa) "),
+ @NamedQuery(name = "Task.getWatchedTasks",
+    query = "SELECT ta FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND :userName in (select wa FROM ta.watcher wa) ")
 
-   @NamedQuery(name = "Task.countWatchedTasks",
-        query = "SELECT COUNT(ta)  FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND :userName in (select wa FROM ta.watcher wa) "),
+ @NamedQuery(name = "Task.countWatchedTasks",
+    query = "SELECT COUNT(ta)  FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND :userName in (select wa FROM ta.watcher wa) ")
 
-    @NamedQuery(name = "Task.getOverdueTasks",
-        query = "SELECT ta FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND ta.dueDate < CURDATE() " +
-                "AND (ta.assignee = :userName " +
-                "OR :userName in (select co FROM ta.coworker co) " +
-                ")"),
-    @NamedQuery(name = "Task.countOverdueTasks",
-        query = "SELECT COUNT(ta) FROM TaskTask ta " +
-                "WHERE ta.completed = false " +
-                "AND ta.dueDate < CURDATE() " +
-                "AND (ta.assignee = :userName " +
-                "OR :userName in (select co FROM ta.coworker co) " +
-                ")"),
-    @NamedQuery(
-        name = "Task.findTasks",
-        query = "SELECT ta FROM TaskTask ta " +
-            "WHERE (ta.assignee = :userName OR ta.createdBy = :userName OR :userName in (select co FROM ta.coworker co) OR (SELECT participator FROM TaskProject p LEFT JOIN p.participator participator where p.id = ta.status.project.id) IN (:memberships) ) " +
-            "AND (lower(ta.title) LIKE lower(:term)  OR lower(ta.description) LIKE :term) " +
-            "ORDER BY ta.createdTime DESC"
-    ),
-    @NamedQuery(
-        name = "Task.countTasks",
-        query = "SELECT COUNT(ta) FROM TaskTask ta " +
-            "WHERE (ta.assignee = :userName OR ta.createdBy = :userName OR :userName in (select co FROM ta.coworker co)) " +
-            "AND (lower(ta.title) LIKE lower(:term)  OR lower(ta.description) LIKE :term) "
-    ),
-        @NamedQuery(name = "Task.countTaskStatusByProject",
-                query = "SELECT m.status.name AS name, COUNT(m) AS total FROM TaskTask AS m where m.status.project.id = :projectId GROUP BY m.status.name ORDER BY m.status.name ASC"),
+@NamedQuery(name = "Task.getOverdueTasks",
+    query = "SELECT ta FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND ta.dueDate < CURDATE() " +
+            "AND (ta.assignee = :userName " +
+            "OR :userName in (select co FROM ta.coworker co) " +
+            ")")
+@NamedQuery(name = "Task.countOverdueTasks",
+    query = "SELECT COUNT(ta) FROM TaskTask ta " +
+            "WHERE ta.completed = false " +
+            "AND ta.dueDate < CURDATE() " +
+            "AND (ta.assignee = :userName " +
+            "OR :userName in (select co FROM ta.coworker co) " +
+            ")")
+@NamedQuery(
+    name = "Task.findTasks",
+    query = "SELECT ta FROM TaskTask ta " +
+        "WHERE (ta.assignee = :userName OR ta.createdBy = :userName OR :userName in (select co FROM ta.coworker co) OR (SELECT participator FROM TaskProject p LEFT JOIN p.participator participator where p.id = ta.status.project.id) IN (:memberships) ) " +
+        "AND (lower(ta.title) LIKE lower(:term)  OR lower(ta.description) LIKE :term) " +
+        "ORDER BY ta.createdTime DESC"
+)
+@NamedQuery(
+    name = "Task.countTasks",
+    query = "SELECT COUNT(ta) FROM TaskTask ta " +
+        "WHERE (ta.assignee = :userName OR ta.createdBy = :userName OR :userName in (select co FROM ta.coworker co)) " +
+        "AND (lower(ta.title) LIKE lower(:term)  OR lower(ta.description) LIKE :term) "
+)
+@NamedQuery(name = "Task.countTaskStatusByProject",
+        query = "SELECT m.status.name AS name, COUNT(m) AS total FROM TaskTask AS m where m.status.project.id = :projectId GROUP BY m.status.name ORDER BY m.status.name ASC")
 
-        @NamedQuery(name = "Task.getByStatus",
-                query = "SELECT t FROM TaskTask t  WHERE t.status.id = :statusid")
-})
+@NamedQuery(name = "Task.getByStatus",
+        query = "SELECT t FROM TaskTask t  WHERE t.status.id = :statusid")
 public class Task {
 
   public static final String PREFIX_CLONE = "Copy of ";
