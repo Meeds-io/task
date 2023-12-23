@@ -61,10 +61,9 @@ public class ProjectQuery extends Query {
 
   public ProjectQuery setParent(Long parentId) {
     if (parentId != null && parentId > 0) {
-      this.add(Conditions.eq(Conditions.PARENT, parentId));
+      this.add(Conditions.eq(Conditions.PARENT_ID, parentId));
     } else {
-      this.add(Conditions.or(Conditions.eq(Conditions.PARENT, 0L),
-        Conditions.isNull(Conditions.PARENT)));
+      this.add(Conditions.isNull(Conditions.PARENT));
     }
     return this;
   }

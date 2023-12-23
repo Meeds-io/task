@@ -18,16 +18,17 @@
  */
 package org.exoplatform.task.integration;
 
-import liquibase.repackaged.org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.attachment.AttachmentPlugin;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.TaskService;
-import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.util.TaskUtil;
 
 

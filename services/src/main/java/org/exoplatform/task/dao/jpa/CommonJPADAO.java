@@ -16,18 +16,19 @@
  */
 package org.exoplatform.task.dao.jpa;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Expression;
-import javax.persistence.criteria.Join;
-import javax.persistence.criteria.JoinType;
-import javax.persistence.criteria.Order;
-import javax.persistence.criteria.Path;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
-import javax.persistence.criteria.Selection;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Selection;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -92,7 +93,7 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
               getCache().put(name, CommentDAOImpl.class);
             }
           }
-          if (c.getName().equals(CommentDAOImpl.class.getName())) {
+          if (CommentDAOImpl.class.isAssignableFrom(c)) {
             return null;
           }
           return c;
@@ -100,8 +101,7 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
       });
       EntityManager em = getEntityManager();
       CriteriaBuilder cb = em.getCriteriaBuilder();
-      CriteriaQuery q = cb.createQuery();
-      q.distinct(true);
+      CriteriaQuery<Tuple> q = cb.createTupleQuery();
       Root<E> root = q.from(clazz);
       
       Predicate predicate = buildQuery(query.getCondition(), root, cb, q);
@@ -109,24 +109,20 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
         q.where(predicate);
       }
       
-      //
-      q.select(cb.countDistinct(root));
-      final TypedQuery<Long> countQuery = em.createQuery(q);
-
       // Some RDBMS only allow sort by selected field
       // So we need multi-selection here to add the selectCase into selection in case we need the null value at last of results
-      List<Selection> selections = new ArrayList<>();
+      List<Selection<?>> selections = new ArrayList<>();
       selections.add(root);
       
       List<OrderBy> orderby = query.getOrderBy();
       if(orderby != null && !orderby.isEmpty()) {
-        List<Order> orders = new ArrayList<Order>(orderby.size());
+        List<Order> orders = new ArrayList<>(orderby.size());
         for(OrderBy orderBy : orderby) {
-          Expression p = root.get(orderBy.getFieldName());
+          Expression<?> p = root.get(orderBy.getFieldName());
           Order order;
           if (orderBy.isAscending()) {
             // NULL value should be at last when order by
-            Expression nullCase = cb.selectCase().when(p.isNull(), 1).otherwise(0);
+            Expression<?> nullCase = cb.selectCase().when(p.isNull(), 1).otherwise(0);
             selections.add(nullCase);
             orders.add(cb.asc(nullCase));
 
@@ -142,11 +138,24 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
       //
       q.multiselect(selections).distinct(true);
       
-      TypedQuery<E> selectQuery = em.createQuery(q);      
-      return new JPAQueryListAccess<E>(clazz, countQuery, selectQuery);
+      TypedQuery<Tuple> selectQuery = em.createQuery(q);      
+      final TypedQuery<Long> countQuery = buildCountQuery(em, query, clazz);
+      return new JPAQueryListAccess<>(clazz, countQuery, selectQuery);
     } finally {
       Thread.currentThread().setContextClassLoader(cl);
     }
+  }
+  
+  protected TypedQuery<Long> buildCountQuery(EntityManager em, Query query, Class<E> clazz) {
+    CriteriaBuilder cb = em.getCriteriaBuilder();
+    CriteriaQuery<Long> q = cb.createQuery(Long.class);
+    Root<E> root = q.from(clazz);
+    Predicate predicate = buildQuery(query.getCondition(), root, cb, q);
+    if (predicate != null) {
+      q.where(predicate);
+    }
+    q.select(cb.countDistinct(root));
+    return em.createQuery(q);
   }
   
   protected Predicate buildQuery(Condition condition, Root<E> root, CriteriaBuilder cb, CriteriaQuery query) {
