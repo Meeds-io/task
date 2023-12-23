@@ -18,8 +18,6 @@ package org.exoplatform.task;
 
 import java.sql.SQLException;
 
-import liquibase.exception.LiquibaseException;
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;

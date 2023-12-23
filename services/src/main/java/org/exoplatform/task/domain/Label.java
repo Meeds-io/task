@@ -16,7 +16,7 @@
  */
 package org.exoplatform.task.domain;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -28,16 +28,14 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @Entity(name = "TaskLabel")
 @ExoEntity
 @Table(name = "TASK_LABELS")
-@NamedQueries({  
-  @NamedQuery(name = "Label.findLabelsByTask",
-      query = "SELECT lbl FROM TaskLabel lbl inner join lbl.lblMapping m WHERE lbl.project.id = :projectId AND m.task.id = :taskid ORDER BY lbl.id"),
-      @NamedQuery(name = "Label.findLabelsByTaskCount",
-      query = "SELECT count(*) FROM TaskLabel lbl inner join lbl.lblMapping m WHERE lbl.project.id = :projectId AND m.task.id = :taskid"),
-  @NamedQuery(name = "Label.findLabelsByProject",
-      query = "SELECT lbl FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id"),
-      @NamedQuery(name = "Label.findLabelsByProjectCount",
-      query = "SELECT count(*) FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id")
-})
+@NamedQuery(name = "Label.findLabelsByTask",
+  query = "SELECT lbl FROM TaskLabel lbl inner join lbl.lblMapping m WHERE lbl.project.id = :projectId AND m.task.id = :taskid ORDER BY lbl.id")
+@NamedQuery(name = "Label.findLabelsByTaskCount",
+  query = "SELECT count(*) FROM TaskLabel lbl inner join lbl.lblMapping m WHERE lbl.project.id = :projectId AND m.task.id = :taskid")
+@NamedQuery(name = "Label.findLabelsByProject",
+  query = "SELECT lbl FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id")
+@NamedQuery(name = "Label.findLabelsByProjectCount",
+  query = "SELECT count(*) FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id")
 public class Label {
   @Id
   @SequenceGenerator(name="SEQ_TASK_LABELS_LABEL_ID", sequenceName="SEQ_TASK_LABELS_LABEL_ID", allocationSize = 1)
@@ -63,11 +61,11 @@ public class Label {
   private Label parent;
 
   @OneToMany(mappedBy = "parent", fetch = FetchType.LAZY)
-  private List<Label> children = new LinkedList<Label>();
+  private List<Label> children = new LinkedList<>();
   
   //Still use for named query
   @OneToMany(mappedBy = "label", fetch=FetchType.LAZY)
-  private Set<LabelTaskMapping> lblMapping = new HashSet<LabelTaskMapping>();
+  private Set<LabelTaskMapping> lblMapping = new HashSet<>();
 
   @ManyToOne
   @JoinColumn(name = "PROJECT_ID")
@@ -78,7 +76,6 @@ public class Label {
 
   public Label(String name, String username, Project project) {
     this.name = name;
-    this.username = username;
     this.username = username;
     this.project = project;
   }
