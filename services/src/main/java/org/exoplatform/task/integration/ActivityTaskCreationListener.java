@@ -16,7 +16,7 @@
  */
 package org.exoplatform.task.integration;
 
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.exoplatform.social.core.activity.ActivityLifeCycleEvent;
 import org.exoplatform.social.core.activity.ActivityListenerPlugin;
 import org.exoplatform.social.core.activity.model.ActivityStream;
@@ -109,7 +109,7 @@ public class ActivityTaskCreationListener extends ActivityListenerPlugin {
         ParserContext context = new ParserContext(userService.getUserTimezone(identity.getRemoteId()));
 
         comment = ActivityTaskProcessor.decode(comment);
-        comment = StringEscapeUtils.unescapeHtml(comment);
+        comment = StringEscapeUtils.unescapeHtml4(comment);
 
         TaskDto taskInfo = extractTaskInfo(comment);
 

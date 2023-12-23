@@ -170,15 +170,15 @@ public class TaskQuery extends Query implements Cloneable {
   public void setAccessible(Identity user) {
     this.assignee = Arrays.asList(user.getUserId());
     List<String> memberships = UserUtil.getMemberships(user);
-    this.add(Conditions.or(eq(TASK_ASSIGNEE, assignee), eq(TASK_COWORKER, assignee), eq(TASK_CREATOR, assignee),
+    this.add(Conditions.or(eq(TASK_ASSIGNEE, user.getUserId()), in(TASK_COWORKER, assignee), eq(TASK_CREATOR, user.getUserId()),
                            in(TASK_MANAGER, memberships), in(TASK_PARTICIPATOR, memberships),
-                           in(TASK_MENTIONED_USERS, Arrays.asList(user.getUserId()))));
+                           in(TASK_MENTIONED_USERS, this.assignee)));
   }
 
   public void setAssigneeOrCoworkerOrInProject(String username, List<Long> projectIds) {
     this.assignee = Arrays.asList(username);
     this.projectIds = projectIds;
-    this.add(Conditions.or(eq(TASK_ASSIGNEE, username), eq(TASK_COWORKER, username), in(TASK_PROJECT, projectIds)));
+    this.add(Conditions.or(eq(TASK_ASSIGNEE, username), in(TASK_COWORKER, Collections.singletonList(username)), in(TASK_PROJECT, projectIds)));
   }
 
   public void setStatusName(String statusName) {
@@ -207,20 +207,20 @@ public class TaskQuery extends Query implements Cloneable {
 
   public void setIsIncomingOf(String username) {
     add(and(Conditions.or(
-            eq(TASK_ASSIGNEE, username), eq(TASK_COWORKER, username), eq(TASK_CREATOR, username),
-            in(TASK_MENTIONED_USERS, Arrays.asList(username))),
+            eq(TASK_ASSIGNEE, username), in(TASK_COWORKER, Collections.singletonList(username)), eq(TASK_CREATOR, username),
+            in(TASK_MENTIONED_USERS, Collections.singletonList(username))),
             isNull(TASK_STATUS)));
   }
 
   public void setIsTodoOf(String username) {
     //setAssignee(Arrays.asList(username));
     //add(eq(TASK_ASSIGNEE, username));
-    this.add(Conditions.or(eq(TASK_ASSIGNEE, username), eq(TASK_COWORKER, username), in(TASK_MENTIONED_USERS, Arrays.asList(username))));
+    this.add(Conditions.or(eq(TASK_ASSIGNEE, username), in(TASK_COWORKER, Collections.singletonList(username)), in(TASK_MENTIONED_USERS, Arrays.asList(username))));
     this.assignee = Arrays.asList(username);
   }
 
   public void setAssigneeIsTodoOf(String username) {
-    this.add(Conditions.or(eq(TASK_ASSIGNEE, username), eq(TASK_COWORKER, username)));
+    this.add(Conditions.or(eq(TASK_ASSIGNEE, username), in(TASK_COWORKER, Collections.singletonList(username))));
   }
 
   public void setLabelIds(List<Long> labelIds) {

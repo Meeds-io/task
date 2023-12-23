@@ -39,7 +39,7 @@ public class TestLabelDAO extends AbstractTest {
   public void setup() {
     PortalContainer container = PortalContainer.getInstance();
     
-    taskService = (DAOHandler) container.getComponentInstanceOfType(DAOHandler.class);
+    taskService = container.getComponentInstanceOfType(DAOHandler.class);
     lblDAO = taskService.getLabelHandler();
   }
 
