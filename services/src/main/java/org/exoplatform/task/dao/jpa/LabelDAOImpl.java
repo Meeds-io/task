@@ -16,8 +16,8 @@
  */
 package org.exoplatform.task.dao.jpa;
 
-import javax.persistence.Query;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.Query;
+import jakarta.persistence.TypedQuery;
 
 import java.util.List;
 

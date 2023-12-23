@@ -21,7 +21,7 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.task.util.ProjectUtil;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 import java.util.*;
 

@@ -24,15 +24,15 @@ import static org.exoplatform.task.dao.condition.Conditions.TASK_PROJECT;
 
 import java.util.*;
 
-import javax.persistence.*;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Join;
-import javax.persistence.criteria.JoinType;
-import javax.persistence.criteria.Order;
-import javax.persistence.criteria.Path;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
+import jakarta.persistence.*;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
@@ -323,7 +323,7 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
     Join join = null;
     Path path = null;
     if (TASK_PROJECT.equals(condition.getField())) {
-      path = root.join("status", JoinType.LEFT).get("project");
+      path = root.join("status", JoinType.LEFT).get("project").get("id");
     } else if (TASK_MANAGER.equals(condition.getField())) {
         path = root.join("status", JoinType.LEFT).join("project", JoinType.LEFT).join("manager", JoinType.LEFT);
     } else if (TASK_PARTICIPATOR.equals(condition.getField())) {
@@ -486,9 +486,9 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
     public void addWatcherToTask(String username, Task task) throws Exception {
         Set<String> watchers = getWatchersOfTask(task);
         if (watchers != null && !watchers.contains(username)) {
-            watchers.add(username);
-            task.setWatcher(watchers);
-            update(task);
+          watchers.add(username);
+          task.setWatcher(watchers);
+          update(task);
         }
     }
 
