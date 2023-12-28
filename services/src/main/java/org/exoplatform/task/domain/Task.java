@@ -128,14 +128,14 @@ import org.exoplatform.task.service.TaskBuilder;
 @NamedQuery(name = "Task.getOverdueTasks",
     query = "SELECT ta FROM TaskTask ta " +
             "WHERE ta.completed = false " +
-            "AND ta.dueDate < CURDATE() " +
+            "AND ta.dueDate < CURRENT_DATE " +
             "AND (ta.assignee = :userName " +
             "OR :userName in (select co FROM ta.coworker co) " +
             ")")
 @NamedQuery(name = "Task.countOverdueTasks",
     query = "SELECT COUNT(ta) FROM TaskTask ta " +
             "WHERE ta.completed = false " +
-            "AND ta.dueDate < CURDATE() " +
+            "AND ta.dueDate < CURRENT_DATE " +
             "AND (ta.assignee = :userName " +
             "OR :userName in (select co FROM ta.coworker co) " +
             ")")
