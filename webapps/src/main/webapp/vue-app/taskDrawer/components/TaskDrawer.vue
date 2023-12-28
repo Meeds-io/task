@@ -31,6 +31,7 @@
       class="taskDrawer"
       body-classes="hide-scroll decrease-z-index-more"
       right
+      allow-expand
       @closed="onCloseDrawer">
       <template
         v-if="drawer && task?.id"
