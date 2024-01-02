@@ -33,8 +33,16 @@
     <div
       v-if="(!tasks || !tasks.length) && !loadingTasks && !filterActive"
       class="noTasksProject">
-      <div class="noTasksProjectIcon"><i class="uiIcon uiIconTask"></i></div>
-      <div class="noTasksProjectLabel"><span>{{ $t('label.noTask') }}</span></div>
+      <v-icon size="60" class="primary--text mb-3">fas fa-tasks</v-icon>
+      <p class="text-header-title font-weight-regular mb-3">{{ $t('label.tasks.welcome') }}</p>
+      <p class="text-header-title font-weight-regular">{{ $t('label.noTask.today') }}</p>
+      <v-btn
+        class="btn btn-primary my-4"
+        @click="openTaskDrawer">
+        <span class="mx-2 text-capitalize-first-letter subtitle-1">
+          {{ $t('label.task.add') }}
+        </span>
+      </v-btn>
     </div>
     <div v-else>
       <div v-if="filterActive && filterTaskQueryResult && filterTaskQueryResult.projectName" class="px-0 pt-8 pb-4">
@@ -499,6 +507,16 @@ export default {
           this.tasks = data.tasks;
         }
       });
+    },
+    openTaskDrawer() {
+      const defaultTask = {
+        id: null,
+        status: {project: this.project},
+        priority: 'NONE',
+        description: '',
+        title: ''
+      };
+      this.$root.$emit('open-task-drawer', defaultTask);
     },
   }
 };
