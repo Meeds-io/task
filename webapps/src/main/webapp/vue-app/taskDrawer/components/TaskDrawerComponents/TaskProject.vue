@@ -114,7 +114,7 @@ export default {
   created() {
     this.getProjects();
     $(document).on('mousedown', () => {
-      if (this.$refs.select.isMenuActive) {
+      if (this.$refs.select && this.$refs.select.isMenuActive) {
         window.setTimeout(() => {
           this.$refs.select.isMenuActive = false;
         }, 200);
