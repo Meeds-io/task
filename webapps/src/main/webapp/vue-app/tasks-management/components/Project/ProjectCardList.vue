@@ -150,6 +150,7 @@ export default {
         .finally(() => {
           this.loadingProjects = false;
           this.$root.$applicationLoaded();
+          this.$emit('display-projects-toolbar', this.projects.length > 0 );
         });
     },
     resetSearch() {

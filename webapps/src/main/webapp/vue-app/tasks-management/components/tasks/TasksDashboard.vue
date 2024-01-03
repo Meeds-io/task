@@ -19,17 +19,6 @@
     id="tasksListApplication"
     class="projectAndTasksContainer transparent pa-4"
     flat>
-    <tasks-list-toolbar
-      ref="taskToolBar"
-      :task-card-tab="'#tasks-cards'"
-      :task-list-tab="'#tasks-list'"
-      :keyword="keyword"
-      :show-completed-tasks="showCompletedTasks"
-      @keyword-changed="keywordChanged"
-      @filter-task-dashboard="filterTaskDashboard"
-      @filter-task-query="filterTaskQuery"
-      @primary-filter-task="getTasksByPrimary"
-      @reset-filter-task-dashboard="resetFilterTaskDashboard" />
     <div
       v-if="(!tasks || !tasks.length) && !loadingTasks && !filterActive"
       class="noTasksProject">
@@ -45,6 +34,17 @@
       </v-btn>
     </div>
     <div v-else>
+      <tasks-list-toolbar
+        ref="taskToolBar"
+        :task-card-tab="'#tasks-cards'"
+        :task-list-tab="'#tasks-list'"
+        :keyword="keyword"
+        :show-completed-tasks="showCompletedTasks"
+        @keyword-changed="keywordChanged"
+        @filter-task-dashboard="filterTaskDashboard"
+        @filter-task-query="filterTaskQuery"
+        @primary-filter-task="getTasksByPrimary"
+        @reset-filter-task-dashboard="resetFilterTaskDashboard" />
       <div v-if="filterActive && filterTaskQueryResult && filterTaskQueryResult.projectName" class="px-0 pt-8 pb-4">
         <div 
           v-for="(project,i) in filterTaskQueryResult.projectName" 
@@ -206,6 +206,7 @@ export default {
     },
   },
   created() {
+    this.getTasksByPrimary(this.primaryFilter);
     this.groupBy = localStorage.getItem('filterStorageNone+list') ?
       JSON.parse(localStorage.getItem('filterStorageNone+list')).groupBy : false;
 
