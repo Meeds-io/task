@@ -19,8 +19,16 @@
     <div
       v-if="(!projects || !projects.length) && !loadingProjects"
       class="noTasksProject">
-      <div class="noTasksProjectIcon"><i class="uiIcon uiIconClipboard"></i></div>
-      <div class="noTasksProjectLabel"><span>{{ $t('label.noProjects') }}</span></div>
+      <v-icon size="60" class="primary--text mb-3">fas fa-tasks</v-icon>
+      <p class="text-header-title font-weight-regular mb-3">{{ $t('label.tasks.welcome') }}</p>
+      <p class="text-header-title font-weight-regular">{{ $t('label.noTask.today') }}</p>
+      <v-btn
+        class="btn btn-primary my-4"
+        @click="$root.$emit('open-project-drawer', {})">
+        <span class="mx-2 text-capitalize-first-letter subtitle-1">
+          {{ $t('label.add.newProject') }}
+        </span>
+      </v-btn>
     </div>
     <div v-else>
       <v-card flat class="transparent">
@@ -142,6 +150,7 @@ export default {
         .finally(() => {
           this.loadingProjects = false;
           this.$root.$applicationLoaded();
+          this.$emit('display-projects-toolbar', this.projects.length > 0 );
         });
     },
     resetSearch() {
