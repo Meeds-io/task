@@ -21,6 +21,7 @@
     flat>
     <div v-show="!displayDetails">
       <project-list-toolbar
+        v-if="displayToolbar"
         :keyword="keyword"
         :project-filter-selected="projectFilterSelected"
         :space-name="spaceName"
@@ -30,7 +31,7 @@
         :keyword="keyword"
         :space-name="spaceName"
         :project-filter-selected="projectFilterSelected"
-        :loading-projects="loadingProjects" />
+        @display-projects-toolbar="displayProjectToolbar" />
     </div>
     <div v-show="displayDetails">
       <tasks-view-dashboard :project="project" />
@@ -54,7 +55,7 @@ export default {
     return {
       project: '',
       keyword: null,
-      loadingProjects: false,
+      displayToolbar: false,
       projectFilterSelected: 'ALL',
     };
   },
@@ -71,5 +72,10 @@ export default {
       this.displayDetails = false;
     });
   },
+  methods: {
+    displayProjectToolbar(event) {
+      this.displayToolbar = event;
+    }
+  }
 };
 </script>
