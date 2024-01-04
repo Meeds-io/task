@@ -17,10 +17,11 @@
 <template>
   <div v-if="hideGantt">
     <div class="noTasksProject">
-      <div class="noTasksProjectIcon"><i class="uiIcon uiIconTask"></i></div>
-      <div class="noTasksProjectLabel"><span>{{ $t('label.noTasks') }}</span></div>
+      <v-icon size="60" class="primary--text mb-3">fas fa-tasks</v-icon>
+      <p class="text-header-title font-weight-regular mb-3">{{ $t('label.tasks.welcome') }}</p>
+      <div class="text-header-title font-weight-regular mb-3"><span>{{ $t('label.noTasks') }}</span></div>
       <div class="addunscheduledTask">
-        <v-btn @click="$root.$emit('displayTasksUnscheduledDrawer', unscheduledTaskList)" text>
+        <v-btn @click="$root.$emit('displayTasksUnscheduledDrawer', unscheduledTaskList)" depressed>
           {{ $t('Unscheduled Tasks') }}
         </v-btn>
       </div>
