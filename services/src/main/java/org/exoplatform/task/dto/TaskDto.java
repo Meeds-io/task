@@ -16,69 +16,76 @@
  */
 package org.exoplatform.task.dto;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.exoplatform.task.domain.*;
 import java.io.Serializable;
-import java.util.*;
-import lombok.Data;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
+import org.exoplatform.task.domain.Priority;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
-@Getter
-@Setter
-public class TaskDto  implements Serializable {
-    private long        id;
-    private String      title;
-    private String      description;
-    private Priority priority;
-    private String      context;
-    private String      assignee;
-    private StatusDto status;
-    private int         rank;
-    private boolean completed;
-    private Set<String> coworker;
-    private Set<String> watcher;
-    private String      createdBy;
-    private Date createdTime;
-    private Date        startDate;
-    private Date        endDate;
-    private Date        dueDate;
-    private String activityId;
+@NoArgsConstructor
+@AllArgsConstructor
+public class TaskDto implements Serializable {
 
-    public TaskDto clone() {
-        Set<String> coworkerClone = new HashSet<String>();
-        Set<String> watcherClone = new HashSet<String>();
-        if (getCoworker() != null) {
-            coworkerClone = new HashSet<String>(getCoworker());
-        }
-        if (getWatcher() != null) {
-            watcherClone = new HashSet<String>(getWatcher());
-        }
-        TaskDto newTask = new TaskDto();
-        newTask.setTitle(this.getTitle());
-        newTask.setDescription(this.getDescription());
-        newTask.setPriority(this.getPriority());
-        newTask.setContext(this.getContext());
-        newTask.setAssignee(this.getAssignee());
-        newTask.setCoworker(coworkerClone);
-        newTask.setWatcher(watcherClone);
-        newTask.setStatus(this.getStatus() != null ? this.getStatus().clone() : null);
-        newTask.setRank(this.getRank());
-        newTask.setActivityId(this.getActivityId());
-        newTask.setCompleted(this.isCompleted());
-        newTask.setCreatedBy(this.getCreatedBy());
-        newTask.setCreatedTime(this.getCreatedTime());
-        newTask.setEndDate(this.getEndDate());
-        newTask.setStartDate(this.getStartDate());
-        newTask.setDueDate(this.getDueDate());
-        newTask.setCreatedTime(getCreatedTime());
-        newTask.setActivityId(getActivityId());
-        newTask.setCompleted(isCompleted());
-        newTask.setRank(getRank());
-        newTask.setId(getId());
+  private static final long serialVersionUID = -1137676834189711097L;
 
-        return newTask;
-    }
+  private long        id;
+
+  private String      title;
+
+  private String      description;
+
+  private Priority    priority;
+
+  private String      context;
+
+  private String      assignee;
+
+  private StatusDto   status;
+
+  private int         rank;
+
+  private boolean     completed;
+
+  private Set<String> coworker;
+
+  private Set<String> watcher;
+
+  private String      createdBy;
+
+  private Date        createdTime;
+
+  private Date        startDate;
+
+  private Date        endDate;
+
+  private Date        dueDate;
+
+  private String      activityId;
+
+  public TaskDto clone() { // NOSONAR
+    return new TaskDto(id,
+                       title,
+                       description,
+                       priority,
+                       context,
+                       assignee,
+                       status,
+                       rank,
+                       completed,
+                       coworker == null ? null : new HashSet<>(coworker),
+                       watcher == null ? null : new HashSet<>(watcher),
+                       createdBy,
+                       createdTime,
+                       startDate,
+                       endDate,
+                       dueDate,
+                       activityId);
+  }
 
 }

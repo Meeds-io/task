@@ -860,7 +860,7 @@ public class TaskRestService implements ResourceContainer {
     if (addedComment != null) {
       addedComment = commentService.getComment(addedComment.getId());
     }
-    CommentEntity commentEntity = new CommentEntity(addedComment, userService.loadUser(currentUser), CommentUtil.formatMention(commentText, TaskUtil.getUserLanguage(currentUser), userService));
+    CommentEntity commentEntity = new CommentEntity(addedComment, userService.loadUser(currentUser), CommentUtil.formatMention(commentText, TaskUtil.getUserLanguage(currentUser)));
     return Response.ok(commentEntity).build();
         } catch (Exception e) {
         LOG.error("Can't add Comment to Task {}", id, e);
@@ -898,7 +898,7 @@ public class TaskRestService implements ResourceContainer {
     if (addedComment != null) {
       addedComment = commentService.getComment(addedComment.getId());
     }
-    CommentEntity commentEntity = new CommentEntity(addedComment, userService.loadUser(currentUser), CommentUtil.formatMention(commentText, TaskUtil.getUserLanguage(currentUser), userService));
+    CommentEntity commentEntity = new CommentEntity(addedComment, userService.loadUser(currentUser), CommentUtil.formatMention(commentText, TaskUtil.getUserLanguage(currentUser)));
     return Response.ok(commentEntity).build();
         } catch (Exception e) {
         LOG.error("Can't add SubComment to Task {}", id, e);
@@ -996,7 +996,7 @@ public class TaskRestService implements ResourceContainer {
     if (taskStatus != null) {
       comment.getTask().setStatus(taskStatus.clone());// To be checked
     }
-    CommentEntity commentEntity = new CommentEntity(comment, user, CommentUtil.formatMention(comment.getComment(), lang, userService));
+    CommentEntity commentEntity = new CommentEntity(comment, user, CommentUtil.formatMention(comment.getComment(), lang));
     if (commentEntity.getSubComments() == null) {
       commentEntity.setSubComments(new ArrayList<>());
     }

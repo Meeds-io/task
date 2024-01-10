@@ -16,21 +16,15 @@
  */
 package org.exoplatform.task.util;
 
+import java.util.Locale;
+
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.commons.utils.CommonsUtils;
-import org.exoplatform.commons.utils.HTMLEntityEncoder;
-import org.exoplatform.container.ExoContainerContext;
-import org.exoplatform.portal.localization.LocaleContextInfoUtils;
-import org.exoplatform.services.resources.LocaleContextInfo;
-import org.exoplatform.services.resources.LocalePolicy;
-import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.task.model.User;
-import org.exoplatform.task.service.UserService;
-
-import java.util.Locale;
-import java.util.StringTokenizer;
+import org.exoplatform.social.core.utils.MentionUtils;
 
 /**
  * @author <a href="mailto:tuyennt@exoplatform.com">Tuyen Nguyen The</a>.
@@ -40,57 +34,12 @@ public final class CommentUtil {
   private CommentUtil() {
   }
 
-  public static String formatMention(String text,String lang, UserService userService) {
-    if (text == null || text.isEmpty()) {
+  public static String formatMention(String text, String lang) {
+    if (StringUtils.isBlank(text)) {
       return text;
     }
-    HTMLEntityEncoder encoder = HTMLEntityEncoder.getInstance();
-    StringBuilder sb = new StringBuilder();
-
-    StringTokenizer tokenizer = new StringTokenizer(text);
-    while (tokenizer.hasMoreElements()) {
-      String next = (String) tokenizer.nextElement();
-      if (next.length() == 0) {
-        continue;
-      } else if (next.charAt(0) == '@') {
-        String username = next.substring(1);
-        User user = userService.loadUser(username);
-        if (user != null && !"guest".equals(user.getUsername())) {
-          next = "<a href=\"" + CommonsUtils.getCurrentDomain() + user.getUrl() + "\">"
-              + encoder.encodeHTML(user.getDisplayName());
-          if(isExternal(username)){
-            next += "<span class=\" externalTagClass\">" + " (" + TaskUtil.getResourceBundleLabel(new Locale(lang), "external.label.tag") + ")</span>";
-          }
-          next += "</a>";
-        }
-      } else if (next.startsWith("<p>@")) {
-        String username = next.substring(4);
-        User user = userService.loadUser(username);
-        if (user != null && !"guest".equals(user.getUsername())) {
-          next = "<p><a href=\"" + CommonsUtils.getCurrentDomain() + user.getUrl() + "\">"
-              + encoder.encodeHTML(user.getDisplayName());
-          if(isExternal(username)){
-            next += "<span class=\" externalTagClass\">" + " (" + TaskUtil.getResourceBundleLabel(new Locale(lang), "external.label.tag") + ")</span>";
-          }
-          next += "</a>";
-        }
-      } else if (next.contains("@")) {
-        String username = next.split("@")[1];
-        User user = userService.loadUser(username);
-        if (user != null && !"guest".equals(user.getUsername())) {
-          next = next.split("@")[0] + "<a href=\"" + CommonsUtils.getCurrentDomain() + user.getUrl() + "\">"
-              + encoder.encodeHTML(user.getDisplayName());
-          if(isExternal(username)){
-            next += "<span class=\" externalTagClass\">" + " (" + TaskUtil.getResourceBundleLabel(new Locale(lang), "external.label.tag") + ")</span>";
-          }
-          next += "</a>";
-        }
-      }
-      sb.append(next);
-      sb.append(' ');
-    }
-
-    return StringUtil.encodeInjectedHtmlTag(sb.toString());
+    Locale locale = lang == null ? null : Locale.forLanguageTag(lang);
+    return MentionUtils.substituteUsernames(text, locale);
   }
 
   /**
