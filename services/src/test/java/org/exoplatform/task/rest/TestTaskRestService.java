@@ -729,7 +729,7 @@ public class TestTaskRestService {
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     CommentEntity commentModel = (CommentEntity) response.getEntity();
     assertNotNull(commentModel);
-    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("commentText", Locale.ENGLISH.getLanguage(), userService));
+    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("commentText", Locale.ENGLISH.getLanguage()));
 
     // Sending an empty comment
     response = taskRestService.addTaskComment("", 1);
@@ -740,7 +740,7 @@ public class TestTaskRestService {
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     commentModel = (CommentEntity) response.getEntity();
     assertNotNull(commentModel);
-    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("x <= 2", Locale.ENGLISH.getLanguage(), userService));
+    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("x <= 2", Locale.ENGLISH.getLanguage()));
 
     response = taskRestService.getTaskComments(3, 0, 1);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
@@ -816,14 +816,14 @@ public class TestTaskRestService {
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     CommentEntity commentModel = (CommentEntity) response.getEntity();
     assertNotNull(commentModel);
-    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("commentText", Locale.ENGLISH.getLanguage(), userService));
+    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("commentText", Locale.ENGLISH.getLanguage()));
 
     // Sending an encoded comment
     response = taskRestService.addTaskComment("x%20%3C%3D%202", 1);
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     commentModel = (CommentEntity) response.getEntity();
     assertNotNull(commentModel);
-    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("x <= 2", Locale.ENGLISH.getLanguage(), userService));
+    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("x <= 2", Locale.ENGLISH.getLanguage()));
 
     when(commentService.getComment(1)).thenReturn(null);
     response = taskRestService.deleteComment( 1);
@@ -872,7 +872,7 @@ public class TestTaskRestService {
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     CommentEntity commentModel = (CommentEntity) response.getEntity();
     assertNotNull(commentModel);
-    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("commentText", Locale.ENGLISH.getLanguage(), userService));
+    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("commentText", Locale.ENGLISH.getLanguage()));
 
     // Sending an empty subcomment
     response = taskRestService.addTaskSubComment("", 1, 1);
@@ -883,7 +883,7 @@ public class TestTaskRestService {
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     commentModel = (CommentEntity) response.getEntity();
     assertNotNull(commentModel);
-    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("x <= 2",Locale.ENGLISH.getLanguage(), userService));
+    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("x <= 2",Locale.ENGLISH.getLanguage()));
 
   }
 

@@ -24,18 +24,14 @@ import org.exoplatform.task.TestUtils;
 import org.exoplatform.task.dao.*;
 import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.dto.CommentDto;
-import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.dto.UserSettingDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
-import org.exoplatform.task.model.User;
 import org.exoplatform.task.service.impl.CommentServiceImpl;
-import org.exoplatform.task.service.impl.StatusServiceImpl;
 import org.exoplatform.task.storage.CommentStorage;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.CommentStorageImpl;
-import org.exoplatform.task.storage.impl.TaskStorageImpl;
 import org.exoplatform.task.util.StorageUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -44,7 +40,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Date;
 
@@ -95,15 +91,13 @@ public class CommentServiceTest {
   ArgumentCaptor<Comment> commentCaptor;
 
   @Before
-  public void setUp() throws EntityNotFoundException {
+  public void setUp() {
     // Make sure the container is started to prevent the ExoTransactional annotation
     // to fail
     PortalContainer.getInstance();
     PortalContainer.getInstance();
-    taskStorage = new TaskStorageImpl(daoHandler,userService,projectStorage);
     commentStorage = new CommentStorageImpl(daoHandler,projectStorage);
-    statusService = new StatusServiceImpl(daoHandler, statusStorage, projectStorage, listenerService);
-    commentService = new CommentServiceImpl(taskStorage, commentStorage, daoHandler, listenerService);
+    commentService = new CommentServiceImpl(commentStorage, listenerService);
     // Mock DAO handler to return Mocked DAO
     when(daoHandler.getCommentHandler()).thenReturn(commentHandler);
 
@@ -124,17 +118,6 @@ public class CommentServiceTest {
     verify(commentHandler, times(1)).create(commentCaptor.capture());
     Comment result = commentCaptor.getValue();
     assertEquals("Bla bla", result.getComment());
-  }
-
-  @Test
-  public void testCommentWithMention() throws EntityNotFoundException {
-    Comment comment = TestUtils.getDefaultCommentWithMention();
-    when(daoHandler.getCommentHandler().create(any())).thenReturn(comment);
-    commentService.addComment(StorageUtil.taskToDto(comment.getTask(), projectStorage), comment.
-            getAuthor(), comment.getComment());
-    verify(commentHandler, times(1)).create(commentCaptor.capture());
-    Comment result = commentCaptor.getValue();
-    assertEquals(true, result.getMentionedUsers().contains("testa"));
   }
 
   @Test

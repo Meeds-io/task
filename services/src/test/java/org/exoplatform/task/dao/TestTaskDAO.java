@@ -300,49 +300,6 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   @Test
-  public void testFindTaskByMentionedUser() throws Exception {
-    Task task = newTaskInstance("testTask", "task with label", username);
-    tDAO.create(task);
-
-    Comment comment = new Comment();
-    comment.setAuthor(username);
-    comment.setComment("test comment @mary test");
-    comment.setCreatedTime(new Date());
-    comment.setTask(task);
-    cDAO.create(comment);
-
-    TaskQuery query = new TaskQuery();
-    query.setIsTodoOf("mary");
-    ListAccess<Task> tasks = tDAO.findTasks(query);
-    Assert.assertEquals(1, tasks.getSize());
-    //
-    query = new TaskQuery();
-    query.setIsIncomingOf("mary");
-    tasks = tDAO.findTasks(query);
-    Assert.assertEquals(1, tasks.getSize());
-
-    Task task2 = newTaskInstance("testTask2", "task with label", "mary");
-    tDAO.create(task2);
-    //
-    query = new TaskQuery();
-    query.setIsTodoOf("mary");
-    tasks = tDAO.findTasks(query);
-    Assert.assertEquals(2, tasks.getSize());
-    //
-    query = new TaskQuery();
-    query.setIsIncomingOf("mary");
-    tasks = tDAO.findTasks(query);
-    Assert.assertEquals(2, tasks.getSize());
-
-    query = new TaskQuery();
-    query.setIsTodoOf(username);
-    tasks = tDAO.findTasks(query);
-    Assert.assertEquals(1, tasks.getSize());
-
-
-  }
-
-  @Test
   public void testFindTaskByMembership() {
     Project project = new Project();
     project.setName("Project1");
