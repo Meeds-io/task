@@ -252,7 +252,7 @@ public class TaskRestService implements ResourceContainer {
     }
 
     Long statusIdLong = null;
-    if (org.apache.commons.lang.StringUtils.isNotBlank(statusId)) {
+    if (org.apache.commons.lang3.StringUtils.isNotBlank(statusId)) {
       StatusDto statusDto = statusService.getStatus(Long.parseLong(statusId));
       if (statusDto == null || !statusDto.getProject().canView(currIdentity)) {
         return Response.status(Response.Status.NOT_FOUND).build();

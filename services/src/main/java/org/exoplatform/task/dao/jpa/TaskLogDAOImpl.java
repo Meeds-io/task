@@ -20,7 +20,7 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.dao.TaskLogHandler;
 import org.exoplatform.task.domain.ChangeLog;
 
-import javax.persistence.TypedQuery;
+import jakarta.persistence.TypedQuery;
 
 /**
  * @author <a href="mailto:tuyennt@exoplatform.com">Tuyen Nguyen The</a>.

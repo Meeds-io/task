@@ -35,7 +35,7 @@ public class Conditions {
   public static String TASK_STATUS = "status";
   public static String TASK_STATUS_NAME = "status.name";
   public static String TASK_DUEDATE = "dueDate";
-  public static String TASK_PROJECT = "status.project";
+  public static String TASK_PROJECT = "status.project.id";
   public static String TASK_LABEL_USERNAME = "lblMapping.label.username";
   public static String TASK_LABEL_ID = "lblMapping.label.id";
   public static String TASK_COMPLETED = "completed";
@@ -49,6 +49,7 @@ public class Conditions {
   public static final String PARTICIPATOR = "participator";
   public static final String NAME = "name";
   public static final String PARENT = "parent";
+  public static final String PARENT_ID = "parent.id";
   public static final String USERNAME = "username";  
   public static final String LABEL_TASK_ID = "lblMapping.task.id";
 
