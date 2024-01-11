@@ -3,7 +3,8 @@
     "eslint-config-meedsio"
   ],
   "globals": {
-    "echarts": true
+    "echarts": true,
+    "ExtendedDomPurify": true
   },
   "rules": {
     "vue/no-mutating-props": "warn"

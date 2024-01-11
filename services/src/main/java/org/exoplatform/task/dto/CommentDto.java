@@ -23,9 +23,11 @@ import org.exoplatform.task.domain.Task;
 import java.io.Serializable;
 import java.util.*;
 
-
 @Data
 public class CommentDto implements Serializable {
+
+    private static final long serialVersionUID = 8506789057343074059L;
+
     private long id;
 
     private String author;
