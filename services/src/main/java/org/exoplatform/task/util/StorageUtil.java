@@ -16,18 +16,27 @@
  */
 package org.exoplatform.task.util;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.commons.utils.HTMLSanitizer;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.space.model.Space;
+import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.social.core.utils.MentionUtils;
 import org.exoplatform.task.domain.*;
 import org.exoplatform.task.dto.*;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.storage.ProjectStorage;
-import org.exoplatform.task.storage.impl.TaskStorageImpl;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public final class StorageUtil{
@@ -297,14 +306,17 @@ public final class StorageUtil{
         if(commentDto==null){
             return null;
         }
-        Comment comment = new Comment();
-        comment.setId(commentDto.getId());
-        comment.setAuthor(commentDto.getAuthor());
-        comment.setComment(commentDto.getComment());
-        if (commentDto.getParentComment()!=null) comment.setParentComment(commentToEntity(commentDto.getParentComment()));
-        comment.setCreatedTime(commentDto.getCreatedTime());
-        comment.setTask(taskToEntity(commentDto.getTask()));
-        return comment;
+        Comment commentEntity = new Comment();
+        commentEntity.setId(commentDto.getId());
+        commentEntity.setAuthor(commentDto.getAuthor());
+        commentEntity.setComment(commentDto.getComment());
+        if (commentDto.getParentComment()!=null) commentEntity.setParentComment(commentToEntity(commentDto.getParentComment()));
+        commentEntity.setCreatedTime(commentDto.getCreatedTime());
+
+        TaskDto task = commentDto.getTask();
+        commentEntity.setTask(taskToEntity(task));
+        commentEntity.setMentionedUsers(processMentions(task, commentDto.getComment()));
+        return commentEntity;
     }
 
     public static CommentDto commentToDto(Comment comment, ProjectStorage projectStorage) {
@@ -335,6 +347,55 @@ public final class StorageUtil{
         return commentDtos.stream()
                 .filter(Objects::nonNull)
                 .map(StorageUtil::commentToEntity)
-                .collect(Collectors.toList());
+                .toList();
+    }
+
+    /**
+     * Processes Mentioners who has been mentioned via the Activity.
+     * 
+     * @param space
+     * @param message
+     */
+    private static Set<String> processMentions(TaskDto task, String message) {
+      Set<String> mentions = new HashSet<>();
+      mentions.addAll(MentionUtils.getMentionedUsernames(message));
+
+      if (task != null
+          && task.getStatus() != null
+          && task.getStatus().getProject() != null) {
+        Space space = getProjectSpace(task.getStatus().getProject());
+        if (space != null) {
+          org.exoplatform.social.core.identity.model.Identity spaceIdentity =
+                                                                            ExoContainerContext.getService(IdentityManager.class)
+                                                                                               .getOrCreateSpaceIdentity(space.getPrettyName());
+          String spaceIdentityId = spaceIdentity == null ? null : spaceIdentity.getId();
+          Set<String> mentionedRoles = MentionUtils.getMentionedRoles(message, spaceIdentityId);
+          mentionedRoles.forEach(role -> {
+            if (StringUtils.equals("member", role) && space.getMembers() != null) {
+              mentions.addAll(Arrays.asList(space.getMembers()));
+            } else if (StringUtils.equals("manager", role) && space.getManagers() != null) {
+              mentions.addAll(Arrays.asList(space.getManagers()));
+            } else if (StringUtils.equals("redactor", role) && space.getRedactors() != null) {
+              mentions.addAll(Arrays.asList(space.getRedactors()));
+            } else if (StringUtils.equals("publisher", role) && space.getPublishers() != null) {
+              mentions.addAll(Arrays.asList(space.getPublishers()));
+            }
+          });
+        }
+      }
+      return mentions;
+    }
+
+    private static Space getProjectSpace(ProjectDto project) {
+      SpaceService spaceService = ExoContainerContext.getService(SpaceService.class);
+      Space space = null;
+      for (String permission : project.getManager()) {
+        int index = permission.indexOf(':');
+        if (index > -1) {
+          String groupId = permission.substring(index + 1);
+          space = spaceService.getSpaceByGroupId(groupId);
+        }
+      }
+      return space;
     }
 }

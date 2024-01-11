@@ -323,6 +323,12 @@
       <as>editor</as>
     </depends>
     <depends>
+      <module>purifyVue</module>
+    </depends>
+    <depends>
+      <module>ExtendedDomPurify</module>
+    </depends>
+    <depends>
       <module>jquery</module>
       <as>$</as>
     </depends>
@@ -364,6 +370,9 @@
       </script>
       <depends>
         <module>taskCommentsDrawer</module>
+      </depends>
+      <depends>
+        <module>ExtendedDomPurify</module>
       </depends>
       <depends>
         <module>commonVueComponents</module>

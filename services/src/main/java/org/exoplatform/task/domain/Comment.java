@@ -32,53 +32,58 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
 @ExoEntity
 @Table(name = "TASK_COMMENTS")
 @NamedQueries({
-    @NamedQuery(name = "Comment.countCommentOfTask",
-        query = "SELECT count(c) FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL"),
-    @NamedQuery(name = "Comment.findCommentsOfTask",
-        query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL ORDER BY c.createdTime DESC"),
-    @NamedQuery(name = "Comment.findSubCommentsOfComments",
-      query = "SELECT c FROM TaskComment c WHERE c.parentComment IN (:comments) ORDER BY c.createdTime ASC"),
-    @NamedQuery(name = "Comment.deleteCommentOfTask",
-        query = "DELETE FROM TaskComment c WHERE c.task.id = :taskId"),
-    @NamedQuery(name = "Comment.findMentionedUsersOfTask",
-                query = "SELECT m FROM TaskComment c INNER JOIN c.mentionedUsers m WHERE c.task.id = :taskId")
+                @NamedQuery(name = "Comment.countCommentOfTask",
+                    query = "SELECT count(c) FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL"),
+                @NamedQuery(name = "Comment.findCommentsOfTask",
+                    query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL ORDER BY c.createdTime DESC"),
+                @NamedQuery(name = "Comment.findSubCommentsOfComments",
+                    query = "SELECT c FROM TaskComment c WHERE c.parentComment IN (:comments) ORDER BY c.createdTime ASC"),
+                @NamedQuery(name = "Comment.deleteCommentOfTask",
+                    query = "DELETE FROM TaskComment c WHERE c.task.id = :taskId"),
+                @NamedQuery(name = "Comment.findMentionedUsersOfTask",
+                    query = "SELECT m FROM TaskComment c INNER JOIN c.mentionedUsers m WHERE c.task.id = :taskId")
 })
 public class Comment {
 
-  private static final Pattern pattern = Pattern.compile("@([^\\s]+)|@([^\\s]+)$");
+  private static final Pattern pattern        = Pattern.compile("@([^\\s]+)|@([^\\s]+)$");
 
   @Id
-  @SequenceGenerator(name="SEQ_TASK_COMMENTS_COMMENT_ID", sequenceName="SEQ_TASK_COMMENTS_COMMENT_ID", allocationSize = 1)
-  @GeneratedValue(strategy=GenerationType.AUTO, generator="SEQ_TASK_COMMENTS_COMMENT_ID")
+  @SequenceGenerator(name = "SEQ_TASK_COMMENTS_COMMENT_ID",
+      sequenceName = "SEQ_TASK_COMMENTS_COMMENT_ID",
+      allocationSize = 1)
+  @GeneratedValue(strategy = GenerationType.AUTO,
+      generator = "SEQ_TASK_COMMENTS_COMMENT_ID")
   @Column(name = "COMMENT_ID")
-  private long id;
+  private long                 id;
 
   @Column(name = "AUTHOR")
-  private String author;
+  private String               author;
 
   @Column(name = "CMT")
-  private String comment;
+  private String               comment;
 
   @Temporal(TemporalType.TIMESTAMP)
   @Column(name = "CREATED_TIME")
-  private Date createdTime;
+  private Date                 createdTime;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "TASK_ID")
-  private Task task;
+  private Task                 task;
 
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "PARENT_COMMENT_ID")
-  private Comment       parentComment;
+  private Comment              parentComment;
 
-  @OneToMany(cascade = CascadeType.REMOVE, mappedBy = "parentComment", fetch = FetchType.LAZY)
-  private List<Comment> subComments = new ArrayList<Comment>();
+  @OneToMany(cascade = CascadeType.REMOVE,
+      mappedBy = "parentComment",
+      fetch = FetchType.LAZY)
+  private List<Comment>        subComments    = new ArrayList<Comment>();
 
   @ElementCollection(fetch = FetchType.LAZY)
   @CollectionTable(name = "TASK_COMMENT_MENTIONED_USERS",
-          joinColumns = @JoinColumn(name = "COMMENT_ID"))
+      joinColumns = @JoinColumn(name = "COMMENT_ID"))
   @Column(name = "MENTIONED_USERS")
-  private Set<String> mentionedUsers = new HashSet<>();
+  private Set<String>          mentionedUsers = new HashSet<>();
 
   public long getId() {
     return id;
@@ -102,33 +107,14 @@ public class Comment {
 
   public void setComment(String comment) {
     this.comment = comment;
-    
-    this.parseMentionedUsers(comment);
+  }
+
+  public void setMentionedUsers(Set<String> mentionedUsers) {
+    this.mentionedUsers = mentionedUsers;
   }
 
   public Set<String> getMentionedUsers() {
     return mentionedUsers.stream().collect(Collectors.toSet());
-  }
-
-  private void parseMentionedUsers(String comment) {
-    Set<String> ment = new HashSet<>();
-
-    if (comment != null && !comment.isEmpty()) {
-      Matcher matcher = pattern.matcher(comment);
-
-      // Replace all occurrences of pattern in input
-      StringBuffer buf = new StringBuffer();
-      while (matcher.find()) {
-        // Get the match result
-        String username = matcher.group().substring(1);
-        if (username == null || username.isEmpty()) {
-          continue;
-        }
-        ment.add(username.trim());
-      }
-    }
-
-    this.mentionedUsers = ment;
   }
 
   public Date getCreatedTime() {
@@ -174,6 +160,7 @@ public class Comment {
     c.setId(getId());
     c.setAuthor(getAuthor());
     c.setComment(getComment());
+    c.setMentionedUsers(new HashSet<>(getMentionedUsers()));
     c.setCreatedTime(getCreatedTime());
     c.setTask(getTask().clone());
     return c;
