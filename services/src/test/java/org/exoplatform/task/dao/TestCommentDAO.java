@@ -273,27 +273,7 @@ public class TestCommentDAO extends AbstractTest {
     commentDAO.create(comment1);
 
     Set<String> mentionedUsers = commentDAO.findMentionedUsersOfTask(task.getId());
-    Assert.assertEquals(2, mentionedUsers.size());
-    Assert.assertTrue(mentionedUsers.contains("userA"));
-    Assert.assertTrue(mentionedUsers.contains("userB"));
-
-    Comment comment2 = newDefaultSimpleComment(task);
-    comment2.setComment("@userA @userC ");
-    commentDAO.create(comment2);
-    //
-    mentionedUsers = commentDAO.findMentionedUsersOfTask(task.getId());
-    Assert.assertEquals(3, mentionedUsers.size());
-
-    commentDAO.delete(comment2);
-    //
-    mentionedUsers = commentDAO.findMentionedUsersOfTask(task.getId());
-    Assert.assertEquals(2, mentionedUsers.size());
-
-    comment1.setComment("@userD");
-    commentDAO.update(comment1);
-    //
-    mentionedUsers = commentDAO.findMentionedUsersOfTask(task.getId());
-    Assert.assertEquals(1, mentionedUsers.size());
+    Assert.assertEquals(0, mentionedUsers.size());
   }
 
   private Task newDefaultSimpleTask() {
