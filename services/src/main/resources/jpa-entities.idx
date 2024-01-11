@@ -1,0 +1,8 @@
+org.exoplatform.task.domain.Task
+org.exoplatform.task.domain.Status
+org.exoplatform.task.domain.UserSetting
+org.exoplatform.task.domain.Comment
+org.exoplatform.task.domain.Project
+org.exoplatform.task.domain.Label
+org.exoplatform.task.domain.LabelTaskMapping
+org.exoplatform.task.domain.ChangeLog

@@ -47,7 +47,7 @@
       </div>
 
       <div v-if="statistics" class="projectStatusNumber ps-4">
-          <p 
+        <p 
           v-for="(item , index) in statistics"
           :key="item.name" 
           class="d-flex justify-space-between mb-1"
@@ -56,9 +56,6 @@
           <span>{{ item.value }}</span>
         </p> 
       </div>
-
-     
-     
     </div>
     <div v-else class="noTasksProject">
       <div class="noTasksProjectIcon"><i class="uiIcon uiIconTask"></i></div>

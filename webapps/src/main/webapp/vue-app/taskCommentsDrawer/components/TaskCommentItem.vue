@@ -48,16 +48,17 @@
         </div>
       </div>
       <div class="commentBody d-block overflow-hidden ms-10 mt-1">
-        <div
-          v-if="comment?.formattedComment?.length"
+        <dynamic-html-element
+          v-if="bodyElement"
+          :child="bodyElement"
           class="taskContentComment reset-style-box rich-editor-content"
-          v-sanitized-html="comment.formattedComment"></div>
-         <attachments-image-items
-           v-if="comment.comment.id"
-           :object-id="comment.comment.id"
-           :preview-width="250"
-           :preview-height="250"
-           object-type="taskComment" />
+          dir="auto" />
+        <attachments-image-items
+          v-if="comment.comment.id"
+          :object-id="comment.comment.id"
+          :preview-width="250"
+          :preview-height="250"
+          object-type="taskComment" />
         <v-btn
           id="reply_btn"
           depressed
@@ -132,6 +133,11 @@ export default {
     },
     relativeTime() {
       return this.getRelativeTime(this.comment.comment.createdTime.time);
+    },
+    bodyElement() {
+      return this.comment?.formattedComment && {
+        template: ExtendedDomPurify.purify(`<div>${this.comment.formattedComment}</div>`) || '',
+      } || null;
     },
   },
   methods: {
