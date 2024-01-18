@@ -32,10 +32,11 @@
       </div>
     </div>
     <div class="commentBody d-block overflow-hidden ms-10 mt-1">
-      <div
-        v-if="comment?.formattedComment?.length"
+      <dynamic-html-element
+        v-if="bodyElement"
+        :child="bodyElement"
         class="taskContentComment reset-style-box rich-editor-content"
-        v-sanitized-html="comment.formattedComment"></div>
+        dir="auto" />
       <attachments-image-items
         v-if="comment.comment.id"
         :object-id="comment.comment.id"
@@ -99,6 +100,11 @@ export default {
     },
     id() {
       return `comment-${this.comment.comment.id}`;
+    },
+    bodyElement() {
+      return this.comment?.formattedComment && {
+        template: ExtendedDomPurify.purify(`<div>${this.comment.formattedComment}</div>`) || '',
+      } || null;
     },
   },
   methods: {
