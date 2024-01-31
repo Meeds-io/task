@@ -136,6 +136,7 @@ export default {
     this.$root.$on('hide-tasks-project', () => {
       $('a.v-tab').removeClass('v-tab--active');
       $('a.taskTabBoard').addClass('v-tab--active');
+      this.keyword = null ;
     });
   },
   methods: {
