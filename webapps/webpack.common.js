@@ -29,6 +29,7 @@ const config = {
     tasksManagement: './src/main/webapp/vue-app/tasks-management/main.js',
     taskCommentsDrawer: './src/main/webapp/vue-app/taskCommentsDrawer/main.js',
     engagementCenterExtensions: './src/main/webapp/vue-app/engagementCenterExtensions/extensions.js',
+    connectorEventExtensions: './src/main/webapp/vue-app/connectorEventExtensions/extensions.js',
     notificationExtension: './src/main/webapp/vue-app/notification-extension/main.js',
   },
   output: {
