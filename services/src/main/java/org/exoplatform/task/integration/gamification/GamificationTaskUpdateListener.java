@@ -1,10 +1,6 @@
 package org.exoplatform.task.integration.gamification;
 
-import static io.meeds.gamification.constant.GamificationConstant.EVENT_NAME;
-import static io.meeds.gamification.constant.GamificationConstant.OBJECT_ID_PARAM;
-import static io.meeds.gamification.constant.GamificationConstant.OBJECT_TYPE_PARAM;
-import static io.meeds.gamification.constant.GamificationConstant.RECEIVER_ID;
-import static io.meeds.gamification.constant.GamificationConstant.SENDER_ID;
+import static io.meeds.gamification.constant.GamificationConstant.*;
 import static io.meeds.gamification.listener.GamificationGenericListener.*;
 import static org.exoplatform.task.util.TaskUtil.*;
 
@@ -31,23 +27,13 @@ import org.exoplatform.task.service.TaskService;
 
 public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPayload> {
 
-  private static final Log LOG                = ExoLogger.getLogger(GamificationTaskUpdateListener.class);
+  private static final Log  LOG = ExoLogger.getLogger(GamificationTaskUpdateListener.class);
 
-  public static final String GAMIFICATION_TASK_ADDON_CREATE_TASK             = "createNewTask";
+  protected TaskService     taskService;
 
-  public static final String GAMIFICATION_TASK_ADDON_COMPLETED_TASK_ASSIGNED = "completeTaskAssigned";
+  protected IdentityManager identityManager;
 
-  public static final String GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER = "completeTaskCoworker";
-
-  public static final String GAMIFICATION_TASK_ADDON_COMPLETED_TASK          = "completeTask";
-
-  public static final String GAMIFICATION_TASK_ADDON_UPDATE_TASK             = "updateTask";
-
-  protected TaskService      taskService;
-
-  protected IdentityManager  identityManager;
-
-  protected ListenerService  listenerService;
+  protected ListenerService listenerService;
 
   public GamificationTaskUpdateListener(TaskService taskService,
                                         IdentityManager identityManager,
@@ -77,7 +63,8 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
     Map<String, String> gam = buildGamificationEventDetails(GAMIFICATION_TASK_ADDON_CREATE_TASK,
                                                             actorId,
                                                             actorId,
-                                                            String.valueOf(task.getId()));
+                                                            String.valueOf(task.getId()),
+                                                            buildEventDetails(task));
     listenerService.broadcast(getGamificationEventName(eventName), gam, String.valueOf(task.getId()));
   }
 
@@ -93,38 +80,45 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
                                     taskId,
                                     GAMIFICATION_TASK_ADDON_COMPLETED_TASK_ASSIGNED,
                                     taskLogs,
-                                    "assign");
+                                    "assign",
+                                    buildEventDetails(after));
       createGamificationRealization(GENERIC_EVENT_NAME,
                                     taskId,
                                     GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER,
                                     taskLogs,
-                                    "assignCoworker");
+                                    "assignCoworker",
+                                    buildEventDetails(after));
       Map<String, String> gam = buildGamificationEventDetails(GAMIFICATION_TASK_ADDON_COMPLETED_TASK,
                                                               actorId,
                                                               actorId,
-                                                              String.valueOf(taskId));
+                                                              String.valueOf(taskId),
+                                                              buildEventDetails(after));
       listenerService.broadcast(GENERIC_EVENT_NAME, gam, String.valueOf(taskId));
     } else if (before.isCompleted() && !after.isCompleted()) {
       createGamificationRealization(CANCEL_EVENT_NAME,
                                     taskId,
                                     GAMIFICATION_TASK_ADDON_COMPLETED_TASK_ASSIGNED,
                                     taskLogs,
-                                    "assign");
+                                    "assign",
+                                    buildEventDetails(after));
       createGamificationRealization(CANCEL_EVENT_NAME,
                                     taskId,
                                     GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER,
                                     taskLogs,
-                                    "assignCoworker");
+                                    "assignCoworker",
+                                    buildEventDetails(after));
       Map<String, String> gam = buildGamificationEventDetails(GAMIFICATION_TASK_ADDON_COMPLETED_TASK,
                                                               actorId,
                                                               actorId,
-                                                              String.valueOf(taskId));
+                                                              String.valueOf(taskId),
+                                                              buildEventDetails(after));
       listenerService.broadcast(CANCEL_EVENT_NAME, gam, String.valueOf(taskId));
     } else {
       Map<String, String> gam = buildGamificationEventDetails(GAMIFICATION_TASK_ADDON_UPDATE_TASK,
                                                               actorId,
                                                               actorId,
-                                                              String.valueOf(taskId));
+                                                              String.valueOf(taskId),
+                                                              buildEventDetails(after));
       listenerService.broadcast(getGamificationEventName(eventName), gam, String.valueOf(taskId));
     }
   }
@@ -133,15 +127,20 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
                                              long taskId,
                                              String eventName,
                                              List<ChangeLogEntry> taskLogs,
-                                             String taskLogName) {
+                                             String taskLogName,
+                                             String eventDetails) {
     Set<String> usernames = taskLogs.stream()
                                     .filter(taskLog -> StringUtils.equals(taskLogName, taskLog.getActionName()))
                                     .map(ChangeLogEntry::getTarget)
                                     .collect(Collectors.toSet());
-    createGamificationRealization(gamificationEventName, taskId, usernames, eventName);
+    createGamificationRealization(gamificationEventName, taskId, usernames, eventName, eventDetails);
   }
 
-  private void createGamificationRealization(String gamificationEventName, long taskId, Set<String> usernames, String eventName) {
+  private void createGamificationRealization(String gamificationEventName,
+                                             long taskId,
+                                             Set<String> usernames,
+                                             String eventName,
+                                             String eventDetails) {
     usernames.forEach(username -> {
       Identity identity = identityManager.getOrCreateUserIdentity(username);
       if (identity == null || !identity.isEnable() || identity.isDeleted()) {
@@ -150,7 +149,8 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
       Map<String, String> gam = buildGamificationEventDetails(eventName,
                                                               identity.getId(),
                                                               identity.getId(),
-                                                              String.valueOf(taskId));
+                                                              String.valueOf(taskId),
+                                                              eventDetails);
       try {
         listenerService.broadcast(gamificationEventName, gam, String.valueOf(taskId));
       } catch (Exception e) {
@@ -169,13 +169,20 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
   private Map<String, String> buildGamificationEventDetails(String gamificationEventName,
                                                             String earnerId,
                                                             String receiverId,
-                                                            String objectId) {
+                                                            String objectId,
+                                                            String eventDetails) {
     Map<String, String> gam = new HashMap<>();
     gam.put(EVENT_NAME, gamificationEventName);
     gam.put(OBJECT_ID_PARAM, objectId);
     gam.put(OBJECT_TYPE_PARAM, TASK_OBJECT_TYPE);
     gam.put(SENDER_ID, earnerId);
     gam.put(RECEIVER_ID, receiverId);
+    gam.put(EVENT_DETAILS_PARAM, eventDetails);
     return gam;
+  }
+
+  private String buildEventDetails(TaskDto task) {
+    long projectId = task.getStatus() == null || task.getStatus().getProject() == null ? 0 : task.getStatus().getProject().getId();
+    return projectId > 0 ? "{" + PROJECT_ID + ": " + projectId + "}" : null;
   }
 }

@@ -34,7 +34,7 @@
       allow-expand
       @closed="onCloseDrawer">
       <template
-        v-if="drawer && task?.id"
+        v-if="drawer && taskId"
         slot="title">
         <div class="drawerTitleAndProject d-flex">
           <i
@@ -108,7 +108,7 @@
               @change="updateTaskTitle" />
           </div>
           <div
-            v-if="task && task.id"
+            v-if="taskId"
             :title="$t('tooltip.viewAllChanges')"
             class="lastUpdatedTask pb-3"
             @click="$root.$emit('displayTaskChanges')">
