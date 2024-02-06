@@ -426,6 +426,33 @@
   </module>
 
   <module>
+    <name>engagementCenterConnectorEventsTaskExtensions</name>
+    <load-group>engagement-center-connector-event-extensions</load-group>
+    <script>
+      <path>/js/connectorEventExtensions.bundle.js</path>
+    </script>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>vuetify</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+    <depends>
+      <module>commonVueComponents</module>
+    </depends>
+    <depends>
+      <module>jquery</module>
+      <as>$</as>
+    </depends>
+  </module>
+
+  <module>
     <name>taskNotificationExtension</name>
     <load-group>notificationGRP</load-group>
     <script>
