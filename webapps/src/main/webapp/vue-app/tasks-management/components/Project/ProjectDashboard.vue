@@ -31,7 +31,8 @@
         :keyword="keyword"
         :space-name="spaceName"
         :project-filter-selected="projectFilterSelected"
-        @display-projects-toolbar="displayProjectToolbar" />
+        @display-projects-toolbar="displayProjectToolbar"
+        @reset-filter="resetFilter" />
     </div>
     <div v-show="displayDetails">
       <tasks-view-dashboard :project="project" />
@@ -74,8 +75,12 @@ export default {
   },
   methods: {
     displayProjectToolbar(event) {
-      this.displayToolbar = event;
-    }
+      this.displayToolbar = event || this.keyword?.length || this.projectFilterSelected !== 'ALL';
+    },
+    resetFilter() {
+      this.keyword = null;
+      this.projectFilterSelected = 'ALL';
+    },
   }
 };
 </script>

@@ -1,138 +1,144 @@
 <!--
+
   This file is part of the Meeds project (https://meeds.io/).
-  Copyright (C) 2022 Meeds Association
-  contact@meeds.io
+
+  Copyright (C) 2020 -2024 Meeds Association contact@meeds.io
+
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
   License as published by the Free Software Foundation; either
   version 3 of the License, or (at your option) any later version.
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
   Lesser General Public License for more details.
+
   You should have received a copy of the GNU Lesser General Public License
   along with this program; if not, write to the Free Software Foundation,
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 -->
 <template>
   <v-app
     id="tasksListApplication"
     class="projectAndTasksContainer transparent pa-4"
     flat>
+    <tasks-list-toolbar
+      v-if="displayToolbar"
+      ref="taskToolBar"
+      :task-card-tab="'#tasks-cards'"
+      :task-list-tab="'#tasks-list'"
+      :keyword="keyword"
+      :show-completed-tasks="showCompletedTasks"
+      @keyword-changed="keywordChanged"
+      @filter-count-changed="filterCount = $event"
+      @filter-task-dashboard="filterTaskDashboard"
+      @filter-task-query="filterTaskQuery"
+      @primary-filter-task="getTasksByPrimary"
+      @reset-filter-task-dashboard="resetFilterTaskDashboard" />
     <div
-      v-if="(!tasks || !tasks.length) && !loadingTasks && !filterActive"
+      v-if="showPlaceholder"
       class="noTasksProject">
       <v-icon size="60" class="primary--text mb-3">fas fa-tasks</v-icon>
-      <p class="text-header-title font-weight-regular mb-3">{{ $t('label.tasks.welcome') }}</p>
-      <p class="text-header-title font-weight-regular">{{ $t('label.noTask.today') }}</p>
+      <p class="text-header-title font-weight-regular mb-3">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter1') || $t('label.tasks.welcome') }}</p>
+      <p class="text-header-title font-weight-regular">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter2') || $t('label.noTask.today') }}</p>
       <v-btn
         class="btn btn-primary my-4"
-        @click="openTaskDrawer">
+        v-on="{
+          click: showPlaceholderResetSearch && resetFilter || openTaskDrawer,
+        }">
         <span class="mx-2 text-capitalize-first-letter subtitle-1">
-          {{ $t('label.task.add') }}
+          {{ showPlaceholderResetSearch && $t('label.task.resetFilter') || $t('label.task.add') }}
         </span>
       </v-btn>
     </div>
-    <div v-else>
-      <tasks-list-toolbar
-        ref="taskToolBar"
-        :task-card-tab="'#tasks-cards'"
-        :task-list-tab="'#tasks-list'"
-        :keyword="keyword"
-        :show-completed-tasks="showCompletedTasks"
-        @keyword-changed="keywordChanged"
-        @filter-task-dashboard="filterTaskDashboard"
-        @filter-task-query="filterTaskQuery"
-        @primary-filter-task="getTasksByPrimary"
-        @reset-filter-task-dashboard="resetFilterTaskDashboard" />
-      <div v-if="filterActive && filterTaskQueryResult && filterTaskQueryResult.projectName" class="px-0 pt-8 pb-4">
-        <div 
-          v-for="(project,i) in filterTaskQueryResult.projectName" 
-          :key="project.name" 
-          class="pt-5">
-          <div v-if=" project.value && project.value.displayName" class="d-flex align-center assigneeFilter">
-            <a
-              class="toggle-collapse-group pointer"
-              href="#"
-              @click="showDetailsTask(project.rank)">
-              <i
-                :id="'uiIconMiniArrowDown'+project.rank"
-                class="uiIcon uiIconMiniArrowDown"
-                style="display: block">
-              </i>
-              <i
-                :id="'uiIconMiniArrowRight'+project.rank"
-                class="uiIcon  uiIconMiniArrowRight"
-                style="display: none">
-              </i>
-            </a>
-            <exo-user-avatar
-              v-if="project.value.avatar"
-              :profile-id="project.value.username"
-              :size="26"
-              class="pe-2" 
-              popover />
-            <span class="amount-item">({{ filterTaskQueryResult.tasks[i].length }})</span>
-            <hr
-              role="separator"
-              aria-orientation="horizontal"
-              class="my-0 v-divider theme--light">
-          </div>
-          <div v-else class="d-flex align-center assigneeFilter">
-            <a
-              :id="'iconTask'+project.rank"
-              class="toggle-collapse-group pointer"
-              href="#"
-              @click="showDetailsTask(project.rank)">
-              <i
-                :id="'uiIconMiniArrowDown'+project.rank"
-                class="uiIcon uiIconMiniArrowDown"
-                style="display: block">
-              </i>
-              <i
-                :id="'uiIconMiniArrowRight'+project.rank"
-                class="uiIcon  uiIconMiniArrowRight"
-                style="display: none">
-              </i>
-            </a>
-            <div v-if="project.name==='Unassigned'" class="defaultAvatar">
-              <img :src="defaultAvatar">
-            </div>
-            <span class="nameGroup">{{ $t(getGroupName(project.name)) }}</span>
-            <span class="amount-item">({{ filterTaskQueryResult.tasks[i].length }})</span>
-            <hr
-              role="separator"
-              aria-orientation="horizontal"
-              class="my-0 v-divider theme--light">
-          </div>
-          <div :id="'taskView'+project.rank" class="view-task-group-sort">
-            <tasks-cards-list
-              :tasks="filterTaskQueryResult.tasks[i]"
-              :show-completed-tasks="showCompletedTasks"
-              class="d-md-none" />
-            <tasks-list
-              :tasks="filterTaskQueryResult.tasks[i]"
-              :show-completed-tasks="showCompletedTasks"
-              class="d-md-block d-none" />
-          </div>
+    <div v-else-if="filterByProject" class="px-0 pt-8 pb-4">
+      <div 
+        v-for="(project,i) in filterTaskQueryResult.projectName" 
+        :key="project.name" 
+        class="pt-5">
+        <div v-if=" project.value && project.value.displayName" class="d-flex align-center assigneeFilter">
+          <a
+            class="toggle-collapse-group pointer"
+            href="#"
+            @click="showDetailsTask(project.rank)">
+            <i
+              :id="'uiIconMiniArrowDown'+project.rank"
+              class="uiIcon uiIconMiniArrowDown"
+              style="display: block">
+            </i>
+            <i
+              :id="'uiIconMiniArrowRight'+project.rank"
+              class="uiIcon  uiIconMiniArrowRight"
+              style="display: none">
+            </i>
+          </a>
+          <exo-user-avatar
+            v-if="project.value.avatar"
+            :profile-id="project.value.username"
+            :size="26"
+            class="pe-2" 
+            popover />
+          <span class="amount-item">({{ filterTaskQueryResult.tasks[i].length }})</span>
+          <hr
+            role="separator"
+            aria-orientation="horizontal"
+            class="my-0 v-divider theme--light">
         </div>
-      </div>
-      <div v-else>
-        <div class="d-md-block d-none">
-          <tasks-list
-            :tasks="tasks"
-            :show-completed-tasks="showCompletedTasks" />
+        <div v-else class="d-flex align-center assigneeFilter">
+          <a
+            :id="'iconTask'+project.rank"
+            class="toggle-collapse-group pointer"
+            href="#"
+            @click="showDetailsTask(project.rank)">
+            <i
+              :id="'uiIconMiniArrowDown'+project.rank"
+              class="uiIcon uiIconMiniArrowDown"
+              style="display: block">
+            </i>
+            <i
+              :id="'uiIconMiniArrowRight'+project.rank"
+              class="uiIcon  uiIconMiniArrowRight"
+              style="display: none">
+            </i>
+          </a>
+          <div v-if="project.name==='Unassigned'" class="defaultAvatar">
+            <img :src="defaultAvatar">
+          </div>
+          <span class="nameGroup">{{ $t(getGroupName(project.name)) }}</span>
+          <span class="amount-item">({{ filterTaskQueryResult.tasks[i].length }})</span>
+          <hr
+            role="separator"
+            aria-orientation="horizontal"
+            class="my-0 v-divider theme--light">
         </div>
-        <div class="d-md-none">
+        <div :id="'taskView'+project.rank" class="view-task-group-sort">
           <tasks-cards-list
-            :tasks="tasks"
-            :show-completed-tasks="showCompletedTasks" />
+            :tasks="filterTaskQueryResult.tasks[i]"
+            :show-completed-tasks="showCompletedTasks"
+            class="d-md-none" />
+          <tasks-list
+            :tasks="filterTaskQueryResult.tasks[i]"
+            :show-completed-tasks="showCompletedTasks"
+            class="d-md-block d-none" />
         </div>
       </div>
     </div>
-    <v-row class="ma-0 border-box-sizing">
+    <div v-else>
+      <div class="d-md-block d-none">
+        <tasks-list
+          :tasks="tasks"
+          :show-completed-tasks="showCompletedTasks" />
+      </div>
+      <div class="d-md-none">
+        <tasks-cards-list
+          :tasks="tasks"
+          :show-completed-tasks="showCompletedTasks" />
+      </div>
+    </div>
+    <v-row v-if="canShowMore" class="ma-0 border-box-sizing">
       <v-btn
-        v-if="canShowMore"
         :loading="loadingTasks"
         :disabled="loadingTasks"
         class="loadMoreButton ma-auto mt-4 btn"
@@ -150,12 +156,15 @@ export default {
       primaryFilter: 'ALL',
       tasks: [],
       keyword: null,
+      initialized: false,
       loadingTasks: false,
+      displayToolbar: false,
       offset: 0,
       tasksSize: 0,
       pageSize: 20,
       limit: 20,
       limitToFetch: 0,
+      filterCount: 0,
       originalLimitToFetch: 20,
       startSearchAfterInMilliseconds: 600,
       endTypingKeywordTimeout: 50,
@@ -199,10 +208,29 @@ export default {
     canShowMore() {
       return this.tasks.length >= this.limitToFetch && !this.filterActive;
     },
+    showPlaceholder() {
+      return !this.tasks?.length && !this.loadingTasks && !this.filterActive;
+    },
+    showPlaceholderResetSearch() {
+      return this.filterCount || this.keyword?.length;
+    },
+    filterByProject() {
+      return this.filterActive && this.filterTaskQueryResult?.projectName;
+    },
   },
   watch: {
     limitToFetch() {
       this.searchTasks();
+    },
+    loadingTasks() {
+      if (!this.initialized && this.loadingTasks) {
+        this.initialized = true;
+      }
+    },
+    initialized() {
+      if (this.initialized) {
+        this.$root.$applicationLoaded();
+      }
     },
   },
   created() {
@@ -324,11 +352,19 @@ export default {
         if (this.keyword && this.tasksSize >= this.limitToFetch) {
           this.limitToFetch += this.pageSize;
         }
+        // Check whether to display toolbar or not
+        if (this.tasksSize || this.filterActive) {
+          this.displayToolbar = true;
+        } else if (!this.showCompletedTasks && !this.displayToolbar && !this.loadingTasks) {
+          return this.$tasksService.filterTasksList({
+            projectId: this.filterTasks.projectId,
+            offset: 0,
+            limit: 1,
+            showCompletedTasks: true,
+          }).then(data => this.displayToolbar = data?.tasksNumber || false);
+        }
       })
-        .finally(() => {
-          this.loadingTasks = false;
-          this.$root.$applicationLoaded();
-        });
+        .finally(() => this.loadingTasks = false);
     },
     getTasksByPrimary(primaryFilter) {
       this.primaryFilter=primaryFilter;         
@@ -428,7 +464,13 @@ export default {
         this.$refs.taskToolBar.resetFields('primary');
       }
     },
-
+    resetFilter() {
+      this.$refs.taskToolBar.resetFields();
+      this.keyword = null;
+      this.filterTasks.query = this.keyword;
+      this.resetSearch();
+      this.searchTasks();
+    },
     resetSearch() {
       if (this.limitToFetch !== this.originalLimitToFetch) {
         this.limitToFetch = this.originalLimitToFetch;
