@@ -29,7 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class TaskEventPlugin extends EventPlugin {
 
-  public static final String EVENT_TYPE = "twitter";
+  public static final String EVENT_TYPE = "task";
 
   @Override
   public String getEventType() {
