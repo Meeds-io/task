@@ -127,7 +127,10 @@ export default {
     };
   },
   watch: {
-    keyword() {  
+    filterNumber() {
+      this.$emit('filter-count-changed', this.filterNumber);
+    },
+    keyword() {
       if (!this.awaitingSearch) {
         const searchOnKeyChange = this.searchOnKeyChange;
         setTimeout(() => {
