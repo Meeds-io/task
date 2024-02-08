@@ -32,6 +32,7 @@
       :keyword="keyword"
       :show-completed-tasks="showCompletedTasks"
       @keyword-changed="keywordChanged"
+      @filter-count-changed="filterCount = $event"
       @filter-task-dashboard="filterTaskDashboard"
       @filter-task-query="filterTaskQuery"
       @primary-filter-task="getTasksByPrimary"
@@ -40,13 +41,15 @@
       v-if="showPlaceholder"
       class="noTasksProject">
       <v-icon size="60" class="primary--text mb-3">fas fa-tasks</v-icon>
-      <p class="text-header-title font-weight-regular mb-3">{{ $t('label.tasks.welcome') }}</p>
-      <p class="text-header-title font-weight-regular">{{ $t('label.noTask.today') }}</p>
+      <p class="text-header-title font-weight-regular mb-3">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter1') || $t('label.tasks.welcome') }}</p>
+      <p class="text-header-title font-weight-regular">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter2') || $t('label.noTask.today') }}</p>
       <v-btn
         class="btn btn-primary my-4"
-        @click="openTaskDrawer">
+        v-on="{
+          click: showPlaceholderResetSearch && resetFilter || openTaskDrawer,
+        }">
         <span class="mx-2 text-capitalize-first-letter subtitle-1">
-          {{ $t('label.task.add') }}
+          {{ showPlaceholderResetSearch && $t('label.task.resetFilter') || $t('label.task.add') }}
         </span>
       </v-btn>
     </div>
@@ -161,6 +164,7 @@ export default {
       pageSize: 20,
       limit: 20,
       limitToFetch: 0,
+      filterCount: 0,
       originalLimitToFetch: 20,
       startSearchAfterInMilliseconds: 600,
       endTypingKeywordTimeout: 50,
@@ -206,6 +210,9 @@ export default {
     },
     showPlaceholder() {
       return !this.tasks?.length && !this.loadingTasks && !this.filterActive;
+    },
+    showPlaceholderResetSearch() {
+      return this.filterCount || this.keyword?.length;
     },
     filterByProject() {
       return this.filterActive && this.filterTaskQueryResult?.projectName;
@@ -457,7 +464,13 @@ export default {
         this.$refs.taskToolBar.resetFields('primary');
       }
     },
-
+    resetFilter() {
+      this.$refs.taskToolBar.resetFields();
+      this.keyword = null;
+      this.filterTasks.query = this.keyword;
+      this.resetSearch();
+      this.searchTasks();
+    },
     resetSearch() {
       if (this.limitToFetch !== this.originalLimitToFetch) {
         this.limitToFetch = this.originalLimitToFetch;
