@@ -465,8 +465,11 @@ export default {
       }
     },
     resetFilter() {
-      this.keyword = null;
       this.$refs.taskToolBar.resetFields();
+      this.keyword = null;
+      this.filterTasks.query = this.keyword;
+      this.resetSearch();
+      this.searchTasks();
     },
     resetSearch() {
       if (this.limitToFetch !== this.originalLimitToFetch) {
