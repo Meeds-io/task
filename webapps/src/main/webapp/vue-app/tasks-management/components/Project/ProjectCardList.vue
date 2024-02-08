@@ -22,16 +22,18 @@
 <template>
   <v-app id="ProjectCardList" class="tasksListContainer">
     <div
-      v-if="(!projects || !projects.length) && !loadingProjects"
+      v-if="showPlaceholder"
       class="noTasksProject">
       <v-icon size="60" class="primary--text mb-3">fas fa-tasks</v-icon>
-      <p class="text-header-title font-weight-regular mb-3">{{ $t('label.tasks.welcome') }}</p>
-      <p class="text-header-title font-weight-regular">{{ $t('label.noTask.today') }}</p>
+      <p class="text-header-title font-weight-regular mb-3">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter1') || $t('label.tasks.welcome') }}</p>
+      <p class="text-header-title font-weight-regular">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter2') || $t('label.noTask.today') }}</p>
       <v-btn
         class="btn btn-primary my-4"
-        @click="$root.$emit('open-project-drawer', {})">
+        v-on="{
+          click: showPlaceholderResetSearch && resetFilter || openProjectDrawer,
+        }">
         <span class="mx-2 text-capitalize-first-letter subtitle-1">
-          {{ $t('label.add.newProject') }}
+          {{ showPlaceholderResetSearch && $t('label.task.resetFilter') || $t('label.add.newProject') }}
         </span>
       </v-btn>
     </div>
@@ -111,6 +113,12 @@ export default {
     canShowMore() {
       return this.loadingProjects || this.projects.length >= this.limitToFetch;
     },
+    showPlaceholder() {
+      return !this.projects?.length && !this.loadingProjects;
+    },
+    showPlaceholderResetSearch() {
+      return this.projectFilterSelected !== 'ALL' || this.keyword?.length;
+    },
   },
   watch: {
     keyword() {
@@ -174,6 +182,12 @@ export default {
           this.waitForEndTyping();
         }
       }, this.endTypingKeywordTimeout);
+    },
+    openProjectDrawer() {
+      this.$root.$emit('open-project-drawer', {});
+    },
+    resetFilter() {
+      this.$emit('reset-filter');
     },
   }
 };
