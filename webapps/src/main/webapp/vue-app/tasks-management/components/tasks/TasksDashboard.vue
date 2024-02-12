@@ -337,7 +337,7 @@ export default {
       if (tasksFilter.assignee) {
         tasksFilter.projectId = -2;
       }
-      
+
       return this.$tasksService.filterTasksList(tasksFilter,this.groupBy,this.orderBy,this.labels).then(data => {
         if (data.projectName){
           this.filterTaskQueryResult = data;
@@ -356,15 +356,18 @@ export default {
         if (this.tasksSize || this.filterActive) {
           this.displayToolbar = true;
         } else if (!this.showCompletedTasks && !this.displayToolbar && !this.loadingTasks) {
-          return this.$tasksService.filterTasksList({
-            projectId: this.filterTasks.projectId,
-            offset: 0,
-            limit: 1,
-            showCompletedTasks: true,
-          }).then(data => this.displayToolbar = data?.tasksNumber || false);
+          return this.checkExistingTasks();
         }
       })
         .finally(() => this.loadingTasks = false);
+    },
+    checkExistingTasks() {
+      return this.$tasksService.filterTasksList({
+        projectId: this.filterTasks.projectId,
+        offset: 0,
+        limit: 1,
+        showCompletedTasks: true,
+      }).then(data => this.displayToolbar = data?.tasksNumber || false);
     },
     getTasksByPrimary(primaryFilter) {
       this.primaryFilter=primaryFilter;         
@@ -543,12 +546,12 @@ export default {
     },
     updateTasksList() {
       this.$tasksService.filterTasksList(this.filterTasks, this.groupBy, this.orderBy, this.labels).then(data => {
-
         if (this.filterActive) {
           this.filterTaskQueryResult = data;
         } else {
           this.tasks = data.tasks;
         }
+        return this.checkExistingTasks();
       });
     },
     openTaskDrawer() {
