@@ -23,7 +23,7 @@ export function init() {
   extensionRegistry.registerComponent('engagementCenterEvent', 'connector-event-extensions', {
     id: 'task-event',
     name: 'task',
-    vueComponent: Vue.options.components['gamification-task-event-form'],
+    vueComponent: Vue.options.components['gamification-task-event'],
     isEnabled: (params) => [
       'commentTask',
       'completeTask',
