@@ -15,11 +15,15 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+import TaskEvent from './components/TaskEvent.vue';
 import TaskEventForm from './components/TaskEventForm.vue';
+import TaskEventDisplay from './components/TaskEventDisplay.vue';
 import ProjectSuggester from '../tasks-management/components/Project/ProjectSuggester.vue';
 
 const components = {
+  'gamification-task-event': TaskEvent,
   'gamification-task-event-form': TaskEventForm,
+  'gamification-task-event-display': TaskEventDisplay,
   'project-suggester': ProjectSuggester,
 };
 
