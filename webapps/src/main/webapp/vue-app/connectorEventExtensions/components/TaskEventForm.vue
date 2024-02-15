@@ -25,14 +25,15 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
       <v-radio
         value="ANY"
         :label="$t('gamification.event.label.anyProject')" />
-      <v-radio value="ANY_IN_PROJECT" :label="$t('gamification.event.label.oneInProject')" />
+      <v-radio value="ANY_IN_PROJECT" :label="$t('gamification.event.label.onlyProjects')" />
       <project-suggester
         v-if="project === 'ANY_IN_PROJECT'"
         ref="projectsSuggester"
         v-model="selected"
         :labels="projectSuggesterLabels"
         :width="220"
-        name="projectsSuggester" />
+        name="projectsSuggester"
+        multiple />
     </v-radio-group>
   </v-app>
 </template>
@@ -53,7 +54,7 @@ export default {
   data() {
     return {
       project: 'ANY',
-      selected: null,
+      selected: [],
       startTypingKeywordTimeout: 0,
       startSearchAfterInMilliseconds: 300,
       endTypingKeywordTimeout: 50,
@@ -69,9 +70,9 @@ export default {
   },
   watch: {
     selected() {
-      if (this.selected) {
+      if (this.selected?.length) {
         const eventProperties = {
-          projectId: this.selected?.id.toString(),
+          projectIds: this.selected.map(project => project.id).toString(),
         };
         document.dispatchEvent(new CustomEvent('event-form-filled', {detail: eventProperties}));
       } else {
@@ -84,12 +85,15 @@ export default {
     },
   },
   created() {
-    if (this.properties?.projectId) {
+    if (this.properties?.projectIds) {
       this.project = 'ANY_IN_PROJECT';
-      this.$projectService.getProject(this.properties?.projectId)
-        .then((project) => {
-          this.selected = project;
-        });
+      this.properties?.projectIds.split(',').forEach(projectId => {
+        this.$projectService.getProject(projectId)
+          .then((project) => {
+            this.selected.push(project);
+          });
+      });
+
     } else {
       document.dispatchEvent(new CustomEvent('event-form-filled'));
     }
