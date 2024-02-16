@@ -18,22 +18,18 @@
 -->
 <template>
   <v-app>
-    <template v-if="projectId">
+    <template v-if="projectIds">
       <div class="subtitle-1 font-weight-bold mb-2">
         {{ $t('gamification.event.display.doItNow') }}
       </div>
-      <v-list-item class="clickable" :href="projectLink">
-        <v-list-item-icon class="me-3 my-auto">
-          <v-icon class="primary--text">fas fa-tasks</v-icon>
-        </v-list-item-icon>
-        <v-list-item-content>
-          <v-list-item-title class="text-color body-2">
-            <p
-              class="ma-auto text-truncate"
-              v-sanitized-html="projectName"></p>
-          </v-list-item-title>
-        </v-list-item-content>
-      </v-list-item>
+      <v-progress-liner
+        v-if="!initialized"
+        color="primary"
+        indeterminate />
+      <gamification-task-event-project-item
+        v-for="project in projects"
+        :key="project.id"
+        :project="project" />
     </template>
     <template v-else>
       <div class="subtitle-1 font-weight-bold mb-2">
@@ -65,34 +61,35 @@ export default {
   },
   data() {
     return {
-      project: null,
+      projects: [],
+      initialized: false
     };
   },
   computed: {
-    projectId() {
-      return this.properties?.projectId;
-    },
-    projectLink() {
-      return `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/projectDetail/${this.projectId}`;
+    projectIds() {
+      return this.properties?.projectIds;
     },
     tasksLink() {
       return `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks`;
     },
-    projectName() {
-      return this.project?.name;
-    },
   },
   created() {
-    if (this.projectId) {
-      this.loadProject();
+    if (this.projectIds) {
+      this.loadProjects();
     }
   },
   methods: {
-    loadProject() {
-      return this.$projectService.getProject(this.projectId)
-        .then((project) => {
-          this.project = project;
-        });
+    loadProjects() {
+      this.projectIds.split(',').forEach((projectId, index) => {
+        this.$projectService.getProject(projectId)
+          .then((project) => {
+            this.projects.push(project);
+          }).finally(() => {
+            if (index === this.projectIds.split(',').length - 1) {
+              this.initialized = true;
+            }
+          });
+      });
     },
   }
 };

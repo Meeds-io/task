@@ -20,11 +20,10 @@ package org.exoplatform.task.plugin;
 
 import static org.exoplatform.task.util.TaskUtil.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import io.meeds.gamification.plugin.EventPlugin;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 public class TaskEventPlugin extends EventPlugin {
@@ -47,8 +46,8 @@ public class TaskEventPlugin extends EventPlugin {
 
   @Override
   public boolean isValidEvent(Map<String, String> eventProperties, String triggerDetails) {
-    String desiredProjectId = eventProperties.get(PROJECT_ID);
-    return desiredProjectId != null && desiredProjectId.equals(getProjectId(triggerDetails));
+    List<String> desiredProjectIds = eventProperties.get(PROJECT_IDS) != null ? Arrays.asList(eventProperties.get(PROJECT_IDS).split(",")) : Collections.emptyList();
+    return CollectionUtils.isNotEmpty(desiredProjectIds) && desiredProjectIds.contains(getProjectId(triggerDetails));
   }
 
   private static String getProjectId(String mapAsString) {
