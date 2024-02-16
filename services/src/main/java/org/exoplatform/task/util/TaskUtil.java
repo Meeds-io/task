@@ -96,6 +96,8 @@ public final class TaskUtil {
   public static final String           PROJECT                                         = "project";
   
   public static final String           PROJECT_ID                                      = "projectId";
+  
+  public static final String           PROJECT_IDS                                     = "projectIds";
 
   public static final String           LABEL                                           = "label";
 

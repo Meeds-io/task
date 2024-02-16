@@ -38,6 +38,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
       return-object
       persistent-hint
       hide-selected
+      cache-items
       chips
       dense
       flat
@@ -170,6 +171,11 @@ export default {
     $(`#${this.id} input`).on('blur', () => {
       this.$refs.selectAutoComplete.isFocused = false;
     });
+    if (this.autofocus) {
+      window.setTimeout(() => {
+        this.focus();
+      }, 200);
+    }
     this.init();
   },
   methods: {
@@ -189,8 +195,17 @@ export default {
       this.$emit('input', value);
     },
     remove(item) {
-      this.value = null;
-      this.$emit('removeProject', item.name);
+      if (this.value) {
+        if (this.value.splice) {
+          const index = this.value.findIndex(val => val.id === item.id);
+          if (index >= 0){
+            this.value.splice(index, 1);
+          }
+        } else {
+          this.value = null;
+        }
+      }
+      this.$emit('removeProject',item);
     },
     waitForEndTyping() {
       window.setTimeout(() => {

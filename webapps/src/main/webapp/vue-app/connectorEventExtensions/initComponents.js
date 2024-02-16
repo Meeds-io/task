@@ -18,12 +18,14 @@
 import TaskEvent from './components/TaskEvent.vue';
 import TaskEventForm from './components/TaskEventForm.vue';
 import TaskEventDisplay from './components/TaskEventDisplay.vue';
+import TaskEventProjectItem from './components/TaskEventProjectItem.vue';
 import ProjectSuggester from '../tasks-management/components/Project/ProjectSuggester.vue';
 
 const components = {
   'gamification-task-event': TaskEvent,
   'gamification-task-event-form': TaskEventForm,
   'gamification-task-event-display': TaskEventDisplay,
+  'gamification-task-event-project-item': TaskEventProjectItem,
   'project-suggester': ProjectSuggester,
 };
 
