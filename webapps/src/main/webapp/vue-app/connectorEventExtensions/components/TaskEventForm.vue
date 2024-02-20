@@ -75,7 +75,7 @@ export default {
           projectIds: this.selected.map(project => project.id).toString(),
         };
         document.dispatchEvent(new CustomEvent('event-form-filled', {detail: eventProperties}));
-      } else {
+      } else if (this.project === 'ANY_IN_PROJECT') {
         document.dispatchEvent(new CustomEvent('event-form-unfilled'));
       }
     },
