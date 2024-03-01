@@ -181,38 +181,12 @@
   </module>
 
   <module>
-    <name>vueDraggable</name>
-    <script>
-      <adapter>
-        (function() {
-        <include>/js/lib/vueDraggable.min.js</include>
-        })();
-      </adapter>
-    </script>
-    <depends>
-      <module>sortablejs</module>
-    </depends>
-  </module>
-
-  <module>
-    <name>sortablejs</name>
-    <script>
-      <adapter>
-        (function() {
-        <include>/js/lib/sortable.min.js</include>
-        })();
-      </adapter>
-    </script>
-  </module>
-
-  <module>
     <name>ganttChart</name>
     <script>
       <minify>false</minify>
       <path>/js/frappegantt.js</path>
     </script>
   </module>
-
 
   <portlet>
     <name>tasks</name>
