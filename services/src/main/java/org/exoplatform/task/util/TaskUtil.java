@@ -52,35 +52,66 @@ import org.exoplatform.web.controller.router.Router;
  * 6/3/15
  */
 public final class TaskUtil {
-  public static final String URL_TASK_DETAIL = "/taskDetail/";
 
-  private static final Log LOG = ExoLogger.getExoLogger(TaskUtil.class.getName());
+  private static final Log             LOG                                             = ExoLogger.getExoLogger(TaskUtil.class.getName());
 
-  public static final String           TASK_CREATED         = "exo.task.taskCreation";
+  public static final String           URL_TASK_DETAIL                                 = "/taskDetail/";
 
-  public static final String           TASK_UPDATED         = "exo.task.taskUpdate";
+  public static final String           TASK_CREATED                                    = "exo.task.taskCreation";
 
-  public static final String           TASK_DELETED         = "exo.task.taskDeleted";
+  public static final String           TASK_UPDATED                                    = "exo.task.taskUpdate";
 
-  public static final String           TASK_COMMENT_CREATED = "exo.task.taskCommentCreation";
+  public static final String           TASK_DELETED                                    = "exo.task.taskDeleted";
 
-  public static final String           TASK_COMMENT_DELETED = "exo.task.taskCommentDeletion";
+  public static final String           TASK_COMMENT_CREATED                            = "exo.task.taskCommentCreation";
 
-  public static final String TITLE = "title";
-  public static final String PRIORITY = "priority";
-  public static final String DUEDATE = "dueDate";
-  public static final String CREATED_TIME = "createdTime";
-  public static final String NONE = "none";
-  public static final String STATUS = "status";
-  public static final String ASSIGNEE = "assignee";
-  public static final String PROJECT = "project";
-  public static final String LABEL = "label";
-  public static final String COMPLETED = "completed";
-  public static final String RANK = "rank";
-  public static final String MEMBERSHIP = "membership";
-  public static final String CREATED_BY = "createdBy";
-  public static final String COWORKER = "coworker";
-  public static final String TASK_OBJECT_TYPE = "task";
+  public static final String           TASK_COMMENT_DELETED                            = "exo.task.taskCommentDeletion";
+
+  public static final String           GAMIFICATION_TASK_ADDON_CREATE_TASK             = "createNewTask";
+
+  public static final String           GAMIFICATION_TASK_ADDON_COMPLETED_TASK_ASSIGNED = "completeTaskAssigned";
+
+  public static final String           GAMIFICATION_TASK_ADDON_COMPLETED_TASK_COWORKER = "completeTaskCoworker";
+
+  public static final String           GAMIFICATION_TASK_ADDON_COMPLETED_TASK          = "completeTask";
+
+  public static final String           GAMIFICATION_TASK_ADDON_UPDATE_TASK             = "updateTask";
+
+  public static final String           GAMIFICATION_TASK_ADDON_COMMENT_TASK            = "commentTask";
+
+  public static final String           TITLE                                           = "title";
+
+  public static final String           PRIORITY                                        = "priority";
+
+  public static final String           DUEDATE                                         = "dueDate";
+
+  public static final String           CREATED_TIME                                    = "createdTime";
+
+  public static final String           NONE                                            = "none";
+
+  public static final String           STATUS                                          = "status";
+
+  public static final String           ASSIGNEE                                        = "assignee";
+
+  public static final String           PROJECT                                         = "project";
+  
+  public static final String           PROJECT_ID                                      = "projectId";
+  
+  public static final String           PROJECT_IDS                                     = "projectIds";
+
+  public static final String           LABEL                                           = "label";
+
+  public static final String           COMPLETED                                       = "completed";
+
+  public static final String           RANK                                            = "rank";
+
+  public static final String           MEMBERSHIP                                      = "membership";
+
+  public static final String           CREATED_BY                                      = "createdBy";
+
+  public static final String           COWORKER                                        = "coworker";
+
+  public static final String           TASK_OBJECT_TYPE                                = "task";
 
   public static final ListAccess<Task> EMPTY_TASK_LIST = new ListAccess<Task>() {
 
