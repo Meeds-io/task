@@ -130,6 +130,9 @@
               :users="avatarToDisplay"
               :max="5"
               :icon-size="28"
+              :margin-left="avatarToDisplay.length > 1 && 'ml-n4' || ''"
+              :compact="avatarToDisplay.length > 1"
+              clickable="'false'"
               avatar-overlay-position
               retrieve-extra-information
               @open-detail="$root.$emit('displayProjectManagers', avatarToDisplay)" />

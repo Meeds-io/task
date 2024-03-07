@@ -43,6 +43,9 @@
         :users="avatarToDisplay"
         :max="1"
         :icon-size="26"
+        :margin-left="avatarToDisplay.length > 1 && 'ml-n4' || ''"
+        :compact="avatarToDisplay.length > 1"
+        clickable="'false'"
         avatar-overlay-position
         retrieve-extra-information
         @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', avatarToDisplay)" />
