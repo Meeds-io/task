@@ -125,13 +125,15 @@
           <div
             v-else
             :class="showAllAvatarList && 'AllManagerAvatar'"
+            :style="`min-height:${avatarSize}px`"
             class="managerAvatarsList d-flex flex-nowrap my-2">
             <exo-user-avatars-list
               :users="avatarToDisplay"
               :max="5"
-              :icon-size="28"
+              :icon-size="avatarSize"
               :margin-left="avatarToDisplay.length > 1 && 'ml-n4' || ''"
               :compact="avatarToDisplay.length > 1"
+              extra-class="position-absolute"
               clickable="'false'"
               avatar-overlay-position
               retrieve-extra-information
@@ -195,7 +197,8 @@ export default {
         { class: 'plum' },
       ],
       managerIdentities: this.project && this.project.managerIdentities,
-      projectSpace: {}
+      projectSpace: {},
+      avatarSize: 28
     };
   },
   computed: {
