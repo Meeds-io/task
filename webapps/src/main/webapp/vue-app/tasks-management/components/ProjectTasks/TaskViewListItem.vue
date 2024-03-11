@@ -39,8 +39,8 @@
       </a>
     </div>
     <div
-        class="taskAssignee d-flex v-avatar flex-nowrap me-2 justify-start position-relative"
-        :style="`min-height:${avatarSize+4}px`">
+      class="taskAssignee d-flex v-avatar flex-nowrap me-2 justify-start position-relative"
+      :style="`min-height:${avatarSize+4}px`">
       <exo-user-avatars-list
         :users="avatarToDisplay"
         :max="1"
