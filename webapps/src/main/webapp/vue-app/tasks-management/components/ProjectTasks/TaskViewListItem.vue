@@ -38,13 +38,16 @@
         @click="openTaskDrawer()">{{ task.task.title }}
       </a>
     </div>
-    <div class="taskAssignee d-flex v-avatar flex-nowrap me-2 justify-start">
+    <div
+        class="taskAssignee d-flex v-avatar flex-nowrap me-2 justify-start position-relative"
+        :style="`min-height:${avatarSize+4}px`">
       <exo-user-avatars-list
         :users="avatarToDisplay"
         :max="1"
-        :icon-size="26"
+        :icon-size="avatarSize"
         :margin-left="avatarToDisplay.length > 1 && 'ml-n4' || ''"
         :compact="avatarToDisplay.length > 1"
+        extra-class="position-absolute"
         clickable="'false'"
         avatar-overlay-position
         retrieve-extra-information
@@ -114,6 +117,7 @@ export default {
       assigneeAndCoworkerArray: [],
       isPersonnalTask: this.task.task.status === null,
       labelList: '',
+      avatarSize: 26,
     };
   },
   computed: {
