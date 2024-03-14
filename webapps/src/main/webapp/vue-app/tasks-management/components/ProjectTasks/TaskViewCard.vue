@@ -55,16 +55,18 @@
             class="taskActionsAndLabels d-flex align-center">
             <div
               v-if="assigneeAndCoworkerArray && assigneeAndCoworkerArray.length"
-              class="taskWorker  justify-space-between pe-2">
+              class="taskWorker justify-space-between pe-2">
               <div
                 :class="assigneeAndCoworkerArray && !assigneeAndCoworkerArray.length && task && task.labels && !task.labels.length && 'hideTaskAssignee'"
+                :style="taskAssigneeStyle"
                 class="taskAssignee d-flex flex-nowrap position-relative">
                 <exo-user-avatars-list
                   :users="avatarToDisplay"
                   :max="1"
-                  :icon-size="26"
+                  :icon-size="avatarSize"
                   :margin-left="avatarToDisplay.length > 1 && 'ml-n4' || ''"
                   :compact="avatarToDisplay.length > 1"
+                  :extra-class="assigneeAndCoworkerArray.length > 1 && 'position-absolute' || ''"
                   clickable="'false'"
                   retrieve-extra-information
                   avatar-overlay-position
@@ -141,6 +143,7 @@ export default {
       assigneeAndCoworkerArray: [],
       isPersonnalTask: this.task.task.status === null,
       drawer: null,
+      avatarSize: 26
     };
   },
   computed: {
@@ -188,6 +191,9 @@ export default {
     },
     isMobile() {
       return this.$vuetify.breakpoint.mdAndDown;
+    },
+    taskAssigneeStyle() {
+      return this.assigneeAndCoworkerArray?.length > 1 && `min-width:48px;min-height:${this.avatarSize+2}px;` || '';
     },
   },
   watch: {
