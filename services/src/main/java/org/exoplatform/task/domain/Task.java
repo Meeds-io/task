@@ -153,7 +153,7 @@ import org.exoplatform.task.service.TaskBuilder;
         "AND (lower(ta.title) LIKE lower(:term)  OR lower(ta.description) LIKE :term) "
 )
 @NamedQuery(name = "Task.countTaskStatusByProject",
-        query = "SELECT m.status.name AS name, COUNT(m) AS total FROM TaskTask AS m where m.status.project.id = :projectId GROUP BY m.status.name ORDER BY m.status.name ASC")
+        query = "SELECT m.status.name AS name, COUNT(m) AS total FROM TaskTask AS m where m.status.project.id = :projectId and m.completed = false GROUP BY m.status.name ORDER BY m.status.name ASC")
 
 @NamedQuery(name = "Task.getByStatus",
         query = "SELECT t FROM TaskTask t  WHERE t.status.id = :statusid")
