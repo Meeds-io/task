@@ -83,6 +83,9 @@ export default {
       option: {
         tooltip: {
           trigger: 'item',
+          position: function (point) {
+            return { left: point[0] - 100};
+          },
           formatter: '{b}:<br/> {c} ({d}%)'
         },
         series: [
