@@ -518,4 +518,10 @@
     </sql>
   </changeSet>
 
+  <changeSet author="task" id="1.0.0-36" dbms="mysql">
+    <sql>
+      ALTER TABLE TASK_PROJECTS MODIFY COLUMN NAME varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    </sql>
+  </changeSet>
+
 </databaseChangeLog>
