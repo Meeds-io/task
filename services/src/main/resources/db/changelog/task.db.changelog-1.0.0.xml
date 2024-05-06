@@ -518,10 +518,16 @@
     </sql>
   </changeSet>
 
-  <changeSet author="task" id="1.0.0-36" dbms="mysql">
+<!--   Kept to preserve history and to avoid reuse of 1.0.0-36 which is changed by 1.0.0-37 -->
+<!--   <changeSet author="task" id="1.0.0-36" dbms="mysql"> -->
+<!--     <sql> -->
+<!--       ALTER TABLE TASK_PROJECTS MODIFY COLUMN NAME varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; -->
+<!--     </sql> -->
+<!--   </changeSet> -->
+
+  <changeSet author="task" id="1.0.0-37" dbms="mysql">
     <sql>
-      ALTER TABLE TASK_PROJECTS MODIFY COLUMN NAME varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      ALTER TABLE TASK_PROJECTS MODIFY COLUMN NAME varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     </sql>
   </changeSet>
-
 </databaseChangeLog>
