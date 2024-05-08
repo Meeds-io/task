@@ -20,7 +20,7 @@
   <parent>
     <artifactId>task-management-parent</artifactId>
     <groupId>org.exoplatform.addons.task</groupId>
-    <version>7.0.x-meed-SNAPSHOT</version>
+    <version>7.0.0-meed-20240508</version>
   </parent>
   <artifactId>task-management-services</artifactId>
   <packaging>jar</packaging>
