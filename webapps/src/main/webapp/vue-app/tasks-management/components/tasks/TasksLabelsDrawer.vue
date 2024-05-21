@@ -84,6 +84,7 @@ export default {
       items: [],
       nonce: 1,
       model: [],
+      taskLabels: [],
       x: 0,
       search: null,
       y: 0,
@@ -133,11 +134,10 @@ export default {
     document.addEventListener('loadTaskLabels', event => {
       if (event && event.detail) {
         const task = event.detail;
-        this.model = [];
         if (task.id!=null) {
           this.getTaskLabels();
           this.$taskDrawerApi.getTaskLabels(task.id).then((labels) => {
-            this.model = labels.map(function (el) {
+            this.taskLabels = labels.map(function (el) {
               const o = Object.assign({}, el);
               o.text = o.name;
               return o;
