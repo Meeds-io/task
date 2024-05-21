@@ -219,6 +219,7 @@ export default {
   data () {
     return {
       defaultAvatar: '/portal/rest/v1/social/users/default-image/avatar',
+      searchedLabels: [],
       keyword: null,
       loadingTasks: false,
       tasksFilter: {},
@@ -277,7 +278,7 @@ export default {
     });
 
     this.$root.$on('task-isCompleted-updated', task => {
-      this.$tasksService.filterTasksList(this.tasksFilter, '', '', '', this.project.id).then(data => {
+      this.$tasksService.filterTasksList(this.tasksFilter, '', '', this.searchedLabels, this.project.id).then(data => {
         if (Array.isArray(data.tasks[0])) {
 
           const showCompletedTaskFilter = {
@@ -417,6 +418,7 @@ export default {
       this.filterByStatus=false;
     },
     filterTaskDashboard(e) {
+      this.searchedLabels = e.filterLabels.labels;      
       this.loadingTasks = true;
       this.tasksFilter = e.tasks;
       this.showCompletedTasks = e.showCompletedTasks;
