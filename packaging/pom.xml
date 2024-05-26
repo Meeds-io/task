@@ -24,7 +24,7 @@
   <parent>
     <artifactId>task-management-parent</artifactId>
     <groupId>org.exoplatform.addons.task</groupId>
-    <version>7.0.x-meed-SNAPSHOT</version>
+    <version>7.0.0-meed-20240526</version>
   </parent>
   <artifactId>task-management-packaging</artifactId>
   <packaging>pom</packaging>
