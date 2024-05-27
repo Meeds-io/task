@@ -1,0 +1,44 @@
+{
+  "descriptors":[
+    {
+      "nameId":"TasksManagement",
+      "categoryNameId":"spaces",
+      "portletName":"TasksManagement",
+      "names":{
+        "en":"layout.portletInstance.TasksManagement.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.TasksManagement.description"
+      },
+      "illustrationPath":"war:/../skin/DefaultSkin/portletIcons/TasksManagement.png",
+      "preferences":[
+        
+      ],
+      "permissions":[
+        "Everyone"
+      ],
+      "system":true,
+      "spaceApplication":true
+    },
+    {
+      "nameId":"tasks",
+      "categoryNameId":"tools",
+      "portletName":"tasks",
+      "names":{
+        "en":"layout.portletInstance.tasks.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.tasks.description"
+      },
+      "illustrationPath":"war:/../skin/DefaultSkin/portletIcons/tasks.png",
+      "preferences":[
+        
+      ],
+      "permissions":[
+        "Everyone"
+      ],
+      "system":true,
+      "spaceApplication":false
+    }
+  ]
+}
