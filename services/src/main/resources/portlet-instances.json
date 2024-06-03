@@ -17,8 +17,7 @@
       "permissions":[
         "Everyone"
       ],
-      "system":true,
-      "spaceApplication":true
+      "system":true
     },
     {
       "nameId":"tasks",
@@ -37,8 +36,7 @@
       "permissions":[
         "Everyone"
       ],
-      "system":true,
-      "spaceApplication":false
+      "system":true
     }
   ]
 }
