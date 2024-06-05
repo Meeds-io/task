@@ -1,0 +1,22 @@
+{
+    "descriptors": [
+        {
+            "name": "Tasks",
+            "imagePath": "war:/../images/tasks.png",
+            "override": false,
+            "enabled": true,
+            "application": {
+                "title": "Tasks",
+                "description": "Tasks application",
+                "url": "./tasks",
+                "active": true,
+                "mandatory": false,
+                "mobile": true,
+                "permissions": [
+                    "*:/platform/users",
+                    "*:/platform/externals"
+                ]
+            }
+        }
+    ]
+}
