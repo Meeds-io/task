@@ -19,7 +19,7 @@
     <v-toolbar
       id="TasksDashboardToolbar"
       flat
-      class="tasksToolbar">
+      class="tasksToolbar app-background-color">
       <div class="taskDisplay">
         <v-tabs
           class="projectTasksViewTabs">

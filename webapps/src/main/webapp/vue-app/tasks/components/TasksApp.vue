@@ -86,8 +86,9 @@
             @update-task-completed="removeCompletedTask(tasksUpcoming, taskItem.id)" />
         </div>
       </div>
-      <v-card 
+      <v-card
         v-else
+        class="app-background-color"
         min-height="188"
         flat>
         <task-empty-row v-if="displayPlaceholder" @open-task-drawer="openTaskDrawer" />

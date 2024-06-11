@@ -17,7 +17,7 @@
 <template>
   <v-app class="tasksList">
     <v-card
-      class="tasksView tasksListItem tasksViewList pt-5"
+      class="tasksView tasksListItem tasksViewList app-background-color pt-5"
       flat>
       <v-item-group>
         <div class="ma-0 border-box-sizing">
