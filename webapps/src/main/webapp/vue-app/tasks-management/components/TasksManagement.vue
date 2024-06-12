@@ -20,7 +20,7 @@
       v-if="showTabs"
       v-model="tab"
       slider-size="4"
-      class="tasksMenuParent card-border-radius overflow-hidden white">
+      class="tasksMenuParent card-border-radius app-background-color overflow-hidden white">
       <v-tab href="#tab-2" @click="getMyProjects()">
         {{ $t('label.projects') }}
       </v-tab>
@@ -28,7 +28,7 @@
         {{ $t('label.tasks.header') }}
       </v-tab>
     </v-tabs>
-    <v-tabs-items v-model="tab" class="card-border-radius">
+    <v-tabs-items v-model="tab" class="card-border-radius app-background-color">
       <v-tab-item value="tab-1">
         <tasks-dashboard />
       </v-tab-item>
