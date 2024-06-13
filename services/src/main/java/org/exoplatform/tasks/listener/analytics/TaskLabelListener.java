@@ -18,8 +18,8 @@
  */
 package org.exoplatform.tasks.listener.analytics;
 
-import org.exoplatform.analytics.model.StatisticData;
-import org.exoplatform.analytics.utils.AnalyticsUtils;
+import io.meeds.analytics.model.StatisticData;
+import io.meeds.analytics.utils.AnalyticsUtils;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
