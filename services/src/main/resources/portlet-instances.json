@@ -10,7 +10,7 @@
       "descriptions":{
         "en":"layout.portletInstance.TasksManagement.description"
       },
-      "illustrationPath":"war:/../skin/DefaultSkin/portletIcons/TasksManagement.png",
+      "illustrationPath":"war:/../images/portlets/tasksManagement.webp",
       "preferences":[
         
       ],
@@ -29,7 +29,7 @@
       "descriptions":{
         "en":"layout.portletInstance.tasks.description"
       },
-      "illustrationPath":"war:/../skin/DefaultSkin/portletIcons/tasks.png",
+      "illustrationPath":"war:/../images/portlets/myTasks.webp",
       "preferences":[
         
       ],
