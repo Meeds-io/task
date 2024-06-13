@@ -18,18 +18,36 @@
  */
 package org.exoplatform.tasks.listener.analytics;
 
-import org.exoplatform.analytics.model.StatisticData;
+import java.util.List;
+
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.services.listener.Asynchronous;
 import org.exoplatform.social.attachment.AttachmentService;
 import org.exoplatform.social.attachment.model.ObjectAttachmentId;
 import org.exoplatform.social.core.space.spi.SpaceService;
-import org.exoplatform.analytics.listener.social.BaseAttachmentAnalyticsListener;
+
+import io.meeds.analytics.listener.social.BaseAttachmentAnalyticsListener;
+
+import lombok.Getter;
 
 @Asynchronous
 public class TaskAttachmentAnalyticsListener extends BaseAttachmentAnalyticsListener {
-  public TaskAttachmentAnalyticsListener(AttachmentService attachmentService, SpaceService spaceService, InitParams initParam) {
-    super(attachmentService, spaceService, initParam);
+
+  @Getter
+  private AttachmentService attachmentService;
+
+  @Getter
+  private SpaceService      spaceService;
+
+  @Getter
+  private List<String>      supportedObjectType;
+
+  public TaskAttachmentAnalyticsListener(AttachmentService attachmentService,
+                                         SpaceService spaceService,
+                                         InitParams initParam) {
+    this.attachmentService = attachmentService;
+    this.spaceService = spaceService;
+    this.supportedObjectType = initParam.getValuesParam("supported-type").getValues();
   }
 
   @Override
@@ -40,9 +58,9 @@ public class TaskAttachmentAnalyticsListener extends BaseAttachmentAnalyticsList
   @Override
   protected String getSubModule(ObjectAttachmentId objectAttachment) {
     return switch (objectAttachment.getObjectType()) {
-      case "task" -> "taskDescription";
-      case "taskComment" -> "taskComment";
-      default -> "task";
+    case "task" -> "taskDescription";
+    case "taskComment" -> "taskComment";
+    default -> "task";
     };
   }
 }
