@@ -42,9 +42,9 @@
     <url>https://github.com/exoplatform/task</url>
   </scm>
   <properties>
-    <org.exoplatform.social.version>7.0.x-exo-SNAPSHOT</org.exoplatform.social.version>
-    <addon.exo.gamification.version>7.0.x-exo-SNAPSHOT</addon.exo.gamification.version>
-    <addon.meeds.analytics.version>7.0.x-exo-SNAPSHOT</addon.meeds.analytics.version>
+    <org.exoplatform.social.version>7.0.0-exo-M22</org.exoplatform.social.version>
+    <addon.exo.gamification.version>7.0.0-exo-M22</addon.exo.gamification.version>
+    <addon.meeds.analytics.version>7.0.0-exo-M22</addon.meeds.analytics.version>
 
     <!-- Sonar properties -->
     <sonar.organization>meeds-io</sonar.organization>
