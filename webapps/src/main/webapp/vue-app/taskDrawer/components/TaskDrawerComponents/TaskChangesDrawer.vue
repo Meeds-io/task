@@ -15,55 +15,42 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div
-    v-if="showTaskChangesDrawer"
+  <exo-drawer
     ref="taskChangesDrawer"
+    v-model="showTaskChangesDrawer"
     :class="showTaskChangesDrawer && 'showTaskChangesDrawer' || ''"
-    class="taskCommentDrawer">
-    <v-container fill-height class="pa-0">
-      <v-layout column>
-        <v-flex class="mx-0 drawerHeader flex-grow-0">
-          <v-list-item class="pe-0">
-            <v-list-item-content class="drawerTitle d-flex text-header-title text-truncate">
-              <i class="uiIcon uiArrowBAckIcon" @click="closeDrawer"></i>
-              <span class="ps-2">{{ $t('label.changes') }}</span>
-            </v-list-item-content>
-            <v-list-item-action class="drawerIcons align-end d-flex flex-row">
-              <v-btn icon>
-                <v-icon @click="closeDrawer()">mdi-close</v-icon>
-              </v-btn>
-            </v-list-item-action>
-          </v-list-item>
-        </v-flex>
-        <v-divider class="my-0" />
-        <v-flex class="drawerContent flex-grow-1 overflow-auto border-box-sizing">
-          <v-list class="py-0">
-            <v-list-item
-              v-for="(item, i) in logs"
-              :key="i"
-              class="pe-0">
-              <v-list-item-content class="mt-n1">
-                <div class="d-flex">
-                  <exo-user-avatar
-                    :profile-id="item.author"
-                    :size="30"
-                    :url="null"
-                    popover 
-                    align-top />
-                  <div class="d-flex mt-n2" v-sanitized-html="renderChangeHTML(item)"></div>
-                </div>
-                <div>
-                  <div class="dateTime caption px-10 my-n3">
-                    <date-format :value="item.createdTime" :format="dateTimeFormat" />
-                  </div>
-                </div>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-flex>
-      </v-layout>
-    </v-container>
-  </div>
+    class="taskCommentDrawer"
+    right
+    go-back-button>
+    <template #title>
+      {{ $t('label.changes') }}
+    </template>
+    <template #content>
+      <v-list class="py-0">
+        <v-list-item
+          v-for="(item, i) in logs"
+          :key="i"
+          class="pe-0">
+          <v-list-item-content class="mt-n1">
+            <div class="d-flex">
+              <exo-user-avatar
+                :profile-id="item.author"
+                :size="30"
+                :url="false"
+                popover
+                align-top />
+              <div class="d-flex" v-sanitized-html="renderChangeHTML(item)"></div>
+            </div>
+            <div>
+              <div class="dateTime caption px-10 my-n3">
+                <date-format :value="item.createdTime" :format="dateTimeFormat" />
+              </div>
+            </div>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list>
+    </template>
+  </exo-drawer>
 </template>
 <script>
 export default {
