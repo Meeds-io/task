@@ -19,15 +19,15 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <artifactId>task-management-parent</artifactId>
-    <groupId>org.exoplatform.addons.task</groupId>
+    <groupId>io.meeds.addons.task</groupId>
     <version>7.0.x-SNAPSHOT</version>
   </parent>
   <artifactId>task-management-webapps</artifactId>
   <packaging>war</packaging>
-  <name>eXo Add-on:: Task Management Portlets</name>
+  <name>Meeds:: Add-on:: Task Management Portlets</name>
   <dependencies>
     <dependency>
-      <groupId>org.exoplatform.platform-ui</groupId>
+      <groupId>io.meeds.platform-ui</groupId>
       <artifactId>platform-ui-skin</artifactId>
       <classifier>sources</classifier>
       <scope>provided</scope>

@@ -24,11 +24,11 @@
     <groupId>org.exoplatform.addons</groupId>
     <version>18-M03</version>
   </parent>
-  <groupId>org.exoplatform.addons.task</groupId>
+  <groupId>io.meeds.addons.task</groupId>
   <artifactId>task-management-parent</artifactId>
   <version>7.0.x-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <name>eXo Add-on:: Task management</name>
+  <name>Meeds:: Add-on:: Task management</name>
   <description>Task management add-on</description>
   <modules>
     <module>services</module>
@@ -42,27 +42,28 @@
     <url>https://github.com/exoplatform/task</url>
   </scm>
   <properties>
-    <org.exoplatform.social.version>7.0.x-SNAPSHOT</org.exoplatform.social.version>
-    <addon.exo.gamification.version>7.0.x-SNAPSHOT</addon.exo.gamification.version>
+    <io.meeds.social.version>7.0.x-SNAPSHOT</io.meeds.social.version>
+    <addon.meeds.gamification.version>7.0.x-SNAPSHOT</addon.meeds.gamification.version>
     <addon.meeds.analytics.version>7.0.x-SNAPSHOT</addon.meeds.analytics.version>
 
     <!-- Sonar properties -->
     <sonar.organization>meeds-io</sonar.organization>
+    <exo.snapshots.repo.url>https://repository.exoplatform.org/content/repositories/meeds-snapshots</exo.snapshots.repo.url>
   </properties>
   <dependencyManagement>
     <dependencies>
       <!-- Import versions from platform project -->
       <dependency>
-        <groupId>org.exoplatform.social</groupId>
+        <groupId>io.meeds.social</groupId>
         <artifactId>social</artifactId>
-        <version>${org.exoplatform.social.version}</version>
+        <version>${io.meeds.social.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
       <dependency>
-        <groupId>org.exoplatform.addons.gamification</groupId>
+        <groupId>io.meeds.addons.gamification</groupId>
         <artifactId>gamification</artifactId>
-        <version>${addon.exo.gamification.version}</version>
+        <version>${addon.meeds.gamification.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -75,24 +76,24 @@
         <scope>import</scope>
       </dependency>
       <dependency>
-        <groupId>org.exoplatform.addons.task</groupId>
+        <groupId>io.meeds.addons.task</groupId>
         <artifactId>task-management-services</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.exoplatform.addons.task</groupId>
+        <groupId>io.meeds.addons.task</groupId>
         <artifactId>task-management-services</artifactId>
         <type>test-jar</type>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.exoplatform.addons.task</groupId>
+        <groupId>io.meeds.addons.task</groupId>
         <artifactId>task-management-webapps</artifactId>
         <version>${project.version}</version>
         <type>war</type>
       </dependency>
       <dependency>
-        <groupId>org.exoplatform.addons.task</groupId>
+        <groupId>io.meeds.addons.task</groupId>
         <artifactId>task-management-packaging</artifactId>
         <version>${project.version}</version>
         <type>zip</type>

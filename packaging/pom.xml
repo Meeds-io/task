@@ -23,22 +23,22 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <artifactId>task-management-parent</artifactId>
-    <groupId>org.exoplatform.addons.task</groupId>
+    <groupId>io.meeds.addons.task</groupId>
     <version>7.0.x-SNAPSHOT</version>
   </parent>
   <artifactId>task-management-packaging</artifactId>
   <packaging>pom</packaging>
-  <name>eXo Add-on:: Task management Packaging</name>
+  <name>Meeds:: Add-on:: Task management Packaging</name>
   <description>Task management add-on packaging</description>
   <dependencies>
     <dependency>
-      <groupId>org.exoplatform.addons.task</groupId>
+      <groupId>io.meeds.addons.task</groupId>
       <artifactId>task-management-webapps</artifactId>
       <type>war</type>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.exoplatform.addons.task</groupId>
+      <groupId>io.meeds.addons.task</groupId>
       <artifactId>task-management-services</artifactId>
       <type>jar</type>
       <scope>provided</scope>
