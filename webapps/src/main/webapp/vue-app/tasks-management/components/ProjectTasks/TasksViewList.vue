@@ -15,9 +15,9 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app class="tasksList">
+  <div class="tasksList">
     <v-card
-      class="tasksView tasksListItem tasksViewList app-background-color pt-5"
+      class="tasksView tasksListItem tasksViewList pt-5"
       flat>
       <v-item-group>
         <div class="ma-0 border-box-sizing">
@@ -46,7 +46,7 @@
         </div>
       </v-item-group>
     </v-card>
-  </v-app>
+  </div>
 </template>
 <script>
 export default {

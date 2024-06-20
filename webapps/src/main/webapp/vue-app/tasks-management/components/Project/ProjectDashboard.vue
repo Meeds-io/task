@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app
+  <div
     id="projectListApplication"
     class="projectAndTasksContainer pa-4 pb-2 transparent"
     flat>
@@ -38,7 +38,7 @@
       <tasks-view-dashboard :project="project" />
     </div>
     <project-manager-drawer />
-  </v-app>
+  </div>
 </template>
 <script>
 export default {
