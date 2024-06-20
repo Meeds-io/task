@@ -20,7 +20,7 @@
 
 -->
 <template>
-  <v-app id="ProjectCardList" class="tasksListContainer">
+  <div id="ProjectCardList" class="tasksListContainer">
     <div
       v-if="showPlaceholder"
       class="noTasksProject">
@@ -71,7 +71,7 @@
         </v-item-group>
       </v-card>
     </div>
-  </v-app>
+  </div>
 </template>
 <script>
 export default {
