@@ -32,7 +32,7 @@
       <outputDirectory>/</outputDirectory>
       <outputFileNameMapping>task-management.war</outputFileNameMapping>
       <includes>
-        <include>org.exoplatform.addons.task:task-management-webapps</include>
+        <include>${project.groupId}:*</include>
       </includes>
       <scope>provided</scope>
     </dependencySet>
@@ -41,7 +41,7 @@
       <outputDirectory>/</outputDirectory>
       <outputFileNameMapping>${artifact.artifactId}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
       <includes>
-        <include>org.exoplatform.addons.task:task-management-services</include>
+        <include>${project.groupId}:*</include>
       </includes>
       <scope>provided</scope>
     </dependencySet>
