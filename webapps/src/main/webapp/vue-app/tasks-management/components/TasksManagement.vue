@@ -16,26 +16,31 @@
 -->
 <template>
   <v-app id="TasksManagementPortlet">
-    <v-tabs 
-      v-if="showTabs"
-      v-model="tab"
-      slider-size="4"
-      class="tasksMenuParent card-border-radius app-background-color overflow-hidden white">
-      <v-tab href="#tab-2" @click="getMyProjects()">
-        {{ $t('label.projects') }}
-      </v-tab>
-      <v-tab href="#tab-1" @click="getMyTasks()">
-        {{ $t('label.tasks.header') }}
-      </v-tab>
-    </v-tabs>
-    <v-tabs-items v-model="tab" class="card-border-radius app-background-color">
-      <v-tab-item value="tab-1">
-        <tasks-dashboard />
-      </v-tab-item>
-      <v-tab-item value="tab-2">
-        <project-dashboard :space-name="spaceName" :display-details="displayDetails" />
-      </v-tab-item>
-    </v-tabs-items>
+    <div class="application-body">
+      <v-tabs
+        v-if="showTabs"
+        v-model="tab"
+        slider-size="4"
+        class="tasksMenuParent application-background-color application-border application-border-radius-top">
+        <v-tab href="#tab-2" @click="getMyProjects()">
+          {{ $t('label.projects') }}
+        </v-tab>
+        <v-tab href="#tab-1" @click="getMyTasks()">
+          {{ $t('label.tasks.header') }}
+        </v-tab>
+      </v-tabs>
+      <v-tabs-items
+        v-model="tab"
+        :class="showTabs && 'application-border-radius-bottom' || 'application-border-radius'"
+        class="application-background-color application-border">
+        <v-tab-item value="tab-1">
+          <tasks-dashboard />
+        </v-tab-item>
+        <v-tab-item value="tab-2">
+          <project-dashboard :space-name="spaceName" :display-details="displayDetails" />
+        </v-tab-item>
+      </v-tabs-items>
+    </div>
     <add-project-drawer
       ref="addProjectDrawer" />
 

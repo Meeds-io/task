@@ -20,7 +20,7 @@
 
 -->
 <template>
-  <v-app
+  <div
     id="tasksListApplication"
     class="projectAndTasksContainer transparent pa-4"
     flat>
@@ -147,7 +147,7 @@
         {{ $t('spacesList.button.showMore') }}
       </v-btn>
     </v-row>
-  </v-app>
+  </div>
 </template>
 <script>
 export default {
