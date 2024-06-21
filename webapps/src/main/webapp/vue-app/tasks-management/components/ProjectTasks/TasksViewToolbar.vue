@@ -15,11 +15,11 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app>
+  <div>
     <v-toolbar
       id="TasksDashboardToolbar"
       flat
-      class="tasksToolbar app-background-color">
+      class="tasksToolbar">
       <div class="taskDisplay">
         <v-tabs
           class="projectTasksViewTabs">
@@ -78,7 +78,7 @@
       @filter-num-changed="filterNumChanged"
       @filter-task="filterTasks"
       @reset-filter-task="resetFilterTask" />
-  </v-app>
+  </div>
 </template>
 <script>
 export default {
@@ -114,7 +114,7 @@ export default {
       awaitingSearch: false,
       filterNumber: 0,
       searchonkeyChange: true,
-      taskViewTabName: '',
+      taskViewTabName: 'board',
     };
   },
   watch: {        

@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app id="projectBoardToolbar">
+  <div id="projectBoardToolbar">
     <v-toolbar
       id="ProjectListToolbar"
       :class="showMobileTaskFilter && 'toolbarLarge'"
@@ -75,7 +75,7 @@
         </select>
       </v-scale-transition>
     </v-toolbar>
-  </v-app>
+  </div>
 </template>
 <script>
 export default {

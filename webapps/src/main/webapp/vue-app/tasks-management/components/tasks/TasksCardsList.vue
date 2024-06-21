@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app id="TasksCardList" class="tasksCardsContainer">
+  <div id="TasksCardList" class="tasksCardsContainer">
     <v-card flat>
       <v-item-group class="pa-4">
         <v-container class="pa-0">
@@ -37,7 +37,7 @@
         </v-container>
       </v-item-group>
     </v-card>
-  </v-app>
+  </div>
 </template>
 <script>
 export default {
