@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app
+  <div
     id="taskCardItem"
     class="taskBoardCardItem"
     :class="removeCompletedTask && 'completedTask' || ''">
@@ -118,7 +118,7 @@
         </div>
       </v-card>
     </v-hover>
-  </v-app>
+  </div>
 </template>
 <script>
 export default {

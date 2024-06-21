@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app class="tasksList pt-5">
+  <div class="tasksList pt-5">
     <div
       v-for="task in tasks"
       :key="task.id"
@@ -24,7 +24,7 @@
         :task="task"
         :show-completed-tasks="showCompletedTasks" />
     </div>
-  </v-app>
+  </div>
 </template>
 <script>
 export default {

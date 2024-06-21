@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app id="projectCard">
+  <div id="projectCard">
     <v-flex :class="flipCard && 'taskCardFlip taskCardFlipped' || 'taskCardFlip'">
       <div class="taskCardFront py-3 px-2">
         <project-card-front
@@ -32,7 +32,7 @@
           @flip="flipCard = false; flip()" />
       </div>
     </v-flex>
-  </v-app>
+  </div>
 </template>
 <script>
 export default {
