@@ -24,7 +24,7 @@
     <groupId>org.exoplatform.addons</groupId>
     <version>18-M03</version>
   </parent>
-  <groupId>io.meeds.addons.task</groupId>
+  <groupId>io.meeds.task</groupId>
   <artifactId>task-management-parent</artifactId>
   <version>7.0.x-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -61,7 +61,7 @@
         <scope>import</scope>
       </dependency>
       <dependency>
-        <groupId>io.meeds.addons.gamification</groupId>
+        <groupId>io.meeds.gamification</groupId>
         <artifactId>gamification</artifactId>
         <version>${addon.meeds.gamification.version}</version>
         <type>pom</type>
@@ -76,24 +76,24 @@
         <scope>import</scope>
       </dependency>
       <dependency>
-        <groupId>io.meeds.addons.task</groupId>
+        <groupId>${project.groupId}</groupId>
         <artifactId>task-management-services</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.meeds.addons.task</groupId>
+        <groupId>${project.groupId}</groupId>
         <artifactId>task-management-services</artifactId>
         <type>test-jar</type>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.meeds.addons.task</groupId>
+        <groupId>${project.groupId}</groupId>
         <artifactId>task-management-webapps</artifactId>
         <version>${project.version}</version>
         <type>war</type>
       </dependency>
       <dependency>
-        <groupId>io.meeds.addons.task</groupId>
+        <groupId>${project.groupId}</groupId>
         <artifactId>task-management-packaging</artifactId>
         <version>${project.version}</version>
         <type>zip</type>

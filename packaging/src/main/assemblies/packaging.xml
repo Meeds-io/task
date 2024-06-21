@@ -32,7 +32,7 @@
       <outputDirectory>/</outputDirectory>
       <outputFileNameMapping>task-management.war</outputFileNameMapping>
       <includes>
-        <include>${project.groupId}:*</include>
+        <include>${project.groupId}:*:war</include>
       </includes>
       <scope>provided</scope>
     </dependencySet>
@@ -41,7 +41,7 @@
       <outputDirectory>/</outputDirectory>
       <outputFileNameMapping>${artifact.artifactId}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
       <includes>
-        <include>${project.groupId}:*</include>
+        <include>${project.groupId}:*:jar</include>
       </includes>
       <scope>provided</scope>
     </dependencySet>
