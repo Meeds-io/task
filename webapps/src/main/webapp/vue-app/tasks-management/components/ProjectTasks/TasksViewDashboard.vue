@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app
+  <div
     :id="'projectTask-'+project.id"
     :class="taskViewTabName === 'board' && !filterProjectActive && 'projectTaskBoardContainer'"
     class="projectTasksDashboard">
@@ -206,7 +206,7 @@
     <tasks-unscheduled-drawer 
       :project="project"
       :show-completed-tasks="showCompletedTasks" />
-  </v-app>
+  </div>
 </template>
 <script>
 export default {

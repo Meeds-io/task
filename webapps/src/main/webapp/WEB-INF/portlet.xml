@@ -48,6 +48,10 @@
       <name>portlet-view-dispatched-file-path</name>
       <value>/html/tasksManagement.html</value>
     </init-param>
+    <init-param>
+      <name>layout-css-class</name>
+      <value>no-layout-background-color no-layout-border-radius no-layout-border</value>
+    </init-param>
     <supports>
       <mime-type>text/html</mime-type>
     </supports>
