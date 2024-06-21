@@ -15,71 +15,69 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app>
-    <exo-drawer
-      @closed="closeDrawer"
-      id="taskCommentDrawer"
-      v-model="drawer"
-      class="taskCommentDrawer"
-      ref="taskCommentDrawer"
-      right>
-      <template slot="title">
-        <v-flex
-          class="mx-0 drawerHeader flex-grow-0 width-full">
-          <v-list-item class="px-0">
-            <v-list-item-content class="drawerTitle d-flex text-header-title text-truncate">
-              <i class="uiIcon uiArrowBAckIcon" @click="closeDrawer"></i>
-              <span class="ps-2">{{ $t('label.comments') }}</span>
-            </v-list-item-content>
-            <v-list-item-action class="drawerIcons align-end d-flex flex-row">
-              <v-btn
-                :disabled="isEditorActive"
-                icon
-                :title="$t('comment.message.addYourComment')"
-                class="addCommentBtn float-right"
-                @click="openEditorToBottom(commentId)">
-                <i class="uiIcon uiIconTaskAddComment"></i>
-              </v-btn>
-            </v-list-item-action>
-          </v-list-item>
-        </v-flex>
-      </template>
-      <template slot="content">
-        <v-flex id="commentDrawerContent" class="drawerContent flex-grow-1 overflow-auto border-box-sizing">
+  <exo-drawer
+    @closed="closeDrawer"
+    id="taskCommentDrawer"
+    v-model="drawer"
+    class="taskCommentDrawer"
+    ref="taskCommentDrawer"
+    right>
+    <template slot="title">
+      <v-flex
+        class="mx-0 drawerHeader flex-grow-0 width-full">
+        <v-list-item class="px-0">
+          <v-list-item-content class="drawerTitle d-flex text-header-title text-truncate">
+            <i class="uiIcon uiArrowBAckIcon" @click="closeDrawer"></i>
+            <span class="ps-2">{{ $t('label.comments') }}</span>
+          </v-list-item-content>
+          <v-list-item-action class="drawerIcons align-end d-flex flex-row">
+            <v-btn
+              :disabled="isEditorActive"
+              icon
+              :title="$t('comment.message.addYourComment')"
+              class="addCommentBtn float-right"
+              @click="openEditorToBottom(commentId)">
+              <i class="uiIcon uiIconTaskAddComment"></i>
+            </v-btn>
+          </v-list-item-action>
+        </v-list-item>
+      </v-flex>
+    </template>
+    <template slot="content">
+      <v-flex id="commentDrawerContent" class="drawerContent flex-grow-1 overflow-auto border-box-sizing">
+        <div
+          v-if="this.comments && this.comments.length"
+          class="TaskCommentContent">
           <div
-            v-if="this.comments && this.comments.length"
-            class="TaskCommentContent">
-            <div
-              v-for="(item, i) in comments"
-              :key="i"
-              class="pe-0 ps-0 TaskCommentItem">
-              <task-comments
-                :task="task"
-                :comment="item"
-                :comments="comments"
-                :last-comment="commentId"
-                :show-new-comment-editor="showNewCommentEditor"
-                @confirmDialogOpened="$emit('confirmDialogOpened')"
-                @confirmDialogClosed="$emit('confirmDialogClosed')" />
-            </div>
+            v-for="(item, i) in comments"
+            :key="i"
+            class="pe-0 ps-0 TaskCommentItem">
+            <task-comments
+              :task="task"
+              :comment="item"
+              :comments="comments"
+              :last-comment="commentId"
+              :show-new-comment-editor="showNewCommentEditor"
+              @confirmDialogOpened="$emit('confirmDialogOpened')"
+              @confirmDialogClosed="$emit('confirmDialogClosed')" />
           </div>
-          <div v-else-if="drawer">
-            <div class="editorContent commentEditorContainer newCommentEditor">
-              <task-comment-editor
-                ref="commentEditor"
-                :max-length="MESSAGE_MAX_LENGTH"
-                :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)"
-                :task="task"
-                :show-comment-editor="true"
-                :id="'commentContent-editor'"
-                class="subComment subCommentEditor"
-                @addNewComment="addTaskComment($event)" />
-            </div>
+        </div>
+        <div v-else-if="drawer">
+          <div class="editorContent commentEditorContainer newCommentEditor">
+            <task-comment-editor
+              ref="commentEditor"
+              :max-length="MESSAGE_MAX_LENGTH"
+              :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)"
+              :task="task"
+              :show-comment-editor="true"
+              :id="'commentContent-editor'"
+              class="subComment subCommentEditor"
+              @addNewComment="addTaskComment($event)" />
           </div>
-        </v-flex>
-      </template>
-    </exo-drawer>
-  </v-app>
+        </div>
+      </v-flex>
+    </template>
+  </exo-drawer>
 </template>
 <script>
 export default {
