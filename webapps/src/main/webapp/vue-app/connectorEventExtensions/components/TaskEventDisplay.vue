@@ -32,7 +32,7 @@
         :project="project" />
     </template>
     <template v-else>
-      <div class="subtitle-1 font-weight-bold mb-2">
+      <div class="text-header mb-2">
         {{ $t('gamification.event.display.goThere') }}
       </div>
       <div class="d-flex justify-center">
