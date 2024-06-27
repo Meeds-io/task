@@ -98,7 +98,7 @@
         display: block;
         text-decoration: underline;
         color: @primaryColor;
-        font-size: 14px;
+        font-size: @textFontSize;
         cursor: pointer;
       }
     }
@@ -106,7 +106,7 @@
   .commentBtn {
     background-color: @primaryColor!important;
     letter-spacing: 0!important;
-    font-size: 14px!important;
+    font-size: @textFontSize!important;
     text-transform: capitalize;
   }
 }
@@ -248,11 +248,11 @@
 
     p, ul li, ol li {
       margin-bottom: 0;
-      font-size: 14px !important;
-      font-weight: 300;
+      font-size: @textFontSize;
+      font-weight: @textFontWeight;
+      font-style: @textFontStyle;
+      color: @textColor;
       line-height: 1.25;
-      font-style: italic !important;
-      color: @textColor !important;
     }
   }
 }
