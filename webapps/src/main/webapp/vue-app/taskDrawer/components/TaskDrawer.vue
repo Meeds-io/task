@@ -42,7 +42,7 @@
             class="uiIcon uiArrowBAckIcon"
             @click="closeTaskDrawer"></i>
           <span>{{ $t('label.project') }}</span>
-          <div class="taskProjectName">
+          <div class="taskProjectName text-truncate">
             <task-projects
               :task="task"
               @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
@@ -74,7 +74,7 @@
             class="uiIcon uiArrowBAckIcon"
             @click="closeTaskDrawer"></i>
           <span>{{ $t('label.drawer.header.add') }}</span>
-          <div class="taskProjectName">
+          <div class="taskProjectName text-truncate">
             <task-projects
               :task="task"
               @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
