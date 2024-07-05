@@ -17,7 +17,7 @@
  Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app>
+  <div>
     <template v-if="projectIds">
       <div class="subtitle-1 font-weight-bold mb-2">
         {{ $t('gamification.event.display.doItNow') }}
@@ -32,7 +32,7 @@
         :project="project" />
     </template>
     <template v-else>
-      <div class="subtitle-1 font-weight-bold mb-2">
+      <div class="text-header mb-2">
         {{ $t('gamification.event.display.goThere') }}
       </div>
       <div class="d-flex justify-center">
@@ -44,7 +44,7 @@
         </v-btn>
       </div>
     </template>
-  </v-app>
+  </div>
 </template>
 
 <script>

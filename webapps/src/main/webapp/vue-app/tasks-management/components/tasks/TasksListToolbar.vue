@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app id="TasksToolbar">
+  <div id="TasksToolbar">
     <v-toolbar
       id="TasksListToolbar"
       :class="showMobileTaskFilter && 'toolbarLarge'"
@@ -93,7 +93,7 @@
       @filter-task="filterTasks"
       @reset-filter-task="resetFilterTask"
       @filter-task-query="filterTaskquery" />
-  </v-app>
+  </div>
 </template>
 <script>
 export default {

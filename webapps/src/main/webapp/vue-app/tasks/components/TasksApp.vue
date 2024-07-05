@@ -16,7 +16,9 @@
 -->
 <template>
   <v-app>
-    <widget-wrapper :loading="loadingTasks">
+    <widget-wrapper
+      :loading="loadingTasks"
+      extra-class="application-body">
       <template #title>
         <a 
           class="widget-text-header text-truncate" 
@@ -88,7 +90,6 @@
       </div>
       <v-card
         v-else
-        class="app-background-color"
         min-height="188"
         flat>
         <task-empty-row v-if="displayPlaceholder" @open-task-drawer="openTaskDrawer" />

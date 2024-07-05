@@ -15,7 +15,7 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <v-app id="projectBoardToolbar">
+  <div id="projectBoardToolbar">
     <v-toolbar
       id="ProjectListToolbar"
       :class="showMobileTaskFilter && 'toolbarLarge'"
@@ -29,7 +29,7 @@
           <v-icon dark class="d-block d-sm-none">mdi-plus</v-icon>
           <span class="d-none font-weight-regular d-sm-flex align-center">
             <i class="uiIcon uiIconPlus"></i>
-            <span class="addProject">{{ $t('label.addProject') }}</span> 
+            <span class="ms-2 addProject">{{ $t('label.addProject') }}</span> 
           </span>
         </v-btn>
       </v-toolbar-title>
@@ -75,7 +75,7 @@
         </select>
       </v-scale-transition>
     </v-toolbar>
-  </v-app>
+  </div>
 </template>
 <script>
 export default {
