@@ -53,7 +53,7 @@
           </a>
         </div>
       </template>
-      <v-card class="pb-4">
+      <v-card class="pb-4" flat>
         <v-card-text class="assignTaskMenu pb-0 d-flex justify-space-between">
           <span>{{ $t('label.assignTo') }} :</span>
           <a class="ms-4" @click="assignToMe()">

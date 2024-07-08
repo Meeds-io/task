@@ -17,8 +17,8 @@
 <template>
   <v-card 
     class="d-flex flex-column border-radius box-shadow" 
-    flat
-    min-height="227">
+    min-height="227"
+    flat>
     <a
       v-sanitized-html="taskTitle"
       :title="taskTitleText"
