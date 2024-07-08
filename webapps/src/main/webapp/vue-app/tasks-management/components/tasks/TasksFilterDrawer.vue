@@ -26,7 +26,7 @@
     <template slot="content">
       <div class="VuetifyApp">
         <template>
-          <v-card class="taskFilter">
+          <v-card class="taskFilter" flat>
             <v-toolbar dense>
               <v-tabs
                 v-model="tab">
@@ -38,7 +38,7 @@
 
             <v-tabs-items v-model="tab">
               <v-tab-item v-if="!project">
-                <v-card>
+                <v-card flat>
                   <tasks-group-drawer
                     ref="filterGroupTasksDrawer"
                     v-model="groupBy" />
@@ -49,7 +49,7 @@
               </v-tab-item>
 
               <v-tab-item v-if="project">
-                <v-card>
+                <v-card flat>
                   <tasks-group-project-drawer
                     ref="filterGroupTasksDrawer"
                     v-model="groupBy"
@@ -63,7 +63,7 @@
               </v-tab-item>
 
               <v-tab-item>
-                <v-card>
+                <v-card flat>
                   <form ref="form1" class="mt-4">
                     <v-label for="name">
                       <span class="font-weight-bold body-2">{{ $t('filter.task.contains') }}</span>
@@ -156,7 +156,7 @@
               </v-tab-item>
 
               <v-tab-item>
-                <v-card>
+                <v-card flat>
                   <tasks-labels-drawer
                     ref="filterLabelsTasksDrawer"
                     :project-id="projectId"
