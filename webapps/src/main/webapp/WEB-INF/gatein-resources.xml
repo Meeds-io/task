@@ -25,6 +25,7 @@
     <skin-module>taskCommentsDrawer</skin-module>
     <css-path>/skin/css/tasksCommentDrawer.css</css-path>
     <css-priority>2</css-priority>
+    <filtered>true</filtered>
   </portal-skin>
 
   <portal-skin>
@@ -32,22 +33,37 @@
     <skin-module>tasksDrawer</skin-module>
     <css-path>/skin/css/tasksDrawer.css</css-path>
     <css-priority>2</css-priority>
+    <filtered>true</filtered>
+  </portal-skin>
+
+  <portal-skin>
+    <skin-name>Enterprise</skin-name>
+    <skin-module>tasks</skin-module>
+    <css-path>/skin/css/tasks.css</css-path>
+    <css-priority>2</css-priority>
+    <filtered>true</filtered>
   </portal-skin>
 
   <portlet-skin>
     <application-name>task-management</application-name>
     <portlet-name>tasks</portlet-name>
     <skin-name>Enterprise</skin-name>
-    <css-path>/skin/css/tasks.css</css-path>
     <css-priority>2</css-priority>
+    <additional-module>tasks</additional-module>
+    <additional-module>tasksDrawer</additional-module>
+    <additional-module>taskCommentsDrawer</additional-module>
+    <additional-module>ImageCropper</additional-module>
   </portlet-skin>
 
   <portlet-skin>
     <application-name>task-management</application-name>
     <portlet-name>TasksManagement</portlet-name>
     <skin-name>Enterprise</skin-name>
-    <css-path>/skin/css/tasks.css</css-path>
     <css-priority>2</css-priority>
+    <additional-module>tasks</additional-module>
+    <additional-module>tasksDrawer</additional-module>
+    <additional-module>taskCommentsDrawer</additional-module>
+    <additional-module>ImageCropper</additional-module>
   </portlet-skin>
 
   <module>
