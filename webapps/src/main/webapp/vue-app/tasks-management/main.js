@@ -54,7 +54,7 @@ if (!Vue.prototype.$taskDrawerApi) {
 const lang = eXo && tasksConstants.LANG || 'en';
 
 //should expose the locale ressources as REST API
-const url = `${tasksConstants.PORTAL}/${tasksConstants.PORTAL_REST}/i18n/bundle/locale.portlet.taskManagement-${lang}.json`;
+const url = `/task-management/i18n/locale.portlet.taskManagement?lang=${lang}`;
 
 const autoReply = window.location.hash === '#reply';
 const autoReplyCommentId = autoReply && window.location.hash.replace('#reply', '');

@@ -19,7 +19,7 @@ import './initComponents.js';
 // getting language of user
 const lang = window.eXo && eXo?.env?.portal?.language || 'en';
 
-const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.portlet.taskManagement-${lang}.json`;
+const url = `/task-management/i18n/locale.portlet.taskManagement?lang=${lang}`;
 
 const appId = 'tasks';
 
