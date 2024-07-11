@@ -21,7 +21,7 @@ import './initComponents.js';
 import './extensions.js';
 
 const lang = eXo.env.portal.language;
-const url = `${eXo.env.portal.context}/${eXo.env.portal.rest}/i18n/bundle/locale.notification.TaskNotification-${lang}.json`;
+const url = `/task-management/i18n/locale.notification.TaskNotification?lang=${lang}`;
 
 export function init() {
   return exoi18n.loadLanguageAsync(lang, url)
