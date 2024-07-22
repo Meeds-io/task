@@ -99,6 +99,10 @@
     <type>org.exoplatform.task.rest.StatusRestService</type>
   </component>
 
+  <component>
+    <type>io.meeds.task.plugin.TaskPermanentLinkPlugin</type>
+  </component>
+
   <external-component-plugins>
     <target-component>org.exoplatform.commons.api.persistence.DataInitializer</target-component>
     <component-plugin>
