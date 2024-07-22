@@ -35,14 +35,13 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.TaskDto;
-import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.web.WebAppController;
 
 public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin {
 
-  public AbstractNotificationPlugin(InitParams initParams) {
+  AbstractNotificationPlugin(InitParams initParams) {
     super(initParams);
   }
 
@@ -85,6 +84,7 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
     return NotificationInfo.instance()
                            .to(new LinkedList<>(receivers))
                            .setSpaceId(spaceId)
+                           .with(NotificationUtils.TASK_ID, String.valueOf(task.getId()))
                            .with(NotificationUtils.TASK_TITLE, task.getTitle())
                            .with(NotificationUtils.TASK_DESCRIPTION, task.getDescription())
                            .with(NotificationUtils.CREATOR.getKey(), notificationCreator)

@@ -33,6 +33,7 @@ public class NotificationUtils {
   public static final ArgumentLiteral<Set> RECEIVERS = new ArgumentLiteral<Set>(Set.class, "receivers");
   public static final ArgumentLiteral<String> ACTION_NAME = new ArgumentLiteral<>(String.class, "actionName");
   public static final String TASKS = "tasks";
+  public final static String TASK_ID = "taskId";
   public final static String TASK_TITLE = "taskName";
   public static final String TASK_CREATOR = "taskCreator";
   public final static String TASK_DESCRIPTION = "taskDescription";
