@@ -684,7 +684,7 @@ public class ProjectRestService implements ResourceContainer {
           @ApiResponse(responseCode = "404", description = "Resource not found") })
   public Response cloneProject(@Parameter(description = "Project object to clone", required = true) ProjectDto projectDto) {
     try {
-      ProjectDto currentProject = projectDto;
+      ProjectDto currentProject = projectService.getProject(projectDto.getId());
       if (!currentProject.canEdit(ConversationState.getCurrent().getIdentity())) {
         return Response.status(Response.Status.UNAUTHORIZED).build();
       }
