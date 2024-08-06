@@ -605,6 +605,7 @@ public class TestProjectRestService {
     projectCloned.setManager(manager);
 
     when(projectService.cloneProject(projectDto.getId(), true)).thenReturn(projectCloned);
+    when(projectService.getProject(projectDto.getId())).thenReturn(projectDto);
 
     Response response1 = projectRestService.cloneProject(projectDto);
     assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
