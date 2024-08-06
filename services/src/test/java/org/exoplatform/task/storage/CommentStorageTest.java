@@ -21,6 +21,8 @@ package org.exoplatform.task.storage;
 import java.util.Date;
 import java.util.Set;
 
+import org.exoplatform.task.dao.CommentHandler;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -46,7 +48,8 @@ public class CommentStorageTest extends AbstractTest {
 
   private CommentStorage      commentStorage;
 
-  private TaskHandler         taskDAO;
+  private TaskHandler    taskDAO;
+  private CommentHandler commentDAO;
 
   @Before
   public void init() {
@@ -57,8 +60,15 @@ public class CommentStorageTest extends AbstractTest {
     commentStorage = container.getComponentInstanceOfType(CommentStorage.class);
     DAOHandler daoHandler = container.getComponentInstanceOfType(DAOHandler.class);
     taskDAO = daoHandler.getTaskHandler();
+    commentDAO = daoHandler.getCommentHandler();
   }
 
+  @After
+  public void cleanData() {
+    endRequestLifecycle();
+    commentDAO.deleteAll();
+    taskDAO.deleteAll();
+  }
   @Test
   public void testMentionedUsers() throws EntityNotFoundException {
     TaskDto task = newDefaultSimpleTask();
