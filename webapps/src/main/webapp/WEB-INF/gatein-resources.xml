@@ -15,16 +15,14 @@
   along with this program; if not, write to the Free Software Foundation,
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
-<gatein-resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                  xsi:schemaLocation="http://www.exoplatform.org/xml/ns/gatein_resources_1_4 http://www.exoplatform.org/xml/ns/gatein_resources_1_4"
-                  xmlns="http://www.exoplatform.org/xml/ns/gatein_resources_1_4">
-
+<gatein-resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.exoplatform.org/xml/ns/gatein_resources_1_5 http://www.exoplatform.org/xml/ns/gatein_resources_1_5" xmlns="http://www.exoplatform.org/xml/ns/gatein_resources_1_5">
 
   <portal-skin>
     <skin-name>Enterprise</skin-name>
     <skin-module>taskCommentsDrawer</skin-module>
     <css-path>/skin/css/tasksCommentDrawer.css</css-path>
     <css-priority>2</css-priority>
+    <filtered>true</filtered>
   </portal-skin>
 
   <portal-skin>
@@ -32,153 +30,38 @@
     <skin-module>tasksDrawer</skin-module>
     <css-path>/skin/css/tasksDrawer.css</css-path>
     <css-priority>2</css-priority>
+    <filtered>true</filtered>
+  </portal-skin>
+
+  <portal-skin>
+    <skin-name>Enterprise</skin-name>
+    <skin-module>tasks</skin-module>
+    <css-path>/skin/css/tasks.css</css-path>
+    <css-priority>2</css-priority>
+    <filtered>true</filtered>
   </portal-skin>
 
   <portlet-skin>
     <application-name>task-management</application-name>
     <portlet-name>tasks</portlet-name>
     <skin-name>Enterprise</skin-name>
-    <css-path>/skin/css/tasks.css</css-path>
     <css-priority>2</css-priority>
+    <additional-module>tasks</additional-module>
+    <additional-module>tasksDrawer</additional-module>
+    <additional-module>taskCommentsDrawer</additional-module>
+    <additional-module>ImageCropper</additional-module>
   </portlet-skin>
 
   <portlet-skin>
     <application-name>task-management</application-name>
     <portlet-name>TasksManagement</portlet-name>
     <skin-name>Enterprise</skin-name>
-    <css-path>/skin/css/tasks.css</css-path>
     <css-priority>2</css-priority>
+    <additional-module>tasks</additional-module>
+    <additional-module>tasksDrawer</additional-module>
+    <additional-module>taskCommentsDrawer</additional-module>
+    <additional-module>ImageCropper</additional-module>
   </portlet-skin>
-
-  <module>
-    <name>task_jquery_ui</name>
-    <script>
-      <adapter>
-        (function() {
-        // This is workaround to avoid conflict between jquery-ui and bootstrap
-        var oldTooltip = jQuery.fn.tooltip;
-
-        <include>/WEB-INF/classes/org/exoplatform/task/management/assets/jquery-ui/1.11.4/jquery-ui.js</include>
-
-        jQuery.fn.tooltip = oldTooltip;
-        return jQuery;
-        })();
-      </adapter>
-    </script>
-    <depends>
-      <module>jquery</module>
-      <as>jQuery</as>
-    </depends>
-  </module>
-  <module>
-    <name>bootstrap_tooltip</name>
-    <script>
-      <adapter>
-        (function() {
-        var oldJQuery = window.jQuery;
-        window.jQuery = $;
-        <include>/WEB-INF/classes/org/exoplatform/task/management/assets/javascripts/bootstrap/bootstrap-tooltip.js</include>
-        window.jQuery = oldJQuery;
-        return $;
-        })();
-      </adapter>
-    </script>
-    <depends>
-      <module>jquery</module>
-    </depends>
-  </module>
-  <module>
-    <name>bootstrap_popover</name>
-    <script>
-      <adapter>
-        (function() {
-        var oldJQuery = window.jQuery;
-        window.jQuery = $;
-        <include>/WEB-INF/classes/org/exoplatform/task/management/assets/javascripts/bootstrap/bootstrap-popover.js</include>
-        window.jQuery = oldJQuery;
-        return $;
-        })();
-      </adapter>
-    </script>
-    <depends>
-      <module>jquery</module>
-    </depends>
-    <depends>
-      <module>bootstrap_tooltip</module>
-    </depends>
-  </module>
-  <module>
-    <name>bootstrap_datepicker</name>
-    <script>
-      <adapter>
-        (function() {
-        var oldJQuery = window.jQuery;
-        window.jQuery = $;
-        <include>/WEB-INF/classes/org/exoplatform/task/management/assets/bootstrap-datepicker/1.4.0/js/bootstrap-datepicker.js</include>
-        window.jQuery = oldJQuery;
-
-        <!--
-        This is workaround because the name 'datepicker' is used in both bootstrap-datepicker and jquery-ui.
-        I clone $.fn.datepicker.DPGlobal to other property to used in 'x-editable-calendar' module
-        -->
-        $.fn.task_datepicker = $.fn.datepicker;
-
-        return $;
-        })();
-      </adapter>
-    </script>
-    <depends>
-      <module>jquery</module>
-    </depends>
-  </module>
-
-  <module>
-    <name>select2</name>
-    <script>
-      <adapter>
-        (function() {
-        <include>/WEB-INF/classes/org/exoplatform/task/management/assets/select2/3.5.2/select2.js</include>
-        return jQuery;
-        })();
-      </adapter>
-    </script>
-    <depends>
-      <module>jquery</module>
-      <as>jQuery</as>
-    </depends>
-  </module>
-  <module>
-    <name>edit_inline_js</name>
-    <script>
-      <adapter>
-        (function() {
-        var oldJQuery = window.jQuery;
-        window.jQuery = $;
-        <include>/WEB-INF/classes/org/exoplatform/task/management/assets/x-editable-bootstrap/1.4.6/js/bootstrap-editable.js</include>
-        window.jQuery = oldJQuery;
-        return $;
-        })();
-      </adapter>
-    </script>
-    <depends>
-      <module>jquery</module>
-    </depends>
-    <depends>
-      <module>bootstrap_tooltip</module>
-    </depends>
-    <depends>
-      <module>bootstrap_popover</module>
-    </depends>
-    <depends>
-      <module>bootstrap_datepicker</module>
-    </depends>
-    <depends>
-      <module>select2</module>
-    </depends>
-    <depends>
-      <module>suggester</module>
-    </depends>
-  </module>
 
   <module>
     <name>ganttChart</name>
