@@ -17,6 +17,7 @@
 <template>
   <div>
     <v-container
+      class="full-width"
       pa-0
       fluid
       d-flex>
