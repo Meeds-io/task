@@ -132,7 +132,6 @@ export default {
       if (this.task && this.newStatus && this.task.status.name !== this.newStatus) {
         this.$emit('updateTaskStatus', this.task,this.newStatus);
       }
-      Array.from(document.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#FFFFFF');
       this.drag = false;
     },
     cancelDrag() {
@@ -149,8 +148,6 @@ export default {
     },
     checkMove(evt){
       if (evt){
-        Array.from(document.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#FFFFFF');
-        Array.from(evt.to.parentElement.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#f2f2f2');
         this.task = evt.draggedContext.element.task;
         this.newStatus = evt.relatedContext.component.$parent.status.name;
       }
