@@ -119,7 +119,6 @@ export default {
     dragStatus(val) {
       if (!val){
         this.$emit('move-status',this.indexStatusTo);
-        Array.from(document.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#FFFFFF');
       }},
   },
   created(){
@@ -133,8 +132,6 @@ export default {
     },
     checkMoveStatus(evt){
       if (evt){
-        Array.from(document.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#FFFFFF');
-        Array.from(evt.to.parentElement.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#f2f2f2');
         this.indexStatusFrom = evt.draggedContext.index;
         this.indexStatusTo = evt.draggedContext.futureIndex;
       }
