@@ -40,7 +40,7 @@
     <div v-else>
       <v-card flat class="transparent">
         <v-item-group class="pa-4">
-          <v-container class="pa-0">
+          <v-container class="full-width pa-0">
             <v-row class="ma-0 border-box-sizing">
               <v-col
                 v-for="project in projects"

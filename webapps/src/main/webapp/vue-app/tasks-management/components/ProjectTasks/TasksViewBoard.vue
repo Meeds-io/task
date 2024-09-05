@@ -19,44 +19,17 @@
     class="tasksView tasksViewBoard tasksCardsContainer"
     flat>
     <v-item-group class="pb-0 pt-5 px-0">
-      <v-container class="pa-0 mx-0">
-        <v-row class="ma-0 border-box-sizing tasksViewBoardRowContainer">
-          <div v-if="project.canManage">
-            <draggable
-              :move="checkMoveStatus"
-              :list="statusList"
-              :animation="200"
-              ghost-class="ghost-card"
-              class="d-flex"
-              @start="dragStatus=true"
-              @end="dragStatus=false"
-              :options="{handle:'.draggHandler'}">
-              <v-col
-                v-for="(status, index) in statusList"
-                :key="index"
-                :id="status.id"
-                class="py-0 px-3 projectTaskItem">
-                <tasks-view-board-column
-                  :project="project"
-                  :status="status"
-                  class="draggable-palceholder"
-                  :tasks-list="getTasksByStatus(tasksList,status.name)"
-                  :index="index"
-                  :show-completed-tasks="showCompletedTasks"
-                  :status-list-length="statusList.length"
-                  :filter-no-active="filterNoActive"
-                  @updateTaskCompleted="updateTaskCompleted"
-                  @updateTaskStatus="updateTaskStatus"
-                  @delete-status="deleteStatus"
-                  @update-status="updateStatus"
-                  @add-column="addColumn"
-                  @move-column="moveColumn"
-                  @cancel-add-column="cancelAddColumn"
-                  @create-status="createStatus" />
-              </v-col>
-            </draggable>
-          </div>
-          <div v-else class="d-flex">
+      <v-row class="ma-0 border-box-sizing tasksViewBoardRowContainer">
+        <div v-if="project.canManage">
+          <draggable
+            :move="checkMoveStatus"
+            :list="statusList"
+            :animation="200"
+            ghost-class="ghost-card"
+            class="d-flex"
+            @start="dragStatus=true"
+            @end="dragStatus=false"
+            :options="{handle:'.draggHandler'}">
             <v-col
               v-for="(status, index) in statusList"
               :key="index"
@@ -65,6 +38,7 @@
               <tasks-view-board-column
                 :project="project"
                 :status="status"
+                class="draggable-palceholder"
                 :tasks-list="getTasksByStatus(tasksList,status.name)"
                 :index="index"
                 :show-completed-tasks="showCompletedTasks"
@@ -79,9 +53,33 @@
                 @cancel-add-column="cancelAddColumn"
                 @create-status="createStatus" />
             </v-col>
-          </div>
-        </v-row>
-      </v-container>
+          </draggable>
+        </div>
+        <div v-else class="d-flex">
+          <v-col
+            v-for="(status, index) in statusList"
+            :key="index"
+            :id="status.id"
+            class="py-0 px-3 projectTaskItem">
+            <tasks-view-board-column
+              :project="project"
+              :status="status"
+              :tasks-list="getTasksByStatus(tasksList,status.name)"
+              :index="index"
+              :show-completed-tasks="showCompletedTasks"
+              :status-list-length="statusList.length"
+              :filter-no-active="filterNoActive"
+              @updateTaskCompleted="updateTaskCompleted"
+              @updateTaskStatus="updateTaskStatus"
+              @delete-status="deleteStatus"
+              @update-status="updateStatus"
+              @add-column="addColumn"
+              @move-column="moveColumn"
+              @cancel-add-column="cancelAddColumn"
+              @create-status="createStatus" />
+          </v-col>
+        </div>
+      </v-row>
     </v-item-group>
   </v-card>
 </template>
@@ -121,7 +119,6 @@ export default {
     dragStatus(val) {
       if (!val){
         this.$emit('move-status',this.indexStatusTo);
-        Array.from(document.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#FFFFFF');
       }},
   },
   created(){
@@ -135,8 +132,6 @@ export default {
     },
     checkMoveStatus(evt){
       if (evt){
-        Array.from(document.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#FFFFFF');
-        Array.from(evt.to.parentElement.getElementsByClassName('draggable-palceholder')).forEach(element => element.style.backgroundColor= '#f2f2f2');
         this.indexStatusFrom = evt.draggedContext.index;
         this.indexStatusTo = evt.draggedContext.futureIndex;
       }
