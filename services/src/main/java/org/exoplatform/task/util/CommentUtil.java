@@ -75,7 +75,7 @@ public final class CommentUtil {
           next += "</a>";
         }
       } else if (next.contains("@")) {
-        String username = next.split("@")[1];
+        String username = next.replace(next.split("@")[0].concat("@"),"");
         User user = userService.loadUser(username);
         if (user != null && !"guest".equals(user.getUsername())) {
           next = next.split("@")[0] + "<a href=\"" + CommonsUtils.getCurrentDomain() + user.getUrl() + "\">"
