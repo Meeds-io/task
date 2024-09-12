@@ -20,7 +20,7 @@
   <parent>
     <artifactId>task-management-parent</artifactId>
     <groupId>io.meeds.task</groupId>
-    <version>7.0.x-exo-SNAPSHOT</version>
+    <version>7.0.0-exo-M35</version>
   </parent>
   <artifactId>task-management-webapps</artifactId>
   <packaging>war</packaging>
