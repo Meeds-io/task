@@ -16,45 +16,70 @@
 -->
 <template>
   <div @click.stop>
-    <v-combobox
-      id="labelInput"
-      ref="selectLabel"
-      v-model="model"
-      :filter="filter"
-      :hide-no-data="!search"
+    <v-chip
+        class="ma-1 white--text"
+        :class="{ 'active-chip' : (!(labelItem && labelItem.project) && displayActionMenu) }"
+        label
+        color="`lighten-3`"
+        primary
+        small
+        @click="resetLabelItem(true)"
+        style="background: #3f8487">
+      <span class="pr-2">
+        {{ $t('label.addLabel') }}
+      </span>
+      <i class="fas fa-plus"></i>
+    </v-chip>
+    <editable-labels
+      ref="childLabel"
       :items="items"
-      :search-input.sync="search"
-      :label="$t('label.tapLabel.name')"
-      attach
-      class="pt-0 inputProjectLabel"
-      hide-selected
-      multiple
-      small-chips
-      prepend-icon
-      solo
-      @click="openLabelsList()"
-      @change="search = ''">
-      <template #prepend>
-        <i class="uiIconTag uiIconBlue"></i>
-      </template>
-      <template #no-data>
-        <v-list-item>
-          <span class="subheading">{{ $t('label.createLabel') }}</span>
-          <v-chip
-            label
-            small>
-            {{ search }}
-          </v-chip>
-        </v-list-item>
-      </template>
-      <template #selection="{ item, parent }">
-        <editable-labels
-          :item="item"
-          :parent="parent"
-          @edit-label-on-create="editLabelBeforeCreate"
-          @remove-label="removeLabel" />
-      </template>
-    </v-combobox>
+      @remove-label="removeLabel"
+      @open-edit-label-action-menu="resetLabelItem"/>
+    <v-list class="pa-0 labelsActionMenu" dense v-if="displayActionMenu">
+      <v-list-item>
+        <v-list-item-content>
+          <v-text-field
+              ref="autoFocusInput1"
+              v-model="labelItem.text"
+              type="text"
+              class="font-weight-bold pa-0 text-color mb-1 labels-edit-name"
+              :placeholder="$t('label.tapLabel.name')"
+              autofocus
+              outlined
+              dense
+              @keyup.enter="saveLabel">
+            <i
+                dark
+                class="uiIconTick success--text clickable label-btn ma-1"
+                slot="append"
+                @click="saveLabel">
+            </i>
+            <i
+                dark
+                class="uiIconClose error--text clickable label-btn ma-1"
+                slot="append"
+                @click="resetLabelItem(false)">
+            </i>
+          </v-text-field>
+        </v-list-item-content>
+      </v-list-item>
+
+      <v-list-item class="noColorLabel" style="padding-left: 55px !important;padding-right: 55px !important;">
+        <v-list-item-title class="pa-1 noColorLabel caption text-center text&#45;&#45;secondary">
+          <span @click="labelItem.color='';saveLabel()">{{ $t('label.noColor') }}</span>
+        </v-list-item-title>
+      </v-list-item>
+      <v-list-item>
+        <v-list-item-title class="subtitle-2 row projectColorPicker mx-auto my-2">
+            <span
+                v-for="(color, i) in labelColors"
+                :key="i"
+                :class="[ color.class , color.class === labelItem.color ? 'isSelected' : '']"
+                class="projectColorCell"
+                @click="labelItem.color=color.class;saveLabel()"></span>
+        </v-list-item-title>
+      </v-list-item>
+    </v-list>
   </div>
 </template>
 
@@ -70,76 +95,52 @@ export default {
   },
   data() {
     return {
-      index: -1,
       items: [],
-      nonce: 1,
-      model: [],
-      x: 0,
-      search: null,
-      y: 0,
+      displayActionMenu: false,
+      labelItem: null,
+      labelColors: [
+        { class: 'asparagus' },
+        { class: 'munsell_blue' },
+        { class: 'navy_blue' },
+        { class: 'purple' },
+        { class: 'red' },
+        { class: 'brown' },
+        { class: 'laurel_green' },
+        { class: 'sky_blue' },
+        { class: 'blue_gray' },
+        { class: 'light_purple' },
+        { class: 'hot_pink' },
+        { class: 'light_brown' },
+        { class: 'moss_green' },
+        { class: 'powder_blue' },
+        { class: 'light_blue' },
+        { class: 'pink' },
+        { class: 'Orange' },
+        { class: 'gray' },
+        { class: 'green' },
+        { class: 'baby_blue' },
+        { class: 'light_gray' },
+        { class: 'beige' },
+        { class: 'yellow' },
+        { class: 'plum' },
+      ],
     };
   },
-  watch: {
-    model(val, prev) {
-      if (val.length === prev.length) {
-        this.search = null;
-        return;
-      }
-      this.model = val.map(v => {
-        if (typeof v === 'string') {
-          v = {
-            text: v,
-            name: v,
-          };
-          this.items.push(v);
-          this.nonce++;
-          this.addLabel(v);
-        }
-        return v;
-      });
-    },
-
-  },
   created() {
-    $(document).on('mousedown', () => {
-      if (this.$refs.selectLabel && this.$refs.selectLabel.isMenuActive) {
-        window.setTimeout(() => {
-          this.$refs.selectLabel.isMenuActive = false;
-        }, 200);
-      }
-    });
-    document.addEventListener('closeLabelsList',()=> {
-      setTimeout(() => {
-        if (typeof this.$refs.selectLabel !== 'undefined') {
-          this.$refs.selectLabel.isMenuActive = false;
-        }
-      }, 100);
-    });
     document.addEventListener('loadAllProjectLabels', event => {
-      this.model = [];
+      this.items = [];
+      this.resetLabelItem(false);
       if (event && event.detail) {
         const project = event.detail;
-        this.model = [];
+        this.items = [];
         this.getProjectLabels(project.id);
       }
     });
   },
   methods: {
-    filter(item, queryText, itemText) {
-      if (item.header) {
-        return false;
-      }
-      const hasValue = function (val) {
-        return val != null ? val : '';
-      };
-      const text = hasValue(itemText);
-      const query = hasValue(queryText);
-      return text.toString().toLowerCase().indexOf(query.toString().toLowerCase()) > -1;
-    },
-
     getProjectLabels(projectId) {
       this.$taskDrawerApi.getProjectLabels(projectId).then((labels) => {
-        this.model = labels.map(function (el) {
+        this.items = labels.map(function (el) {
           const o = Object.assign({}, el);
           o.text = o.name;
           o.editMenu=false;
@@ -147,7 +148,6 @@ export default {
         });
       });
     },
-
     addLabel(label) {
       if ( this.project.id!= null ) {
         label.project=this.project;
@@ -156,6 +156,7 @@ export default {
             type: 'success',
             message: this.$t('alert.success.label.created')
           });
+          this.resetLabelItem(false);
           this.getProjectLabels(this.project.id);
         }).catch(e => {
           console.error('Error when adding labels', e);
@@ -165,31 +166,82 @@ export default {
           });
         });
       } else {
-        this.$emit('add-label', label);
+        this.items.push(label);
+        this.$emit('set-labels', this.items);
+        this.resetLabelItem(true);
       }
-      this.model.push(label);
-      document.getElementById('labelInput').focus();
     },
-
-    removeLabel(item) {
-      this.$taskDrawerApi.removeLabel(item.id).then( () => {
+    editLabel(label) {
+      label.name=label.text;
+      this.$taskDrawerApi.editLabel(label).then( (editedLabel) => {
+        label=editedLabel;
+        label.text = label.name;
         this.$root.$emit('show-alert', {
           type: 'success',
-          message: this.$t('alert.success.label.deleted')
+          message: this.$t('alert.success.label.updated')
         });
+        this.resetLabelItem(false);
       }).catch(e => {
-        console.error('Error when removibg labels', e);
+        console.error('Error when editing label', e);
         this.$root.$emit('show-alert', {
           type: 'error',
           message: this.$t('alert.error')
         });
       });
     },
-    openLabelsList() {
-      this.$emit('labelsListOpened');
+    removeLabel(item, index) {
+      if (item.project) {
+        this.$taskDrawerApi.removeLabel(item.id).then(() => {
+          this.$root.$emit('show-alert', {
+            type: 'success',
+            message: this.$t('alert.success.label.deleted')
+          });
+
+        }).catch(e => {
+          console.error('Error when removing label', e);
+          this.$root.$emit('show-alert', {
+            type: 'error',
+            message: this.$t('alert.error')
+          });
+        });
+      }
+      if (index != null && index > -1) {
+        this.items.splice(index, 1);
+      }
+      this.resetLabelItem(false);
     },
-    editLabelBeforeCreate(label) {
-      this.$emit('edit-label-on-create', label);
+    saveLabel() {
+      if ( !this.labelItem.text) {
+        return;
+      }
+      if (this.labelItem.project) {
+        this.editLabel(this.labelItem);
+      } else {
+        this.labelItem.name = this.labelItem.text;
+        this.addLabel(this.labelItem);
+      }
+    },
+    resetLabelItem(displayActionMenu, item) {
+      if (item) {
+        this.labelItem = item;
+      } else {
+        this.labelItem  = {
+          text: '',
+        };
+      }
+
+      this.displayActionMenu = displayActionMenu;
+
+      if (displayActionMenu) {
+        setTimeout(() => {
+          const el = this.$el.querySelector('.labelsActionMenu .v-text-field input');
+          el.setSelectionRange(el.value.length, el.value.length);
+          el.focus();
+          this.$el.querySelector('.projectColorPicker').scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+
+      this.$refs.childLabel.resetActiveItem(item);
     }
   }
 };
