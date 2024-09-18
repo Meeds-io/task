@@ -125,7 +125,6 @@ export default {
       this.$projectService.getProjectStats(project.id).then(data => {
         this.totalLeftTasks = data.totalNumberTasks || 0;
         let otherTasksCount = 0;
-        console.log(data.statusStats);
         this.statistics = data.statusStats.sort((a, b) => b.value - a.value).map(item => {
           return { ...item, name: this.getI18N(item.name) };
         });        
