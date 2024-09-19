@@ -125,7 +125,9 @@ export default {
       this.$projectService.getProjectStats(project.id).then(data => {
         this.totalLeftTasks = data.totalNumberTasks || 0;
         let otherTasksCount = 0;
-        this.statistics = data.statusStats.sort((a, b) => b.value - a.value);        
+        this.statistics = data.statusStats.sort((a, b) => b.value - a.value).map(item => {
+          return { ...item, name: this.getI18N(item.name) };
+        });        
         if (data.statusStats.length>5){
           otherTasksCount= data.statusStats.length-5;
           this.statistics.splice(5,otherTasksCount,{ 'name': this.$t('Others'), 'value': otherTasksCount });
@@ -138,7 +140,12 @@ export default {
           },200);
         }
       });
-    }
+    },
+    getI18N(label){
+      const fieldLabelI18NKey = `tasks.status.${label}`;
+      const fieldLabelI18NValue = this.$t(fieldLabelI18NKey);
+      return  fieldLabelI18NValue === fieldLabelI18NKey ? label : fieldLabelI18NValue;
+    } 
   }
 };
 </script>
