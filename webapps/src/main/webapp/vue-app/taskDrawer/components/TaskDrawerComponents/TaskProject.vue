@@ -131,12 +131,8 @@ export default {
     document.addEventListener('loadProjectName', event => {
       if (event && event.detail) {
         const task = event.detail;
-        if (task.id!=null && task.status && task.status.project) {
+        if (task.status && task.status.project) {
           this.projectModel = this.task.status.project;
-          this.projectLabel = this.$t('label.tapProject.name');
-        } else if (task.id==null && task.status && task.status.project){
-          this.projectModel = this.task.status.project;
-          this.projectLabel = this.$t('label.tapProject.name');
         } else {
           this.projectModel = null;
           this.projectLabel = this.$t('label.noProject');
