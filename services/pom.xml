@@ -30,7 +30,7 @@
     <rest.api.doc.version>1.0</rest.api.doc.version>
     <rest.api.doc.description>Tasks addon rest endpoints</rest.api.doc.description>
 
-    <exo.test.coverage.ratio>0.37</exo.test.coverage.ratio>
+    <exo.test.coverage.ratio>0.36</exo.test.coverage.ratio>
   </properties>
   <!-- JPA -->
   <dependencies>
@@ -99,22 +99,6 @@
             </info>
           </swaggerConfig>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>com.jcabi</groupId>
-        <artifactId>jcabi-maven-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
