@@ -22,7 +22,7 @@
   <parent>
     <artifactId>addons-parent-pom</artifactId>
     <groupId>io.meeds.addons</groupId>
-    <version>18-M04</version>
+    <version>18-M06</version>
   </parent>
   <groupId>io.meeds.task</groupId>
   <artifactId>task-management-parent</artifactId>
