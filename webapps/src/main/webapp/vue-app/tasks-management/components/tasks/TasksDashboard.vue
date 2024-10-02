@@ -206,7 +206,7 @@ export default {
   },
   computed: {
     canShowMore() {
-      return this.tasks.length >= this.limitToFetch && !this.filterActive;
+      return this.tasks.length >= this.limitToFetch;
     },
     showPlaceholder() {
       return !this.tasks?.length && !this.loadingTasks && !this.filterActive;
@@ -306,6 +306,7 @@ export default {
       this.labels = filterLabels.labels;
       if (this.primaryFilter === 'ALL') {
         this.taskQueryFilter = e;
+        this.taskQueryFilter.limit = this.limit;
         this.resetSearch();
         this.searchTasks(this.taskQueryFilter);
       } else {
@@ -341,6 +342,10 @@ export default {
       return this.$tasksService.filterTasksList(tasksFilter,this.groupBy,this.orderBy,this.labels).then(data => {
         if (data.projectName){
           this.filterTaskQueryResult = data;
+          let numberOfTasksInProjects = 0;
+          this.tasks = this.filterTaskQueryResult.tasks;
+          this.tasks.forEach(projectTasks => numberOfTasksInProjects += projectTasks.length);  
+          this.tasks.length = numberOfTasksInProjects;
           this.filterActive=true;
         } else {
           this.tasks = data && data.tasks || [];
