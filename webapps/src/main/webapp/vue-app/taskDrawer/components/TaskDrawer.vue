@@ -782,6 +782,7 @@ export default {
         document.dispatchEvent(new CustomEvent('deleteTask', {
           detail: this.task.id
         }));
+        this.$refs.addTaskDrawer.close();
       }).catch(e => {
         console.error('Error when deleting task', e);
         this.$root.$emit('show-alert', {
