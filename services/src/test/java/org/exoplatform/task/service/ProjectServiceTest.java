@@ -16,19 +16,45 @@
  */
 package org.exoplatform.task.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
+
 import org.exoplatform.commons.utils.ListAccess;
-import org.exoplatform.container.ExoContainer;
-import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.listener.ListenerService;
-import org.exoplatform.social.core.storage.impl.StorageUtils;
 import org.exoplatform.task.TestDtoUtils;
 import org.exoplatform.task.TestUtils;
-import org.exoplatform.task.dao.*;
+import org.exoplatform.task.dao.ProjectHandler;
+import org.exoplatform.task.dao.StatusHandler;
+import org.exoplatform.task.dao.TaskHandler;
+import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.jpa.DAOHandlerJPAImpl;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Status;
-import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -41,23 +67,6 @@ import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.StatusStorageImpl;
 import org.exoplatform.task.util.ProjectUtil;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
-
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
 import org.exoplatform.task.util.StorageUtil;
 
 @RunWith(MockitoJUnitRunner.class)
