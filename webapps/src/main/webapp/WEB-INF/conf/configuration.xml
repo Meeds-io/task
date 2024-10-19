@@ -23,7 +23,6 @@
   <import>war:/conf/task-addon/notification-configuration.xml</import>
   <import>war:/conf/task-addon/dynamic-container-configuration.xml</import>
   <import>war:/conf/task-addon/search-configuration.xml</import>
-  <import>war:/conf/task-addon/spaces-templates-configuration.xml</import>
   <import>war:/conf/task-addon/ckeditor-configuration.xml</import>
 
   <import profiles="analytics">war:/conf/task-addon/analytics-configuration.xml</import>
