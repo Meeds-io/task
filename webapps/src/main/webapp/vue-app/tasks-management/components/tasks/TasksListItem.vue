@@ -60,7 +60,7 @@
         <div class="spaceAvatar pe-1 d-lg-block d-md-none">
           <a
             v-if="task.space!==null"
-            :href="spaceUrl(task.space.url)">
+            :href="spaceUrl(task.space.id)">
             <v-avatar
               :size="30"
               tile>
@@ -418,11 +418,11 @@ export default {
     onCloseDrawer: function(drawer){
       this.drawer = drawer;
     },
-    spaceUrl(spaceUrl) {
-      if (!this.spaceUrl) {
+    spaceUrl(id) {
+      if (!id) {
         return '#';
       }
-      return `${eXo.env.portal.context}/g/:spaces:${spaceUrl}/`;
+      return `${eXo.env.portal.context}/s/${id}`;
     },
     showProjectTasksDetails() {
       this.$root.$emit('show-project-details-tasks', this.task.task.status.project);
