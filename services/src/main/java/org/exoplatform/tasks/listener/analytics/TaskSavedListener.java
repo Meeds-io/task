@@ -233,24 +233,17 @@ public class TaskSavedListener extends Listener<TaskService, TaskPayload> {
 
     // NOSONAR FIXME: no relationship between Project and space, try to find it
     // with best effort
-    Space space = null;
-
-    Space spaceByManagerGroupId = null;
     for (String permission : getProjectService().getManager(project.getId())) {
       int index = permission.indexOf(':');
       if (index > -1) {
         String groupId = permission.substring(index + 1);
-        spaceByManagerGroupId = getSpaceService().getSpaceByGroupId(groupId);
+        Space space = getSpaceService().getSpaceByGroupId(groupId);
+        if (space != null) {
+          return space;
+        }
       }
     }
-
-    if (spaceByManagerGroupId == null) {
-      String projectName = project.getName();
-      space = getSpaceService().getSpaceByDisplayName(projectName);
-    } else {
-      space = spaceByManagerGroupId;
-    }
-    return space;
+    return null;
   }
 
   private boolean isDiff(Object before, Object after) {
