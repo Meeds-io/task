@@ -34,7 +34,8 @@
         
       ],
       "permissions":[
-        "Everyone"
+        "*:/platform/administrators",
+        "*:/platform/web-contributors"
       ],
       "system":true
     }
