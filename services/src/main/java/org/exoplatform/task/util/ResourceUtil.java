@@ -31,21 +31,16 @@ import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
-import org.exoplatform.portal.application.PortalRequestContext;
-import org.exoplatform.portal.application.RequestNavigationData;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.portal.mop.navigation.NavigationContext;
-import org.exoplatform.portal.mop.navigation.NavigationService;
 import org.exoplatform.portal.mop.navigation.NodeContext;
 import org.exoplatform.portal.mop.navigation.NodeModel;
 import org.exoplatform.portal.mop.navigation.Scope;
-import org.exoplatform.portal.webui.util.Util;
-import org.exoplatform.social.common.router.ExoRouter;
+import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
-import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.WebAppController;
 import org.exoplatform.web.controller.QualifiedName;
 import org.exoplatform.web.controller.router.Router;
@@ -121,7 +116,7 @@ public class ResourceUtil {
     Space space = null;
     WebuiRequestContext context = WebuiRequestContext.getCurrentInstance();
     if (context == null) {
-      siteKey = SiteKey.portal(portalConfigService.getDefaultPortal());
+      siteKey = SiteKey.portal(portalConfigService.getMetaPortal());
     } else {
       siteKey = CommonsUtils.getCurrentSite();
       space = SpaceUtils.getSpaceByContext();
