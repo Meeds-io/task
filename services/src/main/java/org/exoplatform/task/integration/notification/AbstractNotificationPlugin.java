@@ -139,7 +139,7 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
   }
 
   protected String getPortalOwner() {
-    return CommonsUtils.getService(UserPortalConfigService.class).getDefaultPortal();
+    return CommonsUtils.getService(UserPortalConfigService.class).getMetaPortal();
   }
 
   private String buildTaskUrl(TaskDto t, ExoContainer container, WebAppController controller) {
