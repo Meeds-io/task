@@ -33,7 +33,7 @@
         <column name="TASK_ID" type="BIGINT">
           <constraints foreignKeyName="FK_TASK_TAGS_TASK_TASKS_01" references="TASK_TASKS(TASK_ID)" nullable="false"/>
         </column>
-        <column name="TAG" type="NVARCHAR(50)">
+        <column name="TAG" type="VARCHAR(50)">
           <constraints nullable="false"/>
         </column>
       </createTable>

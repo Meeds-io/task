@@ -23,6 +23,8 @@
 
   <!-- Definition of TASK_COMMENT_MENTIONED_USERS table -->
   <changeSet author="task" id="2.1.0-01">
+    <validCheckSum>9:cea5fbf26104ec61ae0b199636c8afbe</validCheckSum>
+    <validCheckSum>9:e3e8a66f56c6250bfb92e0614a7aa778</validCheckSum>
     <preConditions onFail="MARK_RAN">
       <not><tableExists tableName="TASK_COMMENT_MENTIONED_USERS"/></not>
     </preConditions>
@@ -30,12 +32,12 @@
       <column name="COMMENT_ID" type="BIGINT">
         <constraints foreignKeyName="FK_TK_CM_MENT_TK_CM_01" references="TASK_COMMENTS(COMMENT_ID)" nullable="false"/>
       </column>
-      <column name="MENTIONED_USERS" type="NVARCHAR(50)">
+      <column name="MENTIONED_USERS" type="VARCHAR(50)">
         <constraints nullable="false"/>
       </column>
     </createTable>
     <modifySql dbms="mysql">
-      <append value=" ENGINE=INNODB CHARSET=UTF8 COLLATE utf8_general_ci"/>
+      <append value=" ENGINE=INNODB CHARSET=UTF8MB4 COLLATE utf8mb4_0900_ai_ci"/>
     </modifySql>
   </changeSet>
 
@@ -45,8 +47,13 @@
     </preConditions>
     <createIndex indexName="IDX_TASK_COMMENT_MENTIONED_USERS_01"
                  tableName="TASK_COMMENT_MENTIONED_USERS">
-      <column name="MENTIONED_USERS" type="NVARCHAR(50)"/>
+      <column name="MENTIONED_USERS" type="VARCHAR(50)"/>
     </createIndex>
   </changeSet>
 
+  <changeSet author="task" id="2.1.0-03">
+    <sql dbms="mysql">
+      ALTER TABLE TASK_COMMENT_MENTIONED_USERS CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+    </sql>
+  </changeSet>
 </databaseChangeLog>
