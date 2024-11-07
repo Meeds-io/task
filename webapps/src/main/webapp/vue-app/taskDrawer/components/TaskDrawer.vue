@@ -48,24 +48,6 @@
               @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
           </div>
         </div>
-        <div v-if="menuActions.length" id="taskActionMenu">
-          <i class="uiIcon uiThreeDotsIcon" @click="displayActionMenu = true"></i>
-          <v-menu
-            v-model="displayActionMenu"
-            :attach="'#taskActionMenu'"
-            transition="slide-x-reverse-transition"
-            content-class="taskActionMenu"
-            offset-y>
-            <v-list class="pa-0" dense>
-              <v-list-item v-for="menuAction in menuActions" :key="menuAction.title">
-                <v-list-item-title class="subtitle-2" @click="menuAction.action">
-                  <i :class="`uiIcon ${menuAction.uiIcon} pe-2`"></i>
-                  <span>{{ menuAction.title }}</span>
-                </v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-menu>
-        </div>
       </template>
       <template v-else-if="drawer" slot="title">
         <div class="drawerTitleAndProject d-flex">
@@ -79,6 +61,41 @@
               :task="task"
               @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
           </div>
+        </div>
+      </template>
+      <template
+        v-if="drawer && taskId && menuActions.length"
+        slot="titleIcons">
+        <div
+          id="taskActionMenu"
+          class="position-relative z-index-modal">
+          <v-menu
+            v-model="displayActionMenu"
+            :left="!$vuetify.rtl"
+            :right="$vuetify.rtl"
+            transition="slide-x-reverse-transition"
+            content-class="taskActionMenu z-index-modal"
+            offset-y
+            attach>
+            <template #activator>
+              <v-btn
+                icon
+                @click="displayActionMenu = true">
+                <v-icon size="18">fa-ellipsis-v</v-icon>
+              </v-btn>
+            </template>
+            <v-list class="pa-0 white" dense>
+              <v-list-item
+                v-for="menuAction in menuActions"
+                :key="menuAction.title"
+                @click="menuAction.action">
+                <v-list-item-title class="subtitle-2">
+                  <i :class="`uiIcon ${menuAction.uiIcon} pe-2`"></i>
+                  <span>{{ menuAction.title }}</span>
+                </v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
         </div>
       </template>
       <template v-if="drawer" slot="content">
