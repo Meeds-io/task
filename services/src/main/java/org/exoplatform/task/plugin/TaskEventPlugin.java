@@ -18,13 +18,17 @@
  */
 package org.exoplatform.task.plugin;
 
+import static io.meeds.task.plugin.TaskPermanentLinkPlugin.URL_FORMAT;
+import static org.exoplatform.portal.application.PortalRequestContext.portalConfigService;
 import static org.exoplatform.task.util.TaskUtil.*;
 
 import java.util.*;
 
+import io.meeds.gamification.model.RealizationDTO;
 import io.meeds.gamification.plugin.EventPlugin;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.social.service.rest.Util;
 
 public class TaskEventPlugin extends EventPlugin {
 
@@ -48,6 +52,11 @@ public class TaskEventPlugin extends EventPlugin {
   public boolean isValidEvent(Map<String, String> eventProperties, String triggerDetails) {
     List<String> desiredProjectIds = eventProperties.get(PROJECT_IDS) != null ? Arrays.asList(eventProperties.get(PROJECT_IDS).split(",")) : Collections.emptyList();
     return CollectionUtils.isNotEmpty(desiredProjectIds) && desiredProjectIds.contains(getProjectId(triggerDetails));
+  }
+
+  @Override
+  public String getLink(RealizationDTO realizationDTO) {
+    return Util.getBaseUrl() + String.format(URL_FORMAT, portalConfigService.getMetaPortal(), realizationDTO.getObjectId());
   }
 
   private static String getProjectId(String mapAsString) {
