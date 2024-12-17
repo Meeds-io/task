@@ -26,9 +26,9 @@ import java.util.*;
 
 import io.meeds.gamification.model.RealizationDTO;
 import io.meeds.gamification.plugin.EventPlugin;
+import io.meeds.gamification.utils.Utils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.exoplatform.social.service.rest.Util;
 
 public class TaskEventPlugin extends EventPlugin {
 
@@ -56,7 +56,7 @@ public class TaskEventPlugin extends EventPlugin {
 
   @Override
   public String getLink(RealizationDTO realizationDTO) {
-    return Util.getBaseUrl() + String.format(URL_FORMAT, portalConfigService.getMetaPortal(), realizationDTO.getObjectId());
+    return Utils.getBaseUrl() + String.format(URL_FORMAT, portalConfigService.getMetaPortal(), realizationDTO.getObjectId());
   }
 
   private static String getProjectId(String mapAsString) {
