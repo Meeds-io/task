@@ -284,7 +284,7 @@ export default {
       }
     },
     retrieveSpaceInformation(spaceId) {
-      this.$spaceService.getSpaceById(spaceId).then(space => {
+      this.$spaceService.getSpaceById(spaceId, 'favorite').then(space => {
         this.projectSpace = space;
       });
     }
