@@ -66,6 +66,11 @@ export function init() {
         autoReply,
         autoReplyCommentId,
       },
+      computed: {
+        isMobile() {
+          return this.$vuetify.breakpoint.smAndDown;
+        },
+      },
       template: '<tasks-management></tasks-management>',
       i18n,
       vuetify,
