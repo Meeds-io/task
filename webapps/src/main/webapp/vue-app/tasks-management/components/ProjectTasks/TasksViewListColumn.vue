@@ -26,7 +26,8 @@
     </div>
     <div :id="'taskView'+status.id" :class="filterByStatus===true ? 'pt-5 ms-7 me-2' : ''">
       <div :id="status.id">
-        <draggable
+        <component
+          :is="$root.isMobile && 'div' || 'draggable'"
           v-model="tasksList"
           :move="checkMove"
           :animation="200"
@@ -42,7 +43,7 @@
             :task="taskListItem"
             :show-completed-tasks="showCompletedTasks"
             @update-task-completed="updateTaskCompleted" />
-        </draggable>
+        </component>
       </div>
     </div>
   </div>

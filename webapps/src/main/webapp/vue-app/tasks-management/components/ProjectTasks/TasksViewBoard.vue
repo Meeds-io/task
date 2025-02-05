@@ -21,7 +21,8 @@
     <v-item-group class="pb-0 pt-5 px-0">
       <v-row class="ma-0 border-box-sizing tasksViewBoardRowContainer">
         <div v-if="project.canManage">
-          <draggable
+          <component
+            :is="$root.isMobile && 'div' || 'draggable'"
             :move="checkMoveStatus"
             :list="statusList"
             :animation="200"
@@ -53,7 +54,7 @@
                 @cancel-add-column="cancelAddColumn"
                 @create-status="createStatus" />
             </v-col>
-          </draggable>
+          </component>
         </div>
         <div v-else class="d-flex">
           <v-col

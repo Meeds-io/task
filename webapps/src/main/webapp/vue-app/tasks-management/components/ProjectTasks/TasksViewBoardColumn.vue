@@ -38,7 +38,8 @@
       :task-title="taskTitle1"
       class="status-add-task" 
       @close-quick-form="quickAddTask1=false" />
-    <draggable 
+    <component
+      :is="$root.isMobile && 'div' || 'draggable'"
       v-model="tasksList" 
       :move="checkMove"
       :animation="200"
@@ -70,7 +71,7 @@
           + {{ $t('label.addTask') }}
         </span>
       </v-btn>
-    </draggable>
+    </component>
   </div>     
 </template>
 <script>
