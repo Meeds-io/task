@@ -19,12 +19,14 @@
     <v-combobox
       id="labelInput"
       ref="selectLabel"
+      background-color="transparent"
       v-model="model"
       :filter="filter"
       :hide-no-data="!search"
       :items="items"
       :search-input.sync="search"
       :label="$t('label.tapLabel.name')"
+      :menu-props="{ contentClass: 'layout-drawer' }"
       attach
       class="pt-0 inputTaskLabel"
       hide-selected

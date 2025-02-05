@@ -22,6 +22,7 @@
         ref="selectStatus"
         v-model="taskStatus"
         :items="projectStatuses"
+        :menu-props="{contentClass: 'layout-drawer'}"
         item-value="key"
         item-text="value"
         class="pt-0 selectFont"

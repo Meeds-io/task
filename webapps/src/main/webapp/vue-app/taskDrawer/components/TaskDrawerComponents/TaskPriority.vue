@@ -20,6 +20,7 @@
       ref="selectPriority"
       v-model="priority"
       :items="priorities"
+      :menu-props="{contentClass: 'layout-drawer'}"
       item-value="key"
       item-text="value"
       attach

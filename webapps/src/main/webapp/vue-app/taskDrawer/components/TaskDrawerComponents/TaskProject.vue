@@ -26,6 +26,7 @@
         class="fa my-auto me-1 ms-2 disabled--text"></i>
       <v-combobox
         ref="select"
+        background-color="transparent"
         :filter="filterProjects"
         v-model="projectModel"
         :items="projects"
