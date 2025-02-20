@@ -42,9 +42,9 @@ import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.web.WebAppController;
+import org.exoplatform.web.application.RequestContext;
 import org.exoplatform.web.controller.QualifiedName;
 import org.exoplatform.web.controller.router.Router;
-import org.exoplatform.webui.application.WebuiRequestContext;
 
 /**
  * @author <a href="mailto:tuyennt@exoplatform.com">Tuyen Nguyen The</a>.
@@ -114,7 +114,7 @@ public class ResourceUtil {
 
     SiteKey siteKey = null;
     Space space = null;
-    WebuiRequestContext context = WebuiRequestContext.getCurrentInstance();
+    RequestContext context = RequestContext.getCurrentInstance();
     if (context == null) {
       siteKey = SiteKey.portal(portalConfigService.getMetaPortal());
     } else {
