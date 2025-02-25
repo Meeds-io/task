@@ -37,6 +37,7 @@ import org.exoplatform.commons.api.notification.service.storage.WebNotificationS
 import org.exoplatform.commons.api.notification.service.template.TemplateContext;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.HTMLEntityEncoder;
+import org.exoplatform.commons.utils.TimeConvertUtils;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -45,7 +46,7 @@ import org.exoplatform.social.notification.LinkProviderUtils;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.util.CommentUtil;
 import org.exoplatform.task.util.TaskUtil;
-import org.exoplatform.webui.utils.TimeConvertUtils;
+
 import org.gatein.common.text.EntityEncoder;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
