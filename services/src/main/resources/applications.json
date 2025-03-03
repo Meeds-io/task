@@ -3,15 +3,18 @@
         {
             "name": "Tasks",
             "imagePath": "war:/../images/tasks.png",
+            "overrideMode": "merge",
             "override": false,
             "enabled": true,
             "application": {
                 "title": "Tasks",
-                "description": "Tasks application",
+                "description": "Manage projects and teamwork",
                 "url": "./tasks",
                 "active": true,
                 "mandatory": false,
                 "mobile": true,
+                "default": true,
+                "pwa": false,
                 "permissions": [
                     "*:/platform/users",
                     "*:/platform/externals"
