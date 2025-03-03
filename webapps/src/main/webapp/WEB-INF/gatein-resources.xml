@@ -328,4 +328,15 @@
     </depends>
   </module>
 
+  <module>
+    <name>taskQuickActionExtension</name>
+    <load-group>QuickActionsGrp</load-group>
+    <script>
+      <path>/js/taskQuickAction.bundle.js</path>
+    </script>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+  </module>
+
 </gatein-resources>
