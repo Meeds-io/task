@@ -34,6 +34,7 @@ async function init(exoi18n, callback) {
     parent.id = appId;
     document.querySelector('#vuetify-apps').appendChild(parent);
     await initApp(appId, exoi18n);
+    Vue.prototype.$utils.importSkin('portal', 'tasksDrawer');
   }
   document.dispatchEvent(new CustomEvent('quick-action-task-drawer'));
   callback();
