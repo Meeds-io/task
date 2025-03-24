@@ -1,7 +1,8 @@
 <template>
-  <div class="mx-auto text-center">
-    <v-icon class="icon-default-color mb-3" large>fas fa-tasks</v-icon>
-    <p class="mb-5 subtitle-1 text-sub-title">{{ $t('tasks.label.allSet') }}</p>
-    <v-btn class="btn btn-primary d-inline" @click="$emit('open-task-drawer')">{{ $t('label.addTask') }}</v-btn>
-  </div> 
+  <div class="d-flex flex-column flex-grow-1 justify-center align-center fill-height">
+    <div class="mx-auto d-flex flex-column">
+      <v-icon color="secondary" size="60" class="mb-3">fas fa-tasks</v-icon>
+      <p class="mb-5 subtitle-1 text-sub-title">{{ $t('label.start.adding.tasks') }}</p>
+    </div>
+  </div>
 </template>
