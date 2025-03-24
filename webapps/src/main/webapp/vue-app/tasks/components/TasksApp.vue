@@ -90,6 +90,7 @@
       </div>
       <v-card
         v-else
+        class="fill-height"
         min-height="188"
         flat>
         <task-empty-row v-if="displayPlaceholder"/>
