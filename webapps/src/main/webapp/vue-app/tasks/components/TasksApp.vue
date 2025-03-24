@@ -24,13 +24,13 @@
           class="widget-text-header text-truncate" 
           @click="navigateTo('tasks/myTasks','ALL')">{{ $t('label.tasks.header') }}</a>
       </template>
-      <template v-if="tasksSize" #action>
+      <template #action>
         <v-btn
           :title="$t('label.addTask')"
           icon
           text
           @click="openTaskDrawer">
-          <v-icon>mdi-plus</v-icon>
+          <v-icon>fas fa-plus</v-icon>
         </v-btn>
       </template>
       <div v-if="tasksSize">
@@ -90,9 +90,10 @@
       </div>
       <v-card
         v-else
+        class="fill-height"
         min-height="188"
         flat>
-        <task-empty-row v-if="displayPlaceholder" @open-task-drawer="openTaskDrawer" />
+        <task-empty-row v-if="displayPlaceholder"/>
       </v-card>
     </widget-wrapper>
     <task-drawer
