@@ -30,12 +30,12 @@
         v-model="projectModel"
         :items="projects"
         :label="projectLabel"
+        @keydown.delete="handleRemove($event)"
         attach
         class="pt-0 mb-0 inputTaskProjectName taskInputArea"
         solo
         prepend-icon
-        @click="$emit('projectsListOpened')"
-        @change="deleteProject()">
+        @click="$emit('projectsListOpened')">
         <template #selection="{ attrs, item, parent, selected }">
           <v-chip
             v-if="item === Object(item)"
@@ -45,10 +45,8 @@
             :title="$t('tooltip.clickToEdit')"
             class="projectName"
             small
-            close
             text-color="white"
-            @click="$emit('projectsListOpened')"
-            @click:close="deleteProject">
+            @click="$emit('projectsListOpened')">
             <span 
               class="body-2 text-truncate"
               @click="parent.selectItem(item)">
@@ -61,7 +59,6 @@
             <v-chip
               :color="`${item.color} lighten-3`"
               dark
-              close
               text-color="white"
               small>
               <span class="text-truncate">
@@ -167,13 +164,11 @@ export default {
         this.$root.$emit('update-task-project', this.task);
       });
     },
-    deleteProject(event) {
-      this.task.status = null;
-      this.projectModel = null;
-      this.projectLabel = this.$t('label.noProject');
-      this.updateTask();
-      event.preventDefault();
-      event.stopPropagation();
+    handleRemove() {
+      const project = this.projectModel;
+      window.setTimeout(() => {
+        this.projectModel = project;
+      }, 5);
     },
   }
 };
