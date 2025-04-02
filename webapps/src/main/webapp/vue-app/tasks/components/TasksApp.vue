@@ -28,9 +28,12 @@
         <v-btn
           :title="$t('label.addTask')"
           icon
-          text
+          small
+          class="ms-auto"
           @click="openTaskDrawer">
-          <v-icon>fas fa-plus</v-icon>
+          <v-icon size="18" class="icon-default-color icon-default-size">
+            fas fa-plus
+          </v-icon>
         </v-btn>
       </template>
       <div v-if="tasksSize">
@@ -90,7 +93,7 @@
       </div>
       <v-card
         v-else
-        class="fill-height"
+        class="d-flex flex-column flex-grow-1 justify-center align-center"
         min-height="188"
         flat>
         <task-empty-row v-if="displayPlaceholder"/>
