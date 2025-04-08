@@ -20,6 +20,28 @@
                     "*:/platform/externals"
                 ]
             }
+        },
+        {
+            "name": "addTask",
+            "overrideMode": "merge",
+            "override": false,
+            "enabled": true,
+            "application": {
+                "title": "Add a task",
+                "description": "Start adding tasks for your project",
+                "icon": "fa-tasks",
+                "type": "DRAWER",
+                "url": "task",
+                "mandatory": false,
+                "active": true,
+                "mobile": true,
+                "default": true,
+                "pwa": true,
+                "permissions": [
+                    "*:/platform/users",
+                    "*:/platform/externals"
+                ]
+            }
         }
     ]
 }
