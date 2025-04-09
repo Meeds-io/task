@@ -96,7 +96,7 @@
         class="d-flex flex-column flex-grow-1 justify-center align-center"
         min-height="188"
         flat>
-        <task-empty-row v-if="displayPlaceholder"/>
+        <task-empty-row v-if="displayPlaceholder" />
       </v-card>
     </widget-wrapper>
     <task-drawer
