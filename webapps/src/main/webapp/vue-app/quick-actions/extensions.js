@@ -18,37 +18,63 @@
  */
 
 extensionRegistry.registerExtension('QuickAction', 'Extension', {
+  id: 'task-project',
+  icon: 'fa-clipboard-list',
+  name: 'quickActions.taskProject.name',
+  description: 'quickActions.taskProject.description',
+  click: () => new Promise(resolve => {
+    window.require(['SHARED/eXoVueI18n', 'PORTLET/task-management/TasksManagement'], exoi18n => initProjectDrawer(exoi18n, resolve));
+  }),
+});
+
+extensionRegistry.registerExtension('QuickAction', 'Extension', {
   id: 'task',
   icon: 'fa-tasks',
   name: 'quickActions.task.name',
   description: 'quickActions.task.description',
   click: () => new Promise(resolve => {
-    window.require(['SHARED/eXoVueI18n', 'SHARED/taskDrawer'], exoi18n => init(exoi18n, resolve));
+    window.require(['SHARED/eXoVueI18n', 'SHARED/taskDrawer'], exoi18n => initTaskDrawer(exoi18n, resolve));
   }),
 });
 
-async function init(exoi18n, callback) {
+async function initProjectDrawer(exoi18n, callback) {
+  const appId = 'task-project-quick-actions';
+  if (!document.querySelector(`#${appId}`)) {
+    const parent = document.createElement('div');
+    parent.id = appId;
+    document.querySelector('#vuetify-apps').appendChild(parent);
+    await initProjectDrawerApp(appId, exoi18n);
+    await Vue.prototype.$utils.importSkin('portal', 'tasks');
+    await Vue.prototype.$utils.importSkin('portal', 'tasksDrawer');
+    await Vue.prototype.$utils.importSkin('portal', 'taskCommentsDrawer');
+    await Vue.prototype.$utils.importSkin('portal', 'ImageCropper');
+  }
+  document.dispatchEvent(new CustomEvent('quick-action-task-project-drawer'));
+  callback();
+}
+
+async function initTaskDrawer(exoi18n, callback) {
   const appId = 'task-quick-actions';
   if (!document.querySelector(`#${appId}`)) {
     const parent = document.createElement('div');
     parent.id = appId;
     document.querySelector('#vuetify-apps').appendChild(parent);
-    await initApp(appId, exoi18n);
+    await initTaskDrawerApp(appId, exoi18n);
     await Vue.prototype.$utils.importSkin('portal', 'tasksDrawer');
   }
   document.dispatchEvent(new CustomEvent('quick-action-task-drawer'));
   callback();
 }
 
-function initApp(appId, exoi18n) {
+function initProjectDrawerApp(appId, exoi18n) {
   const lang = eXo.env.portal.language;
   const url = `/task-management/i18n/locale.portlet.taskManagement?lang=${lang}`;
   return new Promise(resolve => exoi18n.loadLanguageAsync(lang, url)
     .then(i18n => Vue.createApp({
       template: `
-        <task-drawer
+        <add-project-drawer
           id="${appId}"
-          ref="taskDrawer" />
+          ref="drawer" />
       `,
       computed: {
         isMobile() {
@@ -56,17 +82,59 @@ function initApp(appId, exoi18n) {
         },
       },
       created() {
-        document.addEventListener('quick-action-task-drawer', this.openTaskDrawer);
+        document.addEventListener('quick-action-task-project-drawer', this.openDrawer);
       },
       mounted() {
         resolve();
       },
       beforeDestroy() {
-        document.removeEventListener('quick-action-task-drawer', this.openTaskDrawer);
+        document.removeEventListener('quick-action-task-project-drawer', this.openDrawer);
       },
       methods: {
-        openTaskDrawer() {
-          this.$refs.taskDrawer.open({
+        openDrawer() {
+          this.$refs.drawer.open({
+            id: null,
+            status: {
+              project: null
+            },
+            priority: 'NONE',
+            description: '',
+            title: ''
+          });
+        },
+      },
+      vuetify: Vue.prototype.vuetifyOptions,
+      i18n,
+    }, `#${appId}`, 'Task Project Quick Action')));
+}
+
+function initTaskDrawerApp(appId, exoi18n) {
+  const lang = eXo.env.portal.language;
+  const url = `/task-management/i18n/locale.portlet.taskManagement?lang=${lang}`;
+  return new Promise(resolve => exoi18n.loadLanguageAsync(lang, url)
+    .then(i18n => Vue.createApp({
+      template: `
+        <task-drawer
+          id="${appId}"
+          ref="drawer" />
+      `,
+      computed: {
+        isMobile() {
+          return this.$vuetify?.breakpoint?.mobile;
+        },
+      },
+      created() {
+        document.addEventListener('quick-action-task-drawer', this.openDrawer);
+      },
+      mounted() {
+        resolve();
+      },
+      beforeDestroy() {
+        document.removeEventListener('quick-action-task-drawer', this.openDrawer);
+      },
+      methods: {
+        openDrawer() {
+          this.$refs.drawer.open({
             id: null,
             status: {
               project: null
