@@ -14,6 +14,7 @@
                 "mandatory": false,
                 "mobile": true,
                 "default": false,
+                "shortcut": "m",
                 "pwa": false,
                 "permissions": [
                     "*:/platform/users",
@@ -36,6 +37,7 @@
                 "active": true,
                 "mobile": true,
                 "default": true,
+                "shortcut": "+",
                 "pwa": true,
                 "permissions": [
                     "*:/platform/users",
