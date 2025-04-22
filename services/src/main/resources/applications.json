@@ -1,28 +1,6 @@
 {
     "descriptors": [
         {
-            "name": "Tasks",
-            "imagePath": "war:/../images/tasks.png",
-            "overrideMode": "merge",
-            "override": false,
-            "enabled": true,
-            "application": {
-                "title": "Tasks",
-                "description": "Manage projects and teamwork",
-                "url": "./tasks",
-                "active": true,
-                "mandatory": false,
-                "mobile": true,
-                "default": false,
-                "shortcut": "m",
-                "pwa": false,
-                "permissions": [
-                    "*:/platform/users",
-                    "*:/platform/externals"
-                ]
-            }
-        },
-        {
             "name": "addTask",
             "overrideMode": "merge",
             "override": false,
@@ -39,6 +17,7 @@
                 "default": true,
                 "shortcut": "+",
                 "pwa": true,
+                "order": 40,
                 "permissions": [
                     "*:/platform/users",
                     "*:/platform/externals"
