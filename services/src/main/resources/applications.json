@@ -7,7 +7,6 @@
             "enabled": true,
             "application": {
                 "title": "Add a task",
-                "description": "Start adding tasks for your project",
                 "icon": "fa-tasks",
                 "type": "DRAWER",
                 "url": "task",
