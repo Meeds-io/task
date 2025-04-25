@@ -1,17 +1,22 @@
 {
     "descriptors": [
         {
-            "name": "Tasks",
-            "imagePath": "war:/../images/tasks.png",
+            "name": "addTask",
+            "overrideMode": "merge",
             "override": false,
             "enabled": true,
             "application": {
-                "title": "Tasks",
-                "description": "Tasks application",
-                "url": "./tasks",
-                "active": true,
+                "title": "Add a task",
+                "icon": "fa-tasks",
+                "type": "DRAWER",
+                "url": "task",
                 "mandatory": false,
+                "active": true,
                 "mobile": true,
+                "default": true,
+                "shortcut": "+",
+                "pwa": true,
+                "order": 40,
                 "permissions": [
                     "*:/platform/users",
                     "*:/platform/externals"
