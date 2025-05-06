@@ -120,6 +120,7 @@
             :profile-id="avatarToDisplay[0].userName"
             :size="28"
             :extra-class="'my-2'"
+            :alt="avatarToDisplay[0].alt"
             link-style
             popover />
           <div
@@ -206,7 +207,8 @@ export default {
       const projectManagersList = [];
       if ( this.managerIdentities && this.managerIdentities.length ) {
         this.managerIdentities.forEach((manager) => {
-          projectManagersList.push({'userName': manager.username});
+          manager.alt=`${this.$t('project.card.managerAvatar.alt', {0: this.project.name,1: manager.username})}`;
+          projectManagersList.push({'userName': manager.username, 'alt': manager.alt});
         });
       }
       return projectManagersList;
