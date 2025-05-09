@@ -42,6 +42,8 @@ import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.StorageUtil;
 import org.exoplatform.task.util.TaskUtil;
 
+import io.meeds.social.html.utils.HtmlUtils;
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
