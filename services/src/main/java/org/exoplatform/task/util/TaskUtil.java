@@ -673,6 +673,9 @@ public final class TaskUtil {
   }
 
   public static boolean hasEditPermission(TaskService taskService, TaskDto task, Identity identity) {
+    if (identity == null) {
+      return false;
+    }
     String userId = identity.getUserId();
     if ((task.getAssignee() != null && task.getAssignee().equals(identity.getUserId())) ||
         getCoworker(taskService, task.getId()).contains(userId) ||
@@ -698,6 +701,9 @@ public final class TaskUtil {
   }
 
   public static boolean hasViewPermission(TaskService taskService, TaskDto task, Identity identity) {
+    if (identity == null) {
+      return false;
+    }
     String userId = identity.getUserId();
     return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService, task);
   }
@@ -713,6 +719,13 @@ public final class TaskUtil {
 
   public static boolean hasDeletePermission(TaskDto task) {
     Identity identity = ConversationState.getCurrent().getIdentity();
+    return hasDeletePermission(task, identity);
+  }
+
+  public static boolean hasDeletePermission(TaskDto task, Identity identity) {
+    if (identity == null) {
+      return false;
+    }
     String userId = identity.getUserId();
 
     if (task.getCreatedBy() != null && task.getCreatedBy().equals(userId)) {

@@ -35,6 +35,7 @@
         ck-editor-type="taskCommentContent"
         object-type="taskComment"
         autofocus
+        content-link-enabled
         class="editorContainer"
         @attachments-edited="attachmentsEdit"
         @validity-updated="validMessage = $event" />
