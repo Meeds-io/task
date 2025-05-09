@@ -37,30 +37,25 @@
     <dependency>
       <groupId>io.meeds.social</groupId>
       <artifactId>social-component-core</artifactId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>io.meeds.social</groupId>
       <artifactId>social-component-notification</artifactId>
-      <scope>provided</scope>
     </dependency>
 
     <!--Analytics API -->
     <dependency>
       <groupId>io.meeds.analytics</groupId>
       <artifactId>analytics-api</artifactId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>io.meeds.analytics</groupId>
       <artifactId>analytics-listeners</artifactId>
-      <scope>provided</scope>
     </dependency>
     <!--Gamification API -->
     <dependency>
       <groupId>io.meeds.gamification</groupId>
       <artifactId>gamification-services</artifactId>
-      <scope>provided</scope>
     </dependency>
 
     <!-- TEST -->
