@@ -140,7 +140,7 @@ export default {
     });
     document.addEventListener('closeLabelsList',()=> {
       setTimeout(() => {
-        if (typeof this.$refs.selectLabel !== 'undefined') {
+        if (this.$refs?.selectLabel) {
           this.$refs.selectLabel.isMenuActive = false;
         }
       }, 100);
@@ -149,7 +149,7 @@ export default {
       if (event && event.detail) {
         const task = event.detail;
         this.model = [];
-        if (task.status.project!=null) {
+        if (task?.status?.project?.id) {
           this.getProjectLabels(task.status.project.id);
         }
       }
@@ -158,7 +158,7 @@ export default {
       if (event && event.detail) {
         const task = event.detail;
         this.model = [];
-        if (task.id!=null) {
+        if (task?.id) {
           this.getTaskLabels();
           this.$taskDrawerApi.getTaskLabels(task.id).then((labels) => {
             this.model = labels.map(function (el) {
@@ -177,7 +177,7 @@ export default {
         return false;
       }
       const hasValue = function (val) {
-        return val != null ? val : '';
+        return val?.length ? val : '';
       };
       const text = hasValue(itemText);
       const query = hasValue(queryText);
@@ -212,7 +212,7 @@ export default {
       });
     },
     addTaskToLabel(label) {
-      if ( this.task.id!= null ) {
+      if ( this.task?.id ) {
         this.$taskDrawerApi.addTaskToLabel(this.task.id, label).then( () => {
           this.$root.$emit('show-alert', {
             type: 'success',

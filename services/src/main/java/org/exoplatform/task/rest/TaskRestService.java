@@ -16,14 +16,34 @@
  */
 package org.exoplatform.task.rest;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.stream.Collectors;
+
+import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -33,26 +53,41 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.TaskQuery;
-import org.exoplatform.task.dto.*;
-import org.exoplatform.task.service.UserService;
+import org.exoplatform.task.dto.ChangeLogEntry;
+import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.LabelDto;
+import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
+import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.model.GroupKey;
 import org.exoplatform.task.model.User;
-import org.exoplatform.task.rest.model.*;
-import org.exoplatform.task.service.*;
-import org.exoplatform.task.storage.CommentStorage;
+import org.exoplatform.task.rest.model.CommentEntity;
+import org.exoplatform.task.rest.model.FiltreTaskList;
+import org.exoplatform.task.rest.model.PaginatedTaskList;
+import org.exoplatform.task.rest.model.SpaceEntity;
+import org.exoplatform.task.rest.model.TaskEntity;
+import org.exoplatform.task.rest.model.ViewState;
+import org.exoplatform.task.service.CommentService;
+import org.exoplatform.task.service.LabelService;
+import org.exoplatform.task.service.ProjectService;
+import org.exoplatform.task.service.StatusService;
+import org.exoplatform.task.service.TaskService;
+import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.util.CommentUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.util.UserUtil;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
-import javax.annotation.security.RolesAllowed;
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import java.net.URLDecoder;
-import java.util.*;
-import java.util.stream.Collectors;
+import io.meeds.social.html.model.HtmlTransformerContext;
+import io.meeds.social.html.utils.HtmlUtils;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Path("/tasks")
 @Tag(name = "/tasks", description = "Managing tasks")
@@ -76,8 +111,6 @@ public class TaskRestService implements ResourceContainer {
   private SpaceService     spaceService;
 
   private LabelService     labelService;
-
-  private CommentStorage   commentStorage;
 
   private static final String PERCENT_ENCODED_REGEX = "%(?![0-9a-fA-F]{2})";
 
@@ -123,6 +156,7 @@ public class TaskRestService implements ResourceContainer {
     if (!TaskUtil.hasEditPermission(taskService,task)) {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
+    transformHtml(task, ConversationState.getCurrent().getIdentity());
     return Response.ok(task).build();
     } catch (Exception e) {
       LOG.error("Can't get Task By Id {}", id, e);
@@ -141,66 +175,74 @@ public class TaskRestService implements ResourceContainer {
                            @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
                            @Parameter(description = "Limit") @Schema(defaultValue = "20") @QueryParam("limit") int limit,
                            @Parameter(description = "Returning the number of tasks or not") @Schema(defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
-                           @Parameter(description = "Returning All Details") @Schema(defaultValue = "false") @QueryParam("returnDetails") boolean returnDetails) {
+                           @Parameter(description = "Returning All Details")
+                           @Schema(defaultValue = "false")
+                           @QueryParam("returnDetails")
+                           boolean returnDetails) {
 
-      try {
+    try {
       Identity currentId = ConversationState.getCurrent().getIdentity();
       String currentUser = currentId.getUserId();
       List<String> memberships = new LinkedList<>();
       memberships.addAll(UserUtil.getMemberships(currentId));
 
-    long tasksSize;
-    List<TaskDto> tasks = null;
-    if (StringUtils.isBlank(query)) {
-      TaskType taskType;
-      try {
-        taskType = TaskType.valueOf(status.toUpperCase());
-      } catch (Exception e) {
-        taskType = TaskType.ALL;
-      }
-      if (limit <= 0) {
-        limit = DEFAULT_LIMIT;
-      }
-      switch (taskType) {
-      case INCOMING: {
-        tasks = taskService.getIncomingTasks(currentUser, offset, limit);
-        tasksSize = taskService.countIncomingTasks(currentUser);
-        break;
-      }
-      case OVERDUE: {
-        tasks = taskService.getOverdueTasks(currentUser, limit);
-        tasksSize = taskService.countOverdueTasks(currentUser);
-        break;
-      }
-      case WATCHED: {
-        tasks = taskService.getWatchedTasks(currentUser, limit);
-        tasksSize = taskService.countWatchedTasks(currentUser);
-        break;
-      }
+      long tasksSize;
+      List<TaskDto> tasks = null;
+      if (StringUtils.isBlank(query)) {
+        TaskType taskType;
+        try {
+          taskType = TaskType.valueOf(status.toUpperCase());
+        } catch (Exception e) {
+          taskType = TaskType.ALL;
+        }
+        if (limit <= 0) {
+          limit = DEFAULT_LIMIT;
+        }
+        switch (taskType) {
+        case INCOMING: {
+          tasks = taskService.getIncomingTasks(currentUser, offset, limit);
+          tasksSize = taskService.countIncomingTasks(currentUser);
+          break;
+        }
+        case OVERDUE: {
+          tasks = taskService.getOverdueTasks(currentUser, limit);
+          tasksSize = taskService.countOverdueTasks(currentUser);
+          break;
+        }
+        case WATCHED: {
+          tasks = taskService.getWatchedTasks(currentUser, limit);
+          tasksSize = taskService.countWatchedTasks(currentUser);
+          break;
+        }
         case COLLABORATED: {
-        tasks = taskService.getCollaboratedTasks(currentUser, limit);
-        tasksSize = taskService.countCollaboratedTasks(currentUser);
-        break;
-      }
+          tasks = taskService.getCollaboratedTasks(currentUser, limit);
+          tasksSize = taskService.countCollaboratedTasks(currentUser);
+          break;
+        }
         case ASSIGNED: {
-        tasks = taskService.getAssignedTasks(currentUser, limit);
-        tasksSize = taskService.countAssignedTasks(currentUser);
-        break;
+          tasks = taskService.getAssignedTasks(currentUser, limit);
+          tasksSize = taskService.countAssignedTasks(currentUser);
+          break;
+        }
+        default: {
+          tasks = taskService.getUncompletedTasks(currentUser, limit);
+          tasksSize = taskService.countUncompletedTasks(currentUser);
+        }
+        }
+      } else {
+        tasks = taskService.findTasksByMemberShips(currentUser, memberships, query, limit);
+        tasksSize = taskService.countTasks(currentUser, query);
       }
-      default: {
-        tasks = taskService.getUncompletedTasks(currentUser, limit);
-        tasksSize = taskService.countUncompletedTasks(currentUser);
-      }
-      }
-    } else {
-      tasks = taskService.findTasksByMemberShips(currentUser, memberships, query, limit);
-      tasksSize = taskService.countTasks(currentUser, query);
+      tasks.forEach(t -> transformHtml(t, currentId));
+      return Response.ok(new PaginatedTaskList(tasks.stream()
+                                                    .map(task -> getTaskDetails(task, currentId))
+                                                    .toList(),
+                                               tasksSize))
+                     .build();
+    } catch (Exception e) {
+      LOG.error("Can't Gets uncompleted tasks of the authenticated user", e);
+      return Response.serverError().entity(e.getMessage()).build();
     }
-        return Response.ok(new PaginatedTaskList(tasks.stream().map(task -> getTaskDetails((TaskDto) task, currentId)).collect(Collectors.toList()),tasksSize)).build();
-  } catch (Exception e) {
-    LOG.error("Can't Gets uncompleted tasks of the authenticated user", e);
-    return Response.serverError().entity(e.getMessage()).build();
-  }
   }
 
 
@@ -223,7 +265,7 @@ public class TaskRestService implements ResourceContainer {
                               @Parameter(description = "watchers term") @QueryParam("watcher") String watcher,
                               @Parameter(description = "showCompletedTasks term") @Schema(defaultValue = "false") @QueryParam("showCompletedTasks") boolean showCompletedTasks,
                               @Parameter(description = "statusId term") @QueryParam("statusId") String statusId,
-                              @Parameter(description = "space_group_id term") @QueryParam("space_group_id") String space_group_id,
+                              @Parameter(description = "space_group_id term") @QueryParam("space_group_id") String spaceGroupId,
                               @Parameter(description = "groupBy term") @QueryParam("groupBy") String groupBy,
                               @Parameter(description = "orderBy term") @QueryParam("orderBy") String orderBy,
                               @Parameter(description = "dueDate term") @QueryParam("dueDate") String dueDate,
@@ -232,80 +274,124 @@ public class TaskRestService implements ResourceContainer {
                               @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
                               @Parameter(description = "Limit") @Schema(defaultValue = "20") @QueryParam("limit") int limit,
                               @Parameter(description = "Returning the number of tasks or not") @Schema(defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
-                              @Parameter(description = "Returning All Details") @Schema(defaultValue = "false") @QueryParam("returnDetails") boolean returnDetails) {
+                              @Parameter(description = "Returning All Details")
+                              @Schema(defaultValue = "false")
+                              @QueryParam("returnDetails")
+                              boolean returnDetails) {
 
     try {
-    String listId = ViewState.buildId(projectId, labelId, dueCategory);
+      String listId = ViewState.buildId(projectId, labelId, dueCategory);
 
-    Identity currIdentity = ConversationState.getCurrent().getIdentity();
+      Identity currIdentity = ConversationState.getCurrent().getIdentity();
 
-    if(assignee!=null && assignee.equals("ME")){
-      assignee=currIdentity.getUserId();
-    }
+      if (assignee != null && assignee.equals("ME")) {
+        assignee = currIdentity.getUserId();
+      }
 
-    if(coworker!=null && coworker.equals("ME")){
-      coworker=currIdentity.getUserId();
-    }
+      if (coworker != null && coworker.equals("ME")) {
+        coworker = currIdentity.getUserId();
+      }
 
-    if(watcher!=null && watcher.equals("ME")){
-      watcher=currIdentity.getUserId();
-    }
+      if (watcher != null && watcher.equals("ME")) {
+        watcher = currIdentity.getUserId();
+      }
 
-    Long statusIdLong = null;
-    if (org.apache.commons.lang3.StringUtils.isNotBlank(statusId)) {
-      StatusDto statusDto = statusService.getStatus(Long.parseLong(statusId));
-      if (statusDto == null || !statusDto.getProject().canView(currIdentity)) {
+      Long statusIdLong = null;
+      if (org.apache.commons.lang3.StringUtils.isNotBlank(statusId)) {
+        StatusDto statusDto = statusService.getStatus(Long.parseLong(statusId));
+        if (statusDto == null || !statusDto.getProject().canView(currIdentity)) {
+          return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        statusIdLong = statusDto.getId();
+      }
+      ViewState.Filter filter = new ViewState.Filter(listId);
+      filter.updateFilterData(filterLabelIds,
+                              statusId,
+                              dueDate,
+                              priority,
+                              assignee,
+                              coworker,
+                              watcher,
+                              showCompletedTasks,
+                              query);
+
+      ProjectDto project = null;
+      boolean noProjPermission = false;
+      boolean advanceSearch = true;
+      if (projectId > 0) {
+        project = projectService.getProject(projectId);
+        if (!project.canView(currIdentity)) {
+          if (advanceSearch) {
+            noProjPermission = true;
+          } else {
+            return Response.status(Response.Status.NOT_FOUND).build();
+          }
+        }
+      }
+      boolean noLblPermission = false;
+      if (labelId != null && labelId > 0) {
+        LabelDto label = labelService.getLabel(labelId);
+        if (!label.getUsername().equals(currIdentity.getUserId())) {
+          if (advanceSearch) {
+            noLblPermission = true;
+          } else {
+            return Response.status(Response.Status.NOT_FOUND).build();
+          }
+        }
+      }
+      String currentUser = currIdentity.getUserId();
+      TimeZone userTimezone = userService.getUserTimezone(currentUser);
+
+      if (currentUser == null || currentUser.isEmpty()) {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
-      statusIdLong=statusDto.getId();
-    }
-    ViewState.Filter filter = new ViewState.Filter(listId);
-    filter.updateFilterData(filterLabelIds, statusId, dueDate, priority, assignee, coworker, watcher, showCompletedTasks, query);
 
-    ProjectDto project = null;
-    boolean noProjPermission = false;
-    boolean advanceSearch = true;
-    if ( projectId > 0) {
-      project = projectService.getProject(projectId);
-      if (!project.canView(currIdentity)) {
-        if (advanceSearch) {
-          noProjPermission = true;
-        } else {
-          return Response.status(Response.Status.NOT_FOUND).build();
-        }
+      TasksList tasks = taskService.filterTasks(query,
+                                                projectId,
+                                                filter.getKeyword(),
+                                                filter.getLabel(),
+                                                filter.getDue(),
+                                                filter.getPriority(),
+                                                filter.getAssignees(),
+                                                filter.getCoworkers(),
+                                                filter.getWatchers(),
+                                                labelId,
+                                                statusIdLong,
+                                                currIdentity,
+                                                dueCategory,
+                                                spaceGroupId,
+                                                userTimezone,
+                                                filter.isShowCompleted(),
+                                                advanceSearch,
+                                                noProjPermission,
+                                                noLblPermission,
+                                                orderBy,
+                                                groupBy,
+                                                offset,
+                                                limit);
+      List<TaskDto> taskList = tasks.getListTasks();
+
+      if (StringUtils.isNotBlank(groupBy)
+          && !TaskUtil.DUEDATE.equalsIgnoreCase(groupBy)
+          && !TaskUtil.NONE.equalsIgnoreCase(groupBy)) {
+        Map<GroupKey, List<TaskEntity>> groupTasks = TaskUtil.groupTasks(taskList.stream()
+                                                                                 .map(task -> getTaskDetails(task, currIdentity))
+                                                                                 .toList(),
+                                                                         groupBy,
+                                                                         currIdentity,
+                                                                         userTimezone,
+                                                                         labelService,
+                                                                         userService);
+        return Response.ok(new FiltreTaskList(groupTasks)).build();
       }
+      return Response.ok(new PaginatedTaskList(taskList.stream().map(task -> getTaskDetails(task, currIdentity)).toList(),
+                                               tasks.getTasksSize()))
+                     .build();
+    } catch (Exception e) {
+      LOG.error("Can't filter Tasks", e);
+      return Response.serverError().entity(e.getMessage()).build();
     }
-    boolean noLblPermission = false;
-    if (labelId != null && labelId > 0) {
-      LabelDto label = labelService.getLabel(labelId);
-      if (!label.getUsername().equals(currIdentity.getUserId())) {
-        if (advanceSearch) {
-          noLblPermission = true;
-        } else {
-          return Response.status(Response.Status.NOT_FOUND).build();
-        }
-      }
-    }
-    String currentUser = currIdentity.getUserId();
-    TimeZone userTimezone = userService.getUserTimezone(currentUser);
-
-    if (currentUser == null || currentUser.isEmpty()) {
-      return Response.status(Response.Status.NOT_FOUND).build();
-    }
-
-    TasksList tasks =  taskService.filterTasks(query, projectId, filter.getKeyword(), filter.getLabel(), filter.getDue(),  filter.getPriority(), filter.getAssignees(), filter.getCoworkers(), filter.getWatchers(), labelId, statusIdLong, currIdentity, dueCategory, space_group_id , userTimezone, filter.isShowCompleted(), advanceSearch, noProjPermission, noLblPermission, orderBy,  groupBy, offset, limit);
-
-    Map<GroupKey, List<TaskEntity>> groupTasks = new HashMap<GroupKey, List<TaskEntity>>();
-    if (groupBy != null && groupBy!= TaskUtil.DUEDATE && !groupBy.isEmpty() && !TaskUtil.NONE.equalsIgnoreCase(groupBy)) {
-      groupTasks = TaskUtil.groupTasks(tasks.getListTasks().stream().map(task -> getTaskDetails((TaskDto) task, currIdentity)).collect(Collectors.toList()), groupBy, currIdentity, userTimezone, labelService, userService);
-      return Response.ok(new FiltreTaskList(groupTasks)).build();
-    }
-    return Response.ok(new PaginatedTaskList(tasks.getListTasks().stream().map(task -> getTaskDetails((TaskDto) task, currIdentity)).collect(Collectors.toList()),tasks.getTasksSize())).build();
-  } catch (Exception e) {
-        LOG.error("Can't filter Tasks", e);
-        return Response.serverError().entity(e.getMessage()).build();
-        }
-}
+  }
 
   @GET
   @Path("project/{id}")
@@ -318,47 +404,48 @@ public class TaskRestService implements ResourceContainer {
                                       @Parameter(description = "Limit") @Schema(defaultValue = "0") @QueryParam("limit") int limit,
                                       @Parameter(description = "Returning the Completed tasks") @Schema(defaultValue = "false") @QueryParam("completed") boolean completed,
                                       @Parameter(description = "Returning the number of tasks or not") @Schema(defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
-                                      @Parameter(description = "Returning All Details") @Schema(defaultValue = "false") @QueryParam("returnDetails") boolean returnDetails) {
+                                      @Parameter(description = "Returning All Details")
+                                      @Schema(defaultValue = "false")
+                                      @QueryParam("returnDetails")
+                                      boolean returnDetails) {
     try {
-    Identity currentUser = ConversationState.getCurrent().getIdentity();
-    ProjectDto project = projectService.getProject(id);
-    if (project==null || !project.canView(ConversationState.getCurrent().getIdentity())) {
-      return Response.status(Response.Status.UNAUTHORIZED).build();
-    }
-    long tasksSize;
-    List<?> tasks = null;
-    TaskQuery taskQuery = new TaskQuery();
-    List<Long> allProjectIds = new ArrayList<Long>();
-    allProjectIds.add(id);
-    if (limit == 0) {
-      limit = -1;
-    }
-    taskQuery.setProjectIds(allProjectIds);
-    taskQuery.setCompleted(completed);
-    tasks = taskService.findTasks(taskQuery,limit,offset);
-
-    if (returnSize) {
-      JSONObject tasksSizeJsonObject = new JSONObject();
-      if (returnDetails) {
-        tasksSizeJsonObject.put("tasks",
-                                tasks.stream()
-                                     .map(task -> getTaskDetails((TaskDto) task, currentUser))
-                                     .collect(Collectors.toList()));
-      } else {
-        tasksSizeJsonObject.put("tasks", tasks);
+      Identity currentUser = ConversationState.getCurrent().getIdentity();
+      ProjectDto project = projectService.getProject(id);
+      if (project == null || !project.canView(ConversationState.getCurrent().getIdentity())) {
+        return Response.status(Response.Status.UNAUTHORIZED).build();
       }
-      return Response.ok(tasksSizeJsonObject).build();
-    } else {
-      if (returnDetails) {
-        return Response.ok(tasks.stream().map(task -> getTaskDetails((TaskDto) task, currentUser)).collect(Collectors.toList()))
-                       .build();
+      TaskQuery taskQuery = new TaskQuery();
+      List<Long> allProjectIds = new ArrayList<>();
+      allProjectIds.add(id);
+      if (limit == 0) {
+        limit = -1;
       }
-      return Response.ok(tasks).build();
-    }
-        } catch (Exception e) {
-        LOG.error("Can't get Tasks By ProjectId {}", id, e);
-        return Response.serverError().entity(e.getMessage()).build();
+      taskQuery.setProjectIds(allProjectIds);
+      taskQuery.setCompleted(completed);
+      List<TaskDto> tasks = taskService.findTasks(taskQuery, limit, offset);
+      if (returnSize) {
+        tasks.forEach(t -> transformHtml(t, currentUser));
+        JSONObject tasksSizeJsonObject = new JSONObject();
+        if (returnDetails) {
+          tasksSizeJsonObject.put("tasks",
+                                  tasks.stream()
+                                       .map(task -> getTaskDetails(task, currentUser))
+                                       .toList());
+        } else {
+          tasksSizeJsonObject.put("tasks", tasks);
         }
+        return Response.ok(tasksSizeJsonObject).build();
+      } else if (returnDetails) {
+        return Response.ok(tasks.stream().map(task -> getTaskDetails(task, currentUser)).toList())
+                       .build();
+      } else {
+        tasks.forEach(t -> transformHtml(t, currentUser));
+        return Response.ok(tasks).build();
+      }
+    } catch (Exception e) {
+      LOG.error("Can't get Tasks By ProjectId {}", id, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
   }
 
   @POST
@@ -400,6 +487,7 @@ public class TaskRestService implements ResourceContainer {
       task.setStatus(statusService.getDefaultStatus(projectId));
     }
     task = taskService.createTask(task);
+    transformHtml(task, ConversationState.getCurrent().getIdentity());
     return Response.ok(task).build();
         } catch (Exception e) {
         LOG.error("Can't add Task", e);
@@ -430,7 +518,7 @@ public class TaskRestService implements ResourceContainer {
     if (newTask == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
-    
+    transformHtml(newTask, ConversationState.getCurrent().getIdentity());
     return Response.ok(newTask).build();
         } catch (Exception e) {
         LOG.error("Can't clone Task {}", taskId, e);
@@ -464,6 +552,7 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
     task = taskService.updateTask(updatedTask);
+    transformHtml(task, ConversationState.getCurrent().getIdentity());
     return Response.ok(task).build();
         } catch (Exception e) {
         LOG.error("Can't update Task {}", id, e);
@@ -671,7 +760,7 @@ public class TaskRestService implements ResourceContainer {
       }
     if (addedLabel.getId() == 0) {// Create a new label and add a task to it
       addedLabel.setUsername(currentUser.getUserId());
-      LabelDto label = labelService.createLabel(addedLabel);
+      addedLabel = labelService.createLabel(addedLabel);
     }
     return Response.ok(addedLabel).build();
         } catch (Exception e) {
@@ -780,7 +869,7 @@ public class TaskRestService implements ResourceContainer {
     if (arr == null) {
       return Response.ok(Collections.emptyList()).build();
     }
-    List<ChangeLogEntry> logs = new LinkedList<ChangeLogEntry>(arr);
+    List<ChangeLogEntry> logs = new LinkedList<>(arr);
     return Response.ok(logs).build();
         } catch (Exception e) {
         LOG.error("Can't get Task {} Logs", id, e);
@@ -811,15 +900,16 @@ public class TaskRestService implements ResourceContainer {
     if (limit == 0) {
       limit = -1;
     }
-    String currentUser = ConversationState.getCurrent().getIdentity().getUserId();
+    Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
+    String currentUser = currentUserIdentity.getUserId();
     List<CommentDto> comments = commentService.getCommentsWithSubs(id, offset, limit);
-    List<CommentEntity> commentModelsList = new ArrayList<CommentEntity>();
+    List<CommentEntity> commentModelsList = new ArrayList<>();
     for (CommentDto comment : comments) {
-      CommentEntity commentModel = addCommentModel(comment, commentModelsList, TaskUtil.getUserLanguage(currentUser));
+      CommentEntity commentModel = addCommentModel(comment, commentModelsList, currentUserIdentity, TaskUtil.getUserLanguage(currentUser));
       if (comment.getSubComments()!=null&&!comment.getSubComments().isEmpty()) {
         List<CommentEntity> subCommentsModelsList = new ArrayList<>();
         for (CommentDto subComment :comment.getSubComments()) {
-          addCommentModel(subComment, subCommentsModelsList, TaskUtil.getUserLanguage(currentUser));
+          addCommentModel(subComment, subCommentsModelsList, currentUserIdentity, TaskUtil.getUserLanguage(currentUser));
         }
         commentModel.setSubComments(subCommentsModelsList);
       }
@@ -845,7 +935,8 @@ public class TaskRestService implements ResourceContainer {
   public Response addTaskComment(@Parameter(description = "Comment text", required = false) String commentText,
                                  @Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
-    String currentUser = ConversationState.getCurrent().getIdentity().getUserId();
+    Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
+    String currentUser = currentUserIdentity.getUserId();
     TaskDto task = taskService.getTask(id);
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
@@ -859,6 +950,7 @@ public class TaskRestService implements ResourceContainer {
     CommentDto addedComment = commentService.addComment(task, currentUser, commentText);
     if (addedComment != null) {
       addedComment = commentService.getComment(addedComment.getId());
+      transformHtml(addedComment, currentUserIdentity);
     }
     CommentEntity commentEntity = new CommentEntity(addedComment, userService.loadUser(currentUser), CommentUtil.formatMention(commentText, TaskUtil.getUserLanguage(currentUser)));
     return Response.ok(commentEntity).build();
@@ -882,7 +974,8 @@ public class TaskRestService implements ResourceContainer {
                                     @Parameter(description = "Comment id", required = true) @PathParam("commentId") long commentId,
                                     @Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
-    String currentUser = ConversationState.getCurrent().getIdentity().getUserId();
+    Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
+    String currentUser = currentUserIdentity.getUserId();
     TaskDto task = taskService.getTask(id);
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
@@ -897,6 +990,7 @@ public class TaskRestService implements ResourceContainer {
     CommentDto addedComment = commentService.addComment(task, commentId, currentUser, commentText);
     if (addedComment != null) {
       addedComment = commentService.getComment(addedComment.getId());
+      transformHtml(addedComment, currentUserIdentity);
     }
     CommentEntity commentEntity = new CommentEntity(addedComment, userService.loadUser(currentUser), CommentUtil.formatMention(commentText, TaskUtil.getUserLanguage(currentUser)));
     return Response.ok(commentEntity).build();
@@ -925,6 +1019,7 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
     commentService.removeComment(commentId);
+    transformHtml(comment, currentIdentity);
     return Response.ok(comment).build();
         } catch (Exception e) {
         LOG.error("Can't delete Comment {}", commentId, e);
@@ -980,7 +1075,7 @@ public class TaskRestService implements ResourceContainer {
     }
     task.setCompleted(isCompleted);
     taskService.updateTask(task);
-
+    transformHtml(task, ConversationState.getCurrent().getIdentity());
     return Response.ok(task).build();
         } catch (Exception e) {
         LOG.error("Can't set task {} as Completed", idTask, e);
@@ -989,13 +1084,14 @@ public class TaskRestService implements ResourceContainer {
   }
 
 
-  private CommentEntity addCommentModel(CommentDto comment, List<CommentEntity> commentModelsList, String lang) {
+  private CommentEntity addCommentModel(CommentDto comment, List<CommentEntity> commentModelsList, Identity currentUserIdentity, String lang) {
 
     User user = userService.loadUser(comment.getAuthor());
     StatusDto taskStatus = comment.getTask().getStatus();
     if (taskStatus != null) {
       comment.getTask().setStatus(taskStatus.clone());// To be checked
     }
+    transformHtml(comment, currentUserIdentity);
     CommentEntity commentEntity = new CommentEntity(comment, user, CommentUtil.formatMention(comment.getComment(), lang));
     if (commentEntity.getSubComments() == null) {
       commentEntity.setSubComments(new ArrayList<>());
@@ -1015,7 +1111,8 @@ public class TaskRestService implements ResourceContainer {
       LOG.warn("Error retrieving task '{}' comments count", taskId, e);
       commentCount = 0;
     }
-    TaskEntity taskEntity = new TaskEntity(((TaskDto) task), commentCount);
+    TaskEntity taskEntity = new TaskEntity(task, commentCount);
+    transformHtml(task, userIdentity);
     if (task.getStatus() != null && task.getStatus().getProject() != null) {
       List<LabelDto> labels = new ArrayList<>();
       try {
@@ -1030,6 +1127,7 @@ public class TaskRestService implements ResourceContainer {
     return taskEntity;
   }
 
+
   private SpaceEntity getProjectSpace(ProjectDto project) {
     for (String permission : projectService.getManager(project.getId())) {
       int index = permission.indexOf(':');
@@ -1043,4 +1141,17 @@ public class TaskRestService implements ResourceContainer {
     }
     return null;
   }
+
+  private void transformHtml(TaskDto task, Identity userIdentity) {
+    if (task != null) {
+      task.setDescription(HtmlUtils.transform(task.getDescription(), new HtmlTransformerContext(userIdentity, null)));
+    }
+  }
+
+  private void transformHtml(CommentDto comment, Identity userIdentity) {
+    if (comment != null) {
+      comment.setComment(HtmlUtils.transform(comment.getComment(), new HtmlTransformerContext(userIdentity, null)));
+    }
+  }
+
 }
