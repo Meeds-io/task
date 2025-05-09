@@ -557,9 +557,9 @@ export default {
         }).finally(() => this.loadingTasks = false);
       } else {
         this.searchedLabels = localStorage.getItem('searchedLabels');   
-        const projectStorage = localStorage.getItem('projectStorage')
-        const labelsToUse =  projectStorage == this.project.id ? this.searchedLabels : '';
-        if(labelsToUse == ''){
+        const projectStorage = localStorage.getItem('projectStorage');
+        const labelsToUse =  projectStorage === this.project.id ? this.searchedLabels : '';
+        if (labelsToUse === ''){
           localStorage.removeItem('searchedLabels');
           localStorage.removeItem('filtersNumber');
           localStorage.removeItem('labelsStorage');
