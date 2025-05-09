@@ -713,6 +713,10 @@ public final class TaskUtil {
 
   public static boolean hasDeletePermission(TaskDto task) {
     Identity identity = ConversationState.getCurrent().getIdentity();
+    return hasDeletePermission(task, identity);
+  }
+
+  public static boolean hasDeletePermission(TaskDto task, Identity identity) {
     String userId = identity.getUserId();
 
     if (task.getCreatedBy() != null && task.getCreatedBy().equals(userId)) {

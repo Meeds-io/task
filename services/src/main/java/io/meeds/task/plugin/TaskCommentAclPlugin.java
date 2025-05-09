@@ -21,33 +21,36 @@ package io.meeds.task.plugin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.PortalContainer;
-import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.service.CommentService;
+import org.exoplatform.task.service.TaskService;
+import org.exoplatform.task.util.TaskUtil;
 
-import io.meeds.portal.permlink.model.PermanentLinkObject;
-import io.meeds.portal.permlink.plugin.PermanentLinkPlugin;
-import io.meeds.portal.permlink.service.PermanentLinkService;
+import io.meeds.portal.plugin.AclPlugin;
 
 import jakarta.annotation.PostConstruct;
 
 @Component
-public class TaskPermanentLinkPlugin implements PermanentLinkPlugin {
+public class TaskCommentAclPlugin implements AclPlugin {
 
-  public static final String      OBJECT_TYPE = "task";
-
-  public static final String      URL_FORMAT  = "/portal/%s/tasks/taskDetail/%s";
+  public static final String OBJECT_TYPE = "taskComment";
 
   @Autowired
-  private UserPortalConfigService portalConfigService;
+  private TaskService        taskService;
 
   @Autowired
-  private PortalContainer         container;
+  private CommentService     commentService;
+
+  @Autowired
+  private PortalContainer    container;
 
   @PostConstruct
   public void init() {
-    container.getComponentInstanceOfType(PermanentLinkService.class).addPlugin(this);
+    container.getComponentInstanceOfType(UserACL.class).addAclPlugin(this);
   }
 
   @Override
@@ -56,14 +59,26 @@ public class TaskPermanentLinkPlugin implements PermanentLinkPlugin {
   }
 
   @Override
-  public boolean canAccess(PermanentLinkObject object, Identity identity) throws ObjectNotFoundException {
-    return true;
-  }
-
-  @Override
-  public String getDirectAccessUrl(PermanentLinkObject object) throws ObjectNotFoundException {
-    String taskId = object.getObjectId();
-    return String.format(URL_FORMAT, portalConfigService.getMetaPortal(), taskId);
+  public boolean hasPermission(String objectId, String permissionType, Identity identity) {
+    CommentDto comment = commentService.getComment(Long.parseLong(objectId));
+    TaskDto task = comment.getTask();
+    if (task == null) {
+      return false;
+    } else {
+      return switch (permissionType) {
+      case VIEW_PERMISSION_TYPE: {
+        yield TaskUtil.hasViewPermission(taskService, task, identity);
+      }
+      case EDIT_PERMISSION_TYPE: {
+        yield TaskUtil.hasEditPermission(taskService, task, identity);
+      }
+      case DELETE_PERMISSION_TYPE: {
+        yield TaskUtil.hasDeletePermission(task, identity);
+      }
+      default:
+        yield false;
+      };
+    }
   }
 
 }

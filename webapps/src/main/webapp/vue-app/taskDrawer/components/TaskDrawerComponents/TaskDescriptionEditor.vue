@@ -49,6 +49,7 @@
         ck-editor-type="taskContent"
         object-type="task"
         autofocus
+        content-link-enabled
         disable-suggester />
     </div>
     <v-btn
