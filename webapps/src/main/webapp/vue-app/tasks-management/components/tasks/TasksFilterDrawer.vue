@@ -440,9 +440,11 @@ export default {
       if (this.showCompletedTasks){
         filtersnumber++;
       }
+      localStorage.setItem('filtersNumber', JSON.stringify(filtersnumber));
       this.$emit('filter-num-changed',filtersnumber,source);
     },
     saveValueFilterInStorage(value) {
+      localStorage.setItem('projectStorage', JSON.stringify(this.project));
       this.$projectService.saveFilterSettings(value).then((response) => {
         if (response) {
           value.showCompletedTasks = this.showCompletedTasks;

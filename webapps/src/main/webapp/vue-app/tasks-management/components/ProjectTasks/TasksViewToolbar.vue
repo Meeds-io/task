@@ -173,6 +173,8 @@ export default {
       this.filterNumber=filtersnumber;
     },
     getFilterNum(){
+    const numOfFilter = localStorage.getItem('filtersNumber');
+    this.filterNumber=Number(numOfFilter);
       if (this.filterNumber>0){
         return `(${this.filterNumber})`;
       } return '';
