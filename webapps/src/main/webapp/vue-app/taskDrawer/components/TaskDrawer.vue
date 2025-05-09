@@ -33,9 +33,7 @@
       right
       allow-expand
       @closed="onCloseDrawer">
-      <template
-        v-if="drawer && taskId"
-        slot="title">
+      <template v-if="drawer && taskId" #title>
         <div class="drawerTitleAndProject d-flex">
           <i
             v-if="addBackArrow"
@@ -49,7 +47,7 @@
           </div>
         </div>
       </template>
-      <template v-else-if="drawer" slot="title">
+      <template v-else-if="drawer" #title>
         <div class="drawerTitleAndProject d-flex">
           <i
             v-if="addBackArrow"
@@ -63,9 +61,7 @@
           </div>
         </div>
       </template>
-      <template
-        v-if="drawer && taskId && menuActions.length"
-        slot="titleIcons">
+      <template v-if="drawer && taskId && menuActions.length" #titleIcons>
         <div
           id="taskActionMenu"
           class="position-relative z-index-modal">
@@ -77,8 +73,10 @@
             content-class="taskActionMenu z-index-modal"
             offset-y
             attach>
-            <template #activator>
+            <template #activator="{on, attrs}">
               <v-btn
+                v-on="on"
+                v-bind="attrs"
                 icon
                 @click="displayActionMenu = true">
                 <v-icon size="18">fa-ellipsis-v</v-icon>

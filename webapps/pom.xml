@@ -27,6 +27,11 @@
   <name>Meeds:: Add-on:: Task Management Portlets</name>
   <dependencies>
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>task-management-services</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>io.meeds.platform-ui</groupId>
       <artifactId>platform-ui-skin</artifactId>
       <classifier>sources</classifier>
