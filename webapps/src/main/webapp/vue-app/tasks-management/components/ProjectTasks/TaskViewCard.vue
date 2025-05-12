@@ -159,8 +159,8 @@ export default {
       if (this.assigneeAndCoworkerArray && this.assigneeAndCoworkerArray.length ) {
         this.assigneeAndCoworkerArray.forEach(user => {
           if (!usersList.includes({'userName': user.username})) {
-            user.alt=`${this.$t('task.card.userAvatar.alt', {0: user.username})}`;
-            usersList.push({'userName': user.username, 'alt': user.alt});
+            user.ariaLabel=`${this.$t('task.card.userAvatar.ariaLabel')}`;
+            usersList.push({'userName': user.username, 'ariaLabel': user.ariaLabel});
           }
         });
       }

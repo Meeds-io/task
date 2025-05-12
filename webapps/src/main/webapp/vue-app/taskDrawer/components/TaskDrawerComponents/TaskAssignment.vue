@@ -39,6 +39,7 @@
               :profile-id="taskAssigneeObj.remoteId"
               :url="null"
               :size="24"
+              :aria-label="$t('task.drawer.userAvatar.ariaLabel')"
               extra-class="pe-2 overflow-hidden"
               popover />
           </div>
