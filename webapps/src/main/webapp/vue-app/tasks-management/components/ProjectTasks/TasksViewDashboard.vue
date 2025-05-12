@@ -418,7 +418,8 @@ export default {
       this.filterByStatus=false;
     },
     filterTaskDashboard(e) {
-      this.searchedLabels = e.filterLabels.labels;      
+      this.searchedLabels = e.filterLabels.labels;  
+      localStorage.setItem('searchedLabels', this.searchedLabels);
       this.loadingTasks = true;
       this.tasksFilter = e.tasks;
       this.showCompletedTasks = e.showCompletedTasks;
@@ -555,7 +556,15 @@ export default {
           this.tasksList = data && data.tasks || [];
         }).finally(() => this.loadingTasks = false);
       } else {
-        this.$tasksService.filterTasksList(this.tasksFilter, '', '', '', ProjectId).then(data => {
+        this.searchedLabels = localStorage.getItem('searchedLabels');   
+        const projectStorage = localStorage.getItem('projectStorage');
+        const labelsToUse =  projectStorage === this.project.id ? this.searchedLabels : '';
+        if (labelsToUse === '') {
+          localStorage.removeItem('searchedLabels');
+          localStorage.removeItem('filtersNumber');
+          localStorage.removeItem('labelsStorage');
+        }      
+        this.$tasksService.filterTasksList(this.tasksFilter, '', '', labelsToUse, ProjectId).then(data => {
           this.filterByStatus = false;
           if (data.projectName) {
             this.filterProjectActive = true;
