@@ -206,7 +206,8 @@ export default {
       const projectManagersList = [];
       if ( this.managerIdentities && this.managerIdentities.length ) {
         this.managerIdentities.forEach((manager) => {
-          projectManagersList.push({'userName': manager.username});
+          manager.ariaLabel=`${this.$t('project.card.managerAvatar.ariaLabel')}`;
+          projectManagersList.push({'userName': manager.username, 'ariaLabel': manager.ariaLabel});
         });
       }
       return projectManagersList;
