@@ -32,6 +32,7 @@ const config = {
     connectorEventExtensions: './src/main/webapp/vue-app/connectorEventExtensions/extensions.js',
     notificationExtension: './src/main/webapp/vue-app/notification-extension/main.js',
     taskQuickAction: './src/main/webapp/vue-app/quick-actions/main.js',
+    taskContentLinkExtension: './src/main/webapp/vue-app/content-link/extensions.js',
   },
   output: {
     filename: 'js/[name].bundle.js',
