@@ -54,7 +54,8 @@ public class TaskContentLinkPlugin implements ContentLinkPlugin {
   private static final ContentLinkExtension EXTENSION   = new ContentLinkExtension(OBJECT_TYPE,
                                                                                    TITLE_KEY,
                                                                                    ICON,
-                                                                                   COMMAND);
+                                                                                   COMMAND,
+                                                                                   true);
 
   @Autowired
   private TaskService                       taskService;
@@ -104,7 +105,8 @@ public class TaskContentLinkPlugin implements ContentLinkPlugin {
     return new ContentLinkSearchResult(OBJECT_TYPE,
                                        String.valueOf(task.getId()),
                                        task.getTitle(),
-                                       EXTENSION.getIcon());
+                                       EXTENSION.getIcon(),
+                                       EXTENSION.isDrawer());
   }
 
 }
