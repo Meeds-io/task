@@ -339,4 +339,15 @@
     </depends>
   </module>
 
+  <module>
+    <name>taskContentLinkExtension</name>
+    <load-group>contentLinkGRP</load-group>
+    <script>
+      <path>/js/taskContentLinkExtension.bundle.js</path>
+    </script>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+  </module>
+
 </gatein-resources>
