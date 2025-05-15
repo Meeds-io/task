@@ -109,12 +109,16 @@ export default {
           return v;
         });
       }
-
+      localStorage.setItem('labelsStorage', JSON.stringify(this.model));
       this.$root.$emit('filter-task-labels',this.model);
     },
 
   },
   created() {
+    const labelsStorage = localStorage.getItem('labelsStorage');
+    if (labelsStorage) {
+      this.model = JSON.parse(labelsStorage);
+    }
     const urlPath = document.location.pathname;
     if (urlPath.includes('projectDetail')){
       let projectId = urlPath.split('projectDetail/')[1].split(/[^0-9]/)[0];
