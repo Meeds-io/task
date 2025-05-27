@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
+import org.exoplatform.task.storage.search.TaskSearchConnector;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -46,37 +47,40 @@ import org.exoplatform.task.storage.impl.TaskStorageImpl;
 
 public class TaskStorageTest extends AbstractTest {
 
-  private TaskHandler     tDAO;
+  private TaskHandler         tDAO;
 
-  private CommentHandler  cDAO;
+  private CommentHandler      cDAO;
 
-  private DAOHandler      daoHandler;
+  private DAOHandler          daoHandler;
 
-  private final String    username = "root";
+  private final String        username = "root";
 
-  private LabelHandler    labelHandler;
+  private LabelHandler        labelHandler;
 
-  private ListenerService listenerService;
+  private ListenerService     listenerService;
 
-  private ProjectStorage  projectStorage;
+  private ProjectStorage      projectStorage;
 
-  private UserService     userService;
+  private UserService         userService;
 
-  private TaskStorage     taskStorage;
+  private TaskStorage         taskStorage;
 
-  private TaskService     taskService;
+  private TaskService         taskService;
+
+  private TaskSearchConnector taskSearchConnector;
 
   @Before
   public void setup() {
     PortalContainer container = PortalContainer.getInstance();
 
     daoHandler = (DAOHandler) container.getComponentInstanceOfType(DAOHandler.class);
+    taskSearchConnector = (TaskSearchConnector) container.getComponentInstanceOfType(TaskSearchConnector.class);
     tDAO = daoHandler.getTaskHandler();
     cDAO = daoHandler.getCommentHandler();
     projectStorage = new ProjectStorageImpl(daoHandler);
     labelHandler = daoHandler.getLabelHandler();
     taskStorage = new TaskStorageImpl(daoHandler, userService, projectStorage);
-    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
+    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService, taskSearchConnector);
   }
 
   @After

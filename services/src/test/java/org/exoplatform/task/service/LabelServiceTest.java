@@ -37,6 +37,7 @@ import org.exoplatform.task.storage.impl.LabelStorageImpl;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.StatusStorageImpl;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
+import org.exoplatform.task.storage.search.TaskSearchConnector;
 import org.exoplatform.task.util.StorageUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -57,39 +58,42 @@ import static org.mockito.Mockito.*;
 @RunWith(MockitoJUnitRunner.class)
 public class LabelServiceTest {
 
-    StatusService statusService;
+  StatusService         statusService;
 
-    LabelService labelService;
+  LabelService          labelService;
 
-    TaskService taskService;
+  TaskService           taskService;
 
-    StatusStorage statusStorage;
+  StatusStorage         statusStorage;
 
-    TaskStorage taskStorage;
+  TaskStorage           taskStorage;
 
-    LabelStorage labelStorage;
+  LabelStorage          labelStorage;
 
-    ProjectStorage projectStorage;
+  ProjectStorage        projectStorage;
 
-    ListenerService listenerService;
+  ListenerService       listenerService;
 
-    @Mock
-    TaskHandler taskHandler;
+  @Mock
+  TaskHandler           taskHandler;
 
-    @Mock
-    StatusHandler statusHandler;
+  @Mock
+  StatusHandler         statusHandler;
 
-    @Mock
-    LabelHandler labelHandler;
+  @Mock
+  LabelHandler          labelHandler;
 
-    @Mock
-    DAOHandler daoHandler;
+  @Mock
+  DAOHandler            daoHandler;
 
-    @Mock
-    UserService userService;
+  @Mock
+  UserService           userService;
 
-    @Captor
-    ArgumentCaptor<Label> labelCaptor;
+  @Captor
+  ArgumentCaptor<Label> labelCaptor;
+
+  @Mock
+  TaskSearchConnector   taskSearchConnector;
 
     @Before
     public void setUp() {
@@ -102,7 +106,7 @@ public class LabelServiceTest {
         statusService = new StatusServiceImpl(daoHandler, statusStorage, projectStorage, listenerService);
         labelStorage = new LabelStorageImpl(daoHandler);
         labelService = new LabelServiceImpl(labelStorage, daoHandler, projectStorage, listenerService);
-        taskService =new TaskServiceImpl(taskStorage, daoHandler, listenerService);
+        taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService, taskSearchConnector);
         // Mock DAO handler to return Mocked DAO
         when(daoHandler.getLabelHandler()).thenReturn(labelHandler);
 

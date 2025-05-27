@@ -31,12 +31,15 @@ import org.exoplatform.task.service.impl.TaskServiceImpl;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
+import org.exoplatform.task.storage.search.TaskSearchConnector;
 import org.exoplatform.task.util.ListUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
+
 import static org.junit.Assert.*;
 
 
@@ -48,16 +51,27 @@ import java.util.*;
  */
 public class TestTaskDAO extends AbstractTest {
 
-  private TaskHandler tDAO;
-  private CommentHandler cDAO;
-  private DAOHandler daoHandler;
-  private final String username = "root";
-  private LabelHandler labelHandler;
-  private ListenerService listenerService;
-  private ProjectStorage projectStorage;
-  private UserService userService;
-  private TaskStorage taskStorage;
-  private TaskService taskService;
+  private TaskHandler         tDAO;
+
+  private CommentHandler      cDAO;
+
+  private DAOHandler          daoHandler;
+
+  private final String        username = "root";
+
+  private LabelHandler        labelHandler;
+
+  private ListenerService     listenerService;
+
+  private ProjectStorage      projectStorage;
+
+  private UserService         userService;
+
+  private TaskStorage         taskStorage;
+
+  private TaskService         taskService;
+
+  private TaskSearchConnector taskSearchConnector;
 
   @Before
   public void setup() {
@@ -67,8 +81,9 @@ public class TestTaskDAO extends AbstractTest {
     tDAO = daoHandler.getTaskHandler();
     cDAO = daoHandler.getCommentHandler();
     labelHandler = daoHandler.getLabelHandler();
-    taskStorage =new TaskStorageImpl(daoHandler, userService, projectStorage);
-    taskService =new TaskServiceImpl(taskStorage, daoHandler, listenerService);
+    taskStorage = new TaskStorageImpl(daoHandler, userService, projectStorage);
+    taskSearchConnector = container.getComponentInstanceOfType(TaskSearchConnector.class);
+    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService, taskSearchConnector);
   }
 
   @After

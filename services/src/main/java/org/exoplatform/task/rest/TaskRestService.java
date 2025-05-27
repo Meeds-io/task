@@ -231,7 +231,7 @@ public class TaskRestService implements ResourceContainer {
         }
       } else {
         tasks = taskService.findTasksByMemberShips(currentUser, memberships, query, limit);
-        tasksSize = taskService.countTasks(currentUser, query);
+        tasksSize = taskService.countTasks(currentUser, memberships, query);
       }
       tasks.forEach(t -> transformHtml(t, currentId));
       return Response.ok(new PaginatedTaskList(tasks.stream()

@@ -92,9 +92,6 @@ public interface TaskService {
 
     List<TaskDto> findTasksByMemberShips(String user, List<String> memberships, String query, int limit);
 
-    List<TaskDto> findTasks(String user, String query, int limit);
-
-
     int countTasks(TaskQuery query) throws Exception;
 
     public <T> List<T> selectTaskField(TaskQuery query, String fieldName);
@@ -161,10 +158,11 @@ public interface TaskService {
      * description of the task
      *
      * @param user  username
+     * @param memberships user memberships
      * @param query term to search in title or description
      * @return tasks count
      */
-    long countTasks(String user, String query);
+    long countTasks(String user, List<String> memberships, String query);
 
     List<Object[]> countTaskStatusByProject(long projectId);
 

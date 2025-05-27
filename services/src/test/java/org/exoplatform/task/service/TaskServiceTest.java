@@ -18,6 +18,7 @@ package org.exoplatform.task.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
@@ -26,11 +27,14 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
+import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
+import org.exoplatform.task.storage.search.TaskSearchConnector;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -38,6 +42,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import org.exoplatform.container.ExoContainer;
@@ -62,39 +67,41 @@ import org.exoplatform.task.storage.impl.TaskStorageImpl;
 @RunWith(MockitoJUnitRunner.class)
 public class TaskServiceTest {
 
-  TaskService                taskService;
+  TaskService          taskService;
 
-  TaskStorage                taskStorage;
+  TaskStorage          taskStorage;
 
-  StatusStorage                statusStorage;
+  StatusStorage        statusStorage;
 
-  ListenerService            listenerService;
+  ListenerService      listenerService;
 
-  @Mock
-  ExoContainer               container;
-
-  @Mock
-  TaskHandler                taskHandler;
+  TaskSearchConnector  taskSearchConnector;
 
   @Mock
-  CommentHandler             commentHandler;
+  ExoContainer         container;
 
   @Mock
-  StatusService              statusService;
+  TaskHandler          taskHandler;
 
   @Mock
-  ProjectStorage             projectStorage;
+  CommentHandler       commentHandler;
 
   @Mock
-  DAOHandler                 daoHandler;
+  StatusService        statusService;
 
   @Mock
-  UserService userService;
+  ProjectStorage       projectStorage;
+
+  @Mock
+  DAOHandler           daoHandler;
+
+  @Mock
+  UserService          userService;
 
   // ArgumentCaptors are how you can retrieve objects that were passed into a
   // method call
   @Captor
-  ArgumentCaptor<Task>       taskCaptor;
+  ArgumentCaptor<Task> taskCaptor;
 
   @Before
   public void setUp() throws Exception {
@@ -103,9 +110,10 @@ public class TaskServiceTest {
     PortalContainer.getInstance();
 
     listenerService = new ListenerService(new ExoContainerContext(container));
+    taskSearchConnector = Mockito.mock(TaskSearchConnector.class);
     projectStorage = new ProjectStorageImpl(daoHandler);
     taskStorage = new TaskStorageImpl(daoHandler,userService,projectStorage);
-    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
+    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService, taskSearchConnector);
 
     // Mock DAO handler to return Mocked DAO
     when(daoHandler.getTaskHandler()).thenReturn(taskHandler);
@@ -188,8 +196,6 @@ public class TaskServiceTest {
 
     assertEquals(newAssignee, taskCaptor.getValue().getAssignee());
 
-    taskService.findTasks(newAssignee, newAssignee, 1);
-    verify(taskHandler, times(1)).findTasks(newAssignee,new ArrayList<>(),newAssignee,1);
 
   }
 
@@ -302,9 +308,6 @@ public class TaskServiceTest {
 
     assertEquals(newAssignee, taskCaptor.getValue().getAssignee());
 
-    taskService.findTasks(newAssignee, newAssignee, 1);
-    verify(taskHandler, times(1)).findTasks(newAssignee,new ArrayList<>(),newAssignee,1);
-
     assertEquals(task.getId(), taskCaptor.getValue().getId());
 
   }
@@ -343,5 +346,16 @@ public class TaskServiceTest {
     assertEquals(defaultTask.getDueDate(), taskCaptor.getValue().getDueDate());
   }
 
+  @Test
+  public void testSearchTasks() throws Exception {
+    TaskDto taskDto = taskStorage.createTask(TestDtoUtils.getDefaultTask());
+    String currentUserId = "root";
+    when(taskSearchConnector.search(any(TaskSearchFilter.class))).thenReturn(List.of(taskDto.getId()));
+    List<TaskDto> result = taskService.findTasksByMemberShips(currentUserId, new ArrayList<>(), "Default task", 10);
+
+    assertEquals(1, result.size());
+    assertEquals(result.get(0).getId(), taskDto.getId());
+    assertEquals(result.get(0).getAssignee(), currentUserId);
+  }
 
 }

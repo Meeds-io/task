@@ -70,6 +70,11 @@
   </component>
 
   <component>
+    <key>org.exoplatform.task.storage.search.TaskSearchConnector</key>
+    <type>org.exoplatform.task.storage.search.TaskSearchConnector</type>
+  </component>
+
+  <component>
     <key>org.exoplatform.task.service.CommentService</key>
     <type>org.exoplatform.task.service.impl.CommentServiceImpl</type>
   </component>

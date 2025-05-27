@@ -31,6 +31,7 @@ import io.meeds.spring.kernel.PortalApplicationContextInitializer;
 
 @SpringBootApplication(scanBasePackages = {
     "io.meeds.task",
+    "org.exoplatform.task",
     AvailableIntegration.KERNEL_MODULE,
     AvailableIntegration.WEB_MODULE,
   }, exclude = {

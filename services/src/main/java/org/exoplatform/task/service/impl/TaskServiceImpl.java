@@ -16,7 +16,9 @@
  */
 package org.exoplatform.task.service.impl;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.ecs.html.S;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.listener.ListenerService;
@@ -34,10 +36,12 @@ import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.*;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.service.TaskPayload;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.storage.TaskStorage;
+import org.exoplatform.task.storage.search.TaskSearchConnector;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.StorageUtil;
 import org.exoplatform.task.util.TaskUtil;
@@ -45,6 +49,7 @@ import org.exoplatform.task.util.TaskUtil;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.exoplatform.task.util.TaskUtil.*;
 
@@ -52,25 +57,31 @@ import static org.exoplatform.task.util.TaskUtil.*;
 @Singleton
 public class TaskServiceImpl implements TaskService {
 
-    private static final Log LOG = ExoLogger.getExoLogger(TaskServiceImpl.class);
+  private static final Log    LOG = ExoLogger.getExoLogger(TaskServiceImpl.class);
 
+  @Inject
+  private TaskStorage         taskStorage;
 
-    @Inject
-    private TaskStorage taskStorage;
+  @Inject
+  private DAOHandler          daoHandler;
 
-    @Inject
-    private DAOHandler daoHandler;
+  @Inject
+  private TaskSearchConnector taskSearchConnector;
 
-    private ListenerService listenerService;
+  private ListenerService     listenerService;
 
-    private ProjectService projectService;
+  private ProjectService      projectService;
 
-    public TaskServiceImpl(TaskStorage taskStorage, DAOHandler daoHandler, ListenerService listenerService) {
-        this.taskStorage = taskStorage;
-        this.daoHandler = daoHandler;
-        this.listenerService = listenerService;
-        this.projectService = projectService;
-    }
+  public TaskServiceImpl(TaskStorage taskStorage,
+                         DAOHandler daoHandler,
+                         ListenerService listenerService,
+                         TaskSearchConnector taskSearchConnector) {
+    this.taskStorage = taskStorage;
+    this.daoHandler = daoHandler;
+    this.listenerService = listenerService;
+    this.projectService = projectService;
+    this.taskSearchConnector = taskSearchConnector;
+  }
 
     @Override
     @ExoTransactional
@@ -250,23 +261,32 @@ public class TaskServiceImpl implements TaskService {
         if (StringUtils.isBlank(query)) {
             throw new IllegalArgumentException("query parameter is mandatory");
         }
-        return taskStorage.findTasks(user, memberships, query, limit);
+        TaskSearchFilter filter = new TaskSearchFilter();
+        filter.setTerm(query);
+        filter.setLimit(limit);
+        filter.setPermissions(CollectionUtils.isNotEmpty(memberships) ? memberships : List.of(user));
+        List<Long> taskIds = taskSearchConnector.search(filter);
+        return taskIds.stream().map(id -> {
+          try {
+            return taskStorage.getTaskById(id);
+          } catch (Exception e) {
+            return null;
+          }
+        }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
     @Override
-    public List<TaskDto> findTasks(String user, String query, int limit) {
-        return findTasksByMemberShips(user,new ArrayList<>(), query, limit);
-    }
-
-    @Override
-    public long countTasks(String user, String query) {
+    public long countTasks(String user, List<String> memberships, String query) {
         if (StringUtils.isBlank(user)) {
             throw new IllegalArgumentException("user parameter is mandatory");
         }
         if (StringUtils.isBlank(query)) {
             throw new IllegalArgumentException("query parameter is mandatory");
         }
-        return taskStorage.countTasks(user, query);
+        TaskSearchFilter filter = new TaskSearchFilter();
+        filter.setTerm(query);
+        filter.setPermissions(CollectionUtils.isNotEmpty(memberships) ? memberships : List.of(user));
+        return taskSearchConnector.count(filter);
     }
 
     @Override
