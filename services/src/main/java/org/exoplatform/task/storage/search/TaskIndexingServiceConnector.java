@@ -15,7 +15,8 @@
  */
 package org.exoplatform.task.storage.search;
 
-import io.micrometer.common.util.StringUtils;
+import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.search.domain.Document;
 import org.exoplatform.commons.search.index.impl.ElasticIndexingServiceConnector;
 import org.exoplatform.container.xml.InitParams;
@@ -26,6 +27,7 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskService;
 import org.jsoup.Jsoup;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -62,45 +64,47 @@ public class TaskIndexingServiceConnector extends ElasticIndexingServiceConnecto
   }
 
   @Override
-  public List<String> getAllIds(int i, int i1) {
-    throw new UnsupportedOperationException();
+  public List<String> getAllIds(int offset, int limit) {
+    // TODO
+    return new ArrayList<>();
   }
 
   @Override
   public String getMapping() {
-    StringBuilder mapping = new StringBuilder();
-    mapping.append("{")
-           .append("\"properties\": {")
-           .append("\"id\": {\"type\": \"keyword\"},")
-           .append("\"title\": {")
-           .append("\"type\": \"text\",")
-           .append("\"analyzer\": \"ngram_analyzer\",")
-           .append("\"search_analyzer\": \"ngram_analyzer_search\",")
-           .append("\"index_options\": \"offsets\",")
-           .append("\"fields\": {")
-           .append("\"raw\": {\"type\": \"keyword\"}")
-           .append("}")
-           .append("},")
-           .append("\"description\": {")
-           .append("\"type\": \"text\",")
-           .append("\"analyzer\": \"ngram_analyzer\",")
-           .append("\"search_analyzer\": \"ngram_analyzer_search\",")
-           .append("\"index_options\": \"offsets\",")
-           .append("\"fields\": {")
-           .append("\"raw\": {\"type\": \"keyword\"}")
-           .append("}")
-           .append("},")
-           .append("\"status\": {\"type\": \"keyword\"},")
-           .append("\"priority\": {\"type\": \"keyword\"},")
-           .append("\"project\": {\"type\": \"keyword\"},")
-           .append("\"creator\": {\"type\": \"keyword\"},")
-           .append("\"lastUpdatedDate\" : {\"type\" : \"date\", \"format\": \"epoch_millis\"},")
-           .append("\"permissions\": {\"type\": \"keyword\"}")
-           .append("}")
-           .append("}");
-    return mapping.toString();
+    return """
+        {
+          "properties": {
+            "id": {"type": "keyword"},
+            "title": {
+              "type": "text",
+              "analyzer": "ngram_analyzer",
+              "search_analyzer": "ngram_analyzer_search",
+              "index_options": "offsets",
+              "fields": {
+                "raw": {"type": "keyword"}
+              }
+            },
+            "description": {
+              "type": "text",
+              "analyzer": "ngram_analyzer",
+              "search_analyzer": "ngram_analyzer_search",
+              "index_options": "offsets",
+              "fields": {
+                "raw": {"type": "keyword"}
+              }
+            },
+            "status": {"type": "keyword"},
+            "priority": {"type": "keyword"},
+            "project": {"type": "keyword"},
+            "creator": {"type": "keyword"},
+            "lastUpdatedDate": {"type": "date", "format": "epoch_millis"},
+            "permissions": {"type": "keyword"}
+          }
+        }
+        """;
   }
 
+  @SneakyThrows
   private Document getDocument(String id) {
 
     if (StringUtils.isBlank(id)) {
@@ -109,26 +113,11 @@ public class TaskIndexingServiceConnector extends ElasticIndexingServiceConnecto
     LOG.debug("Index document for task with id={}", id);
 
     Long taskId = Long.valueOf(id);
-    TaskDto task = null;
-    try {
-      task = taskService.getTask(taskId);
-    } catch (Exception e) {
-      throw new IllegalStateException("rule with id '" + id + "' not found");
-    }
-    if (task == null) {
-      throw new IllegalStateException("rule with id '" + id + "' not found");
-    }
+    TaskDto task = taskService.getTask(taskId);
     Map<String, String> fields = new HashMap<>();
     fields.put("id", Long.toString(taskId));
     fields.put("title", task.getTitle());
     fields.put("description", htmlToText(task.getDescription()));
-    fields.put("status", task.getStatus() != null ? String.valueOf(task.getStatus().getId()) : null);
-    fields.put("priority", task.getPriority().name());
-    fields.put("project",
-               task.getStatus() != null
-                   && task.getStatus().getProject() != null ? String.valueOf(task.getStatus().getProject().getId()) : null);
-    fields.put("creator", task.getCreatedBy());
-
     DocumentWithMetadata doc = new DocumentWithMetadata();
     doc.setFields(fields);
     doc.setId(String.valueOf(taskId));
@@ -142,6 +131,8 @@ public class TaskIndexingServiceConnector extends ElasticIndexingServiceConnecto
       permissions.addAll(task.getCoworker());
     }
     if (task.getStatus() != null && task.getStatus().getProject() != null) {
+      fields.put("projectId", String.valueOf(task.getStatus().getProject().getId()));
+      fields.put("statusId", String.valueOf(task.getStatus().getId()));
       permissions.addAll(task.getStatus().getProject().getParticipator());
       permissions.addAll(task.getStatus().getProject().getManager());
     }

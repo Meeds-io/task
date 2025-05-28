@@ -17,13 +17,16 @@
 package org.exoplatform.task.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
-import org.exoplatform.task.storage.search.TaskSearchConnector;
+import io.meeds.task.search.TaskSearchConnector;
+import org.exoplatform.task.model.TaskSearchFilter;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +47,7 @@ import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
+import org.mockito.Mockito;
 
 public class TaskStorageTest extends AbstractTest {
 
@@ -74,13 +78,13 @@ public class TaskStorageTest extends AbstractTest {
     PortalContainer container = PortalContainer.getInstance();
 
     daoHandler = (DAOHandler) container.getComponentInstanceOfType(DAOHandler.class);
-    taskSearchConnector = (TaskSearchConnector) container.getComponentInstanceOfType(TaskSearchConnector.class);
+    taskSearchConnector = Mockito.mock(TaskSearchConnector.class);
     tDAO = daoHandler.getTaskHandler();
     cDAO = daoHandler.getCommentHandler();
     projectStorage = new ProjectStorageImpl(daoHandler);
     labelHandler = daoHandler.getLabelHandler();
-    taskStorage = new TaskStorageImpl(daoHandler, userService, projectStorage);
-    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService, taskSearchConnector);
+    taskStorage = new TaskStorageImpl(daoHandler, userService, projectStorage, taskSearchConnector);
+    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
   }
 
   @After
@@ -123,10 +127,16 @@ public class TaskStorageTest extends AbstractTest {
     List<String> memberships = Arrays.asList("jhon");
 
     // When
-    List<TaskDto> tasks = taskStorage.findTasks("jhon", memberships, "Task", 10);
+    List<TaskDto> tasks = taskStorage.findTasks("jhon", memberships, "", 10);
 
     // Then
     assertEquals(1, tasks.size());
+
+    when(taskSearchConnector.search(any(TaskSearchFilter.class))).thenReturn(List.of(task1.getId()));
+
+    tasks = taskStorage.findTasks("jhon", memberships, "Task", 10);
+    assertEquals(1, tasks.size());
+
 
   }
 

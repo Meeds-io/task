@@ -513,11 +513,10 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
     }
 
     @Override
-    public List<Task> findTasks(String user, List<String> memberships, String term, int limit) {
+    public List<Task> findTasks(String user, List<String> memberships, int limit) {
       Query query = getEntityManager().createNamedQuery("Task.findTasks", Task.class);
       query.setParameter("userName", user);
       query.setParameter("memberships", memberships);
-      query.setParameter("term", "%" + term.replaceAll("%", "").toLowerCase() + "%");
       if (limit > 0) {
         query.setMaxResults(limit);
       }
@@ -525,10 +524,9 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
     }
 
     @Override
-    public long countTasks(String user, String term) {
+    public long countTasks(String user) {
       TypedQuery<Long> query = getEntityManager().createNamedQuery("Task.countTasks", Long.class);
       query.setParameter("userName", user);
-      query.setParameter("term", "%" + term.replaceAll("%", "").toLowerCase() + "%");
       Long result = query.getSingleResult();
       return result == null ? 0 : result;
     }

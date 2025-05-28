@@ -13,7 +13,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-package org.exoplatform.task.listener;
+package io.meeds.task.listener;
 
 import jakarta.annotation.PostConstruct;
 import org.exoplatform.commons.search.index.IndexingService;

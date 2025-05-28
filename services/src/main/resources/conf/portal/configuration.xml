@@ -70,8 +70,8 @@
   </component>
 
   <component>
-    <key>org.exoplatform.task.storage.search.TaskSearchConnector</key>
-    <type>org.exoplatform.task.storage.search.TaskSearchConnector</type>
+    <key>io.meeds.task.search.TaskSearchConnector</key>
+    <type>io.meeds.task.search.TaskSearchConnector</type>
   </component>
 
   <component>

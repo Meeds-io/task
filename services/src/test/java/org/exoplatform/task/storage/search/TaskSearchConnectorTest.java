@@ -15,6 +15,7 @@
  */
 package org.exoplatform.task.storage.search;
 
+import io.meeds.task.search.TaskSearchConnector;
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
 import org.exoplatform.task.model.TaskSearchFilter;
 import org.junit.Before;
@@ -27,7 +28,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -42,7 +43,7 @@ public class TaskSearchConnectorTest {
   private ElasticSearchingClient client;
 
   @InjectMocks
-  private TaskSearchConnector    taskSearchConnector;
+  private TaskSearchConnector taskSearchConnector;
 
   @Before
   public void setUp() {

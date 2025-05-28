@@ -136,7 +136,7 @@ public class TestProjectRestService {
     when(taskService.countOverdueTasks("root")).thenReturn(Long.valueOf(overdueTasks.size()));
     when(taskService.getIncomingTasks("root", 0, 20)).thenReturn(incomingTasks);
     when(taskService.countIncomingTasks("root")).thenReturn(incomingTasks.size());
-    when(taskService.countTasks(eq("root"),any(), eq("searchTerm"))).thenReturn(1L);
+    when(taskService.countTasks(eq("root"), eq("searchTerm"))).thenReturn(1L);
 
     // When
     Response response = taskRestService.getTasks("overdue", null, 0, 20, false, false);

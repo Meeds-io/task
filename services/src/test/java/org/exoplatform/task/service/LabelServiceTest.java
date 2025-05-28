@@ -37,7 +37,7 @@ import org.exoplatform.task.storage.impl.LabelStorageImpl;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.StatusStorageImpl;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
-import org.exoplatform.task.storage.search.TaskSearchConnector;
+import io.meeds.task.search.TaskSearchConnector;
 import org.exoplatform.task.util.StorageUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -101,12 +101,12 @@ public class LabelServiceTest {
         // to fail
         PortalContainer.getInstance();
         projectStorage = new ProjectStorageImpl(daoHandler);
-        taskStorage = new TaskStorageImpl(daoHandler,userService,projectStorage);
+        taskStorage = new TaskStorageImpl(daoHandler,userService,projectStorage, taskSearchConnector);
         statusStorage = new StatusStorageImpl(daoHandler, projectStorage);
         statusService = new StatusServiceImpl(daoHandler, statusStorage, projectStorage, listenerService);
         labelStorage = new LabelStorageImpl(daoHandler);
         labelService = new LabelServiceImpl(labelStorage, daoHandler, projectStorage, listenerService);
-        taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService, taskSearchConnector);
+        taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
         // Mock DAO handler to return Mocked DAO
         when(daoHandler.getLabelHandler()).thenReturn(labelHandler);
 

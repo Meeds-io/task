@@ -13,9 +13,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-package org.exoplatform.task.storage.search;
+package io.meeds.task.search;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.search.es.ElasticSearchException;
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
@@ -163,11 +163,9 @@ public class TaskSearchConnector {
     for (Object hit : hits) {
       try {
         JSONObject hitObj = (JSONObject) hit;
-        Long id = parseLong(hitObj, "_id");
-        if (id != null)
-          result.add(id);
+        result.add(parseLong(hitObj, "_id"));
       } catch (Exception e) {
-        LOG.warn("Error parsing hit item: " + hit, e);
+        LOG.warn("Error parsing hit item: {}", hit, e);
       }
     }
     return result;
@@ -185,16 +183,9 @@ public class TaskSearchConnector {
     }
   }
 
-  private Long parseLong(JSONObject hit, String key) {
-    Object val = hit.get(key);
-    if (val instanceof String str && StringUtils.isNotBlank(str)) {
-      try {
-        return Long.parseLong(str);
-      } catch (NumberFormatException e) {
-        LOG.warn("Invalid long value for key " + key + ": " + str);
-      }
-    }
-    return null;
+  private Long parseLong(JSONObject hitSource, String key) {
+    String value = (String) hitSource.get(key);
+    return StringUtils.isBlank(value) ? null : Long.parseLong(value);
   }
 
   private String escapeJson(String text) {

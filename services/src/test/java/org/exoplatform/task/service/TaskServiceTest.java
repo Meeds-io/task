@@ -18,7 +18,6 @@ package org.exoplatform.task.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
@@ -34,7 +33,7 @@ import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
-import org.exoplatform.task.storage.search.TaskSearchConnector;
+import io.meeds.task.search.TaskSearchConnector;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -112,8 +111,8 @@ public class TaskServiceTest {
     listenerService = new ListenerService(new ExoContainerContext(container));
     taskSearchConnector = Mockito.mock(TaskSearchConnector.class);
     projectStorage = new ProjectStorageImpl(daoHandler);
-    taskStorage = new TaskStorageImpl(daoHandler,userService,projectStorage);
-    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService, taskSearchConnector);
+    taskStorage = new TaskStorageImpl(daoHandler,userService,projectStorage, taskSearchConnector);
+    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
 
     // Mock DAO handler to return Mocked DAO
     when(daoHandler.getTaskHandler()).thenReturn(taskHandler);
