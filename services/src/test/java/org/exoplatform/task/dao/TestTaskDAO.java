@@ -31,12 +31,14 @@ import org.exoplatform.task.service.impl.TaskServiceImpl;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
+import io.meeds.task.search.TaskSearchConnector;
 import org.exoplatform.task.util.ListUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
 import static org.junit.Assert.*;
 
 
@@ -48,16 +50,27 @@ import java.util.*;
  */
 public class TestTaskDAO extends AbstractTest {
 
-  private TaskHandler tDAO;
-  private CommentHandler cDAO;
-  private DAOHandler daoHandler;
-  private final String username = "root";
-  private LabelHandler labelHandler;
-  private ListenerService listenerService;
-  private ProjectStorage projectStorage;
-  private UserService userService;
-  private TaskStorage taskStorage;
-  private TaskService taskService;
+  private TaskHandler         tDAO;
+
+  private CommentHandler      cDAO;
+
+  private DAOHandler          daoHandler;
+
+  private final String        username = "root";
+
+  private LabelHandler        labelHandler;
+
+  private ListenerService     listenerService;
+
+  private ProjectStorage      projectStorage;
+
+  private UserService         userService;
+
+  private TaskStorage         taskStorage;
+
+  private TaskService         taskService;
+
+  private TaskSearchConnector taskSearchConnector;
 
   @Before
   public void setup() {
@@ -67,8 +80,9 @@ public class TestTaskDAO extends AbstractTest {
     tDAO = daoHandler.getTaskHandler();
     cDAO = daoHandler.getCommentHandler();
     labelHandler = daoHandler.getLabelHandler();
-    taskStorage =new TaskStorageImpl(daoHandler, userService, projectStorage);
-    taskService =new TaskServiceImpl(taskStorage, daoHandler, listenerService);
+    taskSearchConnector = container.getComponentInstanceOfType(TaskSearchConnector.class);
+    taskStorage = new TaskStorageImpl(daoHandler, userService, projectStorage, taskSearchConnector);
+    taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
   }
 
   @After
@@ -741,22 +755,19 @@ public class TestTaskDAO extends AbstractTest {
     tDAO.create(task);
     ConversationState.setCurrent(new ConversationState(new Identity(user)));
 
-    List<Task> tasks = tDAO.findTasks(user,memberships, "Lorem", 10);
+    List<Task> tasks = tDAO.findTasks(user,memberships, 10);
     assertEquals(1, tasks.size());
 
-    tasks = tDAO.findTasks(user,memberships, "lorem", 10);
+    tasks = tDAO.findTasks(user,memberships, 10);
     assertEquals(1, tasks.size());
 
-    tasks = tDAO.findTasks(user,memberships, "simply", 10);
+    tasks = tDAO.findTasks(user,memberships,10);
     assertEquals(1, tasks.size());
 
-    tasks = tDAO.findTasks("root",memberships, "simply", 10);
+    tasks = tDAO.findTasks("root",memberships,10);
     assertEquals(1, tasks.size());
 
-    tasks = tDAO.findTasks("mary",memberships, "simply", 10);
-    assertEquals(0, tasks.size());
-
-    tasks = tDAO.findTasks(user,memberships, "example", 10);
+    tasks = tDAO.findTasks("mary",memberships,10);
     assertEquals(0, tasks.size());
   }
 
@@ -766,12 +777,11 @@ public class TestTaskDAO extends AbstractTest {
     Task task = newTaskInstance("What is Lorem Ipsum?", "Lorem Ipsum is simply dummy text of the printing", user);
     tDAO.create(task);
 
-    assertEquals(1, tDAO.countTasks(user, "Lorem"));
-    assertEquals(1, tDAO.countTasks(user, "lorem"));
-    assertEquals(1, tDAO.countTasks(user, "simply"));
-    assertEquals(1, tDAO.countTasks("root", "simply"));
-    assertEquals(0, tDAO.countTasks("mary", "simply"));
-    assertEquals(0, tDAO.countTasks(user, "example"));
+    assertEquals(1, tDAO.countTasks(user));
+    assertEquals(1, tDAO.countTasks(user));
+    assertEquals(1, tDAO.countTasks(user));
+    assertEquals(1, tDAO.countTasks("root"));
+    assertEquals(0, tDAO.countTasks("mary"));
   }
 
   private Task newTaskInstance(String taskTitle, String description, String assignee) {

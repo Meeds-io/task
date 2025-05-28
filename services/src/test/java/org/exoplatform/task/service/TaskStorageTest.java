@@ -17,12 +17,16 @@
 package org.exoplatform.task.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
+import io.meeds.task.search.TaskSearchConnector;
+import org.exoplatform.task.model.TaskSearchFilter;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -43,39 +47,43 @@ import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
+import org.mockito.Mockito;
 
 public class TaskStorageTest extends AbstractTest {
 
-  private TaskHandler     tDAO;
+  private TaskHandler         tDAO;
 
-  private CommentHandler  cDAO;
+  private CommentHandler      cDAO;
 
-  private DAOHandler      daoHandler;
+  private DAOHandler          daoHandler;
 
-  private final String    username = "root";
+  private final String        username = "root";
 
-  private LabelHandler    labelHandler;
+  private LabelHandler        labelHandler;
 
-  private ListenerService listenerService;
+  private ListenerService     listenerService;
 
-  private ProjectStorage  projectStorage;
+  private ProjectStorage      projectStorage;
 
-  private UserService     userService;
+  private UserService         userService;
 
-  private TaskStorage     taskStorage;
+  private TaskStorage         taskStorage;
 
-  private TaskService     taskService;
+  private TaskService         taskService;
+
+  private TaskSearchConnector taskSearchConnector;
 
   @Before
   public void setup() {
     PortalContainer container = PortalContainer.getInstance();
 
     daoHandler = (DAOHandler) container.getComponentInstanceOfType(DAOHandler.class);
+    taskSearchConnector = Mockito.mock(TaskSearchConnector.class);
     tDAO = daoHandler.getTaskHandler();
     cDAO = daoHandler.getCommentHandler();
     projectStorage = new ProjectStorageImpl(daoHandler);
     labelHandler = daoHandler.getLabelHandler();
-    taskStorage = new TaskStorageImpl(daoHandler, userService, projectStorage);
+    taskStorage = new TaskStorageImpl(daoHandler, userService, projectStorage, taskSearchConnector);
     taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
   }
 
@@ -119,10 +127,16 @@ public class TaskStorageTest extends AbstractTest {
     List<String> memberships = Arrays.asList("jhon");
 
     // When
-    List<TaskDto> tasks = taskStorage.findTasks("jhon", memberships, "Task", 10);
+    List<TaskDto> tasks = taskStorage.findTasks("jhon", memberships, "", 10);
 
     // Then
     assertEquals(1, tasks.size());
+
+    when(taskSearchConnector.search(any(TaskSearchFilter.class))).thenReturn(List.of(task1.getId()));
+
+    tasks = taskStorage.findTasks("jhon", memberships, "Task", 10);
+    assertEquals(1, tasks.size());
+
 
   }
 
