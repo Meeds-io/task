@@ -32,20 +32,3 @@ export function formatSearchResult(results, term) {
   }
   return results;
 }
-
-$('.VuetifyApp .v-application').first().append('<div id="TaskSearchDrawers" />');
-
-const appId = 'TaskSearchDrawers';
-
-const lang = typeof eXo !== 'undefined' ? eXo.env.portal.language : 'en';
-Vue.use(Vuetify);
-const vuetify = new Vuetify(eXo.env.portal.vuetifyPreset);
-
-const urls = [`/task-management/i18n/locale.portlet.taskManagement?lang=${lang}`];
-exoi18n.loadLanguageAsync(lang, urls).then(i18n => {
-  new Vue({
-    template: '<task-search-drawer />',
-    vuetify,
-    i18n
-  }).$mount(`#${appId}`);
-});
