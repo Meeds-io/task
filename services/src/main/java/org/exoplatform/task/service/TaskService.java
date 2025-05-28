@@ -171,4 +171,13 @@ public interface TaskService {
     public TasksList filterTasks(String query, long projectId, String keyword, List<Long> labels, TaskUtil.DUE dueDate, Priority priority, List<String> assignees, List<String> coworkers, List<String> watchers, Long labelId, Long statusId, Identity currIdentity, String dueCategory, String space_group_id , TimeZone userTimezone, boolean isShowCompleted, boolean advanceSearch, boolean noProjPermission, boolean noLblPermission, String orderBy, String groupBy, int offset, int limit) throws Exception;
     
     public boolean isExternal(String userId);
+
+    /**
+     * Retrieves a paginated list of all task IDs.
+     *
+     * @param offset the starting position of the first result
+     * @param limit  the maximum number of results to retrieve
+     * @return a list of task IDs
+     */
+    public List<Long> getAllIds(int offset, int limit);
 }
