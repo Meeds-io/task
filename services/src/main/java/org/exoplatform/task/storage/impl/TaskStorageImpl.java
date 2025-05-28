@@ -16,6 +16,9 @@
  */
 package org.exoplatform.task.storage.impl;
 
+import io.meeds.task.search.TaskSearchConnector;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -29,6 +32,7 @@ import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.storage.ProjectStorage;
@@ -40,6 +44,7 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -52,19 +57,25 @@ public class TaskStorageImpl implements TaskStorage {
 
 
     @Inject
-    private final DAOHandler daoHandler;
+    private final DAOHandler        daoHandler;
 
     @Inject
-    private final UserService userService;
+    private final UserService       userService;
 
     @Inject
-    private final ProjectStorage projectStorage;
+    private final ProjectStorage    projectStorage;
 
+    @Inject
+    private final TaskSearchConnector taskSearchConnector;
 
-    public TaskStorageImpl(DAOHandler daoHandler, UserService userService, ProjectStorage projectStorage) {
-        this.daoHandler = daoHandler;
-        this.userService = userService;
-        this.projectStorage = projectStorage;
+    public TaskStorageImpl(DAOHandler daoHandler,
+                           UserService userService,
+                           ProjectStorage projectStorage,
+                           TaskSearchConnector taskSearchConnector) {
+      this.daoHandler = daoHandler;
+      this.userService = userService;
+      this.projectStorage = projectStorage;
+      this.taskSearchConnector = taskSearchConnector;
     }
 
     @Override
@@ -254,8 +265,17 @@ public class TaskStorageImpl implements TaskStorage {
      */
     @Override
     public List<TaskDto> findTasks(String user, List<String> memberships, String query, int limit) {
-        List<Task> taskEntities = daoHandler.getTaskHandler().findTasks(user, memberships, query, limit);
-        return taskEntities.stream().map((Task taskEntity) -> StorageUtil.taskToDto(taskEntity,projectStorage)).collect(Collectors.toList());
+      if (StringUtils.isNotBlank(query)) {
+        TaskSearchFilter filter = new TaskSearchFilter();
+        filter.setTerm(query);
+        filter.setLimit(limit);
+        filter.setPermissions(CollectionUtils.isNotEmpty(memberships) ? memberships : List.of(user));
+        List<Long> taskIds = taskSearchConnector.search(filter);
+        return taskIds.stream().map(this::getTaskById).filter(Objects::nonNull).toList();
+      } else {
+        List<Task> taskEntities = daoHandler.getTaskHandler().findTasks(user, memberships, limit);
+        return taskEntities.stream().map((Task taskEntity) -> StorageUtil.taskToDto(taskEntity, projectStorage)).toList();
+      }
     }
 
     /**
@@ -268,7 +288,15 @@ public class TaskStorageImpl implements TaskStorage {
      */
     @Override
     public long countTasks(String user, String query) {
-        return daoHandler.getTaskHandler().countTasks(user, query);
+      if (StringUtils.isNotBlank(query)) {
+        TaskSearchFilter filter = new TaskSearchFilter();
+        filter.setTerm(query);
+        filter.setPermissions(List.of(user));
+        filter.setLimit(0);
+        return taskSearchConnector.count(filter);
+      } else {
+        return daoHandler.getTaskHandler().countTasks(user);
+      }
     }
 
     @Override
@@ -288,6 +316,11 @@ public class TaskStorageImpl implements TaskStorage {
     @Override
     public List<Object[]> countTaskStatusByProject(long projectId) {
         return daoHandler.getTaskHandler().countTaskStatusByProject(projectId);
+    }
+
+    @Override
+    public List<Long> getAllIds(int offset, int limit) {
+      return daoHandler.getTaskHandler().getAllIds(offset, limit);
     }
 
 }

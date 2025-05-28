@@ -211,6 +211,12 @@
       <module>jquery</module>
       <as>$</as>
     </depends>
+    <depends>
+      <module>taskDrawer</module>
+    </depends>
+    <depends>
+      <module>taskCommentsDrawer</module>
+    </depends>
   </module>
 
   <portlet>
