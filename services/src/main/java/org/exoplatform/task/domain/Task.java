@@ -143,20 +143,22 @@ import org.exoplatform.task.service.TaskBuilder;
     name = "Task.findTasks",
     query = "SELECT ta FROM TaskTask ta " +
         "WHERE (ta.assignee = :userName OR ta.createdBy = :userName OR :userName in (select co FROM ta.coworker co) OR (SELECT participator FROM TaskProject p LEFT JOIN p.participator participator where p.id = ta.status.project.id) IN (:memberships) ) " +
-        "AND (lower(ta.title) LIKE lower(:term)  OR lower(ta.description) LIKE :term) " +
         "ORDER BY ta.createdTime DESC"
 )
 @NamedQuery(
     name = "Task.countTasks",
     query = "SELECT COUNT(ta) FROM TaskTask ta " +
-        "WHERE (ta.assignee = :userName OR ta.createdBy = :userName OR :userName in (select co FROM ta.coworker co)) " +
-        "AND (lower(ta.title) LIKE lower(:term)  OR lower(ta.description) LIKE :term) "
+        "WHERE (ta.assignee = :userName OR ta.createdBy = :userName OR :userName in (select co FROM ta.coworker co)) "
 )
 @NamedQuery(name = "Task.countTaskStatusByProject",
         query = "SELECT m.status.name AS name, COUNT(m) AS total FROM TaskTask AS m where m.status.project.id = :projectId and m.completed = false GROUP BY m.status.name ORDER BY m.status.name ASC")
 
 @NamedQuery(name = "Task.getByStatus",
         query = "SELECT t FROM TaskTask t  WHERE t.status.id = :statusid")
+
+@NamedQuery(name = "Task.getAllIds",
+        query = "SELECT t.id FROM TaskTask t ORDER BY id ASC LIMIT :limit OFFSET :offset")
+
 public class Task {
 
   public static final String PREFIX_CLONE = "Copy of ";
