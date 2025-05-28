@@ -155,6 +155,10 @@ import org.exoplatform.task.service.TaskBuilder;
 
 @NamedQuery(name = "Task.getByStatus",
         query = "SELECT t FROM TaskTask t  WHERE t.status.id = :statusid")
+
+@NamedQuery(name = "Task.getAllIds",
+        query = "SELECT t.id FROM TaskTask t ORDER BY id ASC LIMIT :limit OFFSET :offset")
+
 public class Task {
 
   public static final String PREFIX_CLONE = "Copy of ";

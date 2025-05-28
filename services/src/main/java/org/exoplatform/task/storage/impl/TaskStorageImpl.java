@@ -318,4 +318,9 @@ public class TaskStorageImpl implements TaskStorage {
         return daoHandler.getTaskHandler().countTaskStatusByProject(projectId);
     }
 
+    @Override
+    public List<Long> getAllIds(int offset, int limit) {
+      return daoHandler.getTaskHandler().getAllIds(offset, limit);
+    }
+
 }

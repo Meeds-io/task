@@ -544,5 +544,15 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
             return new ArrayList<Object[]>();
         }
     }
+
+    @Override
+    public List<Long> getAllIds(int offset, int limit) {
+      TypedQuery<Long> query = getEntityManager().createNamedQuery("Task.getAllIds", Long.class);
+      query.setFirstResult(offset);
+      if (limit > 0) {
+        query.setMaxResults(limit);
+      }
+      return query.getResultList();
+    }
 }
 

@@ -27,7 +27,6 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskService;
 import org.jsoup.Jsoup;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,8 +64,7 @@ public class TaskIndexingServiceConnector extends ElasticIndexingServiceConnecto
 
   @Override
   public List<String> getAllIds(int offset, int limit) {
-    // TODO
-    return new ArrayList<>();
+    return taskService.getAllIds(offset, limit).stream().map(Object::toString).toList();
   }
 
   @Override
