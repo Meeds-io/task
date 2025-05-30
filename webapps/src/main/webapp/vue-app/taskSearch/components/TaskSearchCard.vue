@@ -30,7 +30,7 @@
             <v-list-item-title class="d-flex flex-row full-width align-center">
               <p
                 :title="taskTitleText"
-                class="flex-grow-1 title font-weight-bold pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
+                class="flex-grow-1 title pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
                 v-sanitized-html="taskTitle"></p>
             </v-list-item-title>
 
@@ -47,6 +47,7 @@
                   <exo-user-avatar
                     :profile-id="taskAssign"
                     :size="18"
+                    :popover="false"
                     small-font-size />
                   <v-icon
                       size="3"
