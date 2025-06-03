@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.task.AbstractTest;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Status;
@@ -48,7 +49,7 @@ public class TestStatusDAO extends AbstractTest {
 
   @After
   public void tearDown() {
-    sDAO.deleteAll();
+    deleteAll();
   }
 
   @Test
@@ -96,21 +97,21 @@ public class TestStatusDAO extends AbstractTest {
       t.setTitle("testTitle");
       t.setStatus(s2);
       tDAO.create(t);
-      
-      endRequestLifecycle();
-      initializeContainerAndStartRequestLifecycle();    
-      
+
+      RequestLifeCycle.restartTransaction();
+
       StatusHandler handler = daoHandler.getStatusHandler();
       Status st = handler.find(s2.getId());      
       //
       daoHandler.getTaskHandler().updateStatus(st, s1);
-      
+      RequestLifeCycle.restartTransaction();
+
+      st = handler.find(s2.getId());
       st.setProject(null);
       handler.delete(st);
-      
-      endRequestLifecycle();
-      initializeContainerAndStartRequestLifecycle();
-      
+
+      RequestLifeCycle.restartTransaction();
+
       t = tDAO.find(t.getId());
       Assert.assertNotNull(t);
       Assert.assertEquals(s1.getName(), t.getStatus().getName());

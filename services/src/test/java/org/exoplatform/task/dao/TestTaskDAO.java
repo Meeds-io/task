@@ -18,6 +18,7 @@ package org.exoplatform.task.dao;
 
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
@@ -87,15 +88,7 @@ public class TestTaskDAO extends AbstractTest {
 
   @After
   public void tearDown() {
-    for (Task t : tDAO.findAll()) {
-      t.setStatus(null);
-    }    
-    tDAO.updateAll(tDAO.findAll());
-    daoHandler.getLabelTaskMappingHandler().deleteAll();
-    daoHandler.getTaskLogHandler().deleteAll();
-    cDAO.deleteAll();
-    tDAO.deleteAll();
-    labelHandler.deleteAll();
+    deleteAll();
   }
 
   @Test
@@ -579,9 +572,11 @@ public class TestTaskDAO extends AbstractTest {
 
     coworkers.add("worker2");
     task.setCoworker(coworkers);
+    tDAO.update(task);
+
     //worker2 is now a coworker, so he has permission
     ConversationState.setCurrent(new ConversationState(worker2));
-    Assert.assertEquals(true, TaskUtil.hasEditPermission(taskService,task));
+    Assert.assertEquals(true, TaskUtil.hasEditPermission(taskService, task));
   }
 
   @Test
