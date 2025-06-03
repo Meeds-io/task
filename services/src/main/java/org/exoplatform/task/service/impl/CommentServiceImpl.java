@@ -22,7 +22,6 @@ import static org.exoplatform.task.util.TaskUtil.broadcastEvent;
 
 import java.util.List;
 
-import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -82,7 +81,6 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    @ExoTransactional
     public CommentDto addComment(TaskDto task,
                                  long parentCommentId,
                                  String username,
@@ -90,7 +88,7 @@ public class CommentServiceImpl implements CommentService {
       CommentDto commentDto = commentStorage.addComment(task, parentCommentId, username, comment);
       if (commentDto != null) {
         broadcastEvent(listenerService, TASK_COMMENT_CREATED, commentDto.getTask(), commentDto);
-        if (commentDto.getTask().getStatus() != null && commentDto.getTask().getStatus().getProject() != null) {
+        if (commentDto.getTask() != null && commentDto.getTask().getStatus() != null && commentDto.getTask().getStatus().getProject() != null) {
           broadcastEvent(listenerService, "exo.project.projectModified", null, commentDto.getTask().getStatus().getProject());
         }
       }
@@ -98,13 +96,11 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    @ExoTransactional
     public CommentDto addComment(TaskDto task, String username, String comment) throws EntityNotFoundException {
         return addComment(task, 0, username, comment);
     }
 
     @Override
-    @ExoTransactional
     public void removeComment(long commentId) throws EntityNotFoundException {
 
       CommentDto comment = commentStorage.getComment(commentId);

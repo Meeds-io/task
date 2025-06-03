@@ -104,8 +104,13 @@ public class ProjectStorageImpl implements ProjectStorage {
     @Override
     public List<ProjectDto> getSubProjects(long parentId, int offset, int limit) throws Exception {
         ProjectDto parent = getProject(parentId);
-        return Arrays.asList(daoHandler.getProjectHandler().findSubProjects(StorageUtil.projectToEntity(parent)).load(offset, limit)).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).collect(Collectors.toList());
-
+        return parent == null ? new ArrayList<>() :
+                              Arrays.asList(daoHandler.getProjectHandler()
+                                                      .findSubProjects(StorageUtil.getProjectEntityById(parent.getId()))
+                                                      .load(offset, limit))
+                                    .stream()
+                                    .map((Project project) -> StorageUtil.projectToDto(project, this))
+                                    .toList();
     }
 
     @Override
@@ -113,7 +118,7 @@ public class ProjectStorageImpl implements ProjectStorage {
         try {
             return Arrays.asList(daoHandler.getProjectHandler().findProjects(query).load(offset, limit)).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).collect(Collectors.toList());
         } catch (Exception e) {
-            return new ArrayList<ProjectDto>();
+            return new ArrayList<>();
         }
 
     }

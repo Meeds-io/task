@@ -149,15 +149,16 @@ public class ProjectServiceTest {
 
     @Test
     public void testCreateDefaultProject() throws EntityNotFoundException {
-
         ProjectDto defaultProject = TestDtoUtils.getDefaultProject();
         Long projectParent = TestUtils.EXISTING_PROJECT_ID;
-        //when(projectStorage.getProject(projectParent).getManager()).thenReturn(TestDtoUtils.getParentProject().getManager());
+        when(projectHandler.create(any())).thenAnswer(invocation -> {
+          Project p = invocation.getArgument(0, Project.class);
+          p.setId(projectParent);
+          return p;
+        });
         projectService.createProject(defaultProject, projectParent);
         verify(projectHandler, times(1)).create(projectCaptor.capture());
-
-        assertEquals(projectParent, new Long(projectCaptor.getValue().getParent().getId()));
-
+        assertEquals(projectParent.longValue(), projectCaptor.getValue().getId());
     }
 
     @Test
