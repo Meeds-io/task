@@ -16,8 +16,6 @@
  */
 package org.exoplatform.task.domain;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -31,7 +29,6 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
 @Entity(name = "TaskChangeLog")
-@ExoEntity
 @Table(name = "TASK_CHANGE_LOGS")
 @NamedQueries({
         @NamedQuery(name = "TaskChangeLog.findChangeLogByTaskId",

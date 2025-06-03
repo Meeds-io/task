@@ -16,17 +16,25 @@
  */
 package org.exoplatform.task.domain;
 
-import jakarta.persistence.*;
-
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 
 @Entity(name = "TaskLabel")
-@ExoEntity
 @Table(name = "TASK_LABELS")
 @NamedQuery(name = "Label.findLabelsByTask",
   query = "SELECT lbl FROM TaskLabel lbl inner join lbl.lblMapping m WHERE lbl.project.id = :projectId AND m.task.id = :taskid ORDER BY lbl.id")

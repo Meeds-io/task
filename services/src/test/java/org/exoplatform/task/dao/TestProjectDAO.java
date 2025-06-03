@@ -27,6 +27,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.AbstractTest;
 
@@ -49,7 +50,7 @@ public class TestProjectDAO extends AbstractTest {
 
   @After
   public void tearDown() {
-    pDAO.deleteAll();
+    deleteAll();
   }
 
   @Test

@@ -16,6 +16,8 @@
  */
 package org.exoplatform.task.domain;
 
+import java.io.Serializable;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -24,12 +26,7 @@ import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.Table;
 
-import java.io.Serializable;
-
-import org.exoplatform.commons.api.persistence.ExoEntity;
-
 @Entity(name = "TaskLabelTaskMapping")
-@ExoEntity
 @Table(name = "TASK_LABEL_TASK")
 @NamedQueries({  
   @NamedQuery(name = "LabelTaskMapping.removeLabelTaskMapping",
