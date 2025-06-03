@@ -122,7 +122,9 @@ public class CommentStorageImpl implements CommentStorage {
             }
             newComment.setParentComment(parentComment);
         }
-        return  StorageUtil.commentToDto(daoHandler.getCommentHandler().create(StorageUtil.commentToEntity(newComment)),projectStorage);
+        Comment commentEntity = StorageUtil.commentToEntity(newComment);
+        commentEntity.setId(null);
+        return  StorageUtil.commentToDto(daoHandler.getCommentHandler().create(commentEntity),projectStorage);
     }
 
     @Override

@@ -64,9 +64,7 @@ public class TestPermission extends AbstractTest {
 
   @After
   public void tearDown() {
-    tDAO.deleteAll();
-    daoHandler.getStatusHandler().deleteAll();
-    pDAO.deleteAll();
+    deleteAll();
   }
 
   @Test

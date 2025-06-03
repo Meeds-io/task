@@ -16,23 +16,18 @@
  */
 package org.exoplatform.task.dao.jpa;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.Query;
-import jakarta.persistence.TypedQuery;
 
 import org.apache.commons.lang3.StringUtils;
 
-import org.exoplatform.commons.persistence.impl.EntityManagerService;
-import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 import org.exoplatform.task.dao.StatusHandler;
 import org.exoplatform.task.domain.Status;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+import jakarta.persistence.TypedQuery;
 
 /**
  * Created by The eXo Platform SAS
@@ -103,5 +98,6 @@ public class StatusDAOImpl extends CommonJPADAO<Status, Long> implements StatusH
     }
     return cloneEntities(q.getResultList());
   }
+
 }
 

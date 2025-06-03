@@ -109,7 +109,7 @@ public class StatusStorageImpl implements StatusStorage {
     int maxRank = max != null && max.getRank() != null ? max.getRank() : -1;
 
     StatusHandler handler = daoHandler.getStatusHandler();
-    Status st = new Status(status, ++maxRank, StorageUtil.projectToEntity(project));
+    Status st = new Status(status, ++maxRank, project == null ? null : StorageUtil.getProjectEntityById(project.getId()));
     handler.create(st);
     return StorageUtil.statusToDTO(st,projectStorage);
   }
@@ -127,7 +127,7 @@ public class StatusStorageImpl implements StatusStorage {
       }
     }
     StatusHandler handler = daoHandler.getStatusHandler();
-    Status st = new Status(status, rank, StorageUtil.projectToEntity(project));
+    Status st = new Status(status, rank, project == null ? null : StorageUtil.getProjectEntityById(project.getId()));
     handler.create(st);
     return StorageUtil.statusToDTO(st,projectStorage);
   }

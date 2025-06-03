@@ -16,36 +16,49 @@
  */
 package org.exoplatform.task.domain;
 
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-import jakarta.persistence.*;
-
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
+import lombok.EqualsAndHashCode;
 
 /**
  * @author <a href="mailto:tuyennt@exoplatform.com">Tuyen Nguyen The</a>.
  */
 @Entity(name = "TaskComment")
-@ExoEntity
 @Table(name = "TASK_COMMENTS")
-@NamedQueries({
-                @NamedQuery(name = "Comment.countCommentOfTask",
-                    query = "SELECT count(c) FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL"),
-                @NamedQuery(name = "Comment.findCommentsOfTask",
-                    query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL ORDER BY c.createdTime DESC"),
-                @NamedQuery(name = "Comment.findSubCommentsOfComments",
-                    query = "SELECT c FROM TaskComment c WHERE c.parentComment IN (:comments) ORDER BY c.createdTime ASC"),
-                @NamedQuery(name = "Comment.deleteCommentOfTask",
-                    query = "DELETE FROM TaskComment c WHERE c.task.id = :taskId"),
-                @NamedQuery(name = "Comment.findMentionedUsersOfTask",
-                    query = "SELECT m FROM TaskComment c INNER JOIN c.mentionedUsers m WHERE c.task.id = :taskId")
-})
+@NamedQuery(name = "Comment.countCommentOfTask",
+    query = "SELECT count(c) FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL")
+@NamedQuery(name = "Comment.findCommentsOfTask",
+    query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL ORDER BY c.createdTime DESC")
+@NamedQuery(name = "Comment.findSubCommentsOfComments",
+    query = "SELECT c FROM TaskComment c WHERE c.parentComment IN (:comments) ORDER BY c.createdTime ASC")
+@NamedQuery(name = "Comment.deleteCommentOfTask",
+    query = "DELETE FROM TaskComment c WHERE c.task.id = :taskId")
+@NamedQuery(name = "Comment.findMentionedUsersOfTask",
+    query = "SELECT m FROM TaskComment c INNER JOIN c.mentionedUsers m WHERE c.task.id = :taskId")
+@EqualsAndHashCode
 public class Comment {
-
-  private static final Pattern pattern        = Pattern.compile("@([^\\s]+)|@([^\\s]+)$");
 
   @Id
   @SequenceGenerator(name = "SEQ_TASK_COMMENTS_COMMENT_ID",
@@ -54,7 +67,7 @@ public class Comment {
   @GeneratedValue(strategy = GenerationType.AUTO,
       generator = "SEQ_TASK_COMMENTS_COMMENT_ID")
   @Column(name = "COMMENT_ID")
-  private long                 id;
+  private Long                 id;
 
   @Column(name = "AUTHOR")
   private String               author;
@@ -68,28 +81,29 @@ public class Comment {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "TASK_ID")
+  @EqualsAndHashCode.Exclude
   private Task                 task;
 
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "PARENT_COMMENT_ID")
+  @EqualsAndHashCode.Exclude
   private Comment              parentComment;
 
-  @OneToMany(cascade = CascadeType.REMOVE,
-      mappedBy = "parentComment",
-      fetch = FetchType.LAZY)
-  private List<Comment>        subComments    = new ArrayList<Comment>();
+  @OneToMany(mappedBy = "parentComment", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+  @EqualsAndHashCode.Exclude
+  private List<Comment>        subComments    = new ArrayList<>();
 
   @ElementCollection(fetch = FetchType.LAZY)
-  @CollectionTable(name = "TASK_COMMENT_MENTIONED_USERS",
-      joinColumns = @JoinColumn(name = "COMMENT_ID"))
+  @CollectionTable(name = "TASK_COMMENT_MENTIONED_USERS", joinColumns = @JoinColumn(name = "COMMENT_ID"))
   @Column(name = "MENTIONED_USERS")
+  @EqualsAndHashCode.Exclude
   private Set<String>          mentionedUsers = new HashSet<>();
 
-  public long getId() {
+  public Long getId() {
     return id;
   }
 
-  public void setId(long id) {
+  public void setId(Long id) {
     this.id = id;
   }
 
@@ -155,7 +169,7 @@ public class Comment {
   }
 
   @Override
-  public Comment clone() {
+  public Comment clone() { // NOSONAR
     Comment c = new Comment();
     c.setId(getId());
     c.setAuthor(getAuthor());
