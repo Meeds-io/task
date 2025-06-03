@@ -21,7 +21,6 @@ import java.util.*;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
@@ -38,7 +37,6 @@ import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.storage.ProjectStorage;
-import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.util.StorageUtil;
 
 @Singleton
@@ -80,14 +78,12 @@ public class ProjectServiceImpl implements ProjectService {
   }
 
   @Override
-  @ExoTransactional
   public ProjectDto createProject(ProjectDto project) {
     ProjectDto proj = projectStorage.createProject(project);
     return proj;
   }
 
   @Override
-  @ExoTransactional
   public ProjectDto createProject(ProjectDto project, long parentId) throws EntityNotFoundException {
     ProjectDto parentProject = projectStorage.getProject(parentId);
     if (parentProject != null) {
@@ -115,21 +111,18 @@ public class ProjectServiceImpl implements ProjectService {
   }
 
   @Override
-  @ExoTransactional
   public ProjectDto updateProject(ProjectDto proj) {
     proj.setLastModifiedDate(System.currentTimeMillis());
     return projectStorage.updateProject(proj);
   }
 
   @Override
-  @ExoTransactional
   public void updateProjectNoReturn(ProjectDto proj) {
     proj.setLastModifiedDate(System.currentTimeMillis());
     projectStorage.updateProjectNoReturn(proj);
   }
 
   @Override
-  @ExoTransactional
   public void removeProject(long id, boolean deleteChild) throws EntityNotFoundException {
     ProjectDto project = getProject(id);
     if (project == null)
@@ -138,7 +131,6 @@ public class ProjectServiceImpl implements ProjectService {
   }
 
   @Override
-  @ExoTransactional
   public ProjectDto cloneProject(long id, boolean cloneTask) throws Exception {
 
     ProjectDto project = getProject(id); // Can throw ProjectNotFoundException
@@ -164,7 +156,7 @@ public class ProjectServiceImpl implements ProjectService {
         StatusDto s = statusService.createStatus(newProject, st.getName());
         if (cloneTask) {
           taskQuery = new TaskQuery();
-          taskQuery.setStatus(StorageUtil.statusToEntity(st));
+          taskQuery.setStatus(StorageUtil.getStatusEntityById(st.getId()));
           for (TaskDto t : taskService.findTasks(taskQuery, 0, -1)) {
             TaskDto newTask = t.clone();
             newTask.setId(0);

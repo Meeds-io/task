@@ -802,11 +802,14 @@ public final class TaskUtil {
   }
 
   public static void broadcastEvent(ListenerService listenerService, String eventName, Object source, Object data) {
-    try {
-      listenerService.broadcast(eventName, source, data);
-    } catch (Exception var5) {
-      LOG.warn("Error broadcasting event '" + eventName + "' using source '" + source + "' and data " + data, var5);
+    if (listenerService != null) {
+      try {
+        listenerService.broadcast(eventName, source, data);
+      } catch (Exception var5) {
+        LOG.warn("Error broadcasting event '" + eventName + "' using source '" + source + "' and data " + data, var5);
+      }
     }
   }
+
 }
 

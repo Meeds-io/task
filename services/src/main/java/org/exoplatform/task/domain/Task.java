@@ -16,7 +16,11 @@
  */
 package org.exoplatform.task.domain;
 
-import java.util.*;
+import java.io.Serializable;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
@@ -31,23 +35,18 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
-
-import org.exoplatform.commons.api.persistence.ExoEntity;
-import org.exoplatform.task.dto.StatusDto;
-import org.exoplatform.task.service.TaskBuilder;
+import lombok.EqualsAndHashCode;
 
 /**
  * @author <a href="mailto:tuyennt@exoplatform.com">Tuyen Nguyen The</a>
  */
 @Entity(name = "TaskTask")
-@ExoEntity
 @Table(name = "TASK_TASKS")
 @NamedQuery(
     name = "Task.findByMemberships",
@@ -158,46 +157,49 @@ import org.exoplatform.task.service.TaskBuilder;
 
 @NamedQuery(name = "Task.getAllIds",
         query = "SELECT t.id FROM TaskTask t ORDER BY id ASC LIMIT :limit OFFSET :offset")
+@EqualsAndHashCode
+public class Task implements Serializable {
 
-public class Task {
+  private static final long     serialVersionUID = 1945617316471028822L;
 
-  public static final String PREFIX_CLONE = "Copy of ";
+  public static final String    PREFIX_CLONE     = "Copy of ";
 
   @Id
-  @SequenceGenerator(name="SEQ_TASK_TASKS_TASK_ID", sequenceName="SEQ_TASK_TASKS_TASK_ID", allocationSize = 1)
-  @GeneratedValue(strategy=GenerationType.AUTO, generator="SEQ_TASK_TASKS_TASK_ID")
+  @SequenceGenerator(name = "SEQ_TASK_TASKS_TASK_ID", sequenceName = "SEQ_TASK_TASKS_TASK_ID", allocationSize = 1)
+  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_TASK_TASKS_TASK_ID")
   @Column(name = "TASK_ID")
-  private long        id;
+  private Long                  id;
 
-  private String      title;
+  private String                title;
 
-  private String      description;
+  private String                description;
 
   @Enumerated(EnumType.ORDINAL)
-  private Priority    priority;
+  private Priority              priority;
 
-  private String      context;
+  private String                context;
 
-  private String      assignee;
+  private String                assignee;
 
-  @ManyToOne(fetch=FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "STATUS_ID")
-  private Status      status;
+  @EqualsAndHashCode.Exclude
+  private Status                status;
 
   @Column(name = "TASK_RANK")
-  private int         rank;
+  private int                   rank;
 
-  private boolean completed = false;
-
-  @ElementCollection(fetch = FetchType.LAZY)
-  @CollectionTable(name = "TASK_TASK_COWORKERS",
-      joinColumns = @JoinColumn(name = "TASK_ID"))
-  private Set<String> coworker = new HashSet<String>();
+  private boolean               completed        = false;
 
   @ElementCollection(fetch = FetchType.LAZY)
-  @CollectionTable(name = "TASK_TASK_WATCHERS",
-      joinColumns = @JoinColumn(name = "TASK_ID"))
-  private Set<String> watcher =  new HashSet<String>();
+  @CollectionTable(name = "TASK_TASK_COWORKERS", joinColumns = @JoinColumn(name = "TASK_ID"))
+  @EqualsAndHashCode.Exclude
+  private Set<String> coworker;
+
+  @ElementCollection(fetch = FetchType.LAZY)
+  @CollectionTable(name = "TASK_TASK_WATCHERS", joinColumns = @JoinColumn(name = "TASK_ID"))
+  @EqualsAndHashCode.Exclude
+  private Set<String> watcher;
 
   @Column(name = "CREATED_BY")
   private String      createdBy;
@@ -220,14 +222,17 @@ public class Task {
 
   //This field is only used for remove cascade
   @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
-  private List<Comment> comments = new ArrayList<Comment>();
+  @EqualsAndHashCode.Exclude
+  private List<Comment> comments; // NOSONAR
 
   //This field is only used for remove cascade
   @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
-  private List<ChangeLog> logs = new ArrayList<ChangeLog>();
+  @EqualsAndHashCode.Exclude
+  private List<ChangeLog> logs; // NOSONAR
 
   @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
-  private Set<LabelTaskMapping> lblMapping = new HashSet<LabelTaskMapping>();
+  @EqualsAndHashCode.Exclude
+  private Set<LabelTaskMapping> lblMapping;
 
   @Column(name = "ACTIVITY_ID")
   private String activityId;
@@ -236,9 +241,18 @@ public class Task {
     this.priority = Priority.NORMAL;
   }
 
-
-
-  public Task(String title, String description, Priority priority, String context, String assignee, Set<String> coworker, Set<String> watcher, Status status, String createdBy , Date endDate, Date startDate, Date dueDate) {
+  public Task(String title, // NOSONAR
+              String description,
+              Priority priority,
+              String context,
+              String assignee,
+              Set<String> coworker,
+              Set<String> watcher,
+              Status status,
+              String createdBy,
+              Date endDate,
+              Date startDate,
+              Date dueDate) {
     this.title = title;
     this.assignee = assignee;
     this.coworker = coworker;
@@ -253,11 +267,11 @@ public class Task {
     this.status = status;
   }
 
-  public long getId() {
+  public Long getId() {
     return id;
   }
 
-  public void setId(long id) {
+  public void setId(Long id) {
     this.id = id;
   }
 
@@ -389,14 +403,15 @@ public class Task {
     this.activityId = activityId;
   }
 
-  public Task clone() {
-    Set<String> coworkerClone = new HashSet<String>();
-    Set<String> watcherClone = new HashSet<String>();
+  @Override
+  public Task clone() { //NOSONAR
+    Set<String> coworkerClone = new HashSet<>();
+    Set<String> watcherClone = new HashSet<>();
     if (getCoworker() != null) {
-      coworkerClone = new HashSet<String>(getCoworker());
+      coworkerClone = new HashSet<>(getCoworker());
     }
     if (getWatcher() != null) {
-      watcherClone = new HashSet<String>(getWatcher());
+      watcherClone = new HashSet<>(getWatcher());
     }
     Task newTask = new Task(this.getTitle(), this.getDescription(), this.getPriority(), this.getContext(), this.getAssignee(), coworkerClone, watcherClone, this.getStatus() != null ? this.getStatus().clone() : null, this.getCreatedBy() , this.getEndDate(), this.getStartDate(), this.getDueDate());
 
@@ -407,37 +422,5 @@ public class Task {
     newTask.setId(getId());
 
     return newTask;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
-    Task task = (Task) o;
-
-    if (completed != task.completed) return false;
-    if (id != task.id) return false;
-    if (assignee != null ? !assignee.equals(task.assignee) : task.assignee != null) return false;
-    if (context != null ? !context.equals(task.context) : task.context != null) return false;
-    if (coworker != null ? !coworker.equals(task.coworker) : task.coworker != null) return false;
-    if (watcher != null ? !watcher.equals(task.watcher) : task.watcher != null) return false;
-    if (createdBy != null ? !createdBy.equals(task.createdBy) : task.createdBy != null) return false;
-    if (createdTime != null ? !createdTime.equals(task.createdTime) : task.createdTime != null) return false;
-    if (description != null ? !description.equals(task.description) : task.description != null) return false;
-    if (dueDate != null ? !dueDate.equals(task.dueDate) : task.dueDate != null) return false;
-    if (priority != task.priority) return false;
-    if (startDate != null ? !startDate.equals(task.startDate) : task.startDate != null) return false;
-    if (endDate != null ? !endDate.equals(task.endDate) : task.endDate != null) return false;
-    if (status != null ? !status.equals(task.status) : task.status != null) return false;
-    if (title != null ? !title.equals(task.title) : task.title != null) return false;
-
-    return true;
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(id, title, description, priority, context, assignee, status, completed, coworker,watcher,
-            createdBy, createdTime, startDate, endDate, dueDate);
   }
 }

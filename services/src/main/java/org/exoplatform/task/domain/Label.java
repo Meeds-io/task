@@ -16,17 +16,27 @@
  */
 package org.exoplatform.task.domain;
 
-import jakarta.persistence.*;
-
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import lombok.EqualsAndHashCode;
 
 @Entity(name = "TaskLabel")
-@ExoEntity
 @Table(name = "TASK_LABELS")
 @NamedQuery(name = "Label.findLabelsByTask",
   query = "SELECT lbl FROM TaskLabel lbl inner join lbl.lblMapping m WHERE lbl.project.id = :projectId AND m.task.id = :taskid ORDER BY lbl.id")
@@ -36,39 +46,43 @@ import org.exoplatform.commons.api.persistence.ExoEntity;
   query = "SELECT lbl FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id")
 @NamedQuery(name = "Label.findLabelsByProjectCount",
   query = "SELECT count(*) FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id")
-public class Label {
+@EqualsAndHashCode
+public class Label implements Serializable {
+
+  private static final long serialVersionUID = 806731692361018042L;
+
   @Id
-  @SequenceGenerator(name="SEQ_TASK_LABELS_LABEL_ID", sequenceName="SEQ_TASK_LABELS_LABEL_ID", allocationSize = 1)
-  @GeneratedValue(strategy=GenerationType.AUTO, generator="SEQ_TASK_LABELS_LABEL_ID")
+  @SequenceGenerator(name = "SEQ_TASK_LABELS_LABEL_ID", sequenceName = "SEQ_TASK_LABELS_LABEL_ID", allocationSize = 1)
+  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_TASK_LABELS_LABEL_ID")
   @Column(name = "LABEL_ID")
-  private long      id;
+  private long              id;
 
-  @Column(name = "USERNAME", nullable=false)
-  private String username;
+  @Column(name = "USERNAME", nullable = false)
+  private String            username;
 
-  private String    name;
+  private String            name;
 
-  private String    color;
-  
-  private boolean hidden;
-  
-  public static enum FIELDS {
-    NAME, COLOR, PARENT, HIDDEN
-  }
+  private String            color;
+
+  private boolean           hidden;
 
   @ManyToOne(optional = true, fetch = FetchType.LAZY)
   @JoinColumn(name = "PARENT_LABEL_ID", nullable = true)
+  @EqualsAndHashCode.Exclude
   private Label parent;
 
   @OneToMany(mappedBy = "parent", fetch = FetchType.LAZY)
+  @EqualsAndHashCode.Exclude
   private List<Label> children = new LinkedList<>();
   
   //Still use for named query
   @OneToMany(mappedBy = "label", fetch=FetchType.LAZY)
+  @EqualsAndHashCode.Exclude
   private Set<LabelTaskMapping> lblMapping = new HashSet<>();
 
   @ManyToOne
   @JoinColumn(name = "PROJECT_ID")
+  @EqualsAndHashCode.Exclude
   private Project project;
 
   public Label() {
@@ -144,6 +158,8 @@ public class Label {
     this.hidden = hidden;
   }
 
-
+  public enum FIELDS {
+    NAME, COLOR, PARENT, HIDDEN
+  }
   
 }

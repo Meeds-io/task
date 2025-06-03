@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.task.AbstractTest;
 import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.domain.Task;
@@ -57,9 +58,7 @@ public class TestCommentDAO extends AbstractTest {
 
   @After
   public void cleanData() {
-    endRequestLifecycle();
-    commentDAO.deleteAll();
-    taskDAO.deleteAll();
+    deleteAll();
   }
 
   @Test

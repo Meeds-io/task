@@ -27,6 +27,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.core.utils.MentionUtils;
+import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.domain.*;
 import org.exoplatform.task.dto.*;
 import org.exoplatform.task.service.UserService;
@@ -74,11 +75,13 @@ public final class StorageUtil{
     }
 
     public static Task taskToEntity(TaskDto taskDto) {
-        if(taskDto==null){
-            return null;
+        if (taskDto == null) {
+          return null;
         }
-        Task taskEntity = new Task();
-        taskEntity.setId(taskDto.getId());
+        Task taskEntity = taskDto.getId() == 0 ? null : getTaskEntityById(taskDto.getId());
+        if (taskEntity == null) {
+          taskEntity = new Task();
+        }
         taskEntity.setTitle(taskDto.getTitle());
         taskEntity.setDescription(taskDto.getDescription());
         taskEntity.setPriority(taskDto.getPriority());
@@ -86,7 +89,9 @@ public final class StorageUtil{
         taskEntity.setAssignee(taskDto.getAssignee());
         taskEntity.setCoworker(taskDto.getCoworker());
         taskEntity.setWatcher(taskDto.getWatcher());
-        taskEntity.setStatus(statusToEntity(taskDto.getStatus()));
+        if (taskDto.getStatus() != null) {
+          taskEntity.setStatus(getStatusEntityById(taskDto.getStatus().getId()));
+        }
         taskEntity.setRank(taskDto.getRank());
         taskEntity.setActivityId(taskDto.getActivityId());
         taskEntity.setCompleted(taskDto.isCompleted());
@@ -98,12 +103,12 @@ public final class StorageUtil{
         return taskEntity;
     }
 
-    public static TaskDto taskToDto(Task taskEntity,ProjectStorage projectStorage) {
+    public static TaskDto taskToDto(Task taskEntity, ProjectStorage projectStorage) {
         if(taskEntity==null){
             return null;
         }
         TaskDto task = new TaskDto();
-        task.setId(taskEntity.getId());
+        task.setId(taskEntity.getId() == null ? 0l : taskEntity.getId());
         task.setTitle(taskEntity.getTitle());
         if(taskEntity.getDescription()!=null) {
             try {
@@ -129,16 +134,39 @@ public final class StorageUtil{
         return task;
     }
 
+    public static Status getStatusEntityById(Long statusId) {
+      return ExoContainerContext.getService(DAOHandler.class).getStatusHandler().find(statusId);
+    }
+
+    public static Project getProjectEntityById(Long projectId) {
+      return ExoContainerContext.getService(DAOHandler.class).getProjectHandler().find(projectId);
+    }
+
+    public static Label getLabelEntityById(Long labelId) {
+      return ExoContainerContext.getService(DAOHandler.class).getLabelHandler().find(labelId);
+    }
+
+    public static Comment getCommentEntityById(Long commentId) {
+      return ExoContainerContext.getService(DAOHandler.class).getCommentHandler().find(commentId);
+    }
+
+    public static Task getTaskEntityById(Long taskId) {
+      return ExoContainerContext.getService(DAOHandler.class).getTaskHandler().find(taskId);
+    }
 
     public static Status statusToEntity(StatusDto statusDto) {
         if(statusDto==null){
             return null;
         }
-        Status status = new Status();
-        status.setId(statusDto.getId());
+        Status status = statusDto.getId() == 0 ? null : getStatusEntityById(statusDto.getId());
+        if (status == null) {
+          status = new Status();
+        }
         status.setName(statusDto.getName());
         status.setRank(statusDto.getRank());
-        status.setProject(projectToEntity(statusDto.getProject()));
+        if (statusDto.getProject() != null) {
+          status.setProject(getProjectEntityById(statusDto.getProject().getId()));
+        }
         return status;
     }
 
@@ -160,19 +188,18 @@ public final class StorageUtil{
                 .collect(Collectors.toList());
     }
 
-    public static List<Status> listStatusToEntitys(List<StatusDto> status) {
-        return status.stream()
-                .map(StorageUtil::statusToEntity)
-                .collect(Collectors.toList());
-    }
-
-
     public static Project projectToEntity(ProjectDto projectDto) {
         if(projectDto==null){
             return null;
         }
-        Project project = new Project();
-        project.setId(projectDto.getId());
+        long projectId = projectDto.getId();
+        Project project = projectId == 0 ? null : getProjectEntityById(projectDto.getId());
+        if (project == null) {
+          project = new Project();
+        } else {
+          List<Status> statuses = ExoContainerContext.getService(DAOHandler.class).getStatusHandler().getStatuses(project.getId());
+          project.setStatus(new HashSet<>(statuses));
+        }
         project.setName(projectDto.getName());
         project.setDescription(projectDto.getDescription());
         project.setColor(projectDto.getColor());
@@ -180,11 +207,10 @@ public final class StorageUtil{
         project.setLastModifiedDate(projectDto.getLastModifiedDate());
         project.setParticipator(projectDto.getParticipator());
         project.setManager(projectDto.getManager());
-        project.setParent(projectToEntity(projectDto.getParent()));
-        //if(projectDto.getStatus()!=null)project.setStatus(projectDto.getStatus().stream().map(status -> statusToEntity(status)).collect(Collectors.toSet()));
-        //if(projectDto.getChildren()!=null)project.setChildren(projectDto.getChildren().stream().map(this::projectToEntity).collect(Collectors.toList()));
+        if (projectDto.getParent() != null) {
+          project.setParent(getProjectEntityById(projectDto.getParent().getId()));
+        }
         return project;
-
     }
 
     public static ProjectDto projectToDto(Project project, ProjectStorage projectStorage) {
@@ -224,17 +250,21 @@ public final class StorageUtil{
 
 
     public static Label labelToEntity(LabelDto labelDto) {
-        if(labelDto==null){
-            return null;
+        if (labelDto == null) {
+          return null;
         }
-        Label label = new Label();
-        label.setId(labelDto.getId());
+        Label label = labelDto.getId() == 0 ? null : getLabelEntityById(labelDto.getId());
+        if (label == null) {
+          label = new Label();
+        }
         label.setUsername(labelDto.getUsername());
-        label.setProject(projectToEntity(labelDto.getProject()));
+        if (labelDto.getProject() != null) {
+          label.setProject(getProjectEntityById(labelDto.getProject().getId()));
+        }
         label.setName(labelDto.getName());
         label.setColor(labelDto.getColor());
         label.setHidden(labelDto.isHidden());
-        label.setParent(labelToEntity(labelDto.getParent()));
+        label.setParent(labelDto.getParent() == null ? null : getLabelEntityById(labelDto.getParent().getId()));
         return label;
     }
 
@@ -292,13 +322,18 @@ public final class StorageUtil{
         if(labelDto==null){
             return null;
         }
-        Label label = new Label();
-        label.setId(labelDto.getId());
+        Label label = labelDto.getId() == 0 ? null : getLabelEntityById(labelDto.getId());
+        if (label == null) {
+          label = new Label();
+        }
         label.setUsername(labelDto.getUsername());
         label.setName(labelDto.getName());
         label.setColor(labelDto.getColor());
         label.setHidden(labelDto.isHidden());
-        label.setParent(labelToEntity(labelDto.getParent()));
+        label.setParent(labelDto.getParent() == null ? null : getLabelEntityById(labelDto.getParent().getId()));
+        if (labelDto.getProject() != null) {
+          label.setProject(getProjectEntityById(labelDto.getProject().getId()));
+        }
         return label;
     }
 
@@ -306,16 +341,19 @@ public final class StorageUtil{
         if(commentDto==null){
             return null;
         }
-        Comment commentEntity = new Comment();
-        commentEntity.setId(commentDto.getId());
+        Comment commentEntity = commentDto.getId() == 0 ? null : getCommentEntityById(commentDto.getId());
+        if (commentEntity == null) {
+          commentEntity = new Comment();
+        }
         commentEntity.setAuthor(commentDto.getAuthor());
         commentEntity.setComment(commentDto.getComment());
-        if (commentDto.getParentComment()!=null) commentEntity.setParentComment(commentToEntity(commentDto.getParentComment()));
+        if (commentDto.getParentComment() != null) {
+          commentEntity.setParentComment(getCommentEntityById(commentDto.getParentComment().getId()));
+        }
         commentEntity.setCreatedTime(commentDto.getCreatedTime());
 
-        TaskDto task = commentDto.getTask();
-        commentEntity.setTask(taskToEntity(task));
-        commentEntity.setMentionedUsers(processMentions(task, commentDto.getComment()));
+        commentEntity.setTask(getTaskEntityById(commentDto.getTask().getId()));
+        commentEntity.setMentionedUsers(processMentions(commentDto.getTask(), commentDto.getComment()));
         return commentEntity;
     }
 
@@ -324,7 +362,7 @@ public final class StorageUtil{
             return null;
         }
         CommentDto commentDto = new CommentDto();
-        commentDto.setId(comment.getId());
+        commentDto.setId(comment.getId() == null ? 0 :comment.getId());
         commentDto.setAuthor(comment.getAuthor());
         commentDto.setComment(comment.getComment());
         if (comment.getParentComment() != null) {
