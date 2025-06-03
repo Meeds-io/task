@@ -17,8 +17,8 @@
 package org.exoplatform.task.service.impl;
 
 import org.apache.commons.lang3.StringUtils;
-import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -73,9 +73,9 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    @ExoTransactional
     public TaskDto createTask(TaskDto task) {
       TaskDto result = taskStorage.createTask(task);
+      RequestLifeCycle.restartTransaction();
       TaskPayload event = new TaskPayload(null, result);
       broadcastEvent(listenerService, TASK_CREATED, null, event);
       if (result.getStatus() != null && result.getStatus().getProject() != null) {
@@ -85,7 +85,6 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    @ExoTransactional
     public TaskDto updateTask(TaskDto task) {
       if (task == null) {
         throw new IllegalArgumentException("TaskDto must not be NULL");
@@ -101,13 +100,11 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    @ExoTransactional
     public void updateTaskOrder(long currentTaskId, Status newStatus, long[] orders) {
         taskStorage.updateTaskOrder(currentTaskId, newStatus, orders);
     }
 
     @Override
-    @ExoTransactional
     public void removeTask(long id) throws EntityNotFoundException {
         TaskDto task = getTask(id);// Can throw TaskNotFoundException
         taskStorage.delete(task);
@@ -115,7 +112,6 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    @ExoTransactional
     public TaskDto cloneTask(long id) throws EntityNotFoundException {
         TaskDto task = getTask(id);// Can throw TaskNotFoundException
         TaskDto newTask = task.clone();
@@ -142,7 +138,6 @@ public class TaskServiceImpl implements TaskService {
 
 
     @Override
-    @ExoTransactional
     public ChangeLogEntry addTaskLog(long id, String username, String actionName, String target) throws EntityNotFoundException {
         ChangeLogEntry log = new ChangeLogEntry();
         log.setTask(StorageUtil.taskToEntity(getTask(id)));

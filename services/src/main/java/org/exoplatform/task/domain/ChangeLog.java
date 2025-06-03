@@ -16,8 +16,6 @@
  */
 package org.exoplatform.task.domain;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -25,22 +23,20 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import lombok.EqualsAndHashCode;
 
 @Entity(name = "TaskChangeLog")
-@ExoEntity
 @Table(name = "TASK_CHANGE_LOGS")
-@NamedQueries({
-        @NamedQuery(name = "TaskChangeLog.findChangeLogByTaskId",
-                    query = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId ORDER BY log.createdTime DESC"),
-        @NamedQuery(name = "TaskChangeLog.countChangeLogByTaskId",
-                query = "SELECT count(log) FROM TaskChangeLog log WHERE log.task.id = :taskId"),
-        @NamedQuery(name = "TaskChangeLog.removeChangeLogByTaskId",
-                query = "DELETE FROM TaskChangeLog log WHERE log.task.id = :taskId")
-})
+@NamedQuery(name = "TaskChangeLog.findChangeLogByTaskId",
+            query = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId ORDER BY log.createdTime DESC")
+@NamedQuery(name = "TaskChangeLog.countChangeLogByTaskId",
+        query = "SELECT count(log) FROM TaskChangeLog log WHERE log.task.id = :taskId")
+@NamedQuery(name = "TaskChangeLog.removeChangeLogByTaskId",
+        query = "DELETE FROM TaskChangeLog log WHERE log.task.id = :taskId")
+@EqualsAndHashCode
 public class ChangeLog implements Comparable<ChangeLog> {
 
   @Id

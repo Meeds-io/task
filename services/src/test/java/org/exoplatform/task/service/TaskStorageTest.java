@@ -89,15 +89,7 @@ public class TaskStorageTest extends AbstractTest {
 
   @After
   public void tearDown() {
-    for (Task t : tDAO.findAll()) {
-      t.setStatus(null);
-    }
-    tDAO.updateAll(tDAO.findAll());
-    daoHandler.getLabelTaskMappingHandler().deleteAll();
-    daoHandler.getTaskLogHandler().deleteAll();
-    cDAO.deleteAll();
-    tDAO.deleteAll();
-    labelHandler.deleteAll();
+    deleteAll();
   }
 
   @Test

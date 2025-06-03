@@ -34,6 +34,7 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 
+import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -57,25 +58,8 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
   public TaskDAOImpl() {
   }
 
-  /*@Override
-  public void delete(Task entity) {
-    EntityManager em = getEntityManager();
-    Task task = em.find(Task.class, entity.getId());
-
-    // Delete all task log relate to this task
-    Query query = em.createNamedQuery("TaskChangeLog.removeChangeLogByTaskId");
-    query.setParameter("taskId", entity.getId());
-    query.executeUpdate();
-
-    // Delete all comments of task
-    query = em.createNamedQuery("Comment.deleteCommentOfTask");
-    query.setParameter("taskId", entity.getId());
-    query.executeUpdate();
-
-    em.remove(task);
-  }*/
-
   @Override
+  @ExoTransactional
   public void updateStatus(Status stOld, Status stNew) {
     Query query = getEntityManager().createNamedQuery("Task.updateStatus");
     query.setParameter("status_old", stOld);
