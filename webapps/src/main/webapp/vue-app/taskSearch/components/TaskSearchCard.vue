@@ -19,6 +19,7 @@
     <v-card
       flat
       class="pa-0"
+      :aria-label="$t('search.access.to.result', {0 :taskTitleText})"
       @click="openTaskDrawer">
       <v-list class="pa-0" :class="hover && 'light-grey-background-color no-border-radius' || ''">
         <v-list-item>
@@ -29,7 +30,6 @@
           <v-list-item-content>
             <v-list-item-title class="d-flex flex-row full-width align-center">
               <p
-                :title="taskTitleText"
                 class="flex-grow-1 title pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
                 v-sanitized-html="taskTitle"></p>
             </v-list-item-title>
@@ -69,7 +69,6 @@
               </span>
               <div
                 class="pt-2 text-wrap text-body text-break"
-                :title="excerptText"
                 :class="isMobile && 'text-truncate-2' || 'text-truncate-3'"
                 v-sanitized-html="excerptHtml"></div>
             </v-list-item-subtitle>
@@ -107,9 +106,6 @@ export default {
     },
     excerptHtml() {
       return this.result && this.result.descriptionExcerpt || this.result.description || '';
-    },
-    excerptText() {
-      return $('<div />').html(this.excerptHtml).text();
     },
     taskDueDate() {
       return this.result?.dueDate?.time;
