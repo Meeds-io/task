@@ -19,8 +19,9 @@
     <v-card
       flat
       class="pa-0"
+      :href="taskUrl"
       :aria-label="$t('search.access.to.result', {0 :taskTitleText})"
-      @click="openTaskDrawer">
+      @click.stop.prevent="openTaskDrawer">
       <v-list class="pa-0" :class="hover && 'light-grey-background-color no-border-radius' || ''">
         <v-list-item>
           <v-list-item-icon class="me-2">
@@ -29,9 +30,10 @@
 
           <v-list-item-content>
             <v-list-item-title class="d-flex flex-row full-width align-center">
-              <p
+              <h1
                 class="flex-grow-1 title pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
-                v-sanitized-html="taskTitle"></p>
+                v-sanitized-html="taskTitle">
+              </h1>
             </v-list-item-title>
 
             <v-list-item-subtitle class="d-flex flex-column">
@@ -50,8 +52,8 @@
                     :popover="false"
                     small-font-size />
                   <v-icon
-                      size="3"
-                      class="icon-default-color mx-3">fas fa-circle</v-icon>
+                    size="3"
+                    class="icon-default-color mx-3">fas fa-circle</v-icon>
                 </span>
                 <span class="d-flex flex-row align-center" v-if="taskDueDate && !isMobile">
                   <v-icon
@@ -59,8 +61,8 @@
                     class="icon-default-color">fas fa-calendar</v-icon>
                   <date-format class="ms-1 my-auto" :value="taskDueDate" />
                   <v-icon
-                      size="3"
-                      class="icon-default-color mx-3">fas fa-circle</v-icon>
+                    size="3"
+                    class="icon-default-color mx-3">fas fa-circle</v-icon>
                 </span>
                 <span class="d-flex flex-row align-center" v-if="!isMobile">
                   <v-icon :class="taskPriorityClass" size="18">mdi-flag-variant</v-icon>
@@ -101,9 +103,6 @@ export default {
     projectName() {
       return this.result && this.result.status && this.result.status.project && this.result.status.project.name || '';
     },
-    projectLink() {
-      return this.result && this.result.status && this.result.status.project && `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/projectDetail/${this.result.status.project.id}` || '';
-    },
     excerptHtml() {
       return this.result && this.result.descriptionExcerpt || this.result.description || '';
     },
@@ -127,6 +126,9 @@ export default {
     },
     isMobile() {
       return this.$vuetify?.breakpoint?.smAndDown;
+    },
+    taskUrl() {
+      return `/${eXo.env.portal.containerName}/${eXo.env.portal.metaPortalName}/tasks/taskDetail/${this.result.id}`;
     }
   },
   methods: {
