@@ -86,22 +86,29 @@ public interface TaskHandler extends GenericDAO<Task, Long> {
    * 
    * @param user username
    * @param memberships memberships
-   * @param query term to search in title or description
    * @param limit term to limit results.
    * @return {@link List} of {@link Task}
    */
-  List<Task> findTasks(String user, List<String> memberships, String query, int limit);
+  List<Task> findTasks(String user, List<String> memberships, int limit);
 
   /**
    * Count tasks assigned to a user using a search term to find in title or
    * description of the task
    * 
    * @param user username
-   * @param query term to search in title or description
    * @return tasks count
    */
-  long countTasks(String user, String query);
+  long countTasks(String user);
 
-    List<Object[]> countTaskStatusByProject(long projectId);
+  List<Object[]> countTaskStatusByProject(long projectId);
+
+  /**
+   * Retrieves a paginated list of all task IDs.
+   *
+   * @param offset the starting position of the first result
+   * @param limit  the maximum number of results to retrieve
+   * @return a list of task IDs
+   */
+  List<Long> getAllIds(int offset, int limit);
 }
 

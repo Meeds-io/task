@@ -50,6 +50,9 @@
             <field name="uiComponent">
               <string>task-search-card</string>
             </field>
+            <field name="icon">
+              <string>fas fa-tasks</string>
+            </field>
           </object>
         </object-param>
       </init-params>

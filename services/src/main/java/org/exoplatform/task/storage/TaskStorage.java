@@ -155,4 +155,12 @@ public interface TaskStorage {
 
     List<Object[]> countTaskStatusByProject(long projectId);
 
+    /**
+     * Retrieves a paginated list of all task IDs.
+     *
+     * @param offset the starting position of the first result
+     * @param limit  the maximum number of results to retrieve
+     * @return a list of task IDs
+     */
+    List<Long> getAllIds(int offset, int limit);
 }

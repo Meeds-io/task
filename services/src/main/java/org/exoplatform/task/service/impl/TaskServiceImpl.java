@@ -485,4 +485,9 @@ public class TaskServiceImpl implements TaskService {
             OrganizationIdentityProvider.NAME, userId);
         return userIdentity.getProfile() != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL) != null && userIdentity.getProfile().getProperty(Profile.EXTERNAL).equals("true");
     }
+
+    @Override
+    public List<Long> getAllIds(int offset, int limit) {
+      return taskStorage.getAllIds(offset, limit);
+    }
 }
