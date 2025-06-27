@@ -50,7 +50,7 @@
       <div class="commentBody d-block overflow-hidden ms-10 mt-1">
         <dynamic-html-element
           v-if="bodyElement"
-          :child="bodyElement"
+          :html="bodyElement"
           class="taskContentComment reset-style-box rich-editor-content"
           dir="auto" />
         <attachments-image-items
@@ -135,9 +135,7 @@ export default {
       return this.getRelativeTime(this.comment.comment.createdTime.time);
     },
     bodyElement() {
-      return this.comment?.formattedComment && {
-        template: ExtendedDomPurify.purify(`<div>${this.comment.formattedComment}</div>`) || '',
-      } || null;
+      return this.comment?.formattedComment || '';
     },
   },
   methods: {
