@@ -140,7 +140,7 @@ public interface TaskStorage {
      * @param query term to search in title or description
      * @return tasks count
      */
-    long countTasks(String user, String query);
+    long countTasks(String user, String query, List<String> memberships);
 
     /**
      * Create a log associated with a task with given <code>changeLogEntry</code>.

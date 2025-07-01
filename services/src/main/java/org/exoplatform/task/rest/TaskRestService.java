@@ -172,6 +172,7 @@ public class TaskRestService implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
   public Response getTasks(@Parameter(description = "Type of task to get (all, incoming, overdue)") @QueryParam("status") String status,
                            @Parameter(description = "Search term") @QueryParam("q") String query,
+                           @Parameter(description = "Space id") @QueryParam("spaceId") String spaceId,
                            @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
                            @Parameter(description = "Limit") @Schema(defaultValue = "20") @QueryParam("limit") int limit,
                            @Parameter(description = "Returning the number of tasks or not") @Schema(defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
@@ -230,8 +231,14 @@ public class TaskRestService implements ResourceContainer {
         }
         }
       } else {
+        if (spaceId != null) {
+          Space space = spaceService.getSpaceById(spaceId);
+          if (space != null) {
+            memberships = memberships.stream().filter(membership -> membership.contains(space.getGroupId())).toList();
+          }
+        }
         tasks = taskService.findTasksByMemberShips(currentUser, memberships, query, limit);
-        tasksSize = taskService.countTasks(currentUser, query);
+        tasksSize = taskService.countTasks(currentUser, query, memberships);
       }
       tasks.forEach(t -> transformHtml(t, currentId));
       return Response.ok(new PaginatedTaskList(tasks.stream()

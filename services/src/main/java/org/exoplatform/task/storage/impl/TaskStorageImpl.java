@@ -269,7 +269,7 @@ public class TaskStorageImpl implements TaskStorage {
         TaskSearchFilter filter = new TaskSearchFilter();
         filter.setTerm(query);
         filter.setLimit(limit);
-        filter.setPermissions(CollectionUtils.isNotEmpty(memberships) ? memberships : List.of(user));
+        filter.setPermissions(CollectionUtils.isNotEmpty(memberships) ? memberships : Arrays.asList(user));
         List<Long> taskIds = taskSearchConnector.search(filter);
         return taskIds.stream().map(this::getTaskById).filter(Objects::nonNull).toList();
       } else {
@@ -287,12 +287,15 @@ public class TaskStorageImpl implements TaskStorage {
      * @return tasks count
      */
     @Override
-    public long countTasks(String user, String query) {
+    public long countTasks(String user, String query, List<String> memberships) {
       if (StringUtils.isNotBlank(query)) {
         TaskSearchFilter filter = new TaskSearchFilter();
         filter.setTerm(query);
-        filter.setPermissions(List.of(user));
         filter.setLimit(0);
+        if (CollectionUtils.isEmpty(memberships)) {
+            memberships = Arrays.asList(user);
+        }
+        filter.setPermissions(memberships);
         return taskSearchConnector.count(filter);
       } else {
         return daoHandler.getTaskHandler().countTasks(user);
