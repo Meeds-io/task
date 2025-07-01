@@ -164,7 +164,7 @@ public interface TaskService {
      * @param query term to search in title or description
      * @return tasks count
      */
-    long countTasks(String user, String query);
+    long countTasks(String user, String query, List<String> memberships) throws Exception;
 
     List<Object[]> countTaskStatusByProject(long projectId);
 
