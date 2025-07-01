@@ -259,14 +259,14 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public long countTasks(String user, String query) {
+    public long countTasks(String user, String query, List<String> memberships) {
         if (StringUtils.isBlank(user)) {
             throw new IllegalArgumentException("user parameter is mandatory");
         }
         if (StringUtils.isBlank(query)) {
             throw new IllegalArgumentException("query parameter is mandatory");
         }
-        return taskStorage.countTasks(user, query);
+        return taskStorage.countTasks(user, query, memberships);
     }
 
     @Override
