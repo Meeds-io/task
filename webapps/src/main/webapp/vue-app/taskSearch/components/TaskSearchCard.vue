@@ -31,7 +31,7 @@
           <v-list-item-content>
             <v-list-item-title class="d-flex flex-row full-width align-center">
               <h1
-                class="flex-grow-1 title pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
+                class="flex-grow-1 title font-weight-bold primary--text pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
                 v-sanitized-html="taskTitle">
               </h1>
             </v-list-item-title>
@@ -70,7 +70,7 @@
                 </span>
               </span>
               <div
-                class="pt-2 text-wrap text-body text-break"
+                class="pt-2 text-wrap text-body-2 text-color text-break"
                 :class="isMobile && 'text-truncate-2' || 'text-truncate-3'"
                 v-sanitized-html="excerptHtml"></div>
             </v-list-item-subtitle>
@@ -110,7 +110,7 @@ export default {
       return this.result?.dueDate?.time;
     },
     taskTitle() {
-      return this.result?.titleExcerpt || '';
+      return this.result?.title || '';
     },
     taskTitleText() {
       return $('<div />').html(this.taskTitle).text();
