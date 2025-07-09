@@ -22,11 +22,10 @@ Vue.use(Vuetify);
 export function formatSearchResult(results, term) {
   if (results && results.tasks && results.tasks.length) {
     results = results.tasks.map(task => {
-      const commentCount = task.commentCount;
-      task = task.task;
+      const commentCount = task?.commentCount;
+      task = task?.task;
       task.commentCount = commentCount;
-      task.titleExcerpt = task.title.replace(new RegExp(`(${term})`, 'ig'), '<span class="searchMatchExcerpt">$1</span>');
-      task.descriptionExcerpt = task.description.replace(new RegExp(`(${term})`, 'ig'), '<span class="searchMatchExcerpt">$1</span>');
+      task.descriptionExcerpt = task?.description?.replace(new RegExp(`(${term})`, 'ig'), '<span class="searchMatchExcerpt">$1</span>');
       return task;
     });
   }
