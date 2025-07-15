@@ -105,12 +105,14 @@ public class ProjectServiceTest {
     @Before
     public void setUp() {
         // Make sure the container is started to prevent the ExoTransactional annotation to fail
-        PortalContainer.getInstance();
+        PortalContainer container = PortalContainer.getInstance();
         projectStorage = new ProjectStorageImpl(daoHandler);
-        statusStorage = new StatusStorageImpl(daoHandler, projectStorage);
+        taskStorage = container.getComponentInstanceOfType(TaskStorage.class);
+        statusStorage = new StatusStorageImpl(daoHandler, taskStorage, projectStorage);
         projectService = new ProjectServiceImpl(statusService, taskService, daoHandler, projectStorage, listenerService);
         //Mock DAO handler to return Mocked DAO
         when(daoHandler.getProjectHandler()).thenReturn(projectHandler);
+        when(daoHandler.getStatusHandler()).thenReturn(statusHandler);
 
         //Mock some DAO methods
         when(projectHandler.create(any(Project.class))).thenReturn(TestUtils.getDefaultProject());

@@ -52,9 +52,11 @@ import org.exoplatform.task.TestDtoUtils;
 import org.exoplatform.task.TestUtils;
 import org.exoplatform.task.dao.CommentHandler;
 import org.exoplatform.task.dao.DAOHandler;
+import org.exoplatform.task.dao.LabelTaskMappingHandler;
 import org.exoplatform.task.dao.ProjectHandler;
 import org.exoplatform.task.dao.StatusHandler;
 import org.exoplatform.task.dao.TaskHandler;
+import org.exoplatform.task.dao.TaskLogHandler;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -74,44 +76,50 @@ public class TaskServiceTest {
 
   MockedStatic<ExoContainerContext> containerContext;
 
-  TaskService          taskService;
+  TaskService                       taskService;
 
-  TaskStorage          taskStorage;
+  TaskStorage                       taskStorage;
 
-  StatusStorage        statusStorage;
+  StatusStorage                     statusStorage;
 
-  ListenerService      listenerService;
+  ListenerService                   listenerService;
 
-  TaskSearchConnector  taskSearchConnector;
-
-  @Mock
-  TaskHandler          taskHandler;
+  TaskSearchConnector               taskSearchConnector;
 
   @Mock
-  ProjectHandler       projectHandler;
+  TaskHandler                       taskHandler;
 
   @Mock
-  StatusHandler        statusHandler;
+  ProjectHandler                    projectHandler;
 
   @Mock
-  CommentHandler       commentHandler;
+  LabelTaskMappingHandler           labelTaskMappingHandler;
 
   @Mock
-  StatusService        statusService;
+  StatusHandler                     statusHandler;
 
   @Mock
-  ProjectStorage       projectStorage;
+  CommentHandler                    commentHandler;
 
   @Mock
-  DAOHandler           daoHandler;
+  TaskLogHandler                    taskLogHandler;
 
   @Mock
-  UserService          userService;
+  StatusService                     statusService;
+
+  @Mock
+  ProjectStorage                    projectStorage;
+
+  @Mock
+  DAOHandler                        daoHandler;
+
+  @Mock
+  UserService                       userService;
 
   // ArgumentCaptors are how you can retrieve objects that were passed into a
   // method call
   @Captor
-  ArgumentCaptor<Task> taskCaptor;
+  ArgumentCaptor<Task>              taskCaptor;
 
   PortalContainer                   container;
 
@@ -141,6 +149,9 @@ public class TaskServiceTest {
     when(daoHandler.getTaskHandler()).thenReturn(taskHandler);
     when(daoHandler.getStatusHandler()).thenReturn(statusHandler);
     when(daoHandler.getProjectHandler()).thenReturn(projectHandler);
+    when(daoHandler.getLabelTaskMappingHandler()).thenReturn(labelTaskMappingHandler);
+    when(daoHandler.getCommentHandler()).thenReturn(commentHandler);
+    when(daoHandler.getTaskLogHandler()).thenReturn(taskLogHandler);
 
     // Mock some DAO methods
     when(taskHandler.create(any(Task.class))).thenReturn(TestUtils.getDefaultTask());

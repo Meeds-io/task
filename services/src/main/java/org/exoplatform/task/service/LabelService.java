@@ -20,10 +20,11 @@ import java.util.List;
 
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.services.security.Identity;
-import org.exoplatform.task.domain.Label;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+
+import io.meeds.task.domain.LabelField;
 
 public interface LabelService {
   List<LabelDto> findLabelsByUser(String username, int offset, int limit);
@@ -37,7 +38,7 @@ public interface LabelService {
   LabelDto createLabel(LabelDto label);
 
   @ExoTransactional
-  LabelDto updateLabel(LabelDto label, List<Label.FIELDS> fields) throws EntityNotFoundException;
+  LabelDto updateLabel(LabelDto label, List<LabelField> fields) throws EntityNotFoundException;
 
   LabelDto updateLabel(LabelDto label) throws EntityNotFoundException;
 

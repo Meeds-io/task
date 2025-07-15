@@ -21,7 +21,6 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
@@ -40,6 +39,7 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
@@ -57,7 +57,7 @@ import lombok.EqualsAndHashCode;
     query = "DELETE FROM TaskComment c WHERE c.task.id = :taskId")
 @NamedQuery(name = "Comment.findMentionedUsersOfTask",
     query = "SELECT m FROM TaskComment c INNER JOIN c.mentionedUsers m WHERE c.task.id = :taskId")
-@EqualsAndHashCode
+@Data
 public class Comment {
 
   @Id
@@ -73,7 +73,7 @@ public class Comment {
   private String               author;
 
   @Column(name = "CMT")
-  private String               comment;
+  private String               comment; // NOSONAR
 
   @Temporal(TemporalType.TIMESTAMP)
   @Column(name = "CREATED_TIME")
@@ -99,69 +99,9 @@ public class Comment {
   @EqualsAndHashCode.Exclude
   private Set<String>          mentionedUsers = new HashSet<>();
 
-  public Long getId() {
-    return id;
-  }
-
-  public void setId(Long id) {
-    this.id = id;
-  }
-
-  public String getAuthor() {
-    return author;
-  }
-
-  public void setAuthor(String author) {
-    this.author = author;
-  }
-
-  public String getComment() {
-    return comment;
-  }
-
-  public void setComment(String comment) {
-    this.comment = comment;
-  }
-
-  public void setMentionedUsers(Set<String> mentionedUsers) {
-    this.mentionedUsers = mentionedUsers;
-  }
-
-  public Set<String> getMentionedUsers() {
-    return mentionedUsers.stream().collect(Collectors.toSet());
-  }
-
-  public Date getCreatedTime() {
-    return createdTime;
-  }
-
-  public void setCreatedTime(Date createdTime) {
-    this.createdTime = createdTime;
-  }
-
-  public Task getTask() {
-    return task;
-  }
-
-  public void setTask(Task task) {
-    this.task = task;
-  }
-
-  public Comment getParentComment() {
-    return parentComment;
-  }
-
   public void setParentComment(Comment parentComment) {
     this.parentComment = parentComment;
     this.parentComment.addSubComment(this);
-  }
-
-  public List<Comment> getSubComments() {
-    return subComments;
-  }
-
-  public void setSubComments(List<Comment> subComments) {
-    this.subComments = subComments;
   }
 
   public void addSubComment(Comment subComment) {

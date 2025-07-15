@@ -16,6 +16,10 @@
  */
 package org.exoplatform.task.service.impl;
 
+import java.util.List;
+
+import javax.inject.Inject;
+
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
@@ -23,7 +27,6 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.dao.DAOHandler;
-import org.exoplatform.task.domain.Label;
 import org.exoplatform.task.domain.LabelTaskMapping;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -33,8 +36,7 @@ import org.exoplatform.task.storage.LabelStorage;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.util.StorageUtil;
 
-import javax.inject.Inject;
-import java.util.List;
+import io.meeds.task.domain.LabelField;
 
 public class LabelServiceImpl implements LabelService {
 
@@ -91,14 +93,14 @@ public class LabelServiceImpl implements LabelService {
 
     @Override
     @ExoTransactional
-    public LabelDto updateLabel(LabelDto label, List<Label.FIELDS> fields) throws EntityNotFoundException {
+    public LabelDto updateLabel(LabelDto label, List<LabelField> fields) throws EntityNotFoundException {
         LabelDto lb = getLabel(label.getId());
         if (lb == null) {
             throw new EntityNotFoundException(label.getId(), LabelDto.class);
         }
 
         //Todo: validate input and throw exception if need
-        for (Label.FIELDS field : fields) {
+        for (LabelField field : fields) {
             switch (field) {
                 case NAME:
                     lb.setName(label.getName());
