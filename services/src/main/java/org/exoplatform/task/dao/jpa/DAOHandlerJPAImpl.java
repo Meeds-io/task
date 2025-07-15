@@ -59,7 +59,7 @@ public class DAOHandlerJPAImpl extends AbstractDAOHandler implements DAOHandler 
     } else if (e instanceof Status) {
       return (E)((Status)e).clone();
     } else if (e instanceof Project) {
-      return (E)((Project)e).clone(false);
+      return (E)((Project)e).clone();
     } else if (e instanceof Comment) {
       return (E)((Comment)e).clone();
     } else if (e instanceof ChangeLog) {

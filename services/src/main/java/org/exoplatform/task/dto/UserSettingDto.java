@@ -22,7 +22,6 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
-
 @Data
 public class UserSettingDto implements Serializable {
     private String username;
@@ -36,10 +35,10 @@ public class UserSettingDto implements Serializable {
     public UserSettingDto clone() {
         UserSettingDto setting = new UserSettingDto();
         setting.setShowHiddenProject(isShowHiddenProject());
-        Set<Project> hiddenProjects = new HashSet<Project>();
+        Set<Project> hiddenProjects = new HashSet<>();
         if (getHiddenProjects() != null) {
             for (Project p : getHiddenProjects()) {
-                hiddenProjects.add(p.clone(false));
+                hiddenProjects.add(p.clone());
             }
         }
         setting.setHiddenProjects(hiddenProjects);

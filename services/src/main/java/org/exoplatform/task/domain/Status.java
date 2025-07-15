@@ -32,6 +32,7 @@ import jakarta.persistence.NamedQuery;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
@@ -55,7 +56,7 @@ import lombok.EqualsAndHashCode;
             query = "SELECT s FROM TaskStatus s WHERE s.name = :name AND s.project.id = :projectID")
 @NamedQuery(name = "Status.findStatusByProject",
             query = "SELECT s FROM TaskStatus s WHERE s.project.id = :projectId ORDER BY s.rank ASC")
-@EqualsAndHashCode
+@Data
 public class Status implements Comparable<Status>, Serializable {
 
   private static final long serialVersionUID = -3079376553215147896L;
@@ -73,7 +74,7 @@ public class Status implements Comparable<Status>, Serializable {
 
   // This field only used for cascade remove
   @EqualsAndHashCode.Exclude
-  @OneToMany(mappedBy = "status", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
+  @OneToMany(mappedBy = "status", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
   private List<Task>        tasks;
 
   @ManyToOne
@@ -84,11 +85,11 @@ public class Status implements Comparable<Status>, Serializable {
   public Status() {
   }
 
-  //TO REMOVE after removing the TaskServiceMemImpl
   public Status(long id, String name) {
     this.id = id;
     this.name = name;
   }
+
   public Status(long id, String name, Integer rank, Project project) {
     this.id = id;
     this.name = name;
@@ -102,41 +103,9 @@ public class Status implements Comparable<Status>, Serializable {
     this.project = project;
   }
 
-  public long getId() {
-    return id;
-  }
-
-  public void setId(long id) {
-    this.id = id;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  public Integer getRank() {
-    return rank;
-  }
-
-  public void setRank(Integer rank) {
-    this.rank = rank;
-  }
-
-  public Project getProject() {
-    return project;
-  }
-
-  public void setProject(Project project) {
-    this.project = project;
-  }
-
   @Override
   public Status clone() { // NOSONAR
-    return new Status(getId(), getName(), getRank(), getProject().clone(false));
+    return new Status(getId(), getName(), getRank(), getProject().clone());
   }
 
   @Override

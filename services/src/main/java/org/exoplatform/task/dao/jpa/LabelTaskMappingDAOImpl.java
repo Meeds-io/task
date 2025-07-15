@@ -17,35 +17,45 @@
 package org.exoplatform.task.dao.jpa;
 
 import java.io.Serializable;
-import java.util.List;
 
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.task.dao.LabelTaskMappingHandler;
-import org.exoplatform.task.domain.Label;
 import org.exoplatform.task.domain.LabelTaskMapping;
-import org.exoplatform.task.domain.Task;
 
 import jakarta.persistence.PersistenceException;
-import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 
 public class LabelTaskMappingDAOImpl extends CommonJPADAO<LabelTaskMapping, Serializable> implements LabelTaskMappingHandler {
 
-    private static final Log log = ExoLogger.getExoLogger(LabelTaskMappingDAOImpl.class);
+  private static final String LABEL_ID = "labelId";
 
-    @Override
-    public LabelTaskMapping findLabelTaskMapping(long labelId, long taskId) {
-        TypedQuery<LabelTaskMapping> query = getEntityManager().createNamedQuery("LabelTaskMapping.findLabelMapping", LabelTaskMapping.class);
-        query.setParameter("labelId", labelId);
-        query.setParameter("taskId", taskId);
-        try {
-            return cloneEntity((LabelTaskMapping)query.getSingleResult());
-        } catch (PersistenceException e) {
-            log.error("Error when fetching label mapping", e);
-            return null;
-        }
+  private static final String TASK_ID  = "taskId";
+
+  private static final Log    log      = ExoLogger.getExoLogger(LabelTaskMappingDAOImpl.class);
+
+  @Override
+  public ListAccess<LabelTaskMapping> findLabelMappings(long taskId) {
+    TypedQuery<LabelTaskMapping> query = getEntityManager().createNamedQuery("LabelTaskMapping.findLabelMappingsOfTask", LabelTaskMapping.class);
+    TypedQuery<Long> count = getEntityManager().createNamedQuery("LabelTaskMapping.countLabelMappingsOfTask", Long.class);
+    query.setParameter(TASK_ID, taskId);
+    count.setParameter(TASK_ID, taskId);
+    return new JPAQueryListAccess<>(LabelTaskMapping.class, count, query);
+  }
+
+  @Override
+  public LabelTaskMapping findLabelTaskMapping(long labelId, long taskId) {
+    TypedQuery<LabelTaskMapping> query = getEntityManager().createNamedQuery("LabelTaskMapping.findLabelMapping",
+                                                                             LabelTaskMapping.class);
+    query.setParameter(LABEL_ID, labelId);
+    query.setParameter(TASK_ID, taskId);
+    try {
+      return cloneEntity(query.getSingleResult());
+    } catch (PersistenceException e) {
+      log.error("Error when fetching label mapping", e);
+      return null;
     }
-}
+  }
 
+}
