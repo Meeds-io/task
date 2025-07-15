@@ -41,6 +41,7 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
@@ -157,7 +158,7 @@ import lombok.EqualsAndHashCode;
 
 @NamedQuery(name = "Task.getAllIds",
         query = "SELECT t.id FROM TaskTask t ORDER BY id ASC LIMIT :limit OFFSET :offset")
-@EqualsAndHashCode
+@Data
 public class Task implements Serializable {
 
   private static final long     serialVersionUID = 1945617316471028822L;
@@ -221,18 +222,18 @@ public class Task implements Serializable {
   private Date        dueDate;
 
   //This field is only used for remove cascade
-  @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
+  @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
   @EqualsAndHashCode.Exclude
   private List<Comment> comments; // NOSONAR
 
   //This field is only used for remove cascade
-  @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
+  @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
   @EqualsAndHashCode.Exclude
   private List<ChangeLog> logs; // NOSONAR
 
-  @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
+  @OneToMany(mappedBy = "task", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
   @EqualsAndHashCode.Exclude
-  private Set<LabelTaskMapping> lblMapping;
+  private List<LabelTaskMapping> labels;
 
   @Column(name = "ACTIVITY_ID")
   private String activityId;
@@ -265,142 +266,6 @@ public class Task implements Serializable {
     this.endDate = endDate;
     this.dueDate = dueDate;
     this.status = status;
-  }
-
-  public Long getId() {
-    return id;
-  }
-
-  public void setId(Long id) {
-    this.id = id;
-  }
-
-  public String getTitle() {
-    return title;
-  }
-
-  public void setTitle(String title) {
-    this.title = title;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  public void setDescription(String description) {
-    this.description = description;
-  }
-
-  public Priority getPriority() {
-    return priority;
-  }
-
-  public void setPriority(Priority priority) {
-    this.priority = priority;
-  }
-
-  public String getContext() {
-    return context;
-  }
-
-  public void setContext(String context) {
-    this.context = context;
-  }
-
-  public String getAssignee() {
-    return assignee;
-  }
-
-  public void setAssignee(String assignee) {
-    this.assignee = assignee;
-  }
-
-  public Status getStatus() {
-    return status;
-  }
-
-  public void setStatus(Status status) {
-    this.status = status;
-  }
-
-  public int getRank() {
-    return rank;
-  }
-
-  public void setRank(int rank) {
-    this.rank = rank;
-  }
-
-  public boolean isCompleted() {
-    return completed;
-  }
-
-  public void setCompleted(boolean completed) {
-    this.completed = completed;
-  }
-
-  public String getCreatedBy() {
-    return createdBy;
-  }
-
-  public void setCreatedBy(String createdBy) {
-    this.createdBy = createdBy;
-  }
-
-  public Date getCreatedTime() {
-    return createdTime;
-  }
-
-  public void setCreatedTime(Date createdTime) {
-    this.createdTime = createdTime;
-  }
-
-  public Date getEndDate() {
-    return endDate;
-  }
-
-  public void setEndDate(Date endDate) {
-    this.endDate = endDate;
-  }
-
-  public Date getStartDate() {
-    return startDate;
-  }
-
-  public void setStartDate(Date startDate) {
-    this.startDate = startDate;
-  }
-
-  public Date getDueDate() {
-    return dueDate;
-  }
-
-  public void setDueDate(Date dueDate) {
-    this.dueDate = dueDate;
-  }
-
-  public Set<String> getCoworker() {
-    return coworker;
-  }
-
-  public void setCoworker(Set<String> coworker) {
-    this.coworker = coworker;
-  }
-
-  public Set<String> getWatcher() {
-    return watcher;
-  }
-
-  public void setWatcher(Set<String> watcher) {
-    this.watcher = watcher;
-  }
-
-  public String getActivityId() {
-    return activityId;
-  }
-
-  public void setActivityId(String activityId) {
-    this.activityId = activityId;
   }
 
   @Override

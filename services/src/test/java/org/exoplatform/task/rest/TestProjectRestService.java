@@ -574,7 +574,7 @@ public class TestProjectRestService {
     when(projectService.getProject(projectDto.getId())).thenReturn(projectDto);
 
     Response response1 = projectRestService.deleteProject(projectDto.getId(), false, 0, 0);
-    assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
+    assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response1.getStatus());
   }
 
   @Test

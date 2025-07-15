@@ -77,11 +77,13 @@ public class TestTaskDAO extends AbstractTest {
   public void setup() {
     PortalContainer container = PortalContainer.getInstance();
 
-    daoHandler = (DAOHandler) container.getComponentInstanceOfType(DAOHandler.class);
+    daoHandler = container.getComponentInstanceOfType(DAOHandler.class);
     tDAO = daoHandler.getTaskHandler();
     cDAO = daoHandler.getCommentHandler();
     labelHandler = daoHandler.getLabelHandler();
     taskSearchConnector = container.getComponentInstanceOfType(TaskSearchConnector.class);
+    projectStorage = container.getComponentInstanceOfType(ProjectStorage.class);
+    userService = container.getComponentInstanceOfType(UserService.class);
     taskStorage = new TaskStorageImpl(daoHandler, userService, projectStorage, taskSearchConnector);
     taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
   }
@@ -231,7 +233,7 @@ public class TestTaskDAO extends AbstractTest {
     tDAO.create(task);
 
     TaskQuery query = new TaskQuery();
-    query.setEmptyField("lblMapping");
+    query.setEmptyField("labels");
     ListAccess<Task> tasks = tDAO.findTasks(query);
     Assert.assertEquals(1, tasks.getSize());
     
@@ -405,7 +407,7 @@ public class TestTaskDAO extends AbstractTest {
     //
     endRequestLifecycle();
     initializeContainerAndStartRequestLifecycle();
-    tDAO.delete(tDAO.find(task.getId()));
+    taskStorage.delete(taskStorage.getTaskById(task.getId()));
     labels = labelHandler.findLabelsByTask(task.getId(), project.getId());
     Assert.assertEquals(0, labels.getSize());
   }

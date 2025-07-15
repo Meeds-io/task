@@ -139,7 +139,7 @@ public class StatusServiceImpl implements StatusService {
     @Override
     @ExoTransactional
     public void removeStatus(long statusID) throws Exception {
-        statusStorage.removeStatus(statusID);
+        statusStorage.removeStatus(statusID, false);
     }
 
     @Override
