@@ -18,6 +18,7 @@ package org.exoplatform.task.domain;
 
 import java.io.Serializable;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import jakarta.persistence.Column;
@@ -27,6 +28,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
@@ -34,7 +36,7 @@ import lombok.EqualsAndHashCode;
  */
 @Entity(name = "TaskUserSetting")
 @Table(name = "TASK_USER_SETTINGS")
-@EqualsAndHashCode
+@Data
 public class UserSetting implements Serializable {
 
   private static final long serialVersionUID  = 731610709234552969L;
@@ -68,38 +70,11 @@ public class UserSetting implements Serializable {
     this.username = username;
   }
 
-  public String getUsername() {
-    return username;
-  }
-
-  public boolean isShowHiddenProject() {
-    return showHiddenProject;
-  }
-
-  public void setShowHiddenProject(boolean showHiddenProject) {
-    this.showHiddenProject = showHiddenProject;
-  }
-
-  public boolean isShowHiddenLabel() {
-    return showHiddenLabel;
-  }
-
-  public void setShowHiddenLabel(boolean showHiddenLabel) {
-    this.showHiddenLabel = showHiddenLabel;
-  }
-
-  public Set<Project> getHiddenProjects() {
-    return hiddenProjects;
-  }
-
-  public void setHiddenProjects(Set<Project> hiddenProjects) {
-    this.hiddenProjects = hiddenProjects;
-  }
-
   @Override
   public UserSetting clone() { // NOSONAR
     UserSetting setting = new UserSetting(getUsername());
     setting.setShowHiddenProject(isShowHiddenProject());
     return setting;
   }
+
 }

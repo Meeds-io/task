@@ -16,28 +16,32 @@
  */
 package org.exoplatform.task.storage.impl;
 
-import org.exoplatform.services.log.ExoLogger;
-import org.exoplatform.services.log.Log;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.inject.Inject;
+
+import org.apache.commons.collections4.CollectionUtils;
+
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.domain.Project;
+import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.storage.ProjectStorage;
+import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.util.StorageUtil;
 
-import javax.inject.Inject;
-import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import lombok.SneakyThrows;
 
 public class ProjectStorageImpl implements ProjectStorage {
-
-    private static final Log LOG = ExoLogger.getExoLogger(ProjectStorageImpl.class);
-
-    private static final Pattern pattern = Pattern.compile("@([^\\s]+)|@([^\\s]+)$");
-
 
     @Inject
     private final DAOHandler daoHandler;
@@ -58,7 +62,7 @@ public class ProjectStorageImpl implements ProjectStorage {
         ProjectQuery query = new ProjectQuery();
         query.setId(projectId);
         List<String> manager = daoHandler.getProjectHandler().selectProjectField(query, "manager");
-        return new HashSet<String>(manager);
+        return new HashSet<>(manager);
     }
 
     @Override
@@ -66,7 +70,7 @@ public class ProjectStorageImpl implements ProjectStorage {
         ProjectQuery query = new ProjectQuery();
         query.setId(projectId);
         List<String> manager = daoHandler.getProjectHandler().selectProjectField(query, "participator");
-        return new HashSet<String>(manager);
+        return new HashSet<>(manager);
     }
 
     @Override
@@ -93,12 +97,11 @@ public class ProjectStorageImpl implements ProjectStorage {
     public void removeProject(long projectId, boolean deleteChild) throws EntityNotFoundException {
         ProjectDto project = getProject(projectId);
         if (project == null) throw new EntityNotFoundException(projectId, Project.class);
+        List<Status> statuses = daoHandler.getStatusHandler().getStatuses(projectId);
+        if (CollectionUtils.isNotEmpty(statuses)) {
+          statuses.forEach(this::removeStatus);
+        }
         daoHandler.getProjectHandler().removeProject(projectId, deleteChild);
-    }
-
-    @Override
-    public ProjectDto cloneProject(long projectId, boolean cloneTask) throws EntityNotFoundException {
-        return null;
     }
 
     @Override
@@ -138,7 +141,7 @@ public class ProjectStorageImpl implements ProjectStorage {
         try {
             return Arrays.asList(daoHandler.getProjectHandler().findAllByMembershipsAndKeyword(memberships, keyword, order).load(offset, limit)).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).collect(Collectors.toList());
         } catch (Exception e) {
-            return new ArrayList<ProjectDto>();
+            return new ArrayList<>();
         }
     }
 
@@ -147,7 +150,7 @@ public class ProjectStorageImpl implements ProjectStorage {
         try {
             return daoHandler.getProjectHandler().findCollaboratedProjects(userName,keyword,offset, limit).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).collect(Collectors.toList());
         } catch (Exception e) {
-            return new ArrayList<ProjectDto>();
+            return new ArrayList<>();
         }
     }
 
@@ -156,7 +159,7 @@ public class ProjectStorageImpl implements ProjectStorage {
         try {
             return daoHandler.getProjectHandler().findNotEmptyProjects(memberships,keyword,offset, limit).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).collect(Collectors.toList());
         } catch (Exception e) {
-            return new ArrayList<ProjectDto>();
+            return new ArrayList<>();
         }
     }
 
@@ -186,6 +189,12 @@ public class ProjectStorageImpl implements ProjectStorage {
             return 0;
         }
 
+    }
+
+    @SneakyThrows
+    private void removeStatus(Status status) {
+      StatusStorage statusStorage = ExoContainerContext.getService(StatusStorage.class);
+      statusStorage.removeStatus(status.getId(), true);
     }
 
 }

@@ -19,10 +19,11 @@ package org.exoplatform.task.storage;
 import java.util.List;
 
 import org.exoplatform.services.security.Identity;
-import org.exoplatform.task.domain.Label;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+
+import io.meeds.task.domain.LabelField;
 
 public interface LabelStorage {
 
@@ -36,7 +37,7 @@ public interface LabelStorage {
 
   LabelDto createLabel(LabelDto label);
 
-  LabelDto updateLabel(LabelDto label, List<Label.FIELDS> fields) throws EntityNotFoundException;
+  LabelDto updateLabel(LabelDto label, List<LabelField> fields) throws EntityNotFoundException;
 
   void removeLabel(long labelId);
 

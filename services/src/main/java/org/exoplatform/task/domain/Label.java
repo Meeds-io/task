@@ -34,19 +34,20 @@ import jakarta.persistence.NamedQuery;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Entity(name = "TaskLabel")
 @Table(name = "TASK_LABELS")
 @NamedQuery(name = "Label.findLabelsByTask",
-  query = "SELECT lbl FROM TaskLabel lbl inner join lbl.lblMapping m WHERE lbl.project.id = :projectId AND m.task.id = :taskid ORDER BY lbl.id")
+  query = "SELECT lbl FROM TaskLabel lbl inner join lbl.tasks m WHERE lbl.project.id = :projectId AND m.task.id = :taskid ORDER BY lbl.id")
 @NamedQuery(name = "Label.findLabelsByTaskCount",
-  query = "SELECT count(*) FROM TaskLabel lbl inner join lbl.lblMapping m WHERE lbl.project.id = :projectId AND m.task.id = :taskid")
+  query = "SELECT count(*) FROM TaskLabel lbl inner join lbl.tasks m WHERE lbl.project.id = :projectId AND m.task.id = :taskid")
 @NamedQuery(name = "Label.findLabelsByProject",
   query = "SELECT lbl FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id")
 @NamedQuery(name = "Label.findLabelsByProjectCount",
   query = "SELECT count(*) FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id")
-@EqualsAndHashCode
+@Data
 public class Label implements Serializable {
 
   private static final long serialVersionUID = 806731692361018042L;
@@ -78,7 +79,7 @@ public class Label implements Serializable {
   //Still use for named query
   @OneToMany(mappedBy = "label", fetch=FetchType.LAZY)
   @EqualsAndHashCode.Exclude
-  private Set<LabelTaskMapping> lblMapping = new HashSet<>();
+  private Set<LabelTaskMapping> tasks = new HashSet<>();
 
   @ManyToOne
   @JoinColumn(name = "PROJECT_ID")
@@ -94,72 +95,4 @@ public class Label implements Serializable {
     this.project = project;
   }
 
-  public long getId() {
-    return id;
-  }
-
-  public void setId(long id) {
-    this.id = id;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  public String getColor() {
-    return color;
-  }
-
-  public void setColor(String color) {
-    this.color = color;
-  }
-
-  public Label getParent() {
-    return parent;
-  }
-
-  public void setParent(Label parent) {
-    this.parent = parent;
-  }
-
-  public List<Label> getChildren() {
-    return children;
-  }
-
-  public void setChildren(List<Label> children) {
-    this.children = children;
-  }
-
-  public String getUsername() {
-    return username;
-  }
-
-  public void setUsername(String username) {
-    this.username = username;
-  }
-
-  public Project getProject() {
-    return project;
-  }
-
-  public void setProject(Project project) {
-    this.project = project;
-  }
-
-  public boolean isHidden() {
-    return hidden;
-  }
-
-  public void setHidden(boolean hidden) {
-    this.hidden = hidden;
-  }
-
-  public enum FIELDS {
-    NAME, COLOR, PARENT, HIDDEN
-  }
-  
 }

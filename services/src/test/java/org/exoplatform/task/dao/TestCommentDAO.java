@@ -78,7 +78,12 @@ public class TestCommentDAO extends AbstractTest {
     comment = comments[0];
     Assert.assertEquals(username, comment.getAuthor());
 
-    //Assert.assertEquals(task.getId(), comment.getTask().getId());
+    taskDAO.update(task);
+    listComments = commentDAO.findComments(task.getId());
+    comments = ListUtil.load(listComments, 0, -1);
+    Assert.assertEquals(1, comments.length);
+    comment = comments[0];
+    Assert.assertEquals(username, comment.getAuthor());
   }
 
   @Test

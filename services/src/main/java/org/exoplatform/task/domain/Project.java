@@ -25,7 +25,6 @@ import java.util.Set;
 
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.security.MembershipEntry;
-import org.exoplatform.task.util.ProjectUtil;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
@@ -45,6 +44,7 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
@@ -102,7 +102,7 @@ import lombok.EqualsAndHashCode;
                 + " LEFT JOIN p.participator participator "
                 + " WHERE (manager IN (:memberships) OR participator IN (:memberships)) AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))"
 )
-@EqualsAndHashCode
+@Data
 public class Project implements Serializable {
 
   private static final long  serialVersionUID = -5595949787344061794L;
@@ -121,7 +121,7 @@ public class Project implements Serializable {
 
   private String             color;
 
-  @OneToMany(mappedBy = "project", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
+  @OneToMany(mappedBy = "project", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
   @EqualsAndHashCode.Exclude
   private Set<Status>        status;
 
@@ -170,108 +170,8 @@ public class Project implements Serializable {
     this.participator = participator;
   }
 
-  public long getId() {
-    return id;
-  }
-
-  public void setId(long id) {
-    this.id = id;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  //TODO: get list status of project via StatusService
-  @Deprecated
-  public Set<Status> getStatus() {
-    return status;
-  }
-
-  @Deprecated
-  public void setStatus(Set<Status> status) {
-    this.status = status;
-  }
-
-  @Deprecated
-  public Set<String> getParticipator() {
-    if (participator == null) {
-      participator = ProjectUtil.getParticipator(getId());
-    }
-    return participator;
-  }
-
-  public void setParticipator(Set<String> participator) {
-    this.participator = participator;
-  }
-
-  @Deprecated
-  public Set<String> getManager() {
-    if (manager == null) {
-      manager = ProjectUtil.getManager(getId());
-    }
-    return manager;
-  }
-
-  public void setManager(Set<String> manager) {
-    this.manager = manager;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  public void setDescription(String description) {
-    this.description = description;
-  }
-
-  public Date getDueDate() {
-    return dueDate;
-  }
-
-  public void setDueDate(Date dueDate) {
-    this.dueDate = dueDate;
-  }
-
-  public String getColor() {
-    return color;
-  }
-
-  public void setColor(String color) {
-    this.color = color;
-  }
-
-  public Project getParent() {
-    return parent;
-  }
-
-  public void setParent(Project parent) {
-    this.parent = parent;
-  }
-
-  public Long getLastModifiedDate() {
-    return lastModifiedDate;
-  }
-
-  public void setLastModifiedDate(Long lastModifiedDate) {
-    this.lastModifiedDate = lastModifiedDate;
-  }
-
-  @Deprecated
-  public List<Project> getChildren() {
-    return children;
-  }
-
-  @Deprecated
-  public void setChildren(List<Project> children) {
-    this.children = children;
-  }
-
-  public Project clone(boolean cloneTask) {
+  @Override
+  public Project clone() { // NOSONAR
     Project project = new Project(this.getName(),
                                   this.getDescription(),
                                   new HashSet<>(),
@@ -281,7 +181,7 @@ public class Project implements Serializable {
     project.setColor(this.getColor());
     project.setDueDate(this.getDueDate());
     if (this.getParent() != null) {
-      project.setParent(getParent().clone(false));
+      project.setParent(getParent().clone());
     }
     project.status = new HashSet<>();
     project.children = new LinkedList<>();
@@ -289,7 +189,7 @@ public class Project implements Serializable {
   }
 
   public boolean canView(Identity user) {
-    Set<String> permissions = new HashSet<String>(getParticipator());
+    Set<String> permissions = new HashSet<>(getParticipator());
     permissions.addAll(getManager());
 
     return hasPermission(user, permissions);
@@ -319,10 +219,6 @@ public class Project implements Serializable {
     }
 
     return false;
-  }
-
-  public Set<UserSetting> getHiddenOn() {
-    return hiddenOn;
   }
 
 }

@@ -22,18 +22,22 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.Table;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Entity(name = "TaskLabelTaskMapping")
 @Table(name = "TASK_LABEL_TASK")
+@NamedQuery(name = "LabelTaskMapping.countLabelMappingsOfTask",
+  query = "SELECT count(m) FROM TaskLabelTaskMapping m WHERE m.task.id = :taskId")
+@NamedQuery(name = "LabelTaskMapping.findLabelMappingsOfTask",
+  query = "SELECT m FROM TaskLabelTaskMapping m WHERE m.task.id = :taskId")
 @NamedQuery(name = "LabelTaskMapping.removeLabelTaskMapping",
     query = "DELETE FROM TaskLabelTaskMapping m WHERE m.label.id = :labelId")
 @NamedQuery(name = "LabelTaskMapping.findLabelMapping",
      query = "SELECT m FROM TaskLabelTaskMapping m  WHERE m.label.id = :labelId and  m.task.id = :taskId")
-@EqualsAndHashCode
+@Data
 public class LabelTaskMapping implements Serializable {
 
   private static final long serialVersionUID = -8180443225233907972L;
@@ -49,29 +53,12 @@ public class LabelTaskMapping implements Serializable {
   @EqualsAndHashCode.Exclude
   private Task              task;
 
-  public LabelTaskMapping() {    
+  public LabelTaskMapping() {
   }
-  
+
   public LabelTaskMapping(Label label, Task task) {
     super();
     this.label = label;
     this.task = task;
   }
-
-  public Label getLabel() {
-    return label;
-  }
-  
-  public void setLabel(Label label) {
-    this.label = label;
-  }
-  
-  public Task getTask() {
-    return task;
-  }
-  
-  public void setTask(Task task) {
-    this.task = task;
-  }
-  
 }

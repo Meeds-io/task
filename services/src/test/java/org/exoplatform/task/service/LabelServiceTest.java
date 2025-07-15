@@ -16,6 +16,27 @@
  */
 package org.exoplatform.task.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Arrays;
+import java.util.Collections;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.MockitoJUnitRunner;
+
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.listener.ListenerService;
@@ -38,24 +59,10 @@ import org.exoplatform.task.storage.impl.LabelStorageImpl;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.StatusStorageImpl;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
-import io.meeds.task.search.TaskSearchConnector;
 import org.exoplatform.task.util.StorageUtil;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.junit.MockitoJUnitRunner;
 
-import java.util.Arrays;
-import java.util.Collections;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import io.meeds.task.domain.LabelField;
+import io.meeds.task.search.TaskSearchConnector;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
 public class LabelServiceTest {
@@ -106,7 +113,7 @@ public class LabelServiceTest {
         PortalContainer container = PortalContainer.getInstance();
         projectStorage = new ProjectStorageImpl(daoHandler);
         taskStorage = new TaskStorageImpl(daoHandler,userService,projectStorage, taskSearchConnector);
-        statusStorage = new StatusStorageImpl(daoHandler, projectStorage);
+        statusStorage = new StatusStorageImpl(daoHandler, taskStorage, projectStorage);
         statusService = new StatusServiceImpl(daoHandler, statusStorage, projectStorage, listenerService);
         labelStorage = new LabelStorageImpl(daoHandler);
         labelService = new LabelServiceImpl(labelStorage, daoHandler, projectStorage, listenerService);
@@ -167,7 +174,7 @@ public class LabelServiceTest {
         label.setName("exo");
         Label labelEntity = StorageUtil.labelToEntity(label);
         when(daoHandler.getLabelHandler().update(any())).thenReturn(labelEntity);
-        labelService.updateLabel(label, Arrays.asList(Label.FIELDS.NAME));
+        labelService.updateLabel(label, Arrays.asList(LabelField.NAME));
         verify(labelHandler, times(1)).update(labelCaptor.capture());
 
         assertEquals("exo", labelCaptor.getValue().getName());
@@ -181,7 +188,7 @@ public class LabelServiceTest {
         label.setColor("white");
         Label labelEntity = StorageUtil.labelToEntity(label);
         when(daoHandler.getLabelHandler().update(any())).thenReturn(labelEntity);
-        labelService.updateLabel(label, Arrays.asList(Label.FIELDS.COLOR));
+        labelService.updateLabel(label, Arrays.asList(LabelField.COLOR));
         verify(labelHandler, times(1)).update(labelCaptor.capture());
 
         assertEquals("white", labelCaptor.getValue().getColor());
@@ -200,7 +207,7 @@ public class LabelServiceTest {
         label.setId(labelId);
         when(daoHandler.getLabelHandler().find(labelId)).thenReturn(label);
         when(daoHandler.getLabelHandler().update(argThat(l -> l.getId() == labelId))).thenReturn(label);
-        labelService.updateLabel(labelDto, Collections.singletonList(Label.FIELDS.PARENT));
+        labelService.updateLabel(labelDto, Collections.singletonList(LabelField.PARENT));
         verify(labelHandler, times(1)).update(labelCaptor.capture());
 
         assertEquals(labelDto.getParent(), StorageUtil.labelToDto(labelCaptor.getValue().getParent()));
@@ -214,7 +221,7 @@ public class LabelServiceTest {
         label.setHidden(true);
         Label labelEntity = StorageUtil.labelToEntity(label);
         when(daoHandler.getLabelHandler().update(any())).thenReturn(labelEntity);
-        labelService.updateLabel(label, Arrays.asList(Label.FIELDS.HIDDEN));
+        labelService.updateLabel(label, Arrays.asList(LabelField.HIDDEN));
         verify(labelHandler, times(1)).update(labelCaptor.capture());
 
         assertEquals(true, labelCaptor.getValue().isHidden());
