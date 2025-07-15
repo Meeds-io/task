@@ -101,8 +101,9 @@ public class StatusServiceTest {
     public void setUp() {
         // Make sure the container is started to prevent the ExoTransactional annotation to fail
       container = PortalContainer.getInstance();
-        projectStorage = new ProjectStorageImpl(daoHandler);
-        statusStorage = new StatusStorageImpl(daoHandler, projectStorage);
+      projectStorage = new ProjectStorageImpl(daoHandler);
+      taskStorage = container.getComponentInstanceOfType(TaskStorage.class);
+        statusStorage = new StatusStorageImpl(daoHandler, taskStorage, projectStorage);
         statusService = new StatusServiceImpl(daoHandler, statusStorage, projectStorage, listenerService);
 
         containerContext = mockStatic(ExoContainerContext.class);

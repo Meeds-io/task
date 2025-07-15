@@ -644,7 +644,7 @@ public class ProjectRestService implements ResourceContainer {
   @Consumes(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Operation(summary = "Delete Project", method = "DELETE", description = "This deletes the Project")
-  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Project deleted"),
+  @ApiResponses(value = { @ApiResponse(responseCode = "204", description = "Project deleted"),
       @ApiResponse(responseCode = "400", description = "Invalid query input"),
       @ApiResponse(responseCode = "401", description = "User not authorized to delete the Project"),
       @ApiResponse(responseCode = "500", description = "Internal server error") })
@@ -667,7 +667,7 @@ public class ProjectRestService implements ResourceContainer {
       }
 
       projectService.removeProject(projectId, deleteChild);
-      return Response.ok(Response.Status.OK).build();
+      return Response.noContent().build();
     } catch (Exception e) {
       LOG.error("Can't deleteProject {}", projectId, e);
       return Response.serverError().entity(e.getMessage()).build();

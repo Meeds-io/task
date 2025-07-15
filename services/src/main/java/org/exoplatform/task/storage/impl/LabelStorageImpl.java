@@ -29,13 +29,14 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.domain.Label;
-import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.storage.LabelStorage;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.util.StorageUtil;
+
+import io.meeds.task.domain.LabelField;
 
 public class LabelStorageImpl implements LabelStorage {
 
@@ -96,7 +97,7 @@ public class LabelStorageImpl implements LabelStorage {
   }
 
   @Override
-  public LabelDto updateLabel(LabelDto label, List<Label.FIELDS> fields) throws EntityNotFoundException {
+  public LabelDto updateLabel(LabelDto label, List<LabelField> fields) throws EntityNotFoundException {
     return null;
   }
 

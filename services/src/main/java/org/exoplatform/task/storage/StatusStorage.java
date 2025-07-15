@@ -55,7 +55,7 @@ public interface StatusStorage {
 
   StatusDto createStatus(ProjectDto project, String status, int rank) throws NotAllowedOperationOnEntityException;
 
-  void removeStatus(long statusId) throws Exception;
+  void removeStatus(long statusId, boolean removeAll) throws Exception;
 
   StatusDto updateStatus(long statusId, String statusName) throws EntityNotFoundException, NotAllowedOperationOnEntityException;
 

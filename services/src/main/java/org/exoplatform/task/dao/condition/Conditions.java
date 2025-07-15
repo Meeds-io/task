@@ -36,8 +36,8 @@ public class Conditions {
   public static String TASK_STATUS_NAME = "status.name";
   public static String TASK_DUEDATE = "dueDate";
   public static String TASK_PROJECT = "status.project.id";
-  public static String TASK_LABEL_USERNAME = "lblMapping.label.username";
-  public static String TASK_LABEL_ID = "lblMapping.label.id";
+  public static String TASK_LABEL_USERNAME = "labels.label.username";
+  public static String TASK_LABEL_ID = "labels.label.id";
   public static String TASK_COMPLETED = "completed";
   public static String TASK_START_DATE = "startDate";
   public static String TASK_END_DATE = "endDate";
@@ -51,7 +51,7 @@ public class Conditions {
   public static final String PARENT = "parent";
   public static final String PARENT_ID = "parent.id";
   public static final String USERNAME = "username";  
-  public static final String LABEL_TASK_ID = "lblMapping.task.id";
+  public static final String LABEL_TASK_ID = "tasks.task.id";
 
   public static <T> SingleCondition<T> eq(String fieldName, T value) {
     return new SingleCondition<T>(SingleCondition.EQ, fieldName, value);
