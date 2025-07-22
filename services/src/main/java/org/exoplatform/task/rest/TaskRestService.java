@@ -25,6 +25,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
@@ -233,12 +234,12 @@ public class TaskRestService implements ResourceContainer {
         }
       } else {
         if (CollectionUtils.isNotEmpty(spaceIds)) {
-         for (String spaceId : spaceIds) {
-           Space space = spaceService.getSpaceById(spaceId);
-           if (space != null) {
-             memberships = memberships.stream().filter(membership -> membership.contains(space.getGroupId())).toList();
-           }
-         }
+          List<String> spacesGroupId = spaceIds.stream().map(spaceId -> {
+            Space space = spaceService.getSpaceById(spaceId);
+            return space != null ? space.getGroupId() : null;
+          }).filter(Objects::nonNull).toList();
+
+          memberships = memberships.stream().filter(membership -> spacesGroupId.stream().anyMatch(membership::contains)).toList();
         }
         tasks = taskService.findTasksByMemberShips(currentUser, memberships, query, limit);
         tasksSize = taskService.countTasks(currentUser, query, memberships);
