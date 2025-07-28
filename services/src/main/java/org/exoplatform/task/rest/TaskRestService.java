@@ -20,13 +20,12 @@ import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TimeZone;
-import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DELETE;
@@ -40,6 +39,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -172,7 +172,7 @@ public class TaskRestService implements ResourceContainer {
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
   public Response getTasks(@Parameter(description = "Type of task to get (all, incoming, overdue)") @QueryParam("status") String status,
                            @Parameter(description = "Search term") @QueryParam("q") String query,
-                           @Parameter(description = "Space id") @QueryParam("spaceId") String spaceId,
+                           @Parameter(description = "Space id") @QueryParam("spaceId") List<Long> spaceIds,
                            @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
                            @Parameter(description = "Limit") @Schema(defaultValue = "20") @QueryParam("limit") int limit,
                            @Parameter(description = "Returning the number of tasks or not") @Schema(defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
@@ -231,12 +231,7 @@ public class TaskRestService implements ResourceContainer {
         }
         }
       } else {
-        if (spaceId != null) {
-          Space space = spaceService.getSpaceById(spaceId);
-          if (space != null) {
-            memberships = memberships.stream().filter(membership -> membership.contains(space.getGroupId())).toList();
-          }
-        }
+        memberships = filterMembershipsBySpaceIds(spaceIds, memberships);
         tasks = taskService.findTasksByMemberShips(currentUser, memberships, query, limit);
         tasksSize = taskService.countTasks(currentUser, query, memberships);
       }
@@ -1159,6 +1154,18 @@ public class TaskRestService implements ResourceContainer {
     if (comment != null) {
       comment.setComment(HtmlUtils.transform(comment.getComment(), new HtmlTransformerContext(userIdentity, null)));
     }
+  }
+
+  private List<String> filterMembershipsBySpaceIds(List<Long> spaceIds, List<String> memberships) {
+    if (CollectionUtils.isNotEmpty(spaceIds)) {
+      List<String> spacesGroupId = spaceIds.stream().map(spaceId -> {
+        Space space = spaceService.getSpaceById(spaceId);
+        return space != null ? space.getGroupId() : null;
+      }).filter(Objects::nonNull).toList();
+
+      return memberships.stream().filter(membership -> spacesGroupId.stream().anyMatch(membership::contains)).toList();
+    }
+    return memberships;
   }
 
 }
