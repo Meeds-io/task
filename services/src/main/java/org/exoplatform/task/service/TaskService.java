@@ -26,6 +26,7 @@ import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskFilter;
 import org.exoplatform.task.util.TaskUtil;
 
 import java.util.List;
@@ -180,4 +181,13 @@ public interface TaskService {
      * @return a list of task IDs
      */
     public List<Long> getAllIds(int offset, int limit);
+
+    /**
+     * Find tasks assigned to a user using a term to find in title or description of
+     * the task
+     * 
+     * @param taskFilter the task search filter
+     * @return a list of task IDs
+     */
+    public List<TaskDto> findTasks(TaskFilter taskFilter);
 }

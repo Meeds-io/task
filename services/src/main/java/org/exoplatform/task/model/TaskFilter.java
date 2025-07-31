@@ -18,19 +18,30 @@ package org.exoplatform.task.model;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.exoplatform.social.core.search.Sorting;
 
 import java.util.List;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class TaskSearchFilter {
-  private int          offset;
+public class TaskFilter {
 
-  private int          limit;
+    private String       userId;
 
-  private String       term;
+    private String       term;
 
-  private List<String> permissions;
+    private List<String> memeberships;
+
+    private String       sortField;
+
+    private String       sortDirection;
+
+    private int          offset;
+
+    private int          limit;
+
+
 
 }
+

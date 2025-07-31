@@ -21,7 +21,7 @@ import org.exoplatform.commons.search.es.ElasticSearchException;
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.task.model.TaskSearchFilter;
+import org.exoplatform.task.model.TaskFilter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -60,7 +60,10 @@ public class TaskSearchConnector {
               @permission_query@
             ]
           }
-        }
+        },
+        "sort": [
+           @sortQuery@
+        ]
       }
       """;
 
@@ -95,6 +98,23 @@ public class TaskSearchConnector {
       }
       """;
 
+  public static final String     DEFAULT_SORTING_QUERY         = """
+          {
+            "_score": {
+              "order": "desc"
+            }
+          }
+      """;
+
+  public static final String     SORTING_QUERY                 = """
+          {
+            "@sortField@": {
+              "order": "@sortOrder@"
+            }
+          },
+          "_score"
+      """;
+
   private static final String    OFFSET_REPLACEMENT            = "@offset@";
 
   private static final String    LIMIT_REPLACEMENT             = "@limit@";
@@ -107,13 +127,15 @@ public class TaskSearchConnector {
 
   private static final String    PERMISSIONS_REPLACEMENT       = "@permissions@";
 
-  public List<Long> search(TaskSearchFilter filter) {
+  private static final String    SORT_REPLACEMENT              = "@sortQuery@";
+
+  public List<Long> search(TaskFilter filter) {
     String esQuery = buildSearchQuery(SEARCH_QUERY, filter);
     String jsonResponse = client.sendRequest(esQuery, index);
     return buildResult(jsonResponse);
   }
 
-  public Long count(TaskSearchFilter filter) {
+  public Long count(TaskFilter filter) {
     filter.setLimit(0);
     filter.setOffset(0);
     String esQuery = buildSearchQuery(COUNT_QUERY, filter);
@@ -121,7 +143,7 @@ public class TaskSearchConnector {
     return buildCount(jsonResponse);
   }
 
-  private String buildSearchQuery(String queryBase, TaskSearchFilter filter) {
+  private String buildSearchQuery(String queryBase, TaskFilter filter) {
     String query = queryBase.replace(OFFSET_REPLACEMENT, String.valueOf(filter.getOffset()))
                             .replace(LIMIT_REPLACEMENT, String.valueOf(Math.max(filter.getLimit(), 10)));
 
@@ -133,13 +155,18 @@ public class TaskSearchConnector {
     }
 
     // Permissions filter
-    if (CollectionUtils.isNotEmpty(filter.getPermissions())) {
-      String permissions = "\"" + String.join("\",\"", filter.getPermissions()) + "\"";
+    if (CollectionUtils.isNotEmpty(filter.getMemeberships())) {
+      String permissions = "\"" + String.join("\",\"", filter.getMemeberships()) + "\"";
       query = query.replace(PERMISSIONS_QUERY_REPLACEMENT, PERMISSIONS_QUERY.replace(PERMISSIONS_REPLACEMENT, permissions));
     } else {
       query = query.replace(PERMISSIONS_QUERY_REPLACEMENT, "");
     }
 
+    if (StringUtils.isNotBlank(filter.getSortField())) {
+      query = query.replace(SORT_REPLACEMENT, buildSortQuery(filter));
+    } else {
+      query = query.replace(SORT_REPLACEMENT, DEFAULT_SORTING_QUERY);
+    }
     return query;
   }
 
@@ -190,5 +217,14 @@ public class TaskSearchConnector {
 
   private String escapeJson(String text) {
     return text.replaceAll("([\\Q+-!():^[]\"{}~*?|&/\\E])", " ").trim();
+  }
+
+  private String buildSortQuery(TaskFilter filter) {
+    String sortFiled = filter.getSortField();
+    String sortDirection = filter.getSortDirection();
+    return switch (sortFiled) {
+    case "date" -> SORTING_QUERY.replace("@sortField@", "lastUpdatedDate").replace("@sortOrder@", sortDirection);
+    default -> SORTING_QUERY.replace("@sortField@", sortFiled).replace("@sortOrder@", sortDirection);
+    };
   }
 }

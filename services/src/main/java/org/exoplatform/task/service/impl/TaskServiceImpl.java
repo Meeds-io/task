@@ -34,6 +34,7 @@ import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.*;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskFilter;
 import org.exoplatform.task.service.TaskPayload;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.TaskService;
@@ -246,6 +247,17 @@ public class TaskServiceImpl implements TaskService {
             throw new IllegalArgumentException("query parameter is mandatory");
         }
         return taskStorage.findTasks(user, memberships, query, limit);
+    }
+
+    @Override
+    public List<TaskDto> findTasks(TaskFilter filter) {
+      if (StringUtils.isBlank(filter.getUserId())) {
+        throw new IllegalArgumentException("user parameter is mandatory");
+      }
+      if (StringUtils.isBlank(filter.getTerm())) {
+        throw new IllegalArgumentException("query parameter is mandatory");
+      }
+      return taskStorage.findTasks(filter);
     }
 
     @Override

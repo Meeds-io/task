@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.exoplatform.task.model.TaskFilter;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -61,7 +62,6 @@ import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.exception.ParameterEntityException;
-import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.service.impl.TaskServiceImpl;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.StatusStorage;
@@ -388,7 +388,7 @@ public class TaskServiceTest {
   public void testSearchTasks() throws Exception {
     TaskDto taskDto = taskStorage.createTask(TestDtoUtils.getDefaultTask());
     String currentUserId = "root";
-    when(taskSearchConnector.search(any(TaskSearchFilter.class))).thenReturn(List.of(taskDto.getId()));
+    when(taskSearchConnector.search(any(TaskFilter.class))).thenReturn(List.of(taskDto.getId()));
     List<TaskDto> result = taskService.findTasksByMemberShips(currentUserId, new ArrayList<>(), "Default task", 10);
 
     assertEquals(1, result.size());

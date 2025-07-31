@@ -17,7 +17,7 @@ package org.exoplatform.task.storage.search;
 
 import io.meeds.task.search.TaskSearchConnector;
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
-import org.exoplatform.task.model.TaskSearchFilter;
+import org.exoplatform.task.model.TaskFilter;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,11 +54,11 @@ public class TaskSearchConnectorTest {
 
   @Test
   public void testSearchReturnsIds() {
-    TaskSearchFilter filter = new TaskSearchFilter();
+    TaskFilter filter = new TaskFilter();
     filter.setLimit(5);
     filter.setOffset(0);
     filter.setTerm("test");
-    filter.setPermissions(List.of("user1"));
+    filter.setMemeberships(List.of("user1"));
 
     String jsonResponse = """
         {
@@ -80,11 +80,11 @@ public class TaskSearchConnectorTest {
 
   @Test
   public void testCount() {
-    TaskSearchFilter filter = new TaskSearchFilter();
+    TaskFilter filter = new TaskFilter();
     filter.setLimit(5);
     filter.setOffset(0);
     filter.setTerm("test");
-    filter.setPermissions(List.of("user1"));
+    filter.setMemeberships(List.of("user1"));
 
     String countResponse = """
         {

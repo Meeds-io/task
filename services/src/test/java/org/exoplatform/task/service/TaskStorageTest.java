@@ -26,7 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 
 import io.meeds.task.search.TaskSearchConnector;
-import org.exoplatform.task.model.TaskSearchFilter;
+import org.exoplatform.task.model.TaskFilter;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -124,7 +124,7 @@ public class TaskStorageTest extends AbstractTest {
     // Then
     assertEquals(1, tasks.size());
 
-    when(taskSearchConnector.search(any(TaskSearchFilter.class))).thenReturn(List.of(task1.getId()));
+    when(taskSearchConnector.search(any(TaskFilter.class))).thenReturn(List.of(task1.getId()));
 
     tasks = taskStorage.findTasks("jhon", memberships, "Task", 10);
     assertEquals(1, tasks.size());

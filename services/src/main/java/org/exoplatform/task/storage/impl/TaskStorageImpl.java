@@ -38,11 +38,9 @@ import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
-import org.exoplatform.task.model.TaskSearchFilter;
-import org.exoplatform.task.service.StatusService;
+import org.exoplatform.task.model.TaskFilter;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.storage.ProjectStorage;
-import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.util.StorageUtil;
 
@@ -291,14 +289,34 @@ public class TaskStorageImpl implements TaskStorage {
     @Override
     public List<TaskDto> findTasks(String user, List<String> memberships, String query, int limit) {
       if (StringUtils.isNotBlank(query)) {
-        TaskSearchFilter filter = new TaskSearchFilter();
+        TaskFilter filter = new TaskFilter();
         filter.setTerm(query);
         filter.setLimit(limit);
-        filter.setPermissions(CollectionUtils.isNotEmpty(memberships) ? memberships : Arrays.asList(user));
+        filter.setMemeberships(CollectionUtils.isNotEmpty(memberships) ? memberships : Arrays.asList(user));
         List<Long> taskIds = taskSearchConnector.search(filter);
         return taskIds.stream().map(this::getTaskById).filter(Objects::nonNull).toList();
       } else {
         List<Task> taskEntities = daoHandler.getTaskHandler().findTasks(user, memberships, limit);
+        return taskEntities.stream().map((Task taskEntity) -> StorageUtil.taskToDto(taskEntity, projectStorage)).toList();
+      }
+    }
+
+    /**
+     * Find tasks assigned to a user using a term to find in title or description of
+     * the task
+     *
+     @param filter the task search filter
+     * @return {@link List} of {@link Task}
+     */
+    @Override
+    public List<TaskDto> findTasks(TaskFilter filter) {
+      if (StringUtils.isNotBlank(filter.getTerm())) {
+
+        List<Long> taskIds = taskSearchConnector.search(filter);
+        return taskIds.stream().map(this::getTaskById).filter(Objects::nonNull).toList();
+      } else {
+        List<Task> taskEntities = daoHandler.getTaskHandler()
+                                            .findTasks(filter.getUserId(), filter.getMemeberships(), filter.getLimit());
         return taskEntities.stream().map((Task taskEntity) -> StorageUtil.taskToDto(taskEntity, projectStorage)).toList();
       }
     }
@@ -314,13 +332,14 @@ public class TaskStorageImpl implements TaskStorage {
     @Override
     public long countTasks(String user, String query, List<String> memberships) {
       if (StringUtils.isNotBlank(query)) {
-        TaskSearchFilter filter = new TaskSearchFilter();
+        TaskFilter filter = new TaskFilter();
         filter.setTerm(query);
         filter.setLimit(0);
+        filter.setOffset(0);
         if (CollectionUtils.isEmpty(memberships)) {
             memberships = Arrays.asList(user);
         }
-        filter.setPermissions(memberships);
+        filter.setMemeberships(memberships);
         return taskSearchConnector.count(filter);
       } else {
         return daoHandler.getTaskHandler().countTasks(user);
