@@ -16,12 +16,15 @@
  */
 package org.exoplatform.task.storage.impl;
 
-import java.util.*;
-import java.util.regex.Pattern;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
-import jakarta.persistence.NonUniqueResultException;
 
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -39,11 +42,11 @@ import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.util.StorageUtil;
 
+import jakarta.persistence.NonUniqueResultException;
+
 public class StatusStorageImpl implements StatusStorage {
 
   private static final Log     LOG     = ExoLogger.getExoLogger(StatusStorageImpl.class);
-
-  private static final Pattern pattern = Pattern.compile("@([^\\s]+)|@([^\\s]+)$");
 
   @Inject
   private final DAOHandler     daoHandler;
@@ -51,9 +54,14 @@ public class StatusStorageImpl implements StatusStorage {
   @Inject
   private final ProjectStorage projectStorage;
 
-  public StatusStorageImpl(DAOHandler daoHandler, ProjectStorage projectStorage) {
+  private final TaskStorage    taskStorage;
+
+  public StatusStorageImpl(DAOHandler daoHandler,
+                           TaskStorage taskStorage,
+                           ProjectStorage projectStorage) {
     this.daoHandler = daoHandler;
     this.projectStorage = projectStorage;
+    this.taskStorage = taskStorage;
   }
 
   @Override
@@ -109,7 +117,7 @@ public class StatusStorageImpl implements StatusStorage {
     int maxRank = max != null && max.getRank() != null ? max.getRank() : -1;
 
     StatusHandler handler = daoHandler.getStatusHandler();
-    Status st = new Status(status, ++maxRank, StorageUtil.projectToEntity(project));
+    Status st = new Status(status, ++maxRank, project == null ? null : StorageUtil.getProjectEntityById(project.getId()));
     handler.create(st);
     return StorageUtil.statusToDTO(st,projectStorage);
   }
@@ -127,32 +135,33 @@ public class StatusStorageImpl implements StatusStorage {
       }
     }
     StatusHandler handler = daoHandler.getStatusHandler();
-    Status st = new Status(status, rank, StorageUtil.projectToEntity(project));
+    Status st = new Status(status, rank, project == null ? null : StorageUtil.getProjectEntityById(project.getId()));
     handler.create(st);
     return StorageUtil.statusToDTO(st,projectStorage);
   }
 
   @Override
-  public void removeStatus(long statusId) throws Exception {
-    StatusHandler handler = daoHandler.getStatusHandler();
-    Status st = handler.find(statusId);
+  public void removeStatus(long statusId, boolean removeAll) throws Exception {
+    Status st = daoHandler.getStatusHandler().find(statusId);
     if (st == null) {
       throw new EntityNotFoundException(statusId, Status.class);
     }
 
-    Project project = st.getProject();
-    Status altStatus = findAltStatus(st, project);
-    if (altStatus == null) {
-      throw new NotAllowedOperationOnEntityException(statusId, Status.class, "Delete last status");
-    }
     List<Task> tasks = daoHandler.getTaskHandler().getByStatus(statusId);
-    for(Task task : tasks){
-      task.setStatus(altStatus);
+    if (removeAll) {
+      tasks.forEach(task -> taskStorage.delete(taskStorage.getTaskById(task.getId())));
+    } else {
+      Project project = st.getProject();
+      Status altStatus = findAltStatus(st, project);
+      if (altStatus == null) {
+        throw new NotAllowedOperationOnEntityException(statusId, Status.class, "Delete last status");
+      }
+      for (Task task : tasks) {
+        task.setStatus(altStatus);
+      }
+      daoHandler.getTaskHandler().updateAll(tasks);
     }
-    daoHandler.getTaskHandler().updateAll(tasks);
-    //
-    st.setProject(null);
-    handler.delete(st);
+    daoHandler.getStatusHandler().delete(st);
   }
 
   @Override

@@ -18,8 +18,11 @@ package org.exoplatform.task.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -29,11 +32,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.exoplatform.task.model.TaskSearchFilter;
-import org.exoplatform.task.storage.ProjectStorage;
-import org.exoplatform.task.storage.StatusStorage;
-import org.exoplatform.task.storage.impl.ProjectStorageImpl;
-import io.meeds.task.search.TaskSearchConnector;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,10 +39,10 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
-import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.listener.ListenerService;
@@ -54,59 +52,82 @@ import org.exoplatform.task.TestDtoUtils;
 import org.exoplatform.task.TestUtils;
 import org.exoplatform.task.dao.CommentHandler;
 import org.exoplatform.task.dao.DAOHandler;
+import org.exoplatform.task.dao.LabelTaskMappingHandler;
+import org.exoplatform.task.dao.ProjectHandler;
+import org.exoplatform.task.dao.StatusHandler;
 import org.exoplatform.task.dao.TaskHandler;
+import org.exoplatform.task.dao.TaskLogHandler;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.exception.ParameterEntityException;
+import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.service.impl.TaskServiceImpl;
+import org.exoplatform.task.storage.ProjectStorage;
+import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.TaskStorage;
+import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
 
-@RunWith(MockitoJUnitRunner.class)
+import io.meeds.task.search.TaskSearchConnector;
+
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class TaskServiceTest {
 
-  TaskService          taskService;
+  MockedStatic<ExoContainerContext> containerContext;
 
-  TaskStorage          taskStorage;
+  TaskService                       taskService;
 
-  StatusStorage        statusStorage;
+  TaskStorage                       taskStorage;
 
-  ListenerService      listenerService;
+  StatusStorage                     statusStorage;
 
-  TaskSearchConnector  taskSearchConnector;
+  ListenerService                   listenerService;
 
-  @Mock
-  ExoContainer         container;
-
-  @Mock
-  TaskHandler          taskHandler;
+  TaskSearchConnector               taskSearchConnector;
 
   @Mock
-  CommentHandler       commentHandler;
+  TaskHandler                       taskHandler;
 
   @Mock
-  StatusService        statusService;
+  ProjectHandler                    projectHandler;
 
   @Mock
-  ProjectStorage       projectStorage;
+  LabelTaskMappingHandler           labelTaskMappingHandler;
 
   @Mock
-  DAOHandler           daoHandler;
+  StatusHandler                     statusHandler;
 
   @Mock
-  UserService          userService;
+  CommentHandler                    commentHandler;
+
+  @Mock
+  TaskLogHandler                    taskLogHandler;
+
+  @Mock
+  StatusService                     statusService;
+
+  @Mock
+  ProjectStorage                    projectStorage;
+
+  @Mock
+  DAOHandler                        daoHandler;
+
+  @Mock
+  UserService                       userService;
 
   // ArgumentCaptors are how you can retrieve objects that were passed into a
   // method call
   @Captor
-  ArgumentCaptor<Task> taskCaptor;
+  ArgumentCaptor<Task>              taskCaptor;
+
+  PortalContainer                   container;
 
   @Before
   public void setUp() throws Exception {
     // Make sure the container is started to prevent the ExoTransactional annotation
     // to fail
-    PortalContainer.getInstance();
+    container = PortalContainer.getInstance();
 
     listenerService = new ListenerService(new ExoContainerContext(container));
     taskSearchConnector = Mockito.mock(TaskSearchConnector.class);
@@ -114,8 +135,24 @@ public class TaskServiceTest {
     taskStorage = new TaskStorageImpl(daoHandler,userService,projectStorage, taskSearchConnector);
     taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
 
+    containerContext = mockStatic(ExoContainerContext.class);
+    containerContext.when(() -> ExoContainerContext.getService(any())).thenAnswer(invocation -> {
+      Class<?> clazz = invocation.getArgument(0, Class.class);
+      if (clazz.equals(DAOHandler.class)) {
+        return daoHandler;
+      } else {
+        return container.getComponentInstanceOfType(clazz);
+      }
+    });
+
     // Mock DAO handler to return Mocked DAO
     when(daoHandler.getTaskHandler()).thenReturn(taskHandler);
+    when(daoHandler.getStatusHandler()).thenReturn(statusHandler);
+    when(daoHandler.getProjectHandler()).thenReturn(projectHandler);
+    when(daoHandler.getLabelTaskMappingHandler()).thenReturn(labelTaskMappingHandler);
+    when(daoHandler.getCommentHandler()).thenReturn(commentHandler);
+    when(daoHandler.getTaskLogHandler()).thenReturn(taskLogHandler);
+
     // Mock some DAO methods
     when(taskHandler.create(any(Task.class))).thenReturn(TestUtils.getDefaultTask());
     when(taskHandler.update((any(Task.class)))).thenReturn(TestUtils.getDefaultTask());
@@ -132,6 +169,8 @@ public class TaskServiceTest {
   @After
   public void tearDown() {
     taskService = null;
+    containerContext.close();
+    containerContext = null;
     ConversationState.setCurrent(null);
   }
 
@@ -307,7 +346,7 @@ public class TaskServiceTest {
 
     assertEquals(newAssignee, taskCaptor.getValue().getAssignee());
 
-    assertEquals(task.getId(), taskCaptor.getValue().getId());
+    assertEquals(task.getId(), taskCaptor.getValue().getId().longValue());
 
   }
 
@@ -318,7 +357,7 @@ public class TaskServiceTest {
     taskService.removeTask(TestUtils.EXISTING_TASK_ID);
     verify(taskHandler, times(1)).delete(taskCaptor.capture());
 
-    assertEquals(TestUtils.EXISTING_TASK_ID, taskCaptor.getValue().getId());
+    assertEquals(TestUtils.EXISTING_TASK_ID, taskCaptor.getValue().getId().longValue());
   }
 
   @Test

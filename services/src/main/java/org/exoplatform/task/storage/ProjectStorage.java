@@ -75,18 +75,6 @@ public interface ProjectStorage {
     void removeProject(long projectId, boolean deleteChild) throws EntityNotFoundException;
 
     /**
-     * Clone a project with given <code>projectId</code>. If <code>cloneTask</code> is true,
-     * it will also clone all non-completed tasks from the project.
-     *
-     * @param projectId The id of a project which it copies from.
-     * @param cloneTask If false, it will clone only project metadata.
-     *                  Otherwise, it also clones all non-completed tasks from the project.
-     * @return The cloned project.
-     * @throws EntityNotFoundException when user is not authorized to clone project.
-     */
-    ProjectDto cloneProject(long projectId, boolean cloneTask) throws EntityNotFoundException;
-
-    /**
      * Return a list of children of a parent project with given <code>parentId</code>.
      *
      * @param parentId The parent id of a project.

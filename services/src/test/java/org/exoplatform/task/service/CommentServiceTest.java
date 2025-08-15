@@ -16,8 +16,7 @@
  */
 package org.exoplatform.task.service;
 
-import org.exoplatform.container.ExoContainer;
-
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.task.TestUtils;
@@ -40,15 +39,19 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Date;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class CommentServiceTest {
+
+  MockedStatic<ExoContainerContext> containerContext;
 
   StatusService           statusService;
 
@@ -64,10 +67,10 @@ public class CommentServiceTest {
   ListenerService         listenerService;
 
   @Mock
-  ExoContainer container;
+  TaskHandler             taskHandler;
 
   @Mock
-  TaskHandler             taskHandler;
+  ProjectHandler          projectHandler;
 
   @Mock
   StatusHandler           statusHandler;
@@ -90,31 +93,57 @@ public class CommentServiceTest {
   @Captor
   ArgumentCaptor<Comment> commentCaptor;
 
+  PortalContainer                   container;
+
   @Before
   public void setUp() {
     // Make sure the container is started to prevent the ExoTransactional annotation
     // to fail
-    PortalContainer.getInstance();
-    PortalContainer.getInstance();
+    container = PortalContainer.getInstance();
     commentStorage = new CommentStorageImpl(daoHandler,projectStorage);
     commentService = new CommentServiceImpl(commentStorage, listenerService);
+
+    containerContext = mockStatic(ExoContainerContext.class);
+    containerContext.when(() -> ExoContainerContext.getService(any())).thenAnswer(invocation -> {
+      Class<?> clazz = invocation.getArgument(0, Class.class);
+      if (clazz.equals(DAOHandler.class)) {
+        return daoHandler;
+      } else {
+        return container.getComponentInstanceOfType(clazz);
+      }
+    });
+
     // Mock DAO handler to return Mocked DAO
     when(daoHandler.getCommentHandler()).thenReturn(commentHandler);
+    when(daoHandler.getTaskHandler()).thenReturn(taskHandler);
+    when(daoHandler.getStatusHandler()).thenReturn(statusHandler);
+    when(daoHandler.getProjectHandler()).thenReturn(projectHandler);
 
     // Mock some DAO methods
     when(commentHandler.find(TestUtils.EXISTING_COMMENT_ID)).thenReturn(TestUtils.getDefaultComment());
+    when(taskHandler.find(TestUtils.EXISTING_TASK_ID)).thenReturn(TestUtils.getDefaultTask());
+    lenient().when(commentHandler.create(any())).thenAnswer(invocation -> {
+      long id = (long) (Math.random() * Long.MAX_VALUE); // NOSONAR
+      Comment c = invocation.getArgument(0, Comment.class);
+      c.setId(id);
+      when(commentHandler.find(id)).thenReturn(c);
+      return c;
+    });
   }
 
   @After
   public void tearDown() {
     commentService = null;
+    containerContext.close();
+    containerContext = null;
   }
 
-  @Test public void testAddComment() throws EntityNotFoundException { Comment
-          comment = TestUtils.getDefaultComment();
-    when(daoHandler.getCommentHandler().create(any())).thenReturn(comment);
-    commentService.addComment(StorageUtil.taskToDto(comment.getTask(),projectStorage),comment.
-            getAuthor(),comment.getComment());
+  @Test
+  public void testAddComment() throws EntityNotFoundException {
+    Comment comment = TestUtils.getDefaultComment();
+    commentService.addComment(StorageUtil.taskToDto(comment.getTask(), projectStorage),
+                              comment.getAuthor(),
+                              comment.getComment());
     verify(commentHandler, times(1)).create(commentCaptor.capture());
     Comment result = commentCaptor.getValue();
     assertEquals("Bla bla", result.getComment());
@@ -128,32 +157,27 @@ public class CommentServiceTest {
     commentService.removeComment(TestUtils.EXISTING_COMMENT_ID);
     verify(commentHandler, times(1)).delete(commentCaptor.capture());
 
-    assertEquals(TestUtils.EXISTING_COMMENT_ID, commentCaptor.getValue().getId());
+    assertEquals(TestUtils.EXISTING_COMMENT_ID, commentCaptor.getValue().getId().longValue());
 
   }
 
   @Test
-  public void testGetComment() {
-    Comment comment = TestUtils.getDefaultComment();
-    commentService.getComment(TestUtils.EXISTING_COMMENT_ID);
-
-  }
-
-  @Test public void testAddCommentsByTask() throws EntityNotFoundException {
-    String username = "Tib"; String comment = "Bla bla bla bla bla";
-   CommentDto newComment = TestUtils.getDefaultCommentDto();
+  public void testAddCommentsByTask() throws EntityNotFoundException {
+    String username = "Tib";
+    CommentDto newComment = TestUtils.getDefaultCommentDto();
     commentService.addComment(TestUtils.getDefaultTaskDto(), newComment.getAuthor(), newComment.getComment());
-    commentService.getComments(TestUtils.EXISTING_TASK_ID,0,1);
+    commentService.getComments(TestUtils.EXISTING_TASK_ID, 0, 1);
     commentService.countComments(TestUtils.EXISTING_TASK_ID);
     verify(commentHandler, times(1)).create(commentCaptor.capture());
-    assertEquals(TestUtils.EXISTING_TASK_ID, commentCaptor.getValue().getTask().getId());
+    assertEquals(TestUtils.EXISTING_TASK_ID, commentCaptor.getValue().getTask().getId().longValue());
     assertEquals(username, commentCaptor.getValue().getAuthor());
     assertEquals(newComment.getComment(), commentCaptor.getValue().getComment());
-
   }
 
-  @Test public void testAddSubComments() throws EntityNotFoundException {
-    String username = "Tib"; String comment = "Bla bla bla bla bla";
+  @Test
+  public void testAddSubComments() throws EntityNotFoundException {
+    String username = "Tib";
+    String comment = "Bla bla bla bla bla";
     String authorSubComment = "Tib2";
     String subCommentContent = "Bla bla bla bla bla sub comment";
     CommentDto newComment = new CommentDto();
@@ -161,20 +185,24 @@ public class CommentServiceTest {
     newComment.setAuthor(username);
     newComment.setComment(comment);
     newComment.setCreatedTime(new Date());
-    UserSettingDto userSettingDto= TestUtils.getDefaultUserSettingDto();
-    assertEquals ("user",userSettingDto.getUsername());
-    assertEquals (true,userSettingDto.isShowHiddenLabel());
-    assertEquals (true,userSettingDto.isShowHiddenProject());
-    commentService.addComment(StorageUtil.taskToDto(TestUtils.getDefaultTask(),projectStorage), username, comment);
+    UserSettingDto userSettingDto = TestUtils.getDefaultUserSettingDto();
+    assertEquals("user", userSettingDto.getUsername());
+    assertEquals(true, userSettingDto.isShowHiddenLabel());
+    assertEquals(true, userSettingDto.isShowHiddenProject());
+    commentService.addComment(StorageUtil.taskToDto(TestUtils.getDefaultTask(), projectStorage), username, comment);
     verify(commentHandler, times(1)).create(commentCaptor.capture());
     Comment parentComment = commentCaptor.getValue();
-    assertEquals(TestUtils.EXISTING_TASK_ID, parentComment.getTask().getId());
+    assertEquals(TestUtils.EXISTING_TASK_ID, parentComment.getTask().getId().longValue());
     assertEquals(username, parentComment.getAuthor());
     assertEquals(comment, parentComment.getComment());
     long parentCommentId = parentComment.getId();
-    commentService.addComment(StorageUtil.taskToDto(TestUtils.getDefaultTask(),projectStorage), parentCommentId ,authorSubComment, subCommentContent);
+    commentService.addComment(StorageUtil.taskToDto(TestUtils.getDefaultTask(), projectStorage),
+                              parentCommentId,
+                              authorSubComment,
+                              subCommentContent);
     verify(commentHandler, times(2)).create(commentCaptor.capture());
-    Comment subComment = commentCaptor.getValue(); assertEquals(TestUtils.EXISTING_TASK_ID, subComment.getTask().getId());
+    Comment subComment = commentCaptor.getValue();
+    assertEquals(TestUtils.EXISTING_TASK_ID, subComment.getTask().getId().longValue());
     assertEquals(authorSubComment, subComment.getAuthor());
     assertEquals(subCommentContent, subComment.getComment());
   }

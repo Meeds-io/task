@@ -16,6 +16,28 @@
  */
 package org.exoplatform.task.service;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Arrays;
+import java.util.Collections;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.MockitoJUnitRunner;
+
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.task.TestUtils;
@@ -37,26 +59,15 @@ import org.exoplatform.task.storage.impl.LabelStorageImpl;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.StatusStorageImpl;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
-import io.meeds.task.search.TaskSearchConnector;
 import org.exoplatform.task.util.StorageUtil;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
 
-import java.util.Arrays;
-import java.util.Collections;
+import io.meeds.task.domain.LabelField;
+import io.meeds.task.search.TaskSearchConnector;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
-
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class LabelServiceTest {
+
+  MockedStatic<ExoContainerContext> containerContext;
 
   StatusService         statusService;
 
@@ -99,30 +110,45 @@ public class LabelServiceTest {
     public void setUp() {
         // Make sure the container is started to prevent the ExoTransactional annotation
         // to fail
-        PortalContainer.getInstance();
+        PortalContainer container = PortalContainer.getInstance();
         projectStorage = new ProjectStorageImpl(daoHandler);
         taskStorage = new TaskStorageImpl(daoHandler,userService,projectStorage, taskSearchConnector);
-        statusStorage = new StatusStorageImpl(daoHandler, projectStorage);
+        statusStorage = new StatusStorageImpl(daoHandler, taskStorage, projectStorage);
         statusService = new StatusServiceImpl(daoHandler, statusStorage, projectStorage, listenerService);
         labelStorage = new LabelStorageImpl(daoHandler);
         labelService = new LabelServiceImpl(labelStorage, daoHandler, projectStorage, listenerService);
         taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
+        
         // Mock DAO handler to return Mocked DAO
         when(daoHandler.getLabelHandler()).thenReturn(labelHandler);
+        containerContext = mockStatic(ExoContainerContext.class);
+        containerContext.when(() -> ExoContainerContext.getService(any())).thenAnswer(invocation -> {
+          Class<?> clazz = invocation.getArgument(0, Class.class);
+          if (clazz.equals(DAOHandler.class)) {
+            return daoHandler;
+          } else {
+            return container.getComponentInstanceOfType(clazz);
+          }
+        });
 
         // Mock some DAO methods
-        when(labelHandler.find(TestUtils.EXISTING_LABEL_ID)).thenReturn(StorageUtil.labelToEntity(TestUtils.getDefaultLabel()));
-    }
+        Label label = StorageUtil.labelToEntity(TestUtils.getDefaultLabel());
+        label.setId(TestUtils.EXISTING_LABEL_ID);
+        when(labelHandler.find(TestUtils.EXISTING_LABEL_ID)).thenReturn(label);
+      }
 
     @After
     public void tearDown() {
-        labelService = null;
+      labelService = null;
+      containerContext.close();
+      containerContext = null;
     }
 
     @Test
     public void testCreateDefaultLabelTask() {
         LabelDto label = TestUtils.getDefaultLabel();
-        when(daoHandler.getLabelHandler().create(any())).thenReturn(StorageUtil.labelToEntity(label));
+        Label labelEntity = StorageUtil.labelToEntity(label);
+        when(daoHandler.getLabelHandler().create(any())).thenReturn(labelEntity);
         labelService.createLabel(label);
         verify(labelHandler, times(1)).create(labelCaptor.capture());
         Label result = labelCaptor.getValue();
@@ -146,8 +172,9 @@ public class LabelServiceTest {
         LabelDto label = labelService.getLabel(TestUtils.EXISTING_LABEL_ID);
         label.setId(TestUtils.EXISTING_LABEL_ID);
         label.setName("exo");
-        when(daoHandler.getLabelHandler().update(any())).thenReturn(StorageUtil.labelToEntity(label));
-        labelService.updateLabel(label, Arrays.asList(Label.FIELDS.NAME));
+        Label labelEntity = StorageUtil.labelToEntity(label);
+        when(daoHandler.getLabelHandler().update(any())).thenReturn(labelEntity);
+        labelService.updateLabel(label, Arrays.asList(LabelField.NAME));
         verify(labelHandler, times(1)).update(labelCaptor.capture());
 
         assertEquals("exo", labelCaptor.getValue().getName());
@@ -159,28 +186,31 @@ public class LabelServiceTest {
         LabelDto label = labelService.getLabel(TestUtils.EXISTING_LABEL_ID);
         label.setId(TestUtils.EXISTING_LABEL_ID);
         label.setColor("white");
-        when(daoHandler.getLabelHandler().update(any())).thenReturn(StorageUtil.labelToEntity(label));
-        labelService.updateLabel(label, Arrays.asList(Label.FIELDS.COLOR));
+        Label labelEntity = StorageUtil.labelToEntity(label);
+        when(daoHandler.getLabelHandler().update(any())).thenReturn(labelEntity);
+        labelService.updateLabel(label, Arrays.asList(LabelField.COLOR));
         verify(labelHandler, times(1)).update(labelCaptor.capture());
 
         assertEquals("white", labelCaptor.getValue().getColor());
     }
 
     @Test
-    public void testUpdateLabelPARENT() throws EntityNotFoundException {
+    public void testUpdateLabelParent() throws EntityNotFoundException {
         LabelDto parentLabel = labelService.getLabel(TestUtils.EXISTING_LABEL_ID);
-        LabelDto label = new LabelDto();
+        LabelDto labelDto = new LabelDto();
         long labelId = 5;
+        labelDto.setId(labelId);
+        labelDto.setUsername("root");
+        labelDto.setName("testLabel");
+        labelDto.setParent(parentLabel);
+        Label label = StorageUtil.labelToEntity(labelDto);
         label.setId(labelId);
-        label.setUsername("root");
-        label.setName("testLabel");
-        label.setParent(parentLabel);
-        when(daoHandler.getLabelHandler().find(labelId)).thenReturn(StorageUtil.labelToEntity(label));
-        when(daoHandler.getLabelHandler().update(any())).thenReturn(StorageUtil.labelToEntity(label));
-        labelService.updateLabel(label, Collections.singletonList(Label.FIELDS.PARENT));
+        when(daoHandler.getLabelHandler().find(labelId)).thenReturn(label);
+        when(daoHandler.getLabelHandler().update(argThat(l -> l.getId() == labelId))).thenReturn(label);
+        labelService.updateLabel(labelDto, Collections.singletonList(LabelField.PARENT));
         verify(labelHandler, times(1)).update(labelCaptor.capture());
 
-        assertEquals(label.getParent(), StorageUtil.labelToDto(labelCaptor.getValue().getParent()));
+        assertEquals(labelDto.getParent(), StorageUtil.labelToDto(labelCaptor.getValue().getParent()));
     }
 
     @Test
@@ -189,8 +219,9 @@ public class LabelServiceTest {
         LabelDto label = labelService.getLabel(TestUtils.EXISTING_LABEL_ID);
         label.setId(TestUtils.EXISTING_LABEL_ID);
         label.setHidden(true);
-        when(daoHandler.getLabelHandler().update(any())).thenReturn(StorageUtil.labelToEntity(label));
-        labelService.updateLabel(label, Arrays.asList(Label.FIELDS.HIDDEN));
+        Label labelEntity = StorageUtil.labelToEntity(label);
+        when(daoHandler.getLabelHandler().update(any())).thenReturn(labelEntity);
+        labelService.updateLabel(label, Arrays.asList(LabelField.HIDDEN));
         verify(labelHandler, times(1)).update(labelCaptor.capture());
 
         assertEquals(true, labelCaptor.getValue().isHidden());
