@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.task.AbstractTest;
 import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.domain.Task;
@@ -57,9 +58,7 @@ public class TestCommentDAO extends AbstractTest {
 
   @After
   public void cleanData() {
-    endRequestLifecycle();
-    commentDAO.deleteAll();
-    taskDAO.deleteAll();
+    deleteAll();
   }
 
   @Test
@@ -79,7 +78,12 @@ public class TestCommentDAO extends AbstractTest {
     comment = comments[0];
     Assert.assertEquals(username, comment.getAuthor());
 
-    //Assert.assertEquals(task.getId(), comment.getTask().getId());
+    taskDAO.update(task);
+    listComments = commentDAO.findComments(task.getId());
+    comments = ListUtil.load(listComments, 0, -1);
+    Assert.assertEquals(1, comments.length);
+    comment = comments[0];
+    Assert.assertEquals(username, comment.getAuthor());
   }
 
   @Test

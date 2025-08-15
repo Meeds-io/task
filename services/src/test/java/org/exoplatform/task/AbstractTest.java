@@ -16,16 +16,12 @@
  */
 package org.exoplatform.task;
 
-import java.sql.SQLException;
-
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 
-import org.exoplatform.commons.persistence.impl.EntityManagerService;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
+import org.exoplatform.task.dao.DAOHandler;
 
 /**
  * A base test class for all DAO tests which take responsibility to
@@ -38,27 +34,23 @@ public class AbstractTest {
 
   @Before
   public void initializeContainerAndStartRequestLifecycle() {
-    PortalContainer container = PortalContainer.getInstance();
-
-    //
-    RequestLifeCycle.begin(container);
-    
-    EntityManagerService entityMgrService = (EntityManagerService) container.getComponentInstanceOfType(EntityManagerService.class);
-    entityMgrService.getEntityManager().getTransaction().begin();
+    RequestLifeCycle.begin(PortalContainer.getInstance());
   }
 
   @After
   public void endRequestLifecycle() {
-    PortalContainer container = PortalContainer.getInstance();
-
-    //
-    EntityManagerService entityMgrService = (EntityManagerService) container.getComponentInstanceOfType(EntityManagerService.class);
-    if (entityMgrService.getEntityManager() != null && entityMgrService.getEntityManager().getTransaction() != null
-        && entityMgrService.getEntityManager().getTransaction().isActive()) {
-      entityMgrService.getEntityManager().getTransaction().commit();
-      //
-      RequestLifeCycle.end();
-    }
-
+    RequestLifeCycle.end();
   }
+
+  protected void deleteAll() {
+    RequestLifeCycle.restartTransaction();
+    DAOHandler daoHandler = PortalContainer.getInstance().getComponentInstanceOfType(DAOHandler.class);
+    daoHandler.getLabelHandler().deleteAll();
+    RequestLifeCycle.restartTransaction();
+    daoHandler.getCommentHandler().deleteAll();
+    daoHandler.getTaskHandler().deleteAll();
+    daoHandler.getProjectHandler().deleteAll();
+    daoHandler.getStatusHandler().deleteAll();
+  }
+
 }

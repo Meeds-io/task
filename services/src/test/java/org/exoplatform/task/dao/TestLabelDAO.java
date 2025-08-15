@@ -45,8 +45,7 @@ public class TestLabelDAO extends AbstractTest {
 
   @After
   public void tearDown() {
-    taskService.getLabelTaskMappingHandler().deleteAll();
-    lblDAO.deleteAll();
+    deleteAll();
   }
   
   @Test

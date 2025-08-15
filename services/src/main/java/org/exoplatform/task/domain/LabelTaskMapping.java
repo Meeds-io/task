@@ -16,60 +16,49 @@
  */
 package org.exoplatform.task.domain;
 
+import java.io.Serializable;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.Table;
-
-import java.io.Serializable;
-
-import org.exoplatform.commons.api.persistence.ExoEntity;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Entity(name = "TaskLabelTaskMapping")
-@ExoEntity
 @Table(name = "TASK_LABEL_TASK")
-@NamedQueries({  
-  @NamedQuery(name = "LabelTaskMapping.removeLabelTaskMapping",
-      query = "DELETE FROM TaskLabelTaskMapping m WHERE m.label.id = :labelId"),
-  @NamedQuery(name = "LabelTaskMapping.findLabelMapping",
-       query = "SELECT m FROM TaskLabelTaskMapping m  WHERE m.label.id = :labelId and  m.task.id = :taskId")
-})
+@NamedQuery(name = "LabelTaskMapping.countLabelMappingsOfTask",
+  query = "SELECT count(m) FROM TaskLabelTaskMapping m WHERE m.task.id = :taskId")
+@NamedQuery(name = "LabelTaskMapping.findLabelMappingsOfTask",
+  query = "SELECT m FROM TaskLabelTaskMapping m WHERE m.task.id = :taskId")
+@NamedQuery(name = "LabelTaskMapping.removeLabelTaskMapping",
+    query = "DELETE FROM TaskLabelTaskMapping m WHERE m.label.id = :labelId")
+@NamedQuery(name = "LabelTaskMapping.findLabelMapping",
+     query = "SELECT m FROM TaskLabelTaskMapping m  WHERE m.label.id = :labelId and  m.task.id = :taskId")
+@Data
 public class LabelTaskMapping implements Serializable {
+
+  private static final long serialVersionUID = -8180443225233907972L;
+
   @Id
   @ManyToOne
   @JoinColumn(name = "LABEL_ID")
-  private Label label;
+  private Label             label;
+
   @Id
   @ManyToOne
   @JoinColumn(name = "TASK_ID")
-  private Task task;
-  
-  public LabelTaskMapping() {    
+  @EqualsAndHashCode.Exclude
+  private Task              task;
+
+  public LabelTaskMapping() {
   }
-  
+
   public LabelTaskMapping(Label label, Task task) {
     super();
     this.label = label;
     this.task = task;
   }
-
-  public Label getLabel() {
-    return label;
-  }
-  
-  public void setLabel(Label label) {
-    this.label = label;
-  }
-  
-  public Task getTask() {
-    return task;
-  }
-  
-  public void setTask(Task task) {
-    this.task = task;
-  }
-  
 }

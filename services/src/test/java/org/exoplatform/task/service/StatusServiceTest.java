@@ -16,17 +16,43 @@
  */
 package org.exoplatform.task.service;
 
-import org.exoplatform.container.ExoContainer;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.MockitoJUnitRunner;
+
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.task.TestDtoUtils;
 import org.exoplatform.task.TestUtils;
-import org.exoplatform.task.dao.*;
+import org.exoplatform.task.dao.DAOHandler;
+import org.exoplatform.task.dao.ProjectHandler;
+import org.exoplatform.task.dao.ProjectQuery;
+import org.exoplatform.task.dao.StatusHandler;
+import org.exoplatform.task.dao.TaskHandler;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
-import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.exception.NotAllowedOperationOnEntityException;
@@ -36,25 +62,12 @@ import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.StatusStorageImpl;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
-
-import java.util.*;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
 
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.Silent.class)
 public class StatusServiceTest {
+
+    MockedStatic<ExoContainerContext> containerContext;
 
     StatusService statusService;
 
@@ -82,13 +95,26 @@ public class StatusServiceTest {
     @Captor
     ArgumentCaptor<Task> taskCaptor;
 
+    PortalContainer                 container;
+
     @Before
     public void setUp() {
         // Make sure the container is started to prevent the ExoTransactional annotation to fail
-        PortalContainer.getInstance();
-        projectStorage = new ProjectStorageImpl(daoHandler);
-        statusStorage = new StatusStorageImpl(daoHandler, projectStorage);
+      container = PortalContainer.getInstance();
+      projectStorage = new ProjectStorageImpl(daoHandler);
+      taskStorage = container.getComponentInstanceOfType(TaskStorage.class);
+        statusStorage = new StatusStorageImpl(daoHandler, taskStorage, projectStorage);
         statusService = new StatusServiceImpl(daoHandler, statusStorage, projectStorage, listenerService);
+
+        containerContext = mockStatic(ExoContainerContext.class);
+        containerContext.when(() -> ExoContainerContext.getService(any())).thenAnswer(invocation -> {
+          Class<?> clazz = invocation.getArgument(0, Class.class);
+          if (clazz.equals(DAOHandler.class)) {
+            return daoHandler;
+          } else {
+            return container.getComponentInstanceOfType(clazz);
+          }
+        });
 
         //Mock DAO handler to return Mocked DAO
         when(daoHandler.getTaskHandler()).thenReturn(taskHandler);
@@ -103,6 +129,8 @@ public class StatusServiceTest {
     @After
     public void tearDown() {
         statusService = null;
+        containerContext.close();
+        containerContext = null;
     }
 
     @Test

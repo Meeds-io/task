@@ -17,15 +17,21 @@
 package org.exoplatform.task.storage.impl;
 
 import io.meeds.task.search.TaskSearchConnector;
+
+import lombok.SneakyThrows;
+
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.ChangeLog;
+import org.exoplatform.task.domain.Comment;
+import org.exoplatform.task.domain.LabelTaskMapping;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ChangeLogEntry;
@@ -94,8 +100,27 @@ public class TaskStorageImpl implements TaskStorage {
     }
 
     @Override
+    @SneakyThrows
     public void delete(TaskDto task) {
-        daoHandler.getTaskHandler().delete(StorageUtil.taskToEntity(task));
+      long taskId = task.getId();
+      ListAccess<LabelTaskMapping> labels = daoHandler.getLabelTaskMappingHandler().findLabelMappings(taskId);
+      int labelsSize = labels == null ? 0 : labels.getSize();
+      if (labelsSize > 0) {
+        daoHandler.getLabelTaskMappingHandler().deleteAll(Arrays.asList(labels.load(0, labelsSize)));
+      }
+      ListAccess<Comment> comments = daoHandler.getCommentHandler().findComments(taskId);
+      int commentsSize = comments == null ? 0 : comments.getSize();
+      if (commentsSize > 0) {
+        daoHandler.getCommentHandler().deleteAll(Arrays.asList(comments.load(0, commentsSize)));
+      }
+      ListAccess<ChangeLog> logs = daoHandler.getTaskLogHandler().findTaskLogs(taskId);
+      int logsSize = logs == null ? 0 : logs.getSize();
+      if (logsSize > 0) {
+        daoHandler.getTaskLogHandler().deleteAll(Arrays.asList(logs.load(0, logsSize)));
+      }
+      RequestLifeCycle.restartTransaction();
+      Task taskEntity = daoHandler.getTaskHandler().find(taskId);
+      daoHandler.getTaskHandler().delete(taskEntity);
     }
 
     @Override

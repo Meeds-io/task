@@ -105,12 +105,14 @@ public class ProjectServiceTest {
     @Before
     public void setUp() {
         // Make sure the container is started to prevent the ExoTransactional annotation to fail
-        PortalContainer.getInstance();
+        PortalContainer container = PortalContainer.getInstance();
         projectStorage = new ProjectStorageImpl(daoHandler);
-        statusStorage = new StatusStorageImpl(daoHandler, projectStorage);
+        taskStorage = container.getComponentInstanceOfType(TaskStorage.class);
+        statusStorage = new StatusStorageImpl(daoHandler, taskStorage, projectStorage);
         projectService = new ProjectServiceImpl(statusService, taskService, daoHandler, projectStorage, listenerService);
         //Mock DAO handler to return Mocked DAO
         when(daoHandler.getProjectHandler()).thenReturn(projectHandler);
+        when(daoHandler.getStatusHandler()).thenReturn(statusHandler);
 
         //Mock some DAO methods
         when(projectHandler.create(any(Project.class))).thenReturn(TestUtils.getDefaultProject());
@@ -149,15 +151,16 @@ public class ProjectServiceTest {
 
     @Test
     public void testCreateDefaultProject() throws EntityNotFoundException {
-
         ProjectDto defaultProject = TestDtoUtils.getDefaultProject();
         Long projectParent = TestUtils.EXISTING_PROJECT_ID;
-        //when(projectStorage.getProject(projectParent).getManager()).thenReturn(TestDtoUtils.getParentProject().getManager());
+        when(projectHandler.create(any())).thenAnswer(invocation -> {
+          Project p = invocation.getArgument(0, Project.class);
+          p.setId(projectParent);
+          return p;
+        });
         projectService.createProject(defaultProject, projectParent);
         verify(projectHandler, times(1)).create(projectCaptor.capture());
-
-        assertEquals(projectParent, new Long(projectCaptor.getValue().getParent().getId()));
-
+        assertEquals(projectParent.longValue(), projectCaptor.getValue().getId());
     }
 
     @Test

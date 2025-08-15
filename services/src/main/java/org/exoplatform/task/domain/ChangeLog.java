@@ -16,8 +16,6 @@
  */
 package org.exoplatform.task.domain;
 
-import org.exoplatform.commons.api.persistence.ExoEntity;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -25,22 +23,20 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import lombok.Data;
 
 @Entity(name = "TaskChangeLog")
-@ExoEntity
 @Table(name = "TASK_CHANGE_LOGS")
-@NamedQueries({
-        @NamedQuery(name = "TaskChangeLog.findChangeLogByTaskId",
-                    query = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId ORDER BY log.createdTime DESC"),
-        @NamedQuery(name = "TaskChangeLog.countChangeLogByTaskId",
-                query = "SELECT count(log) FROM TaskChangeLog log WHERE log.task.id = :taskId"),
-        @NamedQuery(name = "TaskChangeLog.removeChangeLogByTaskId",
-                query = "DELETE FROM TaskChangeLog log WHERE log.task.id = :taskId")
-})
+@NamedQuery(name = "TaskChangeLog.findChangeLogByTaskId",
+            query = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId ORDER BY log.createdTime DESC")
+@NamedQuery(name = "TaskChangeLog.countChangeLogByTaskId",
+        query = "SELECT count(log) FROM TaskChangeLog log WHERE log.task.id = :taskId")
+@NamedQuery(name = "TaskChangeLog.removeChangeLogByTaskId",
+        query = "DELETE FROM TaskChangeLog log WHERE log.task.id = :taskId")
+@Data
 public class ChangeLog implements Comparable<ChangeLog> {
 
   @Id
@@ -63,61 +59,13 @@ public class ChangeLog implements Comparable<ChangeLog> {
   @Column(name="CREATED_TIME")
   private long createdTime = System.currentTimeMillis();
 
-  public long getId() {
-    return id;
-  }
-
-  public void setId(long id) {
-    this.id = id;
-  }
-
-  public Task getTask() {
-    return task;
-  }
-
-  public void setTask(Task task) {
-    this.task = task;
-  }
-
-  public String getAuthor() {
-    return author;
-  }
-
-  public void setAuthor(String author) {
-    this.author = author;
-  }
-
-  public String getActionName() {
-    return actionName;
-  }
-
-  public void setActionName(String change) {
-    this.actionName = change;
-  }
-
-  public String getTarget() {
-    return target;
-  }
-
-  public void setTarget(String target) {
-    this.target = target;
-  }
-
-  public long getCreatedTime() {
-    return createdTime;
-  }
-
-  public void setCreatedTime(long createdTime) {
-    this.createdTime = createdTime;
-  }
-
   @Override
   public int compareTo(ChangeLog o) {
     return (int)(getCreatedTime() - o.getCreatedTime());
   }
 
   @Override
-  public ChangeLog clone() {
+  public ChangeLog clone() { // NOSONAR
     ChangeLog log = new ChangeLog();
     log.setId(getId());
     log.setTask(getTask().clone());

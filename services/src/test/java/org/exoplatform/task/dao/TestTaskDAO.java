@@ -18,6 +18,7 @@ package org.exoplatform.task.dao;
 
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
@@ -76,26 +77,20 @@ public class TestTaskDAO extends AbstractTest {
   public void setup() {
     PortalContainer container = PortalContainer.getInstance();
 
-    daoHandler = (DAOHandler) container.getComponentInstanceOfType(DAOHandler.class);
+    daoHandler = container.getComponentInstanceOfType(DAOHandler.class);
     tDAO = daoHandler.getTaskHandler();
     cDAO = daoHandler.getCommentHandler();
     labelHandler = daoHandler.getLabelHandler();
     taskSearchConnector = container.getComponentInstanceOfType(TaskSearchConnector.class);
+    projectStorage = container.getComponentInstanceOfType(ProjectStorage.class);
+    userService = container.getComponentInstanceOfType(UserService.class);
     taskStorage = new TaskStorageImpl(daoHandler, userService, projectStorage, taskSearchConnector);
     taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
   }
 
   @After
   public void tearDown() {
-    for (Task t : tDAO.findAll()) {
-      t.setStatus(null);
-    }    
-    tDAO.updateAll(tDAO.findAll());
-    daoHandler.getLabelTaskMappingHandler().deleteAll();
-    daoHandler.getTaskLogHandler().deleteAll();
-    cDAO.deleteAll();
-    tDAO.deleteAll();
-    labelHandler.deleteAll();
+    deleteAll();
   }
 
   @Test
@@ -238,7 +233,7 @@ public class TestTaskDAO extends AbstractTest {
     tDAO.create(task);
 
     TaskQuery query = new TaskQuery();
-    query.setEmptyField("lblMapping");
+    query.setEmptyField("labels");
     ListAccess<Task> tasks = tDAO.findTasks(query);
     Assert.assertEquals(1, tasks.getSize());
     
@@ -412,7 +407,7 @@ public class TestTaskDAO extends AbstractTest {
     //
     endRequestLifecycle();
     initializeContainerAndStartRequestLifecycle();
-    tDAO.delete(tDAO.find(task.getId()));
+    taskStorage.delete(taskStorage.getTaskById(task.getId()));
     labels = labelHandler.findLabelsByTask(task.getId(), project.getId());
     Assert.assertEquals(0, labels.getSize());
   }
@@ -579,9 +574,11 @@ public class TestTaskDAO extends AbstractTest {
 
     coworkers.add("worker2");
     task.setCoworker(coworkers);
+    tDAO.update(task);
+
     //worker2 is now a coworker, so he has permission
     ConversationState.setCurrent(new ConversationState(worker2));
-    Assert.assertEquals(true, TaskUtil.hasEditPermission(taskService,task));
+    Assert.assertEquals(true, TaskUtil.hasEditPermission(taskService, task));
   }
 
   @Test
