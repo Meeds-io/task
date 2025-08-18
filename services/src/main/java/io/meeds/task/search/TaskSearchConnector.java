@@ -60,7 +60,10 @@ public class TaskSearchConnector {
               @permission_query@
             ]
           }
-        }
+        },
+        "sort": [
+          @sortQuery@
+        ]
       }
       """;
 
@@ -95,6 +98,23 @@ public class TaskSearchConnector {
       }
       """;
 
+  public static final String     DEFAULT_SORTING_QUERY         = """
+    {
+      "_score": {
+        "order": "desc"
+      }
+    }
+    """;
+
+  public static final String     SORTING_QUERY                 = """
+    {
+      "@sortField@": {
+        "order": "@sortOrder@"
+      }
+    },
+    "_score"
+    """;
+
   private static final String    OFFSET_REPLACEMENT            = "@offset@";
 
   private static final String    LIMIT_REPLACEMENT             = "@limit@";
@@ -106,6 +126,8 @@ public class TaskSearchConnector {
   private static final String    PERMISSIONS_QUERY_REPLACEMENT = "@permission_query@";
 
   private static final String    PERMISSIONS_REPLACEMENT       = "@permissions@";
+
+  private static final String    SORT_REPLACEMENT              = "@sortQuery@";
 
   public List<Long> search(TaskSearchFilter filter) {
     String esQuery = buildSearchQuery(SEARCH_QUERY, filter);
@@ -138,6 +160,12 @@ public class TaskSearchConnector {
       query = query.replace(PERMISSIONS_QUERY_REPLACEMENT, PERMISSIONS_QUERY.replace(PERMISSIONS_REPLACEMENT, permissions));
     } else {
       query = query.replace(PERMISSIONS_QUERY_REPLACEMENT, "");
+    }
+
+    if (StringUtils.isNotBlank(filter.getSortField())) {
+      query = query.replace(SORT_REPLACEMENT, buildSortQuery(filter));
+    } else {
+      query = query.replace(SORT_REPLACEMENT, DEFAULT_SORTING_QUERY);
     }
 
     return query;
@@ -190,5 +218,14 @@ public class TaskSearchConnector {
 
   private String escapeJson(String text) {
     return text.replaceAll("([\\Q+-!():^[]\"{}~*?|&/\\E])", " ").trim();
+  }
+
+  private String buildSortQuery(TaskSearchFilter filter) {
+    String sortFiled = filter.getSortField();
+    String sortDirection = filter.getSortDirection();
+    return switch (sortFiled) {
+    case "date" -> SORTING_QUERY.replace("@sortField@", "lastUpdatedDate").replace("@sortOrder@", sortDirection);
+    default -> SORTING_QUERY.replace("@sortField@", sortFiled).replace("@sortOrder@", sortDirection);
+    };
   }
 }
