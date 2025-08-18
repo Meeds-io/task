@@ -28,12 +28,19 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TaskSearchFilter {
-  private int          offset;
 
-  private int          limit;
+  private String       userId;
 
   private String       term;
 
   private List<String> permissions;
+
+  private String       sortField;
+
+  private String       sortDirection;
+
+  private int          offset;
+
+  private int          limit;
 
 }

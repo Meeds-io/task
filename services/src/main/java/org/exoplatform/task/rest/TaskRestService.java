@@ -43,6 +43,7 @@ import javax.ws.rs.core.Response;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.task.model.TaskSearchFilter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -175,6 +176,8 @@ public class TaskRestService implements ResourceContainer {
   public Response getTasks(@Parameter(description = "Type of task to get (all, incoming, overdue)") @QueryParam("status") String status,
                            @Parameter(description = "Search term") @QueryParam("q") String query,
                            @Parameter(description = "Space id") @QueryParam("spaceId") List<Long> spaceIds,
+                           @Parameter(description = "Field to sort by", required = false) @QueryParam("sortField") String sortField,
+                           @Parameter(description = "Sort order (asc or desc)") @QueryParam("sortDirection") String sortDirection,
                            @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
                            @Parameter(description = "Limit") @Schema(defaultValue = "20") @QueryParam("limit") int limit,
                            @Parameter(description = "Returning the number of tasks or not") @Schema(defaultValue = "false") @QueryParam("returnSize") boolean returnSize,
@@ -234,7 +237,7 @@ public class TaskRestService implements ResourceContainer {
         }
       } else {
         memberships = filterMembershipsBySpaceIds(spaceIds, memberships);
-        tasks = taskService.findTasksByMemberShips(currentUser, memberships, query, limit);
+        tasks = taskService.findTasks(new TaskSearchFilter(currentUser, query, memberships, sortField, sortDirection, offset, limit));
         tasksSize = taskService.countTasks(currentUser, query, memberships);
       }
       tasks.forEach(t -> transformHtml(t, currentId));

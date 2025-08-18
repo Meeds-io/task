@@ -141,10 +141,10 @@ public class TestProjectRestService {
     when(taskService.countTasks(eq("root"), eq("searchTerm"), anyList())).thenReturn(1L);
 
     // When
-    Response response = taskRestService.getTasks("overdue", null, null,0, 20, false, false);
-    Response response1 = taskRestService.getTasks("incoming", null, null, 0, 20, false, false);
-    Response response2 = taskRestService.getTasks("", null, null, 0, 20, false, false);
-    Response response3 = taskRestService.getTasks("whatever", "searchTerm", null, 0, 20, true, false);
+    Response response = taskRestService.getTasks("overdue", null, null, null, null, 0, 20, false, false);
+    Response response1 = taskRestService.getTasks("incoming", null, null, null, null, 0, 20, false, false);
+    Response response2 = taskRestService.getTasks("", null, null, null, null, 0, 20, false, false);
+    Response response3 = taskRestService.getTasks("whatever", "searchTerm", null, null, null, 0, 20, true, false);
 
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
