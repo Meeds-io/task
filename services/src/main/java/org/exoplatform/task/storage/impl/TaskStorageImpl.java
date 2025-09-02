@@ -353,4 +353,19 @@ public class TaskStorageImpl implements TaskStorage {
       return daoHandler.getTaskHandler().getAllIds(offset, limit);
     }
 
+    @Override
+    public List<TaskDto> findTasks(TaskSearchFilter filter) {
+      if (StringUtils.isNotBlank(filter.getTerm())) {
+        if (CollectionUtils.isEmpty(filter.getPermissions())) {
+          filter.setPermissions(Arrays.asList(filter.getUserId()));
+        }
+        List<Long> taskIds = taskSearchConnector.search(filter);
+        return taskIds.stream().map(this::getTaskById).filter(Objects::nonNull).toList();
+      } else {
+        List<Task> taskEntities = daoHandler.getTaskHandler()
+                                            .findTasks(filter.getUserId(), filter.getPermissions(), filter.getLimit());
+        return taskEntities.stream().map((Task taskEntity) -> StorageUtil.taskToDto(taskEntity, projectStorage)).toList();
+      }
+    }
+
 }

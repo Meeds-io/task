@@ -28,6 +28,7 @@ import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskSearchFilter;
 
 import java.util.List;
 import java.util.Set;
@@ -165,4 +166,13 @@ public interface TaskStorage {
      * @return a list of task IDs
      */
     List<Long> getAllIds(int offset, int limit);
+
+    /**
+     * Find tasks assigned to a user using a term to find in title or description of
+     * the task
+     *
+     * @param filter to search tasks.
+     * @return {@link List} of {@link TaskDto}
+     */
+    List<TaskDto> findTasks(TaskSearchFilter filter);
 }
