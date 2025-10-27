@@ -17,14 +17,10 @@
 <template>
   <div
     ref="filterSortTasksDrawer"
-    class="filterSortTasksDrawer"
+    class="filterSortTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
-    <form ref="form1" class="mt-4">
-      <v-label for="name">
-        <span class="font-weight-bold body-2">{{ $t('label.task.sort') }}</span>
-      </v-label>
-    </form>
+    <span id="group-2" class="font-weight-bold body-2">{{ $t('label.task.sort') }}</span>
     <v-radio-group
       v-model="orderBy"
       mandatory>
@@ -70,6 +66,14 @@ export default {
     });
     this.$root.$on('reset-filter-task-sort',orderBy =>{
       this.orderBy = orderBy;
+    });
+  },
+  mounted() {
+    this.$nextTick(() => {
+      const radiogroup = this.$el.querySelector('[role="radiogroup"]');
+      if (radiogroup) {
+        radiogroup.setAttribute('aria-labelledby', 'group-2');
+      }
     });
   }
 };
