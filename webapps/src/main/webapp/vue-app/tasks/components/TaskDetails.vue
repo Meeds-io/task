@@ -25,7 +25,7 @@
           class="d-flex flex justify-between align-center subtitle-2 mb-0 clickable">
           <span class="text-truncate">{{ title }}</span>
           <v-spacer />
-          <span :class="isOutdated && 'red--text' || ''">{{ dueDate }}</span>
+          <span :class="isOutdated && 'error-color' || ''">{{ dueDate }}</span>
         </v-list-item-title>
         <v-list-item-subtitle v-if="commentCount || labels" class="d-flex align-center mt-1">
           <div v-if="commentCount">
