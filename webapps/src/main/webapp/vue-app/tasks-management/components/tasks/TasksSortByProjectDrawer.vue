@@ -17,30 +17,30 @@
 <template>
   <div
     ref="filterSortTasksDrawer"
-    class="filterSortTasksDrawer"
+    class="filterSortTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
-    <form ref="form1" class="mt-4">
-      <v-label for="name">
-        <span class="font-weight-bold body-2">{{ $t('label.task.sort') }}</span>
-      </v-label>
-    </form>
-    <v-radio-group
-      v-model="orderBy"
-      mandatory>
-      <v-radio
-        :label="$t('label.task.dueDate')"
-        value="dueDate" />
-      <v-radio
-        :label="$t('label.task.priority')"
-        value="priority" />
-      <v-radio
-        :label="$t('label.task.title')"
-        value="title" />
-      <v-radio
-        :label="$t('label.task.lastUpdate')"
-        value="createdTime" />
-    </v-radio-group>
+    <div 
+      role="radiogroup"
+      aria-labelledby="group-2">
+      <span id="group-2" class="font-weight-bold body-2">{{ $t('label.task.sort') }}</span>
+      <v-radio-group
+        v-model="orderBy"
+        mandatory>
+        <v-radio
+          :label="$t('label.task.dueDate')"
+          value="dueDate" />
+        <v-radio
+          :label="$t('label.task.priority')"
+          value="priority" />
+        <v-radio
+          :label="$t('label.task.title')"
+          value="title" />
+        <v-radio
+          :label="$t('label.task.lastUpdate')"
+          value="createdTime" />
+      </v-radio-group>
+    </div>
   </div>
 </template>
 <script>
