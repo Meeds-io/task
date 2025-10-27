@@ -88,7 +88,7 @@
       </span>
     </div>
     <div class="taskDueDate" @click="openTaskDrawer()">
-      <div v-if="taskDueDate" :class="getOverdueTask(taskDueDate) ? 'red--text' : ''">
+      <div v-if="taskDueDate" :class="getOverdueTask(taskDueDate) ? 'error-color' : ''">
         <date-format :value="taskDueDate" :format="dateTimeFormat" />
       </div>
     </div>
