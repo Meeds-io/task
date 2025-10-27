@@ -17,59 +17,56 @@
 <template>
   <div
     ref="filterGroupTasksDrawer"
-    class="filterGroupTasksDrawer"
+    class="filterGroupTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
-    <div v-if="taskViewTabName === 'gantt'">
-      <form ref="form1" class="mt-4">
-        <v-label for="name">
-          <span class="font-weight-bold body-2">{{ $t('label.gantt.scale') }} </span>
-        </v-label>
-      </form>
-      <v-radio-group
-        v-model="scaleBy"
-        mandatory>
-        <v-radio
-          :label="$t('label.gantt.scale.day')"
-          value="Day" />
-        <v-radio
-          :label="$t('label.gantt.scale.week')"
-          value="Week" />
-        <v-radio
-          :label="$t('label.gantt.scale.month')"
-          value="Month" />
-      </v-radio-group>
-    </div>
-    <div v-else>
-      <form ref="form1" class="mt-4">
-        <v-label for="name">
-          <span class="font-weight-bold body-2">{{ $t('label.task.groupBy') }}</span>
-        </v-label>
-      </form>
-      <v-radio-group
-        v-model="groupBy"
-        mandatory>
-        <v-radio
-          v-if="taskViewTabName !== 'list'"
-          :label="$t('label.task.none')"
-          value="none" />
-        <v-radio
-          v-if="taskViewTabName === 'list'"
-          :label="$t('label.task.status')"
-          value="status" />
-        <v-radio
-          :label="$t('label.task.assignee')"
-          value="assignee" />
-        <v-radio
-          :label="$t('label.task.labels')"
-          value="label" />
-        <v-radio
-          :label="$t('label.task.dueDate')"
-          value="dueDate" />
-        <v-radio
-          :label="$t('label.task.completed')"
-          value="completed" />
-      </v-radio-group>
+    <div 
+      role="radiogroup"
+      aria-labelledby="group-1">
+      <div v-if="taskViewTabName === 'gantt'">
+        <span id="group-1" class="font-weight-bold body-2">{{ $t('label.gantt.scale') }} </span>
+        <v-radio-group
+          v-model="scaleBy"
+          mandatory>
+          <v-radio
+            :label="$t('label.gantt.scale.day')"
+            value="Day" />
+          <v-radio
+            :label="$t('label.gantt.scale.week')"
+            role="radio"
+            value="Week" />
+          <v-radio
+            :label="$t('label.gantt.scale.month')"
+            value="Month" />
+        </v-radio-group>
+      </div>
+      <div v-else>
+        <span id="group-1" class="font-weight-bold body-2">{{ $t('label.task.groupBy') }}</span>
+        <v-radio-group
+          v-model="groupBy"
+          mandatory>
+          <v-radio
+            v-if="taskViewTabName !== 'list'"
+            :label="$t('label.task.none')"
+            value="none" />
+          <v-radio
+            v-if="taskViewTabName === 'list'"
+            :label="$t('label.task.status')"
+            value="status" />
+          <v-radio
+            :label="$t('label.task.assignee')"
+            value="assignee" />
+          <v-radio
+            :label="$t('label.task.labels')"
+            value="label" />
+          <v-radio
+            :label="$t('label.task.dueDate')"
+            value="dueDate" />
+          <v-radio
+            :label="$t('label.task.completed')"
+            value="completed" />
+        </v-radio-group>
+      </div>
     </div>
   </div>
 </template>
