@@ -109,7 +109,7 @@
             v-if="taskDueDate"
             class="taskStatusAndDate"
             @click="openTaskDrawer()">
-            <div class="taskDueDate" :class="getOverdueTask(taskDueDate) ? 'red--text' : ''">
+            <div class="taskDueDate" :class="getOverdueTask(taskDueDate) ? 'error-color' : ''">
               <div>
                 <date-format :value="taskDueDate" :format="dateTimeFormat" />
               </div>
