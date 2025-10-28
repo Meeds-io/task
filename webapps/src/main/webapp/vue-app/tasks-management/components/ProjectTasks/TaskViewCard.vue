@@ -79,6 +79,7 @@
               @click="openTaskDrawer()">
               <i class="far fa-comment uiCommentIcon"></i>
               <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
+              <span class="screen-reader-only">{{ $t('label.comments') }}</span>
             </div>
             <div
               v-if="task.labels && task.labels.length"
