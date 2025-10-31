@@ -20,9 +20,7 @@
     class="filterGroupTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
-    <div 
-      role="radiogroup"
-      aria-labelledby="group-1">
+    <div aria-labelledby="group-1">
       <div v-if="taskViewTabName === 'gantt'">
         <span id="group-1" class="font-weight-bold body-2">{{ $t('label.gantt.scale') }} </span>
         <v-radio-group
