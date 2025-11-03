@@ -20,9 +20,7 @@
     class="filterSortTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
-    <div 
-      role="radiogroup"
-      aria-labelledby="group-2">
+    <div aria-labelledby="group-2">
       <span id="group-2" class="font-weight-bold body-2">{{ $t('label.task.sort') }}</span>
       <v-radio-group
         v-model="orderBy"

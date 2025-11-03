@@ -20,9 +20,7 @@
     class="filterGroupTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
-    <div 
-      role="radiogroup"
-      aria-labelledby="group-1">
+    <div aria-labelledby="group-1">
       <span id="group-1" class="font-weight-bold body-2">{{ $t('label.task.groupBy') }}</span>
       <v-radio-group
         v-model="groupBy"
