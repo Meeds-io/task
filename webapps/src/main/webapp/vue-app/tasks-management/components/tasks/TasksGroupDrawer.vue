@@ -20,28 +20,26 @@
     class="filterGroupTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
-    <div aria-labelledby="group-1">
-      <span id="group-1" class="font-weight-bold body-2">{{ $t('label.task.groupBy') }}</span>
-      <v-radio-group
-        v-model="groupBy"
-        mandatory>
-        <v-radio
-          :label="$t('label.task.none')"
-          value="none" />
-        <v-radio
-          :label="$t('label.task.project')"
-          value="project" />
-        <v-radio
-          :label="$t('label.task.labels')"
-          value="label" />
-        <v-radio
-          :label="$t('label.task.dueDate')"
-          value="dueDate" />
-        <v-radio
-          :label="$t('label.task.assignee')"
-          value="assignee" />
-      </v-radio-group>
-    </div>
+    <span id="group-1" class="font-weight-bold body-2">{{ $t('label.task.groupBy') }}</span>
+    <v-radio-group
+      v-model="groupBy"
+      mandatory>
+      <v-radio
+        :label="$t('label.task.none')"
+        value="none" />
+      <v-radio
+        :label="$t('label.task.project')"
+        value="project" />
+      <v-radio
+        :label="$t('label.task.labels')"
+        value="label" />
+      <v-radio
+        :label="$t('label.task.dueDate')"
+        value="dueDate" />
+      <v-radio
+        :label="$t('label.task.assignee')"
+        value="assignee" />
+    </v-radio-group>
   </div>
 </template>
 <script>
@@ -61,9 +59,18 @@ export default {
     groupBy(val) {
       this.$emit('input', val);
     },
-  },created() {
+  },
+  created() {
     this.$root.$on('reset-filter-task-group-sort',tasks =>{
       this.groupBy = tasks;
+    });
+  },
+  mounted() {
+    this.$nextTick(() => {
+      const radiogroup = this.$el.querySelector('[role="radiogroup"]');
+      if (radiogroup) {
+        radiogroup.setAttribute('aria-labelledby', 'group-1');
+      }
     });
   }
 };

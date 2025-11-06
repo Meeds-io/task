@@ -20,28 +20,26 @@
     class="filterSortTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
-    <div aria-labelledby="group-2">
-      <span id="group-2" class="font-weight-bold body-2">{{ $t('label.task.sort') }}</span>
-      <v-radio-group
-        v-model="orderBy"
-        mandatory>
-        <v-radio
-          :label="$t('label.task.status')"
-          value="status" />
-        <v-radio
-          :label="$t('label.task.title')"
-          value="title" />
-        <v-radio
-          :label="$t('label.task.dueDate')"
-          value="dueDate" />
-        <v-radio
-          :label="$t('label.task.priority')"
-          value="priority" />
-        <v-radio
-          :label="$t('label.task.rank')"
-          value="rank" />
-      </v-radio-group>
-    </div>
+    <span id="group-2" class="font-weight-bold body-2">{{ $t('label.task.sort') }}</span>
+    <v-radio-group
+      v-model="orderBy"
+      mandatory>
+      <v-radio
+        :label="$t('label.task.status')"
+        value="status" />
+      <v-radio
+        :label="$t('label.task.title')"
+        value="title" />
+      <v-radio
+        :label="$t('label.task.dueDate')"
+        value="dueDate" />
+      <v-radio
+        :label="$t('label.task.priority')"
+        value="priority" />
+      <v-radio
+        :label="$t('label.task.rank')"
+        value="rank" />
+    </v-radio-group>
   </div>
 </template>
 <script>
@@ -68,6 +66,14 @@ export default {
     });
     this.$root.$on('reset-filter-task-sort',orderBy =>{
       this.orderBy = orderBy;
+    });
+  },
+  mounted() {
+    this.$nextTick(() => {
+      const radiogroup = this.$el.querySelector('[role="radiogroup"]');
+      if (radiogroup) {
+        radiogroup.setAttribute('aria-labelledby', 'group-2');
+      }
     });
   }
 };
