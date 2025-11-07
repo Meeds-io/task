@@ -17,15 +17,11 @@
 <template>
   <div
     ref="filterGroupTasksDrawer"
-    class="filterGroupTasksDrawer"
+    class="filterGroupTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
     <div v-if="taskViewTabName === 'gantt'">
-      <form ref="form1" class="mt-4">
-        <v-label for="name">
-          <span class="font-weight-bold body-2">{{ $t('label.gantt.scale') }} </span>
-        </v-label>
-      </form>
+      <span id="group-1" class="font-weight-bold body-2">{{ $t('label.gantt.scale') }} </span>
       <v-radio-group
         v-model="scaleBy"
         mandatory>
@@ -34,6 +30,7 @@
           value="Day" />
         <v-radio
           :label="$t('label.gantt.scale.week')"
+          role="radio"
           value="Week" />
         <v-radio
           :label="$t('label.gantt.scale.month')"
@@ -41,11 +38,7 @@
       </v-radio-group>
     </div>
     <div v-else>
-      <form ref="form1" class="mt-4">
-        <v-label for="name">
-          <span class="font-weight-bold body-2">{{ $t('label.task.groupBy') }}</span>
-        </v-label>
-      </form>
+      <span id="group-1" class="font-weight-bold body-2">{{ $t('label.task.groupBy') }}</span>
       <v-radio-group
         v-model="groupBy"
         mandatory>
@@ -99,9 +92,18 @@ export default {
     scaleBy(val) {
       this.$emit('scale-changed', val);
     }
-  },created() {
+  },
+  created() {
     this.$root.$on('reset-filter-task-group-sort',groupBy =>{
       this.groupBy = groupBy;
+    });
+  },
+  mounted() {
+    this.$nextTick(() => {
+      const radiogroup = this.$el.querySelector('[role="radiogroup"]');
+      if (radiogroup) {
+        radiogroup.setAttribute('aria-labelledby', 'group-1');
+      }
     });
   }
 };
