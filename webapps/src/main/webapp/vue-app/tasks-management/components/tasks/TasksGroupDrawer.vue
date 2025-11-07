@@ -17,14 +17,10 @@
 <template>
   <div
     ref="filterGroupTasksDrawer"
-    class="filterGroupTasksDrawer"
+    class="filterGroupTasksDrawer mt-4"
     body-classes="hide-scroll decrease-z-index-more"
     right>
-    <form ref="form1" class="mt-4">
-      <v-label for="name">
-        <span class="font-weight-bold body-2">{{ $t('label.task.groupBy') }}</span>
-      </v-label>
-    </form>
+    <span id="group-1" class="font-weight-bold body-2">{{ $t('label.task.groupBy') }}</span>
     <v-radio-group
       v-model="groupBy"
       mandatory>
@@ -63,9 +59,18 @@ export default {
     groupBy(val) {
       this.$emit('input', val);
     },
-  },created() {
+  },
+  created() {
     this.$root.$on('reset-filter-task-group-sort',tasks =>{
       this.groupBy = tasks;
+    });
+  },
+  mounted() {
+    this.$nextTick(() => {
+      const radiogroup = this.$el.querySelector('[role="radiogroup"]');
+      if (radiogroup) {
+        radiogroup.setAttribute('aria-labelledby', 'group-1');
+      }
     });
   }
 };
