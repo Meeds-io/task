@@ -83,6 +83,11 @@ public class CommentStorageImpl implements CommentStorage {
     }
 
     @Override
+    public int countCommentsWithSubs(long taskId) {
+      return daoHandler.getCommentHandler().countCommentsWithSubs(taskId);
+    }
+
+    @Override
     public List<CommentDto> getComments(long taskId, int offset, int limit) {
         try {
         return Arrays.asList(daoHandler.getCommentHandler().findComments(taskId).load(offset, limit)).stream().map((Comment comment) -> StorageUtil.commentToDto(comment,projectStorage)).collect(Collectors.toList());

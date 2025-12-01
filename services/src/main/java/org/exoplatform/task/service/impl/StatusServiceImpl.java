@@ -116,12 +116,13 @@ public class StatusServiceImpl implements StatusService {
         if (name == null || (name = name.trim()).isEmpty() || project == null) {
             throw new IllegalArgumentException("project must be not null and status must not be null or empty");
         }
+        StatusDto status = statusStorage.createStatus(project, name);
         try {
             listenerService.broadcast("exo.project.projectModified", null, project);
         } catch (Exception e) {
             LOG.error("Error while broadcasting status creation event", e);
         }
-        return statusStorage.createStatus(project, name);
+        return status;
     }
 
     @Override

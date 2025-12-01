@@ -20,7 +20,6 @@ package org.exoplatform.task.storage;
 
 import java.util.List;
 
-import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -48,5 +47,13 @@ public interface CommentStorage {
    * @return List of SubComments
    */
   List<CommentDto> loadSubComments(List<CommentDto> listComments);
+
+  /**
+   * Retrieves the Task comments including sub-comments
+   * 
+   * @param taskId Task identifier
+   * @return {@link Integer}
+   */
+  int countCommentsWithSubs(long taskId);
 
 }
