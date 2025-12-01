@@ -47,4 +47,12 @@ public interface CommentService {
    * @return List of sub comments
    */
   List<CommentDto> loadSubComments(List<CommentDto> listComments);
+
+  /**
+   * Retrieves the Task comments including sub-comments
+   * 
+   * @param taskId Task identifier
+   * @return {@link Integer}
+   */
+  int countCommentsWithSubs(long taskId);
 }

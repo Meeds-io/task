@@ -31,4 +31,7 @@ public interface CommentHandler extends GenericDAO<Comment, Long> {
   List<Comment> getSubComments(List<Comment> listComments);
 
   Set<String> findMentionedUsersOfTask(long taskId);
+
+  int countCommentsWithSubs(long taskId);
+
 }

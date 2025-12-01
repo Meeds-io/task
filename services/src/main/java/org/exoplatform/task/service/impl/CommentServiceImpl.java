@@ -58,7 +58,12 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public List<CommentDto> getCommentsWithSubs(long taskId, int offset, int limit){
-        return commentStorage.getCommentsWithSubs(taskId,offset,limit);
+      return commentStorage.getCommentsWithSubs(taskId,offset,limit);
+    }
+
+    @Override
+    public int countCommentsWithSubs(long taskId) {
+      return commentStorage.countCommentsWithSubs(taskId);
     }
 
     @Override

@@ -25,6 +25,7 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.dao.CommentHandler;
 import org.exoplatform.task.domain.Comment;
 
+import jakarta.persistence.NoResultException;
 import jakarta.persistence.TypedQuery;
 
 import java.util.Collections;
@@ -84,4 +85,16 @@ public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements Comme
     List<String> tags = query.getResultList();
     return new HashSet<>(tags);
   }
+
+  @Override
+  public int countCommentsWithSubs(long taskId) {
+    try {
+      TypedQuery<Long> query = getEntityManager().createNamedQuery("Comment.countCommentsWithSubs", Long.class);
+      query.setParameter("taskId", taskId);
+      return query.getSingleResult().intValue();
+    } catch (NoResultException e) {
+      return 0;
+    }
+  }
+
 }

@@ -48,6 +48,8 @@ import lombok.EqualsAndHashCode;
 @Table(name = "TASK_COMMENTS")
 @NamedQuery(name = "Comment.countCommentOfTask",
     query = "SELECT count(c) FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL")
+@NamedQuery(name = "Comment.countCommentsWithSubs",
+    query = "SELECT count(c) FROM TaskComment c WHERE c.task.id = :taskId")
 @NamedQuery(name = "Comment.findCommentsOfTask",
     query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL ORDER BY c.createdTime DESC")
 @NamedQuery(name = "Comment.findSubCommentsOfComments",

@@ -19,15 +19,20 @@
 package org.exoplatform.task.integration;
 
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.services.listener.Asynchronous;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.storage.ProjectStorage;
 
+import io.meeds.common.ContainerTransactional;
+
+@Asynchronous
 public class ProjectModifiedListener extends Listener<ProjectService, ProjectDto> {
 
   @Override
+  @ContainerTransactional
   public void onEvent(Event<ProjectService, ProjectDto> event) throws Exception {
     ProjectStorage storage = CommonsUtils.getService(ProjectStorage.class);
     ProjectDto data = event.getData();
