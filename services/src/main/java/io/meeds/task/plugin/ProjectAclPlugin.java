@@ -21,33 +21,31 @@ package io.meeds.task.plugin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.PortalContainer;
-import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.service.ProjectService;
 
-import io.meeds.portal.permlink.model.PermanentLinkObject;
-import io.meeds.portal.permlink.plugin.PermanentLinkPlugin;
-import io.meeds.portal.permlink.service.PermanentLinkService;
+import io.meeds.portal.plugin.AclPlugin;
 
 import jakarta.annotation.PostConstruct;
 
 @Component
-public class TaskPermanentLinkPlugin implements PermanentLinkPlugin {
+public class ProjectAclPlugin implements AclPlugin {
 
-  public static final String      OBJECT_TYPE = "task";
-
-  public static final String      URL_FORMAT  = "/portal/%s/tasks/taskDetail/%s";
+  public static final String OBJECT_TYPE = ProjectPermanentLinkPlugin.OBJECT_TYPE;
 
   @Autowired
-  private UserPortalConfigService portalConfigService;
+  private PortalContainer    container;
 
   @Autowired
-  private PortalContainer         container;
+  private ProjectService     projectService;
 
   @PostConstruct
   public void init() {
-    container.getComponentInstanceOfType(PermanentLinkService.class).addPlugin(this);
+    container.getComponentInstanceOfType(UserACL.class).addAclPlugin(this);
   }
 
   @Override
@@ -56,13 +54,27 @@ public class TaskPermanentLinkPlugin implements PermanentLinkPlugin {
   }
 
   @Override
-  public boolean canAccess(PermanentLinkObject object, Identity identity) throws ObjectNotFoundException {
-    return true;
-  }
-
-  @Override
-  public String getDirectAccessUrl(PermanentLinkObject object) throws ObjectNotFoundException {
-    return String.format(URL_FORMAT, portalConfigService.getMetaPortal(), object.getObjectId());
+  public boolean hasPermission(String objectId, String permissionType, Identity identity) {
+    ProjectDto project;
+    try {
+      project = projectService.getProject(Long.parseLong(objectId));
+    } catch (EntityNotFoundException e) {
+      return false;
+    }
+    if (project == null) {
+      return false;
+    } else {
+      return switch (permissionType) {
+      case VIEW_PERMISSION_TYPE: {
+        yield project.canView(identity);
+      }
+      case EDIT_PERMISSION_TYPE, DELETE_PERMISSION_TYPE: {
+        yield project.canEdit(identity);
+      }
+      default:
+        yield false;
+      };
+    }
   }
 
 }
