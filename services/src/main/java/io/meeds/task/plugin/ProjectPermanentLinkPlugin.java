@@ -33,11 +33,11 @@ import io.meeds.portal.permlink.service.PermanentLinkService;
 import jakarta.annotation.PostConstruct;
 
 @Component
-public class TaskPermanentLinkPlugin implements PermanentLinkPlugin {
+public class ProjectPermanentLinkPlugin implements PermanentLinkPlugin {
 
-  public static final String      OBJECT_TYPE = "task";
+  public static final String      OBJECT_TYPE = "project";
 
-  public static final String      URL_FORMAT  = "/portal/%s/tasks/taskDetail/%s";
+  public static final String      URL_FORMAT  = "/portal/%s/tasks/projectDetail/%s";
 
   @Autowired
   private UserPortalConfigService portalConfigService;
