@@ -58,6 +58,14 @@
               <span>{{ $t('label.edit') }}</span>
             </v-list-item-title>
           </v-list-item>
+          <extension-registry-components
+            :params="{
+              project,
+            }"
+            name="TaskProjectMenu"
+            type="task-project-menu"
+            parent-element="div"
+            element="div" />
           <v-list-item class="draftButton" @click="confirmDeleteProject()">
             <v-list-item-title class="subtitle-2">
               <i class="uiIcon uiIconTrash pe-1"></i>

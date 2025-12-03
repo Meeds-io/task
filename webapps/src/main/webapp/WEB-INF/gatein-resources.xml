@@ -127,6 +127,7 @@
 
   <module>
     <name>taskDrawer</name>
+    <load-group>taskDrawerGrp</load-group>
     <script>
       <minify>false</minify>
       <path>/js/taskDrawer.bundle.js</path>
@@ -228,6 +229,9 @@
         <minify>false</minify>
         <path>/js/tasksManagement.bundle.js</path>
       </script>
+      <depends>
+        <module>taskDrawer</module>
+      </depends>
       <depends>
         <module>taskCommentsDrawer</module>
       </depends>

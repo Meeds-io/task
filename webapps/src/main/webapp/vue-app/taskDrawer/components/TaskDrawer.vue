@@ -28,6 +28,7 @@
       ref="addTaskDrawer"
       v-model="drawer"
       :temporary="confirmDrawerClose"
+      :go-back-button="addBackArrow"
       class="taskDrawer"
       body-classes="hide-scroll decrease-z-index-more"
       right
@@ -35,10 +36,6 @@
       @closed="onCloseDrawer">
       <template v-if="drawer && taskId" #title>
         <div class="drawerTitleAndProject d-flex">
-          <i
-            v-if="addBackArrow"
-            class="uiIcon uiArrowBAckIcon"
-            @click="closeTaskDrawer"></i>
           <span>{{ $t('label.project') }}</span>
           <div class="taskProjectName text-truncate">
             <task-projects
@@ -49,10 +46,6 @@
       </template>
       <template v-else-if="drawer" #title>
         <div class="drawerTitleAndProject d-flex">
-          <i
-            v-if="addBackArrow"
-            class="uiIcon uiArrowBAckIcon"
-            @click="closeTaskDrawer"></i>
           <span>{{ $t('label.drawer.header.add') }}</span>
           <div class="taskProjectName text-truncate">
             <task-projects
@@ -83,15 +76,29 @@
               </v-btn>
             </template>
             <v-list class="pa-0 white" dense>
-              <v-list-item
-                v-for="menuAction in menuActions"
-                :key="menuAction.title"
-                @click="menuAction.action">
-                <v-list-item-title class="subtitle-2">
-                  <i :class="`uiIcon ${menuAction.uiIcon} pe-2`"></i>
-                  <span>{{ menuAction.title }}</span>
-                </v-list-item-title>
-              </v-list-item>
+              <template v-for="menuAction in menuActions">
+                <component
+                  :is="menuAction.vueComponent || 'v-list-item'"
+                  :key="menuAction.title"
+                  v-bind="menuAction.vueComponent && {
+                    task,
+                  }"
+                  v-on="!menuAction.vueComponent && {
+                    click: menuAction.action,
+                  }">
+                  <v-list-item-title v-if="!menuAction.vueComponent" class="subtitle-2">
+                    <i v-if="menuAction.uiIcon" :class="`uiIcon ${menuAction.uiIcon} pe-2`"></i>
+                    <v-icon
+                      v-else-if="menuAction.icon"
+                      color="primary"
+                      class="me-2"
+                      size="18">
+                      {{ menuAction.icon }}
+                    </v-icon>
+                    <span>{{ menuAction.title }}</span>
+                  </v-list-item-title>
+                </component>
+              </template>
             </v-list>
           </v-menu>
         </div>
@@ -806,30 +813,33 @@ export default {
         });
       });
     },
-    addMenuAction(title, uiIcon, enabled, actionFunctionName) {
-      this.menuActions.push({
+    addMenuAction(menuActions, title, uiIcon, enabled, actionFunctionName, rank) {
+      menuActions.push({
         title: title,
         uiIcon: uiIcon,
         enabled: enabled,
-        action: this[actionFunctionName]
+        action: this[actionFunctionName],
+        rank,
       });
     },
     displayDrawerMenuAction( task ) {
-      this.menuActions = [];
+      const menuActions = extensionRegistry.loadExtensions('Task', 'task-menu');
       if (task && task.status && task.status.project && task.status.project.id ) {
         this.$projectService.getProject(task.status.project.id, true).then(data => {
           this.enableDelete = data.managerIdentities.some(manager => manager.username === eXo.env.portal.userName);
           this.enableClone = this.enableDelete || data.participatorIdentities.some(participator => participator.username === eXo.env.portal.userName);
-          this.addMenuAction(this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask');
-          this.addMenuAction(this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask');
-          this.menuActions = this.menuActions.filter(menuAction => menuAction.enabled);
+          this.addMenuAction(menuActions, this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask', 10);
+          this.addMenuAction(menuActions, this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask', 20);
+          menuActions.sort((a, b) => a.rank - b.rank);
+          this.menuActions = menuActions.filter(menuAction => menuAction.enabled !== false || menuAction?.enabled?.(task));
         });
       } else if ( task && task.id ) {
         this.enableDelete = task.createdBy === eXo.env.portal.userName;
         this.enableClone = task.assignee === eXo.env.portal.userName || this.task.coworker.includes(eXo.env.portal.userName);
-        this.addMenuAction(this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask');
-        this.addMenuAction(this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask');
-        this.menuActions = this.menuActions.filter(menuAction => menuAction.enabled);
+        this.addMenuAction(menuActions, this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask', 10);
+        this.addMenuAction(menuActions, this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask', 20);
+        menuActions.sort((a, b) => a.rank - b.rank);
+        this.menuActions = menuActions.filter(menuAction => menuAction.enabled === true || menuAction?.enabled?.(task));
       }
     },
 

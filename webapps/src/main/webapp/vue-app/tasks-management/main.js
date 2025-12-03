@@ -15,7 +15,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import './initComponents.js';
-import '../taskDrawer/initComponents.js';
 import { tasksConstants } from '../../js/tasksConstants.js';
 import * as tasksService from '../../js/tasksService.js';
 import * as projectService from '../../js/projectService.js';
@@ -65,11 +64,15 @@ export function init() {
       data: {
         autoReply,
         autoReplyCommentId,
+        projectMenuExtensions: [],
       },
       computed: {
         isMobile() {
           return this.$vuetify.breakpoint.smAndDown;
         },
+      },
+      created() {
+        this.projectMenuExtensions = extensionRegistry.loadExtensions('TaskProject', 'task-project-menu');
       },
       template: '<tasks-management></tasks-management>',
       i18n,
