@@ -54,3 +54,5 @@ if (!Vue.prototype.$taskDrawerApi) {
     value: taskDrawerApi,
   });
 }
+
+Vue?.prototype?.$utils?.includeExtensions?.('TaskExtension');

@@ -27,13 +27,23 @@
       :cancel-label="$t('popup.cancel')"
       @ok="deleteConfirm()" />
     <div class="projectTasksWrapper d-flex justify-space-between">
-      <div class="taskViewBreadcrumb text-truncate px-0 pt-1 pb-5">
+      <div class="taskViewBreadcrumb d-flex text-truncate pe-4 pt-1 pb-5">
         <a
-          class="text-color"
+          :title="project.name"
+          class="text-color text-truncate flex-shrink-1 flex-grow-0"
           @click="hideProjectDetails()">
           <i class="uiIcon uiBackIcon"></i>
           <span>{{ project.name }}</span>
         </a>
+        <extension-registry-components
+          :params="{
+            project,
+          }"
+          name="TaskProjectBoard"
+          type="task-board-header"
+          parent-element="div"
+          element="div"
+          class="flex-shrink-0 ms-4" />
       </div>
       <div class="projectTasksTabFilter">
         <tasks-view-toolbar
