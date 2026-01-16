@@ -479,7 +479,7 @@ public class TaskRestService implements ResourceContainer {
 
       if (task.getStatus() != null && task.getStatus().getProject() != null) {
         projectId = task.getStatus().getProject().getId();
-       }
+      }
 
       if (projectId != null) {
         ProjectDto projectDto = projectService.getProject(projectId);
