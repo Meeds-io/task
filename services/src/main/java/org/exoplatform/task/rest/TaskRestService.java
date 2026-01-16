@@ -469,37 +469,54 @@ public class TaskRestService implements ResourceContainer {
     if (task == null) {
       return Response.status(Response.Status.BAD_REQUEST).build();
     }
+
     try {
-    Identity identity = ConversationState.getCurrent().getIdentity();
-    task.setCreatedBy(identity.getUserId());
-    task.setCreatedTime(new Date());
-    if(task.getStatus()==null||task.getStatus().getProject()==null){
-      if (task.getAssignee() == null) {
-        task.setAssignee(identity.getUserId());
-      }
-      task.setStatus(null);
-    }
-    if(task.getStatus()!=null&&(task.getStatus().getId()==null||task.getStatus().getId()==0)&&task.getStatus().getProject()!=null) {
-      long projectId = task.getStatus().getProject().getId();
-      ProjectDto projectDto = projectService.getProject(projectId);
-      if(projectDto==null){
-        LOG.warn("Task's project not found");
-        return Response.status(Response.Status.BAD_REQUEST).build();
-      }
-      if (!projectService.getProject(projectId).canView(identity)) {
-        LOG.warn("User {} attempts to create a task under a non authorized project {}", identity.getUserId(), projectDto.getName());
-        return Response.status(Response.Status.UNAUTHORIZED).build();
+      Identity identity = ConversationState.getCurrent().getIdentity();
+      task.setCreatedBy(identity.getUserId());
+      task.setCreatedTime(new Date());
+
+      Long projectId = null;
+
+      if (task.getStatus() != null && task.getStatus().getProject() != null) {
+        projectId = task.getStatus().getProject().getId();
+       }
+
+      if (projectId != null) {
+        ProjectDto projectDto = projectService.getProject(projectId);
+        if (projectDto == null) {
+          LOG.warn("Task's project not found");
+          return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+
+        if (!projectDto.canView(identity)) {
+          LOG.warn(
+                  "User {} attempts to create a task under a non authorized project {}",
+                  identity.getUserId(),
+                  projectDto.getName()
+          );
+          return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
       }
 
-      task.setStatus(statusService.getDefaultStatus(projectId));
-    }
-    task = taskService.createTask(task);
-    transformHtml(task, ConversationState.getCurrent().getIdentity());
-    return Response.ok(task).build();
-        } catch (Exception e) {
-        LOG.error("Can't add Task", e);
-        return Response.serverError().entity(e.getMessage()).build();
+      if (projectId == null) {
+        if (task.getAssignee() == null) {
+          task.setAssignee(identity.getUserId());
         }
+        task.setStatus(null);
+      }
+
+      if (projectId != null && task.getStatus() != null
+              && (task.getStatus().getId() == null || task.getStatus().getId() == 0)) {
+        task.setStatus(statusService.getDefaultStatus(projectId));
+      }
+
+      task = taskService.createTask(task);
+      transformHtml(task, ConversationState.getCurrent().getIdentity());
+      return Response.ok(task).build();
+    } catch (Exception e) {
+      LOG.error("Can't add Task", e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
   }
 
   @POST
