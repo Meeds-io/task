@@ -100,4 +100,27 @@ public class MailTemplateProviderTest extends TestCase {
     }
     return null;
   }
+
+  public void testGetExcerptPreserveHtmlWithMentions() throws Exception {
+    UserService userService = Mockito.mock(UserService.class);
+    InitParams initParams = new InitParams();
+    MailTemplateProvider provider = new MailTemplateProvider(initParams, userService);
+
+    java.lang.reflect.Method method =
+            MailTemplateProvider.class.getDeclaredMethod("getExcerptPreserveHtml", String.class, int.class);
+    method.setAccessible(true);
+
+    String htmlComment =
+            "Hello <a class=\"mention\" data-user=\"userX\">@userX</a>, " +
+                    "this is a <b>test</b> comment for email notification.";
+
+    String excerpt = (String) method.invoke(provider, htmlComment, 18);
+
+    assertNotNull(excerpt);
+
+    assertTrue(excerpt.contains("Hello"));
+    assertTrue(excerpt.contains("<a class=\"mention\" data-user=\"userX\">@userX</a>"));
+
+    assertTrue(excerpt.endsWith("..."));
+  }
 }
