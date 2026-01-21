@@ -20,14 +20,7 @@ package org.exoplatform.task.integration.notification;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 import org.gatein.common.text.EntityEncoder;
 
@@ -97,7 +90,7 @@ public class MailTemplateProvider extends TemplateProvider {
       String projectUrl = notification.getValueOwnerParameter(NotificationUtils.PROJECT_URL);
       String assignee = notification.getValueOwnerParameter(NotificationUtils.TASK_ASSIGNEE);
       String listOfCoworker = notification.getValueOwnerParameter(NotificationUtils.TASK_COWORKERS);
-      commentText = CommentUtil.formatMention(getExcerpt(commentText, 130), language);
+      commentText = CommentUtil.formatMention(getExcerptPreserveHtml(commentText, 130), language);
       String coworker = notification.getValueOwnerParameter(NotificationUtils.ADDED_COWORKER);
       String usersMentioned = notification.getValueOwnerParameter(NotificationUtils.MENTIONED_USERS);
       String actionName = notification.getValueOwnerParameter(NotificationUtils.ACTION_NAME.getKey());
@@ -417,4 +410,102 @@ public class MailTemplateProvider extends TemplateProvider {
     }
   }
 
+  private static String getExcerptPreserveHtml(String html, int maxTextLen) {
+    if (html == null || maxTextLen <= 0) {
+      return "";
+    }
+
+    StringBuilder out = new StringBuilder();
+    Deque<String> openTags = new ArrayDeque<>();
+
+    int textCount = 0;
+    boolean inTag = false;
+    boolean wasTruncated = false;
+
+    StringBuilder currentTag = new StringBuilder();
+    for (int i = 0; i < html.length() && !wasTruncated; i++) {
+      char c = html.charAt(i);
+
+      if (inTag) {
+        currentTag.append(c);
+        out.append(c);
+
+        if (c == '>') {
+          inTag = false;
+          String tag = currentTag.toString();
+
+          if (isOpeningTag(tag)) {
+            String name = extractTagName(tag);
+            openTags.push(name);
+          } else if (isClosingTag(tag) && !openTags.isEmpty()) {
+            openTags.pop();
+          }
+        }
+      } else if (c == '<') {
+        inTag = true;
+        currentTag.setLength(0);
+        currentTag.append(c);
+        out.append(c);
+      } else {
+        out.append(c);
+        textCount++;
+        if (textCount >= maxTextLen) {
+          wasTruncated = true;
+        }
+      }
+    }
+
+    while (!openTags.isEmpty()) {
+      out.append("</").append(openTags.pop()).append(">");
+    }
+
+    String cut = out.toString();
+    int lastSpace = cut.lastIndexOf(" ");
+    if (lastSpace > 0) {
+      cut = cut.substring(0, lastSpace);
+    }
+
+    return wasTruncated ? cut + "..." : cut;
+  }
+
+  private static boolean isOpeningTag(String tag) {
+    if (tag == null) return false;
+
+    tag = tag.trim();
+    if (tag.length() < 3 || tag.charAt(0) != '<' || tag.charAt(tag.length() - 1) != '>') {
+      return false;
+    }
+
+    String inner = tag.substring(1, tag.length() - 1).trim();
+    if (inner.isEmpty() || inner.charAt(0) == '/' || inner.charAt(0) == '!') {
+      return false;
+    }
+
+    return !inner.endsWith("/");
+  }
+
+  private static boolean isClosingTag(String tag) {
+    if (tag == null) {
+      return false;
+    }
+    tag = tag.trim();
+    return tag.startsWith("</") && tag.endsWith(">") && tag.length() > 3;
+  }
+
+  private static String extractTagName(String tag) {
+    String inner = tag.substring(1, tag.length() - 1).trim();
+
+    int spaceIndex = inner.indexOf(' ');
+    int slashIndex = inner.indexOf('/');
+
+    int endIndex = inner.length();
+    if (spaceIndex > 0) {
+      endIndex = Math.min(endIndex, spaceIndex);
+    }
+    if (slashIndex > 0) {
+      endIndex = Math.min(endIndex, slashIndex);
+    }
+
+    return inner.substring(0, endIndex);
+  }
 }
