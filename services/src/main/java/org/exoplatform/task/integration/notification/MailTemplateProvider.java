@@ -460,12 +460,14 @@ public class MailTemplateProvider extends TemplateProvider {
     }
 
     String cut = out.toString();
-    int lastSpace = cut.lastIndexOf(" ");
-    if (lastSpace > 0) {
-      cut = cut.substring(0, lastSpace);
+    if (wasTruncated) {
+      int lastSpace = cut.lastIndexOf(" ");
+      if (lastSpace > 0) {
+        cut = cut.substring(0, lastSpace);
+      }
+      cut = cut + "...";
     }
-
-    return wasTruncated ? cut + "..." : cut;
+    return cut;
   }
 
   private static boolean isOpeningTag(String tag) {
