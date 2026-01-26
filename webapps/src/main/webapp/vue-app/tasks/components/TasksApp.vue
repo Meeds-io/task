@@ -24,7 +24,7 @@
           class="widget-text-header text-truncate" 
           @click="navigateTo('tasks/myTasks','ALL')">{{ $t('label.tasks.header') }}</a>
       </template>
-      <template #action>
+      <template v-if="tasksSize" #action>
         <v-btn
           :title="$t('label.addTask')"
           icon
@@ -96,7 +96,9 @@
         class="d-flex flex-column flex-grow-1 justify-center align-center"
         min-height="188"
         flat>
-        <task-empty-row v-if="displayPlaceholder" />
+        <task-empty-row
+          v-if="displayPlaceholder"
+          :project="project" />
       </v-card>
     </widget-wrapper>
     <task-drawer
