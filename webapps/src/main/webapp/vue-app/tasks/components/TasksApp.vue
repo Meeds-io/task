@@ -97,8 +97,8 @@
         min-height="188"
         flat>
         <task-empty-row
-         v-if="displayPlaceholder"
-         :project="project" />
+          v-if="displayPlaceholder"
+          :project="project" />
       </v-card>
     </widget-wrapper>
     <task-drawer

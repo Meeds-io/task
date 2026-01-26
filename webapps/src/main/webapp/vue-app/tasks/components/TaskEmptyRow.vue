@@ -8,15 +8,15 @@
     </v-icon>
     <p class="mt-2 mb-4">{{ $t('label.start.adding.tasks') }}</p>
     <v-btn
-    id="addNewTaskButton"
-    :small="$root.isMobile"
-    color="primary"
-    outlined
-    @click="openTaskDrawer">
-    <span>
-      {{ $t('label.addTask') }}
-    </span>
-  </v-btn> 
+      id="addNewTaskButton"
+      :small="$root.isMobile"
+      color="primary"
+      outlined
+      @click="openTaskDrawer">
+      <span>
+        {{ $t('label.addTask') }}
+      </span>
+    </v-btn> 
   </div>
 </template>
 <script>
