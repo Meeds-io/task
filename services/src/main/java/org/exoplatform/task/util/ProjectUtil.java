@@ -22,7 +22,6 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -35,17 +34,15 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 
-import org.exoplatform.commons.utils.CommonsUtils;
+import org.gatein.common.text.EntityEncoder;
+
 import org.exoplatform.commons.utils.HTMLEntityEncoder;
-import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.services.organization.Membership;
-import org.exoplatform.services.organization.OrganizationService;
-import org.exoplatform.services.organization.User;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.security.MembershipEntry;
@@ -58,7 +55,6 @@ import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.exception.ParameterEntityException;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.web.controller.router.Router;
-import org.gatein.common.text.EntityEncoder;
 
 public final class ProjectUtil {
   private static final Log LOG = ExoLogger.getExoLogger(ProjectUtil.class);
@@ -675,27 +671,21 @@ public final class ProjectUtil {
     return container.getComponentInstanceOfType(ProjectService.class);
   }
 
-  public static boolean isProjectParticipant(OrganizationService organizationService,
-                                      String userName,
-                                      ProjectDto project) {
-    Collection<Membership> memberships;
-    try {
-      memberships = organizationService.getMembershipHandler().findMembershipsByUser(userName);
-    } catch (Exception e) {
-      LOG.error("Error while getting user memberships", e);
-      return false;
-    }
+  public static boolean isProjectParticipant(UserACL userAcl,
+                                             String userName,
+                                             ProjectDto project) {
     if (project.getParticipator() == null) {
       return false;
     }
     if (project.getParticipator().contains(userName)) {
       return true;
     } else {
+      Collection<MembershipEntry> memberships = userAcl.getUserIdentity(userName).getMemberships();
       for (String per : project.getParticipator()) {
         MembershipEntry entry = MembershipEntry.parse(per);
         if (entry != null) {
           boolean isParticipant = memberships.stream()
-                                             .map(Membership::getGroupId)
+                                             .map(MembershipEntry::getGroup)
                                              .anyMatch(groupId -> groupId.equals(entry.getGroup()));
           if (isParticipant) {
             return true;
