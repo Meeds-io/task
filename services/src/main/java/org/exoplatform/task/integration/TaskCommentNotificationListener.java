@@ -23,9 +23,9 @@ import org.exoplatform.commons.api.notification.command.NotificationCommand;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
-import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.ProjectDto;
@@ -43,10 +43,10 @@ import java.util.Set;
 
 public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDto> {
 
-  private final OrganizationService organizationService;
+  private final UserACL userAcl;
 
-  public TaskCommentNotificationListener(OrganizationService organizationService) {
-    this.organizationService = organizationService;
+  public TaskCommentNotificationListener(UserACL userAcl) {
+    this.userAcl = userAcl;
   }
 
   @Override
@@ -67,7 +67,7 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
     ctx.append(NotificationUtils.CREATOR, creator);
 
     //. Receiver
-    Set<String> receiver = new HashSet<String>();
+    Set<String> receiver = new HashSet<>();
 
     // Task creator
       receiver.add(task.getCreatedBy());
@@ -111,7 +111,7 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
     mentioned.remove(creator);
     if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
-      receiver.removeIf(user -> !ProjectUtil.isProjectParticipant(organizationService, user, project));
+      receiver.removeIf(user -> !ProjectUtil.isProjectParticipant(userAcl, user, project));
     }
     ctx.append(NotificationUtils.RECEIVERS, receiver);
     ctx.append(NotificationUtils.MENTIONED, mentioned);
@@ -120,7 +120,7 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {
-    List<NotificationCommand> commands = new ArrayList<NotificationCommand>(pluginId.length);
+    List<NotificationCommand> commands = new ArrayList<>(pluginId.length);
     for (String p : pluginId) {
       commands.add(ctx.makeCommand(PluginKey.key(p)));
     }
