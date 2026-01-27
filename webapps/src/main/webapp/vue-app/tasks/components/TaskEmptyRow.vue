@@ -1,7 +1,7 @@
 <template>
   <div class="mx-auto mt-n5 d-flex flex-column">
     <v-icon
-      color="secondary"
+      color="tertiary"
       size="60"
       class="mb-2">
       fas fa-tasks
