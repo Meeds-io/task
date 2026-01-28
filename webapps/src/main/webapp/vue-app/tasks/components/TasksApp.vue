@@ -16,94 +16,141 @@
 -->
 <template>
   <v-app>
-    <widget-wrapper
-      :loading="loadingTasks"
-      extra-class="application-body">
-      <template #title>
-        <a 
-          class="widget-text-header text-truncate" 
-          @click="navigateTo('tasks/myTasks','ALL')">{{ $t('label.tasks.header') }}</a>
-      </template>
-      <template v-if="tasksSize" #action>
-        <v-btn
-          :title="$t('label.addTask')"
-          icon
-          small
-          class="ms-auto"
-          @click="openTaskDrawer">
-          <v-icon size="18" class="icon-default-color icon-default-size">
-            fas fa-plus
-          </v-icon>
-        </v-btn>
-      </template>
-      <div v-if="tasksSize">
-        <div v-if="tasksOverdueList.length > 0">
-          <div class="d-flex align-center">
-            <span class="me-2 subtitle-1">{{ $t('label.overdue') }}</span>
-            <v-divider />
+    <v-hover v-slot="{ hover }">
+      <widget-wrapper
+        :loading="loadingTasks"
+        extra-class="application-body">
+        <template #title>
+          <span class="widget-text-header text-truncate"> {{ $t('label.tasks.header') }} </span>
+        </template>
+        <template v-if="tasksSize" #action>
+          <div>
+            <v-btn
+              v-if="!hover"
+              color="primary"
+              class="pa-0 text-font-size"
+              small
+              text
+              link>
+              <span class="primary--text text-none">
+                {{ $t('label.seeAll') }}
+              </span>
+            </v-btn>
+            <div v-else>
+              <v-btn
+                v-if="$root.canEdit"
+                :title="$t('label.editSettings')"
+                class="text-font-size"
+                small
+                link
+                icon
+                @click="openSettingsDrawer">
+                <v-icon
+                  :size="18">
+                  fas fa-cog
+                </v-icon>
+              </v-btn>
+              <v-btn
+                :title="$t('label.addTask')"
+                small
+                link
+                icon
+                @click="openTaskDrawer">
+                <v-icon
+                  size="18">
+                  fa-plus
+                </v-icon>
+              </v-btn>
+              <v-btn
+                :title="$t('label.seeAll')"
+                color="primary"
+                class="text-font-size"
+                small
+                link
+                icon
+                @click="openApplications('seeMoreIcon')">
+                <v-icon
+                  size="18">
+                  fas fa-external-link-alt
+                </v-icon>
+              </v-btn>
+            </div>
           </div>
-          <task-details
-            v-for="taskItem in tasksOverdueList"
-            :key="taskItem.id"
-            :task="taskItem"
-            class="px-0"
-            is-outdated
-            @removeTask="removeTask"
-            @update-task-completed="removeCompletedTask(tasksOverdue, taskItem.id)" />
-        </div>
-        <div v-if="tasksTodayList.length > 0" :class="tasksOverdueList.length > 0 && 'mt-5' || ''">
-          <div class="d-flex align-center">
-            <span class="me-2 subtitle-1">{{ $t('label.today') }}</span>
-            <v-divider />
+        </template>
+        <div v-if="tasksSize">
+          <div v-if="tasksOverdueList.length > 0">
+            <div class="d-flex align-center">
+              <span class="me-2 subtitle-1">{{ $t('label.overdue') }}</span>
+              <v-divider />
+            </div>
+            <task-details
+              v-for="taskItem in tasksOverdueList"
+              :key="taskItem.id"
+              :task="taskItem"
+              class="px-0"
+              is-outdated
+              @removeTask="removeTask"
+              @update-task-completed="removeCompletedTask(tasksOverdue, taskItem.id)" />
           </div>
-          <task-details
-            v-for="taskItem in tasksTodayList"
-            :key="taskItem.id"
-            :task="taskItem"
-            class="px-0"
-            @removeTask="removeTask"
-            @update-task-completed="removeCompletedTask(tasksToday, taskItem.id)" />
-        </div>
-        <div v-if="tasksTomorrowList.length > 0" :class="tasksTodayList.length > 0 && 'mt-5' || ''">
-          <div class="d-flex align-center">
-            <span class="me-2 subtitle-1">{{ $t('label.tomorrow') }}</span>
-            <v-divider />
+          <div v-if="tasksTodayList.length > 0" :class="tasksOverdueList.length > 0 && 'mt-5' || ''">
+            <div class="d-flex align-center">
+              <span class="me-2 subtitle-1">{{ $t('label.today') }}</span>
+              <v-divider />
+            </div>
+            <task-details
+              v-for="taskItem in tasksTodayList"
+              :key="taskItem.id"
+              :task="taskItem"
+              class="px-0"
+              @removeTask="removeTask"
+              @update-task-completed="removeCompletedTask(tasksToday, taskItem.id)" />
           </div>
-          <task-details
-            v-for="taskItem in tasksTomorrowList"
-            :key="taskItem.id"
-            :task="taskItem"
-            class="px-0"
-            @removeTask="removeTask"
-            @update-task-completed="removeCompletedTask(tasksTomorrow, taskItem.id)" />
-        </div>
-        <div v-if="tasksUpcomingList.length > 0" :class="tasksTomorrowList.length > 0 && 'mt-5' || ''">
-          <div class="d-flex align-center">
-            <span class="me-2 subtitle-1">{{ $t('label.upcoming') }}</span>
-            <v-divider />
+          <div v-if="tasksTomorrowList.length > 0" :class="tasksTodayList.length > 0 && 'mt-5' || ''">
+            <div class="d-flex align-center">
+              <span class="me-2 subtitle-1">{{ $t('label.tomorrow') }}</span>
+              <v-divider />
+            </div>
+            <task-details
+              v-for="taskItem in tasksTomorrowList"
+              :key="taskItem.id"
+              :task="taskItem"
+              class="px-0"
+              @removeTask="removeTask"
+              @update-task-completed="removeCompletedTask(tasksTomorrow, taskItem.id)" />
           </div>
-          <task-details
-            v-for="taskItem in tasksUpcomingList"
-            :key="taskItem.id"
-            :task="taskItem"
-            class="px-0"
-            @removeTask="removeTask"
-            @update-task-completed="removeCompletedTask(tasksUpcoming, taskItem.id)" />
+          <div v-if="tasksUpcomingList.length > 0" :class="tasksTomorrowList.length > 0 && 'mt-5' || ''">
+            <div class="d-flex align-center">
+              <span class="me-2 subtitle-1">{{ $t('label.upcoming') }}</span>
+              <v-divider />
+            </div>
+            <task-details
+              v-for="taskItem in tasksUpcomingList"
+              :key="taskItem.id"
+              :task="taskItem"
+              class="px-0"
+              @removeTask="removeTask"
+              @update-task-completed="removeCompletedTask(tasksUpcoming, taskItem.id)" />
+          </div>
         </div>
-      </div>
-      <v-card
-        v-else
-        class="d-flex flex-column flex-grow-1 justify-center align-center"
-        min-height="188"
-        flat>
-        <task-empty-row
-          v-if="displayPlaceholder"
-          :project="project" />
-      </v-card>
-    </widget-wrapper>
+        <v-card
+          v-else
+          class="d-flex flex-column flex-grow-1 justify-center align-center"
+          min-height="188"
+          flat>
+          <task-empty-row
+            v-if="displayPlaceholder"
+            :project="project" />
+        </v-card>
+      </widget-wrapper>
+    </v-hover>
     <task-drawer
       ref="taskDrawer"
       :task="task" />
+    <tasks-settings-drawer
+      v-if="$root.canEdit"
+      :settings="$root.settings"
+      ref="settingsDrawer"
+      @settings-updated="settingsUpdated" />
   </v-app>
 </template>
 
@@ -233,6 +280,9 @@ export default {
     });
   },
   methods: {
+    openSettingsDrawer() {
+      this.$refs.settingsDrawer.open();
+    },
     getMyOverDueTasks() {
       const task = {
         dueCategory: 'overDue',
