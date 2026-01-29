@@ -68,7 +68,7 @@
                 small
                 link
                 icon
-                @click="openApplications('seeMoreIcon')">
+                @click="openSeeAll">
                 <v-icon
                   size="18">
                   fas fa-external-link-alt
@@ -282,6 +282,15 @@ export default {
   methods: {
     openSettingsDrawer() {
       this.$refs.settingsDrawer.open();
+    },
+    settingsUpdated(settings) {
+      this.$root.settings.seeAllUrl = settings.seeAllUrl;
+      this.$root.settings.sameTab = settings.sameTab;
+    },
+    openSeeAll() {
+      const target = this.$root?.settings?.sameTab ? '_self' : '_blank';
+      const url = this.$root?.settings?.seeAllUrl;
+      window.open(url, target);
     },
     getMyOverDueTasks() {
       const task = {

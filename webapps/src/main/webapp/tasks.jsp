@@ -19,7 +19,6 @@
 <%@ page import="java.util.ResourceBundle" %>
 <%@ page import="org.exoplatform.services.resources.ResourceBundleService" %>
 <%@ page import="org.exoplatform.container.PortalContainer" %>
-<%@ page import="javax.portlet.PortletPreferences" %>
 <%@ taglib uri="http://java.sun.com/portlet_2_0" prefix="portlet" %>
 <portlet:defineObjects />
 <portlet:actionURL var="saveSettingsUrl" />
@@ -29,15 +28,16 @@
   PortalContainer portalContainer = PortalContainer.getCurrentInstance(session.getServletContext());
   ResourceBundleService resourceBundleService = portalContainer.getComponentInstanceOfType(ResourceBundleService.class);
   ResourceBundle resourceBundle = resourceBundleService.getResourceBundle("locale.portlet.taskManagement", request.getLocale());
+  String portletId = (String) request.getAttribute("portletStorageId");
+  String domId = "tasksApplication" + portletId;
+  String valueDomId = "tasksSettingsValue" + portletId;
 
   boolean canEdit = (boolean) request.getAttribute("canEdit");
   Object settings = (String[]) request.getAttribute("settings");
   if (settings != null) {
     settings = ((String[]) settings)[0];
   }
-  String portletId = (String) request.getAttribute("portletStorageId");
-  String domId = "tasksApplication" + portletId;
-  String valueDomId = "tasksSettingsValue" + portletId;
+  
 %>
 
 <div class="VuetifyApp">

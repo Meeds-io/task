@@ -22,14 +22,11 @@ const lang = window.eXo && eXo?.env?.portal?.language || 'en';
 const url = `/task-management/i18n/locale.portlet.taskManagement?lang=${lang}`;
 
 export function init(appId, itemsLimit, settings, settingsSaveUrl, canEdit) {
-//getting locale ressources
+  //getting locale ressources
   exoi18n.loadLanguageAsync(lang, url)
     .then(i18n => {
       if (!settings.seeAllUrl) {
         settings.seeAllUrl = `/${eXo.env.portal.containerName}/${eXo.env.portal.metaPortalName}/tasks`;
-      }
-      if (!settings.sameTab) {
-        settings.sameTab = true;
       }
       // init Vue app when locale ressources are ready
       Vue.createApp({

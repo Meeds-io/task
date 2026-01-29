@@ -102,16 +102,21 @@ export default {
       this.$refs.tasksSettingsDrawer.close();
     },
     save() {
+      this.isSaving = true;
       const settings = {
         seeAllUrl: this.seeAllUrl,
         sameTab: this.sameTab
       };
-      this.$tasksService.saveSettings(this.saveSettingsUrl, settings).then(() => {
-        this.$emit('settings-updated', settings);
+      this.$tasksService.saveSettings(this.$root.settingsSaveUrl, settings).then(() => {
         this.$root.$emit('alert-message', this.$t('tasks.settings.save.success.message'), 'success');
+        this.$emit('settings-updated', settings);
+        this.close();
       }).catch(() => {
         this.$root.$emit('alert-message', this.$t('tasks.settings.save.error.message'), 'error');
-      });
+      })
+        .finally(() => {
+          this.isSaving = false;
+        });
     },
     reset() {
       this.restoreSavedSettings();
