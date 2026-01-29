@@ -122,3 +122,21 @@ export function updateCompleted(task) {
     body: JSON.stringify(task)
   }).then(resp => resp.json()).finally(() => document.dispatchEvent(new CustomEvent('hideTopBarLoading')));
 }
+
+export function saveSettings(saveSettingsURL, settings) {
+  const formData = new FormData();
+  formData.append('settings', JSON.stringify(settings));
+  const urlParams = new URLSearchParams(formData).toString();
+  return fetch(saveSettingsURL.replaceAll('&amp;', '&'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: urlParams,
+  }).then(resp => {
+    if (!resp.ok) {
+      throw new Error('Error while saving tasks settings');
+    }
+  });
+}

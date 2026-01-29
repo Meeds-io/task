@@ -25,7 +25,7 @@
 
   <portlet>
     <portlet-name>tasks</portlet-name>
-    <portlet-class>org.exoplatform.commons.api.portlet.GenericDispatchedViewPortlet</portlet-class>
+    <portlet-class>io.meeds.task.portlet.TasksPortlet</portlet-class>
     <init-param>
       <name>portlet-view-dispatched-file-path</name>
       <value>/tasks.jsp</value>
@@ -41,6 +41,17 @@
     <portlet-info>
       <title>Tasks</title>
     </portlet-info>
+    <portlet-preferences>
+      <preference>
+        <name>settings</name>
+        <value>
+          {
+            "seeAllUrl":null,
+            "sameTab":true
+          }
+        </value>
+      </preference>
+    </portlet-preferences>
   </portlet>
 
   <portlet>
