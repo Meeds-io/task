@@ -22,7 +22,7 @@ import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.xml.InitParams;
-import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -47,7 +47,7 @@ import static org.mockito.Mockito.*;
 public class AbstractNotificationPluginTest {
 
   @Mock
-  private OrganizationService organizationService;
+  private UserACL userACL;
 
   public class DummyNotificationPlugin extends AbstractNotificationPlugin {
 
@@ -74,8 +74,7 @@ public class AbstractNotificationPluginTest {
   public void setUp() throws Exception {
     commonsUtils = mockStatic(CommonsUtils.class);
     projectUtil = mockStatic(ProjectUtil.class);
-
-    commonsUtils.when(() -> CommonsUtils.getOrganizationService()).thenReturn(organizationService);
+    commonsUtils.when(() -> CommonsUtils.getService(UserACL.class)).thenReturn(userACL);
   }
 
   @After
@@ -96,7 +95,7 @@ public class AbstractNotificationPluginTest {
     AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
 
     // When
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService,"user1", projectDto)).thenReturn(true);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL,"user1", projectDto)).thenReturn(true);
     Set<String> receivers = notificationPlugin.getReceiver(task, null);
 
     // Then
@@ -118,8 +117,8 @@ public class AbstractNotificationPluginTest {
     AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
 
     // When
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService,"user1", projectDto)).thenReturn(true);
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService,"user2", projectDto)).thenReturn(true);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL,"user1", projectDto)).thenReturn(true);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL,"user2", projectDto)).thenReturn(true);
 
     Set<String> receivers = notificationPlugin.getReceiver(task, null);
 
@@ -143,8 +142,8 @@ public class AbstractNotificationPluginTest {
     AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
 
     // When
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService,"user1", projectDto)).thenReturn(true);
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService,"user2", projectDto)).thenReturn(true);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL,"user1", projectDto)).thenReturn(true);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL,"user2", projectDto)).thenReturn(true);
     Set<String> receivers = notificationPlugin.getReceiver(task, null);
 
     // Then
@@ -171,9 +170,9 @@ public class AbstractNotificationPluginTest {
     AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
 
     // When
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService,"user1", projectDto)).thenReturn(true);
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService,"user2", projectDto)).thenReturn(true);
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService,"user3", projectDto)).thenReturn(true);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL,"user1", projectDto)).thenReturn(true);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL,"user2", projectDto)).thenReturn(true);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL,"user3", projectDto)).thenReturn(true);
 
     Set<String> receivers = notificationPlugin.getReceiver(task, ctx);
 
@@ -201,8 +200,8 @@ public class AbstractNotificationPluginTest {
     AbstractNotificationPlugin notificationPlugin = new DummyNotificationPlugin(new InitParams());
 
     // When
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService, "user1", projectDto)).thenReturn(false);
-    projectUtil.when(() -> ProjectUtil.isProjectParticipant(organizationService, "user2", projectDto)).thenReturn(true);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL, "user1", projectDto)).thenReturn(false);
+    projectUtil.when(() -> ProjectUtil.isProjectParticipant(userACL, "user2", projectDto)).thenReturn(true);
 
     Set<String> receivers = notificationPlugin.getReceiver(task, ctx);
 

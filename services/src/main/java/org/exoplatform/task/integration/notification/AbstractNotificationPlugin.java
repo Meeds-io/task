@@ -27,7 +27,6 @@ import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainer;
-import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.RootContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
@@ -116,7 +115,7 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
   }
 
   protected Set<String> getReceiver(TaskDto task, NotificationContext ctx) {
-    UserACL userAcl = ExoContainerContext.getService(UserACL.class);
+    UserACL userAcl = CommonsUtils.getService(UserACL.class);
     Set<String> receivers = new HashSet<>();
     if (task.getAssignee() != null && !task.getAssignee().isEmpty()) {
       receivers.add(task.getAssignee());
