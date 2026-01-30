@@ -1,16 +1,16 @@
 <template>
-  <div class="mx-auto mt-n5 d-flex flex-column">
+  <div class="mx-auto d-flex flex-column align-center justify-center full-width full-height">
     <v-icon
       color="tertiary"
-      size="60"
-      class="mb-2">
+      size="60">
       fas fa-tasks
     </v-icon>
-    <p class="mt-2 mb-4">{{ $t('label.start.adding.tasks') }}</p>
+    <span class="mt-5">{{ $t('label.start.adding.tasks') }}</span>
     <v-btn
       id="addNewTaskButton"
       :small="$root.isMobile"
       color="primary"
+      class="my-4"
       outlined
       @click="openTaskDrawer">
       <span>
