@@ -88,6 +88,12 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
   }
 
   @Override
+  public ListAccess<Task> findLastUpdatedTasks(TaskQuery query) {
+    query.setOrderBy(List.of(new OrderBy("lastTaskActivity", false)));
+    return findEntities(query, Task.class);
+  }
+
+  @Override
   public <T> List<T> selectTaskField(TaskQuery query, String fieldName) {
     EntityManager em = getEntityManager();
     CriteriaBuilder cb = em.getCriteriaBuilder();

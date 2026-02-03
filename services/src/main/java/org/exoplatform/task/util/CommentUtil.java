@@ -50,7 +50,9 @@ public final class CommentUtil {
   public static boolean isExternal(String userName){
     IdentityManager identityManager = CommonsUtils.getService(IdentityManager.class);
     Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, userName);
-    return identity.getProfile().getProperty("external") != null &&  identity.getProfile().getProperty("external").equals("true");
+    return identity != null
+        && identity.getProfile().getProperty("external") != null
+        &&  identity.getProfile().getProperty("external").equals("true");
   }
 
 }

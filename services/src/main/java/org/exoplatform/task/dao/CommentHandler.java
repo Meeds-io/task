@@ -34,4 +34,10 @@ public interface CommentHandler extends GenericDAO<Comment, Long> {
 
   int countCommentsWithSubs(long taskId);
 
+  /**
+   * @param taskId Task Technical identifier
+   * @return null if no comments else last created comment on task
+   */
+  Comment getLastComment(long taskId);
+
 }

@@ -18,7 +18,7 @@
  */
 package org.exoplatform.task.dao.jpa;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.utils.ListAccess;
@@ -68,6 +68,18 @@ public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements Comme
     count.setParameter("taskId", taskId);
 
     return new JPAQueryListAccess<Comment>(Comment.class, count, query);
+  }
+
+  @Override
+  public Comment getLastComment(long taskId) {
+    TypedQuery<Comment> query = getEntityManager().createNamedQuery("Comment.findLastCommentOfTask", Comment.class);
+    query.setParameter("taskId", taskId);
+    List<Comment> result = query.getResultList();
+    if (CollectionUtils.isEmpty(result)) {
+      return null;
+    } else {
+      return result.get(0);
+    }
   }
 
   @Override
