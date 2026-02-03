@@ -17,11 +17,13 @@
 import TasksApp from './components/TasksApp.vue';
 import TaskDetails from './components/TaskDetails.vue';
 import TaskEmptyRow from './components/TaskEmptyRow.vue';
+import TasksSettingsDrawer from './components/settings/TasksSettingsDrawer.vue';
 
 const components = {
   'my-tasks-app': TasksApp,
   'task-details': TaskDetails,
   'task-empty-row': TaskEmptyRow,
+  'tasks-settings-drawer': TasksSettingsDrawer
 };
 
 for (const key in components) {
