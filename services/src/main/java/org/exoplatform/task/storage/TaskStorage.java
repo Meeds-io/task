@@ -18,12 +18,9 @@
  */
 package org.exoplatform.task.storage;
 
-import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
-import org.exoplatform.task.domain.ChangeLog;
 import org.exoplatform.task.domain.Status;
-import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -175,4 +172,15 @@ public interface TaskStorage {
      * @return {@link List} of {@link TaskDto}
      */
     List<TaskDto> findTasks(TaskSearchFilter filter);
+
+    /**
+     * Find tasks switch last update date computed from Task Logs and Task
+     * Comments after applying the {@link TaskQuery} filtering
+     * 
+     * @param query {@link TaskQuery}
+     * @param offset result offset
+     * @param limit result limit
+     * @return {@link List} of corresponding Tasks
+     */
+    List<TaskDto> findLastUpdatedTasks(TaskQuery query, int offset, int limit);
 }

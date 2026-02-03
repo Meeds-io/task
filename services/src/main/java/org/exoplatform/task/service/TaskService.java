@@ -192,4 +192,15 @@ public interface TaskService {
      * @return a list of task IDs
      */
     public List<TaskDto> findTasks(TaskSearchFilter taskFilter);
+
+    /**
+     * Find tasks switch last update date computed from Task Logs and Task
+     * Comments after applying the {@link TaskQuery} filtering
+     * 
+     * @param query {@link TaskQuery}
+     * @param offset result offset
+     * @param limit result limit
+     * @return {@link List} of corresponding Tasks
+     */
+    List<TaskDto> findLastUpdatedTasks(TaskQuery query, int offset, int limit);
 }

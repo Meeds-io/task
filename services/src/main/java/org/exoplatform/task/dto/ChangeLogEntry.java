@@ -69,8 +69,8 @@ public class ChangeLogEntry implements Serializable {
         
         this.targetFullName = userService.loadUser(changeLog.getTarget()).getDisplayName();
         
-        this.createdTime = changeLog.getCreatedTime();
-    }
+        this.createdTime = changeLog.getCreatedTime() == null ? 0 : changeLog.getCreatedTime().getTime();
+      }
 
     public long getId() {
         return id;

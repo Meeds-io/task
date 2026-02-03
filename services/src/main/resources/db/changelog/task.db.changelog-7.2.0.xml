@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ This file is part of the Meeds project (https://meeds.io/).
+
+ Copyright (C) 2020 - 2026 Meeds Association contact@meeds.io
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU Lesser General Public
+ License as published by the Free Software Foundation; either
+ version 3 of the License, or (at your option) any later version.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program; if not, write to the Free Software Foundation,
+ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+  <!-- Start:: Migrate TASK_CHANGE_LOGS.CREATED_TIME to TIMESTAMP  -->
+  <!-- 1. Create new Temp Field  -->
+  <changeSet id="7.2.0-01" author="task">
+    <addColumn tableName="TASK_CHANGE_LOGS">
+      <column name="CREATED_TIME_TMP" type="TIMESTAMP" />
+    </addColumn>
+  </changeSet>
+  <!-- 2. Add Field Value -->
+  <!-- 2.1. postgres -->
+  <changeSet id="7.2.0-02" author="task" dbms="postgres">
+    <update tableName="TASK_CHANGE_LOGS">
+      <column name="CREATED_TIME_TMP" valueComputed="FROM_UNIXTIME(CREATED_TIME)"/>
+    </update>
+  </changeSet>
+  <!-- 2.2. mysql -->
+  <changeSet id="7.2.0-02" author="task" dbms="mysql">
+    <update tableName="TASK_CHANGE_LOGS">
+      <column name="CREATED_TIME_TMP" valueComputed="TO_TIMESTAMP(CREATED_TIME)"/>
+    </update>
+  </changeSet>
+  <!-- 2.3. hsqldb -->
+  <changeSet id="7.2.0-02" author="task" dbms="hsqldb">
+    <update tableName="TASK_CHANGE_LOGS">
+        <column name="CREATED_TIME_TMP" valueComputed="DATEADD('ms', CREATED_TIME, TIMESTAMP '1970-01-01 00:00:00')"/>
+    </update>
+  </changeSet>
+  <!-- 3. Drop Old Bigint Field -->
+  <changeSet id="7.2.0-03" author="task">
+    <dropColumn tableName="TASK_CHANGE_LOGS" columnName="CREATED_TIME" />
+  </changeSet>
+  <!-- 4. Rename New Timestamp Field -->
+  <changeSet id="7.2.0-04" author="task">
+    <renameColumn tableName="TASK_CHANGE_LOGS"
+                  oldColumnName="CREATED_TIME_TMP"
+                  newColumnName="CREATED_TIME"
+                  columnDataType="TIMESTAMP" />
+  </changeSet>
+</databaseChangeLog>

@@ -22,6 +22,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaBuilder.Case;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
@@ -31,10 +32,12 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
+import jakarta.persistence.criteria.Subquery;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,6 +49,9 @@ import org.exoplatform.task.dao.Query;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
 import org.exoplatform.task.dao.condition.SingleCondition;
+import org.exoplatform.task.domain.ChangeLog;
+import org.exoplatform.task.domain.Comment;
+import org.exoplatform.task.domain.Task;
 
 public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAOJPAImpl<E, K> {  
   
@@ -116,17 +122,45 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
       List<OrderBy> orderby = query.getOrderBy();
       if(orderby != null && !orderby.isEmpty()) {
         List<Order> orders = new ArrayList<>(orderby.size());
-        for(OrderBy orderBy : orderby) {
-          Expression<?> p = root.get(orderBy.getFieldName());
+        for (OrderBy orderBy : orderby) {
           Order order;
-          if (orderBy.isAscending()) {
+          if (orderBy.getFieldName().equals("lastTaskActivity")) {
+            Subquery<Date> maxCommentSq = q.subquery(Date.class);
+            Root<Comment> c = maxCommentSq.from(Comment.class);
+
+            maxCommentSq.select(cb.greatest(c.<Date> get("createdTime")));
+            maxCommentSq.where(cb.equal(c.get("task"), root));
+
+            Subquery<Date> maxLogSq = q.subquery(Date.class);
+            Root<ChangeLog> l = maxLogSq.from(ChangeLog.class);
+
+            maxLogSq.select(cb.greatest(l.<Date> get("createdTime")));
+            maxLogSq.where(cb.equal(l.get("task"), root));
+
+            Expression<Date> taskCreated = root.get("createdTime");
+            Expression<Date> maxCommentTime = cb.coalesce(maxCommentSq.getSelection(), taskCreated);
+            Expression<Date> maxLogTime = cb.coalesce(maxLogSq.getSelection(), taskCreated);
+
+            Case<Date> tmpSelectCase = cb.selectCase();
+            Expression<Date> tmpMax = tmpSelectCase.when(cb.greaterThan(taskCreated, maxCommentTime), taskCreated)
+                                                   .otherwise(maxCommentTime);
+
+            tmpSelectCase = cb.selectCase();
+            Expression<Date> lastActivity = tmpSelectCase.when(cb.greaterThan(tmpMax, maxLogTime), tmpMax)
+                                                         .otherwise(maxLogTime);
+
+            selections.add(lastActivity);
+
+            order = orderBy.isAscending() ? cb.asc(lastActivity) : cb.desc(lastActivity);
+          } else if (orderBy.isAscending()) {
+            Expression<?> p = root.get(orderBy.getFieldName());
             // NULL value should be at last when order by
             Expression<?> nullCase = cb.selectCase().when(p.isNull(), 1).otherwise(0);
             selections.add(nullCase);
             orders.add(cb.asc(nullCase));
-
             order = cb.asc(p);
           } else {
+            Expression<?> p = root.get(orderBy.getFieldName());
             order = cb.desc(p);
           }
           orders.add(order);

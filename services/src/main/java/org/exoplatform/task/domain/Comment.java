@@ -19,6 +19,7 @@
 package org.exoplatform.task.domain;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -52,6 +53,8 @@ import lombok.EqualsAndHashCode;
     query = "SELECT count(c) FROM TaskComment c WHERE c.task.id = :taskId")
 @NamedQuery(name = "Comment.findCommentsOfTask",
     query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL ORDER BY c.createdTime DESC")
+@NamedQuery(name = "Comment.findLastCommentOfTask",
+    query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId ORDER BY c.createdTime DESC")
 @NamedQuery(name = "Comment.findSubCommentsOfComments",
     query = "SELECT c FROM TaskComment c WHERE c.parentComment IN (:comments) ORDER BY c.createdTime ASC")
 @NamedQuery(name = "Comment.deleteCommentOfTask",
@@ -78,7 +81,7 @@ public class Comment {
 
   @Temporal(TemporalType.TIMESTAMP)
   @Column(name = "CREATED_TIME")
-  private Date                 createdTime;
+  private Date                 createdTime = Calendar.getInstance().getTime();
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "TASK_ID")

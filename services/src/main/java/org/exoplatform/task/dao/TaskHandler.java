@@ -108,5 +108,14 @@ public interface TaskHandler extends GenericDAO<Task, Long> {
    * @return a list of task IDs
    */
   List<Long> getAllIds(int offset, int limit);
-}
 
+  /**
+   * Find tasks switch last update date computed from Task Logs and Task
+   * Comments after applying the {@link TaskQuery} filtering
+   * 
+   * @param query {@link TaskQuery}
+   * @return {@link List} of corresponding Tasks
+   */
+  ListAccess<Task> findLastUpdatedTasks(TaskQuery query);
+
+}
