@@ -19,6 +19,7 @@
 package org.exoplatform.task.domain;
 
 import java.io.Serializable;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -206,7 +207,7 @@ public class Task implements Serializable {
 
   @Temporal(TemporalType.TIMESTAMP)
   @Column(name = "CREATED_TIME")
-  private Date        createdTime;
+  private Date        createdTime = Calendar.getInstance().getTime();
 
   @Temporal(TemporalType.TIMESTAMP)
   @Column(name = "START_DATE")

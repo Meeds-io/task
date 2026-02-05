@@ -33,6 +33,7 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.storage.CommentStorage;
+import org.exoplatform.task.util.StorageUtil;
 
 public class CommentServiceImpl implements CommentService {
     private static final Log LOG = ExoLogger.getExoLogger(CommentServiceImpl.class);
@@ -69,6 +70,11 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public int countComments(long taskId) {
         return commentStorage.countComments(taskId);
+    }
+
+    @Override
+    public CommentDto getLastComment(long taskId) {
+      return commentStorage.getLastComment(taskId);
     }
 
     @Override

@@ -32,10 +32,12 @@ import org.exoplatform.social.core.utils.MentionUtils;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.domain.*;
 import org.exoplatform.task.dto.*;
+import org.exoplatform.task.model.User;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.storage.ProjectStorage;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -52,7 +54,7 @@ public final class StorageUtil{
         changeLog.setTask(changeLogEntry.getTask());
         changeLog.setAuthor(changeLogEntry.getAuthor());
         changeLog.setActionName(changeLogEntry.getActionName());
-        changeLog.setCreatedTime(changeLogEntry.getCreatedTime());
+        changeLog.setCreatedTime(new Date(changeLogEntry.getCreatedTime()));
         changeLog.setTarget(changeLogEntry.getTarget());
         return changeLog;
     }
@@ -63,15 +65,18 @@ public final class StorageUtil{
         changeLogEntry.setTask(changeLog.getTask());
         changeLogEntry.setAuthor(changeLog.getAuthor());
         changeLogEntry.setActionName(changeLog.getActionName());
-        changeLogEntry.setCreatedTime(changeLog.getCreatedTime());
+        changeLogEntry.setCreatedTime(changeLog.getCreatedTime() == null ? 0 : changeLog.getCreatedTime().getTime());
         changeLogEntry.setTarget(changeLog.getTarget());
         changeLogEntry.setAuthorFullName(userService.loadUser(changeLog.getAuthor()).getDisplayName());
         changeLogEntry.setAuthorAvatarUrl(userService.loadUser(changeLog.getAuthor()).getAvatar());
         changeLogEntry.setExternal(userService.loadUser(changeLog.getAuthor()).isExternal());
         if (changeLog.getActionName().equals("assign") || changeLog.getActionName().equals("unassign")
             || changeLog.getActionName().equals("assignCoworker") || changeLog.getActionName().equals("unassignCoworker")) {
-            changeLogEntry.setTargetFullName(userService.loadUser(changeLog.getTarget()).getDisplayName());
-            changeLogEntry.setIsTargetFullNameExternal(CommentUtil.isExternal(userService.loadUser(changeLog.getTarget()).getUsername()));
+            User user = userService.loadUser(changeLog.getTarget());
+            if (user != null) {
+              changeLogEntry.setTargetFullName(user.getDisplayName());
+              changeLogEntry.setIsTargetFullNameExternal(CommentUtil.isExternal(user.getUsername()));
+            }
         }
         return changeLogEntry;
     }

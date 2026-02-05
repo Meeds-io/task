@@ -56,4 +56,10 @@ public interface CommentStorage {
    */
   int countCommentsWithSubs(long taskId);
 
+  /**
+   * @param taskId Task identifier
+   * @return null if no comments else last created comment on task
+   */
+  CommentDto getLastComment(long taskId);
+
 }
