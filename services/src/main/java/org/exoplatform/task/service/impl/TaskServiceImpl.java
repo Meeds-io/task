@@ -162,6 +162,11 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    public List<TaskDto> findLastUpdatedTasks(TaskQuery query, int offset, int limit) {
+        return taskStorage.findLastUpdatedTasks(query, offset, limit);
+    }
+
+    @Override
     public int countTasks(TaskQuery query) throws Exception {
         return taskStorage.countTasks(query);
     }

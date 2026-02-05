@@ -18,6 +18,9 @@
  */
 package org.exoplatform.task.domain;
 
+import java.util.Calendar;
+import java.util.Date;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -28,6 +31,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 import lombok.Data;
 
 @Entity(name = "TaskChangeLog")
@@ -58,12 +63,13 @@ public class ChangeLog implements Comparable<ChangeLog> {
 
   private String target;
 
-  @Column(name="CREATED_TIME")
-  private long createdTime = System.currentTimeMillis();
+  @Temporal(TemporalType.TIMESTAMP)
+  @Column(name = "CREATED_TIME")
+  private Date   createdTime = Calendar.getInstance().getTime();
 
   @Override
   public int compareTo(ChangeLog o) {
-    return (int)(getCreatedTime() - o.getCreatedTime());
+    return getCreatedTime().compareTo(o.getCreatedTime());
   }
 
   @Override

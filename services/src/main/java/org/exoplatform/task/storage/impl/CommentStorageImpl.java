@@ -61,6 +61,11 @@ public class CommentStorageImpl implements CommentStorage {
     }
 
     @Override
+    public CommentDto getLastComment(long taskId) {
+      return StorageUtil.commentToDto(daoHandler.getCommentHandler().getLastComment(taskId), projectStorage);
+    }
+
+    @Override
     public List<CommentDto> getCommentsWithSubs(long taskId, int offset, int limit) {
         try {
             List<CommentDto> commentsDto=new ArrayList<>();

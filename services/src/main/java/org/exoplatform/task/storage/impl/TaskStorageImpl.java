@@ -146,8 +146,19 @@ public class TaskStorageImpl implements TaskStorage {
 
     @Override
     public List<TaskDto> findTasks(TaskQuery query, int offset, int limit) throws Exception {
-        List<Task> taskEntities = Arrays.asList(daoHandler.getTaskHandler().findTasks(query).load(offset, limit));
-        return taskEntities.stream().map((Task taskEntity) -> StorageUtil.taskToDto(taskEntity,projectStorage)).collect(Collectors.toList());
+      List<Task> taskEntities = Arrays.asList(daoHandler.getTaskHandler().findTasks(query).load(offset, limit));
+      return taskEntities.stream()
+                         .map((Task taskEntity) -> StorageUtil.taskToDto(taskEntity, projectStorage))
+                         .collect(Collectors.toList());
+    }
+
+    @Override
+    @SneakyThrows
+    public List<TaskDto> findLastUpdatedTasks(TaskQuery query, int offset, int limit) {
+      List<Task> taskEntities = Arrays.asList(daoHandler.getTaskHandler().findLastUpdatedTasks(query).load(offset, limit));
+      return taskEntities.stream()
+                         .map((Task taskEntity) -> StorageUtil.taskToDto(taskEntity, projectStorage))
+                         .toList();
     }
 
     public int countTasks(TaskQuery query) throws Exception {
