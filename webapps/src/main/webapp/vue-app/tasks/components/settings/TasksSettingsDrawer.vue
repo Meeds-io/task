@@ -57,14 +57,14 @@
         <v-btn
           class="me-5 btn"
           @click="reset">
-          {{ $t('myApplications.settings.cancel.label') }}
+          {{ $t('tasks.settings.cancel.label') }}
         </v-btn>
         <v-btn
           class="btn btn-primary"
           :disabled="!saveEnabled"
           :loading="isSaving"
           @click="save">
-          {{ $t('myApplications.settings.save.label') }}
+          {{ $t('tasks.settings.save.label') }}
         </v-btn>
       </div>
     </template>
