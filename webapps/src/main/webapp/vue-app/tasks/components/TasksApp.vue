@@ -63,7 +63,6 @@
                 </v-icon>
               </v-btn>
               <v-btn
-                v-if="tasksSize"
                 :title="$t('label.seeAll')"
                 color="primary"
                 class="text-font-size"
