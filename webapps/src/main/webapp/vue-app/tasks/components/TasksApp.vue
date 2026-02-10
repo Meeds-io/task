@@ -23,7 +23,7 @@
         <template #title>
           <span class="widget-text-header text-truncate"> {{ $t('label.tasks.header') }} </span>
         </template>
-        <template v-if="tasksSize" #action>
+        <template #action>
           <div>
             <v-btn
               v-if="!hover"
@@ -38,19 +38,7 @@
             </v-btn>
             <div v-else>
               <v-btn
-                v-if="$root.canEdit"
-                :title="$t('label.editSettings')"
-                class="text-font-size"
-                small
-                link
-                icon
-                @click="openSettingsDrawer">
-                <v-icon
-                  :size="18">
-                  fas fa-cog
-                </v-icon>
-              </v-btn>
-              <v-btn
+                v-if="tasksSize"
                 :title="$t('label.addTask')"
                 small
                 link
@@ -72,6 +60,19 @@
                 <v-icon
                   size="18">
                   fas fa-external-link-alt
+                </v-icon>
+              </v-btn>
+              <v-btn
+                v-if="$root.canEdit"
+                :title="$t('label.editSettings')"
+                class="text-font-size"
+                small
+                link
+                icon
+                @click="openSettingsDrawer">
+                <v-icon
+                  size="18">
+                  fas fa-cog
                 </v-icon>
               </v-btn>
             </div>
