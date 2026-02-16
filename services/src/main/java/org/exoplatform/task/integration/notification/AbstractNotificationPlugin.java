@@ -31,8 +31,8 @@ import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.RootContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
-import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
@@ -107,8 +107,7 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
 
   private ExoContainer getContainer() {
     String containerName = PortalContainer.getCurrentPortalContainerName();
-    ExoContainer container = RootContainer.getInstance().getPortalContainer(containerName);
-    return container;
+    return RootContainer.getInstance().getPortalContainer(containerName);
   }
 
   private String buildProjectUrl(ProjectDto project, ExoContainer container, WebAppController controller) {
@@ -116,8 +115,8 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
   }
 
   protected Set<String> getReceiver(TaskDto task, NotificationContext ctx) {
-    OrganizationService organizationService = CommonsUtils.getOrganizationService();
-    Set<String> receivers = new HashSet<String>();
+    UserACL userAcl = CommonsUtils.getService(UserACL.class);
+    Set<String> receivers = new HashSet<>();
     if (task.getAssignee() != null && !task.getAssignee().isEmpty()) {
       receivers.add(task.getAssignee());
     }
@@ -135,7 +134,7 @@ public abstract class AbstractNotificationPlugin extends BaseNotificationPlugin 
     }
     if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
-      receivers.removeIf(user -> !ProjectUtil.isProjectParticipant(organizationService, user, project));
+      receivers.removeIf(user -> !ProjectUtil.isProjectParticipant(userAcl, user, project));
     }
     return receivers;
   }
