@@ -88,14 +88,14 @@ export default {
     canEditParticipant() {
       return !(this.project.spaceDetails||this.project.spaceName);
     },
-    searchOptions(){
-      if (this.project.spaceDetails){
+    searchOptions() {
+      if (this.project.spaceDetails) {
         return {
           spaceURL: this.project.spaceDetails.prettyName,
-          currentUser: this.currentUser
+          currentUser: false
         };
       }
-      return this.currentUser;
+      return {};
     },
     relationsType(){
       if (this.project.spaceDetails){
