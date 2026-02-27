@@ -27,6 +27,7 @@
   <import>war:/conf/task-addon/search-configuration.xml</import>
   <import>war:/conf/task-addon/ckeditor-configuration.xml</import>
   <import>war:/conf/task-addon/indexing-configuration.xml</import>
+  <import>war:/conf/task-addon/task-service-configuration.xml</import>
 
   <import profiles="analytics">war:/conf/task-addon/analytics-configuration.xml</import>
   <import profiles="gamification">war:/conf/task-addon/gamification-integration-configuration.xml</import>

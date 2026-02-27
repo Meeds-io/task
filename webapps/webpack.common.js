@@ -33,6 +33,7 @@ const config = {
     notificationExtension: './src/main/webapp/vue-app/notification-extension/main.js',
     taskQuickAction: './src/main/webapp/vue-app/quick-actions/main.js',
     taskContentLinkExtension: './src/main/webapp/vue-app/content-link/extensions.js',
+    restrictedProject: './src/main/webapp/vue-app/restricted-project/main.js',
   },
   output: {
     filename: 'js/[name].bundle.js',
