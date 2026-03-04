@@ -633,17 +633,16 @@ public final class TaskUtil {
     Identity identity = ConversationState.getCurrent().getIdentity();
     String userId = identity.getUserId();
 
-    if ((task.getAssignee() != null && task.getAssignee().equals(identity.getUserId())) ||
-        getCoworker(taskService,task.getId()).contains(userId) ||
-        (task.getCreatedBy() != null && task.getCreatedBy().equals(userId))) {
-      return true;
-    }
-
     if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
       if (project.canView(identity)) {
         return true;
       }
+    }
+
+    if ((task.getAssignee() != null && task.getAssignee().equals(identity.getUserId())) ||
+        getCoworker(taskService,task.getId()).contains(userId)) {
+      return true;
     }
 
     return UserUtil.isPlatformAdmin(identity);
