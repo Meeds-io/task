@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration xmlns="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://www.exoplatform.org/xml/ns/kernel_1_3.xsd
+                                   http://www.exoplatform.org/xml/ns/kernel_1_3.xsd">
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.web.filter.ExtensibleFilter</target-component>
+    <component-plugin>
+      <name>Task redirect handler</name>
+      <set-method>addFilterDefinitions</set-method>
+      <type>org.exoplatform.web.filter.FilterDefinitionPlugin</type>
+      <priority>2</priority>
+      <init-params>
+        <object-param>
+          <name>Registered task redirect handler</name>
+          <object type="org.exoplatform.web.filter.FilterDefinition">
+            <field name="filter">
+              <object type="org.exoplatform.task.filter.TaskRedirectHandler"/>
+            </field>
+            <field name="patterns">
+              <collection type="java.util.ArrayList" item-type="java.lang.String">
+                <value>
+                  <string>/.*/tasks/taskDetail/.*</string>
+                </value>
+                <value>
+                  <string>/.*/tasks/projectDetail/.*</string>
+                </value>
+              </collection>
+            </field>
+          </object>
+        </object-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
+</configuration>
