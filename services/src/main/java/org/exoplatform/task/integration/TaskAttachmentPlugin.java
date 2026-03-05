@@ -55,7 +55,8 @@ public class TaskAttachmentPlugin extends AttachmentPlugin {
   public boolean hasAccessPermission(Identity userIdentity, String entityId) throws ObjectNotFoundException {
     try {
       TaskDto task = taskService.getTask(Long.parseLong(entityId));
-      return TaskUtil.hasViewPermission(taskService, task, userIdentity);
+      return TaskUtil.hasViewPermission(taskService, task, userIdentity)
+          || (task.getCreatedBy() != null && task.getCreatedBy().equals(userIdentity.getUserId()));
     } catch (Exception e) {
       throw new ObjectNotFoundException(String.format(TASK_NOT_FOUND_EXCEPTION_MESSAGE, entityId));
     }
@@ -65,7 +66,8 @@ public class TaskAttachmentPlugin extends AttachmentPlugin {
   public boolean hasEditPermission(Identity userIdentity, String entityId) throws ObjectNotFoundException {
     try {
       TaskDto task = taskService.getTask(Long.parseLong(entityId));
-      return TaskUtil.hasEditPermission(taskService, task, userIdentity);
+      return TaskUtil.hasEditPermission(taskService, task, userIdentity)
+          || (task.getCreatedBy() != null && task.getCreatedBy().equals(userIdentity.getUserId()));
     } catch (Exception e) {
       throw new ObjectNotFoundException(String.format(TASK_NOT_FOUND_EXCEPTION_MESSAGE, entityId));
     }

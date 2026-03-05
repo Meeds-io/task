@@ -914,18 +914,19 @@ public class TaskRestService implements ResourceContainer {
                                   @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
                                   @Parameter(description = "Limit") @Schema(defaultValue = "-1") @QueryParam("limit") int limit) {
     try {
+    Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
+    String currentUser = currentUserIdentity.getUserId();
     TaskDto task = taskService.getTask(id);
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
-    if (!TaskUtil.hasViewPermission(taskService,task)) {
+    if (!TaskUtil.hasViewPermission(taskService,task) && (task.getCreatedBy() == null || !task.getCreatedBy().equals(currentUser))) {//The task creator can get comments
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     if (limit == 0) {
       limit = -1;
     }
-    Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
-    String currentUser = currentUserIdentity.getUserId();
+
     List<CommentDto> comments = commentService.getCommentsWithSubs(id, offset, limit);
     List<CommentEntity> commentModelsList = new ArrayList<>();
     for (CommentDto comment : comments) {
@@ -965,7 +966,7 @@ public class TaskRestService implements ResourceContainer {
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
-    if (!TaskUtil.hasEditPermission(taskService,task)) {
+    if (!TaskUtil.hasEditPermission(taskService,task) && (task.getCreatedBy() == null || !task.getCreatedBy().equals(currentUser))) {//The task creator can add comments
       return Response.status(Response.Status.FORBIDDEN).build();
     }
     commentText = commentText.replaceAll(PERCENT_ENCODED_REGEX, "%25");
@@ -1004,7 +1005,7 @@ public class TaskRestService implements ResourceContainer {
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
-    if (!TaskUtil.hasEditPermission(taskService,task)) {
+    if (!TaskUtil.hasEditPermission(taskService,task) && (task.getCreatedBy() == null || !task.getCreatedBy().equals(currentUser))) {//The task creator can add sub comments
       return Response.status(Response.Status.FORBIDDEN).build();
     }
 
