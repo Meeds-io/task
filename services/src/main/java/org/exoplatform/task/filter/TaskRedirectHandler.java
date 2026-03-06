@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.url.PortalURLContext;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
@@ -25,31 +26,30 @@ public class TaskRedirectHandler implements Filter {
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
     HttpServletRequest httpRequest = (HttpServletRequest) request;
-    HttpServletResponse httpResponse = (HttpServletResponse) response;
     String uri = httpRequest.getRequestURI();
-    if (uri == null) {
-      chain.doFilter(request, response);
-      return;
-    }
+    UserACL userAcl = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(UserACL.class);
     Identity identity = ConversationState.getCurrent().getIdentity();
-    if (uri.contains("/tasks/taskDetail/")) {
-      Long taskId = extractId(uri);
-      TaskService taskService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(TaskService.class);
-      TaskDto task = taskService.getTask(taskId);
+    if (!userAcl.isAnonymousUser(identity) && uri != null) {
+      HttpServletResponse httpResponse = (HttpServletResponse) response;
+      if (uri.contains("/tasks/taskDetail/")) {
+        Long taskId = extractId(uri);
+        TaskService taskService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(TaskService.class);
+        TaskDto task = taskService.getTask(taskId);
 
-      if (task != null && !TaskUtil.hasViewPermission(taskService, task)) {
-        redirectToRestricted(httpRequest, httpResponse);
-        return;
+        if (task != null && !TaskUtil.hasViewPermission(taskService, task)) {
+          redirectToRestricted(httpRequest, httpResponse);
+          return;
+        }
       }
-    }
-    if (uri.contains("/tasks/projectDetail/")) {
-      Long projectId = extractId(uri);
-      ProjectService projectService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(ProjectService.class);
-      ProjectDto project = projectService.getProject(projectId);
-
-      if (project != null && !project.canView(identity)) {
-        redirectToRestricted(httpRequest, httpResponse);
-        return;
+      if (uri.contains("/tasks/projectDetail/")) {
+        Long projectId = extractId(uri);
+        ProjectService projectService =
+                                      ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(ProjectService.class);
+        ProjectDto project = projectService.getProject(projectId);
+        if (project != null && !project.canView(identity)) {
+          redirectToRestricted(httpRequest, httpResponse);
+          return;
+        }
       }
     }
     chain.doFilter(request, response);
