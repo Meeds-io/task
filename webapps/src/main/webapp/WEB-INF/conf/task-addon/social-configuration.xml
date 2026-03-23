@@ -42,15 +42,6 @@
   </external-component-plugins>
 
   <external-component-plugins>
-    <target-component>org.exoplatform.social.core.space.spi.SpaceService</target-component>
-    <component-plugin>
-      <name>SpaceTaskDataInitializer</name>
-      <set-method>registerSpaceListenerPlugin</set-method>
-      <type>org.exoplatform.task.integration.SpaceTaskDataInitializer</type>
-    </component-plugin>
-  </external-component-plugins>
-
-  <external-component-plugins>
     <target-component>org.exoplatform.social.attachment.AttachmentService</target-component>
     <component-plugin>
       <name>TaskAttachmentPlugin</name>
