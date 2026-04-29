@@ -190,7 +190,6 @@ public class ProjectServiceImpl implements ProjectService {
   @Override
   public List<ProjectDto> getSubProjects(long parentId, int offset, int limit) {
     try {
-      ProjectDto parent = getProject(parentId);
       return projectStorage.getSubProjects(parentId, offset, limit);
     } catch (Exception ex) {
       return new ArrayList<ProjectDto>();
