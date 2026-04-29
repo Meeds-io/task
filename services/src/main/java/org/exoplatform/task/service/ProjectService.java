@@ -18,14 +18,13 @@
  */
 package org.exoplatform.task.service;
 
-import org.exoplatform.commons.utils.ListAccess;
+import java.util.List;
+import java.util.Set;
+
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
-
-import java.util.List;
-import java.util.Set;
 
 
 public interface ProjectService {
