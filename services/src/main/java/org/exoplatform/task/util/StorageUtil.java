@@ -226,7 +226,7 @@ public final class StorageUtil{
         }
         ProjectDto projectDto = new ProjectDto();
         projectDto.setId(project.getId());
-        projectDto.setName(project.getName());
+        projectDto.setName(HTMLSanitizer.sanitize(project.getName()));
         projectDto.setDescription(project.getDescription());
         projectDto.setColor(project.getColor());
         projectDto.setDueDate(project.getDueDate());
@@ -234,9 +234,6 @@ public final class StorageUtil{
         projectDto.setParticipator(projectStorage.getParticipator(project.getId()));
         projectDto.setManager(projectStorage.getManager(project.getId()));
         projectDto.setParent(projectToDto(project.getParent(),projectStorage));
-        //if(project.getStatus()!=null)projectDto.setStatus(project.getStatus().stream().map(status -> statusToDTO(status,projectStorage)).collect(Collectors.toSet()));
-
-        //if(project.getChildren()!=null)projectDto.setChildren(project.getChildren().stream().map(this::projectToDto).collect(Collectors.toList()));
         return projectDto;
     }
 
