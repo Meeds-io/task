@@ -1,0 +1,550 @@
+{
+  "tools": [
+    {
+      "name": "list_projects",
+      "title": "List Task Projects",
+      "description": "List task projects accessible to the current user, optionally filtered by space.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "space_id": {"type": "integer" },
+          "offset": { "type": "integer" },
+          "limit": { "type": "integer" }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_project_by_id",
+      "title": "Get a Task Project",
+      "description": "Get a task project by its identifier, checking access permissions.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" }
+        },
+        "required": ["project_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_project_labels",
+      "title": "List Task Project labels",
+      "description": "List available project labels.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" }
+        },
+        "required": ["project_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_project_statuses",
+      "title": "List Task Project statuses",
+      "description": "List available project statuses (AKA Dashboard UI columns).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" }
+        },
+        "required": ["project_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "create_project_label",
+      "title": "Create a Task Project label",
+      "description": "Create a new Label which will be available to add into a Task of the designated project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "label_name": { "type": "string" }
+        },
+        "required": ["project_id", "label_name"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "add_project_label_to_task",
+      "title": "Assign a label into a Task. The list of available labels for a given task inside a project can be retrieved using the Tool `list_project_labels`.",
+      "description": "Add a label to a task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" },
+          "label_id": { "type": "integer" }
+        },
+        "required": ["task_id", "label_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "remove_project_label_from_task",
+      "title": "Remove a label from a Task",
+      "description": "Remove a previously assigned label from a Task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" },
+          "label_id": { "type": "integer" }
+        },
+        "required": ["task_id", "label_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "list_tasks",
+      "title": "List Tasks",
+      "description": "List tasks, optionally filtered by project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "hide_completed_tasks": { "type": "boolean" },
+          "include_change_log": { "type": "boolean" },
+          "offset": { "type": "integer" },
+          "limit": { "type": "integer" }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_project_activity_since",
+      "title": "Get Project Activity since last days",
+      "description": "Retrieve a project activity since a designated date and list all other uncompleted tasks.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "days": { "type": "integer" }
+        },
+        "required": ["project_id", "days"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_assigned_tasks",
+      "title": "Get Self Assigned Tasks",
+      "description": "List uncompleted tasks assigned to the current user.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer" }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_task_by_id",
+      "title": "Get a Task",
+      "description": "Get a task by its identifier, checking access permissions.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_project_id_by_task_id",
+      "title": "Compute a Project Id",
+      "description": "Get a project id by task identifier.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_task_comments_by_id",
+      "title": "List Task comments",
+      "description": "List comments for a task by its identifier, checking access permissions.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" },
+          "offset": { "type": "integer" },
+          "limit": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "create_project_in_space",
+      "title": "Create a project",
+      "description": "Create a new task project in a given space.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "space_id": {
+            "type": "integer",
+            "description": "Identifier of the space in which to create the project."
+          },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "due_date": { "type": "string" }
+        },
+        "required": ["space_id", "title"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "create_task_in_project",
+      "title": "Create a Task",
+      "description": "Create a new task in the specified project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "description": "Project identifier where the task will be created."
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Optional username of the assignee."
+          },
+          "coworkers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional list of usernames to add as coworkers on the task."
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Optional task start date as a string, parsed into a date."
+          },
+          "end_date": {
+            "type": "string",
+            "description": "Optional task end date as a string, parsed into a date."
+          },
+          "due_date": {
+            "type": "string",
+            "description": "Optional task due date as a string, parsed into a date."
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["NONE", "LOW", "NORMAL", "HIGH"]
+          },
+          "status_id": {
+            "type": "integer",
+            "description": "Optional status identifier. If omitted, the project's default status is used."
+          }
+        },
+        "required": ["project_id", "title"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "create_personal_task",
+      "title": "Create a Task in personal project",
+      "description": "Create a new personal task inside the personal project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Optional username of the assignee."
+          },
+          "coworkers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional list of usernames to add as coworkers on the task."
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Optional task start date as a string, parsed into a date."
+          },
+          "end_date": {
+            "type": "string",
+            "description": "Optional task end date as a string, parsed into a date."
+          },
+          "due_date": {
+            "type": "string",
+            "description": "Optional task due date as a string, parsed into a date."
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["NONE", "LOW", "NORMAL", "HIGH"]
+          },
+          "status_id": {
+            "type": "integer",
+            "description": "Optional status identifier."
+          }
+        },
+        "required": ["title"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "add_task_comment",
+      "title": "Create a Task comment",
+      "description": "Add comment to a Task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" },
+          "text": {
+            "type": "string",
+            "description": "Comment text to add."
+          }
+        },
+        "required": ["task_id", "text"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "update_task_title",
+      "title": "Update a Task title",
+      "description": "Update the title of a task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": ["task_id", "title"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "update_task_description",
+      "title": "Update a Task description",
+      "description": "Update the description of a task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer"
+          },
+          "description": {
+            "type": "string",
+            "description": "New description for the task (HTML supported)."
+          }
+        },
+        "required": ["task_id", "description"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "update_task_status",
+      "title": "Update a Task status",
+      "description": "Update the status (AKA Dashboard UI column) of a task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer"
+          },
+          "status_id": {
+            "type": "integer"
+          }
+        },
+        "required": ["task_id", "status_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "assign_task_to_me",
+      "title": "Self assign a Task",
+      "description": "Assign a task to the current user.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "assign_task",
+      "title": "Assign a Task",
+      "description": "Assign a task to a specific user identified by its username.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" },
+          "username": {
+            "type": "string",
+            "description": "Username of the assignee."
+          }
+        },
+        "required": ["task_id", "username"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "add_task_coworker",
+      "title": "Add a Task coworker",
+      "description": "Add a coworker to a task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" },
+          "username": {
+            "type": "string",
+            "description": "Username of the coworker to add."
+          }
+        },
+        "required": ["task_id", "username"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    }
+  ]
+}

@@ -59,6 +59,11 @@
       <groupId>io.meeds.gamification</groupId>
       <artifactId>gamification-services</artifactId>
     </dependency>
+    <!--Mcp-Server API -->
+    <dependency>
+      <groupId>io.meeds.mcp-server</groupId>
+      <artifactId>mcp-server-tools</artifactId>
+    </dependency>
 
     <!-- TEST -->
     <dependency>
@@ -106,6 +111,15 @@
             <gatein.test.tmp.dir>${project.build.directory}/datadir</gatein.test.tmp.dir>
             <exo.files.storage.dir>${project.build.directory}/datadir</exo.files.storage.dir>
           </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <compilerArgs>
+            <arg>-parameters</arg>
+          </compilerArgs>
         </configuration>
       </plugin>
     </plugins>
