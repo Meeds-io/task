@@ -37,6 +37,9 @@
             <field name="name">
               <string>tasks</string>
             </field>
+            <field name="contentType">
+              <string>task</string>
+            </field>
             <field name="uri">
               <string><![CDATA[/portal/rest/tasks?limit={limit}&q={keyword}]]></string>
             </field>
