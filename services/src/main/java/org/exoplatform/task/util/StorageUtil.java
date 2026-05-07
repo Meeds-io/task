@@ -18,6 +18,14 @@
  */
 package org.exoplatform.task.util;
 
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.utils.HTMLSanitizer;
@@ -30,19 +38,21 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.core.utils.MentionUtils;
 import org.exoplatform.task.dao.DAOHandler;
-import org.exoplatform.task.domain.*;
-import org.exoplatform.task.dto.*;
+import org.exoplatform.task.domain.ChangeLog;
+import org.exoplatform.task.domain.Comment;
+import org.exoplatform.task.domain.Label;
+import org.exoplatform.task.domain.Project;
+import org.exoplatform.task.domain.Status;
+import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.dto.ChangeLogEntry;
+import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.LabelDto;
+import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
+import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.model.User;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.storage.ProjectStorage;
-
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public final class StorageUtil{
 
@@ -226,7 +236,7 @@ public final class StorageUtil{
         }
         ProjectDto projectDto = new ProjectDto();
         projectDto.setId(project.getId());
-        projectDto.setName(HTMLSanitizer.sanitize(project.getName()));
+        projectDto.setName(project.getName());
         projectDto.setDescription(project.getDescription());
         projectDto.setColor(project.getColor());
         projectDto.setDueDate(project.getDueDate());
