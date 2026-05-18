@@ -34,15 +34,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.SequenceGenerator;
+import io.meeds.common.persistence.PortableSequence;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
@@ -109,8 +107,7 @@ public class Project implements Serializable {
   public static final String PREFIX_CLONE     = "Copy of ";
 
   @Id
-  @SequenceGenerator(name = "SEQ_TASK_PROJECTS_PROJECT_ID", sequenceName = "SEQ_TASK_PROJECTS_PROJECT_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_TASK_PROJECTS_PROJECT_ID")
+  @PortableSequence(name = "SEQ_TASK_PROJECTS_PROJECT_ID")
   @Column(name = "PROJECT_ID")
   private long               id;
 
