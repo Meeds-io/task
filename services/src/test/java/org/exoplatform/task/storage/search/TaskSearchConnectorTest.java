@@ -18,24 +18,25 @@
  */
 package org.exoplatform.task.storage.search;
 
-import io.meeds.task.search.TaskSearchConnector;
-import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
-import org.exoplatform.task.model.TaskSearchFilter;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import java.util.List;
-
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.openMocks;
+
+import java.util.List;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
+
+import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
+import org.exoplatform.container.xml.InitParams;
+import org.exoplatform.container.xml.PropertiesParam;
+import org.exoplatform.task.model.TaskSearchFilter;
+
+import io.meeds.task.search.TaskSearchConnector;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TaskSearchConnectorTest {
@@ -45,14 +46,19 @@ public class TaskSearchConnectorTest {
   @Mock
   private ElasticSearchingClient client;
 
-  @InjectMocks
+  @Mock
+  private InitParams             initParams;
+
+  @Mock
+  private PropertiesParam        propertiesParam;
+
   private TaskSearchConnector taskSearchConnector;
 
   @Before
   public void setUp() {
-    openMocks(this);
-    ReflectionTestUtils.setField(taskSearchConnector, "index", ES_INDEX);
-    ReflectionTestUtils.setField(taskSearchConnector, "searchType", "task");
+    when(initParams.getPropertiesParam("constructor.params")).thenReturn(propertiesParam);
+    when(propertiesParam.getProperty("index")).thenReturn(ES_INDEX);
+    taskSearchConnector = new TaskSearchConnector(client, initParams);
   }
 
   @Test

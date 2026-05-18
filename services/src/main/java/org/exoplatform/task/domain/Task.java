@@ -33,14 +33,12 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.SequenceGenerator;
+import io.meeds.common.persistence.PortableSequence;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
@@ -166,8 +164,7 @@ public class Task implements Serializable {
   public static final String    PREFIX_CLONE     = "Copy of ";
 
   @Id
-  @SequenceGenerator(name = "SEQ_TASK_TASKS_TASK_ID", sequenceName = "SEQ_TASK_TASKS_TASK_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_TASK_TASKS_TASK_ID")
+  @PortableSequence(name = "SEQ_TASK_TASKS_TASK_ID")
   @Column(name = "TASK_ID")
   private Long                  id;
 
