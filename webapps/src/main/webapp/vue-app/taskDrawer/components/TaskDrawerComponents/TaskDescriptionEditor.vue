@@ -152,6 +152,9 @@ export default {
       this.$emit('addTaskDescription',this.value);
       this.showEditor = false;
     });
+    document.addEventListener('onAddTaskDescription', () => {
+      this.$emit('addTaskDescription',this.value);
+    });
     this.inputVal = this.value || '';
     $('#task-Drawer').on('click', (event) => {
       if (this.showEditor && event?.target && !$(event.target).parents('#taskDescriptionId').length) {

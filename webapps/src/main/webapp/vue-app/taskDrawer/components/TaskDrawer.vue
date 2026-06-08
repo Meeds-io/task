@@ -127,6 +127,7 @@
               rows="1"
               row-height="13"
               required
+              @input="onTitleInput"
               @change="updateTaskTitle" />
           </div>
           <div
@@ -421,6 +422,9 @@ export default {
         this.task.title = this.oldTask.title = this.taskTitle;
       }
     },
+    onTitleInput() {
+      document.dispatchEvent(new CustomEvent('onAddTaskDescription'));
+    },
     updateCompleted() {
       const task = {
         id: this.task.id,
@@ -678,7 +682,9 @@ export default {
       }
     },
     addTaskDescription(value) {
-      this.taskDescription = value;
+      if (this.taskDescription !== value) {
+        this.taskDescription = value;
+      }
     },
     retrieveTaskLogs() {
       this.$taskDrawerApi.getTaskLogs(this.task.id).then(
