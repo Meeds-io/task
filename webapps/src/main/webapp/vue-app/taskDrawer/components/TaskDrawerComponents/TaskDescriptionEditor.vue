@@ -155,6 +155,7 @@ export default {
     this.inputVal = this.value || '';
     $('#task-Drawer').on('click', (event) => {
       if (this.showEditor && event?.target && !$(event.target).parents('#taskDescriptionId').length) {
+        this.$emit('input', this.value);
         this.hideDescriptionEditor();
       }
     });
