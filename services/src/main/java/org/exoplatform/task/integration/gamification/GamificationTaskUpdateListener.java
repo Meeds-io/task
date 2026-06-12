@@ -77,13 +77,16 @@ public class GamificationTaskUpdateListener extends Listener<TaskService, TaskPa
     String actorUsername = ConversationState.getCurrent().getIdentity().getUserId();
 
     // Compute user id
-    String actorId = identityManager.getOrCreateUserIdentity(actorUsername).getId();
-    Map<String, String> gam = buildGamificationEventDetails(GAMIFICATION_TASK_ADDON_CREATE_TASK,
-                                                            actorId,
-                                                            actorId,
-                                                            String.valueOf(task.getId()),
-                                                            buildEventDetails(task));
-    listenerService.broadcast(getGamificationEventName(eventName), gam, String.valueOf(task.getId()));
+    Identity identity = identityManager.getOrCreateUserIdentity(actorUsername);
+    if (identity != null) {
+      String actorId = identity.getId();
+      Map<String, String> gam = buildGamificationEventDetails(GAMIFICATION_TASK_ADDON_CREATE_TASK,
+                                                              actorId,
+                                                              actorId,
+                                                              String.valueOf(task.getId()),
+                                                              buildEventDetails(task));
+      listenerService.broadcast(getGamificationEventName(eventName), gam, String.valueOf(task.getId()));
+    }
   }
 
   protected void updateTask(TaskDto before, TaskDto after, String eventName) throws Exception {
