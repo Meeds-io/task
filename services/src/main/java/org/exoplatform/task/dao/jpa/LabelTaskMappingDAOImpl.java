@@ -26,6 +26,7 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.task.dao.LabelTaskMappingHandler;
 import org.exoplatform.task.domain.LabelTaskMapping;
 
+import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceException;
 import jakarta.persistence.TypedQuery;
 
@@ -54,8 +55,10 @@ public class LabelTaskMappingDAOImpl extends CommonJPADAO<LabelTaskMapping, Seri
     query.setParameter(TASK_ID, taskId);
     try {
       return cloneEntity(query.getSingleResult());
+    } catch (NoResultException e) {
+      return null;
     } catch (PersistenceException e) {
-      log.error("Error when fetching label mapping", e);
+      log.warn("Error when fetching label mapping. Return null Task label", e);
       return null;
     }
   }
