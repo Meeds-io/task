@@ -831,7 +831,7 @@ export default {
           this.addMenuAction(menuActions, this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask', 10);
           this.addMenuAction(menuActions, this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask', 20);
           menuActions.sort((a, b) => a.rank - b.rank);
-          this.menuActions = menuActions.filter(menuAction => menuAction.enabled !== false || menuAction?.enabled?.(task));
+          this.menuActions = menuActions.filter(menuAction => menuAction.enabled === false || (typeof menuAction?.enabled === 'function' && menuAction?.enabled?.(task)));
         });
       } else if ( task && task.id ) {
         this.enableDelete = task.createdBy === eXo.env.portal.userName;
