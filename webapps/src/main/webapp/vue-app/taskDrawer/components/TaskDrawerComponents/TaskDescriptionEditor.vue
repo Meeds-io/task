@@ -40,7 +40,7 @@
       <rich-editor
         v-if="editorReady"
         ref="taskDescriptionEditor"
-        v-model="value"
+        v-model="description"
         id="descriptionContent"
         :max-length="MESSAGE_MAX_LENGTH"
         :placeholder="placeholder"
@@ -90,6 +90,7 @@ export default {
       inputVal: '',
       editorReady: false,
       showEditor: false,
+      description: null,
       savingDescription: false
     };
   },
@@ -112,6 +113,19 @@ export default {
     }
   },
   watch: {
+    value: {
+      immediate: true,
+      handler() {
+        if (this.value !== this.description) {
+          this.description = this.value;
+        }
+      },
+    },
+    description() {
+      if (this.value !== this.description) {
+        this.$emit('input', this.description);
+      }
+    },
     inputVal(val) {
       const editorData = this.$refs.taskDescriptionEditor && this.$refs.taskDescriptionEditor.getMessage();
       if (editorData != null && val !== editorData) {
@@ -149,13 +163,13 @@ export default {
       this.hideDescriptionEditor();
     });
     document.addEventListener('onAddTask', () => {
-      this.$emit('addTaskDescription',this.value);
+      this.$emit('input', this.description);
       this.showEditor = false;
     });
     this.inputVal = this.value || '';
     $('#task-Drawer').on('click', (event) => {
       if (this.showEditor && event?.target && !$(event.target).parents('#taskDescriptionId').length) {
-        this.$emit('input', this.value);
+        this.$emit('input', this.description);
         this.hideDescriptionEditor();
       }
     });
