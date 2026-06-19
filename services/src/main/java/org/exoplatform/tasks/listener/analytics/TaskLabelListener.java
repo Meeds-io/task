@@ -63,12 +63,12 @@ public class TaskLabelListener extends Listener<String, LabelTaskMapping> {
     statisticData.setUserId(AnalyticsUtils.getUserIdentityId(userName));
     statisticData.setOperation(operation);
     if (labelTaskMapping.getTask() != null) {
-      statisticData.addParameter("taskId", labelTaskMapping.getTask().getId());
+      statisticData.addKeyword("taskId", labelTaskMapping.getTask().getId());
     }
     if (labelTaskMapping.getLabel() != null) {
-      statisticData.addParameter("labelId", labelTaskMapping.getLabel().getId());
+      statisticData.addKeyword("labelId", labelTaskMapping.getLabel().getId());
       if (labelTaskMapping.getLabel().getProject() != null) {
-        statisticData.addParameter("projectId", labelTaskMapping.getLabel().getProject().getId());
+        statisticData.addKeyword("projectId", labelTaskMapping.getLabel().getProject().getId());
       }
     }
     AnalyticsUtils.addStatisticData(statisticData);
