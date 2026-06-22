@@ -110,10 +110,10 @@ public class TaskSavedListener extends Listener<TaskService, TaskPayload> {
 
     Space space = getSpaceOfProject(newTask);
     addSpaceStatistics(statisticData, space);
-    statisticData.addParameter("taskId", newTask.getId());
+    statisticData.addKeyword("taskId", newTask.getId());
 
     List<Long> taskLabelIds = taskLabels.stream().map(LabelDto::getId).collect(Collectors.toList());
-    statisticData.addParameter("taskLabelIds", taskLabelIds);
+    statisticData.addKeywords("taskLabelIds", taskLabelIds);
 
     appendTaskProperties(statisticData, newTask, null);
 
@@ -169,13 +169,13 @@ public class TaskSavedListener extends Listener<TaskService, TaskPayload> {
     }
     ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
     if (project != null) {
-      statisticData.addParameter(prefix + "projectId", project.getId());
+      statisticData.addKeyword(prefix + "projectId", project.getId());
     }
 
-    statisticData.addParameter(prefix + "activityId", task.getActivityId());
+    statisticData.addKeyword(prefix + "activityId", task.getActivityId());
 
     long assigneeId = getUserIdentityId(task.getAssignee());
-    statisticData.addParameter(prefix + "assigneeId", assigneeId);
+    statisticData.addKeyword(prefix + "assigneeId", assigneeId);
 
     List<Long> assigneeIds = new ArrayList<>();
     assigneeIds.add(assigneeId);
@@ -186,39 +186,39 @@ public class TaskSavedListener extends Listener<TaskService, TaskPayload> {
         long coworderId = getUserIdentityId(coworker);
         coworkerIds.add(coworderId);
       });
-      statisticData.addParameter(prefix + "coworkerIds", coworkerIds);
+      statisticData.addKeywords(prefix + "coworkerIds", coworkerIds);
 
       assigneeIds.addAll(coworkerIds);
     }
-    statisticData.addParameter(prefix + "assigneeIds", assigneeIds);
+    statisticData.addKeywords(prefix + "assigneeIds", assigneeIds);
 
-    statisticData.addParameter(prefix + "creatorId", getUserIdentityId(task.getCreatedBy()));
-    statisticData.addParameter(prefix + "rank", task.getRank());
+    statisticData.addKeyword(prefix + "creatorId", getUserIdentityId(task.getCreatedBy()));
+    statisticData.addLong(prefix + "rank", task.getRank());
     if (task.getDueDate() != null) {
-      statisticData.addParameter(prefix + "dueDate", task.getDueDate());
+      statisticData.addDate(prefix + "dueDate", task.getDueDate());
     }
     if (task.getCreatedTime() != null) {
-      statisticData.addParameter(prefix + "createdTime", task.getCreatedTime());
+      statisticData.addDate(prefix + "createdTime", task.getCreatedTime());
     }
     if (task.getStartDate() != null) {
-      statisticData.addParameter(prefix + "startDate", task.getStartDate());
+      statisticData.addDate(prefix + "startDate", task.getStartDate());
     }
     if (task.getEndDate() != null) {
-      statisticData.addParameter(prefix + "endDate", task.getEndDate());
+      statisticData.addDate(prefix + "endDate", task.getEndDate());
     }
     if (task.getPriority() != null) {
-      statisticData.addParameter(prefix + "priority", task.getPriority().name());
+      statisticData.addKeyword(prefix + "priority", task.getPriority().name());
     }
     if (task.getTitle() != null) {
-      statisticData.addParameter(prefix + "titleLength", task.getTitle().length());
+      statisticData.addLong(prefix + "titleLength", task.getTitle().length());
     }
     if (task.getDescription() != null) {
-      statisticData.addParameter(prefix + "descriptionLength", task.getDescription().length());
+      statisticData.addLong(prefix + "descriptionLength", task.getDescription().length());
     }
     if (task.getStatus() != null) {
-      statisticData.addParameter(prefix + "statusId", task.getStatus().getId());
-      statisticData.addParameter(prefix + "statusName", task.getStatus().getName());
-      statisticData.addParameter(prefix + "statusRank", task.getStatus().getRank());
+      statisticData.addKeyword(prefix + "statusId", task.getStatus().getId());
+      statisticData.addKeyword(prefix + "statusName", task.getStatus().getName());
+      statisticData.addLong(prefix + "statusRank", task.getStatus().getRank());
     }
   }
 
