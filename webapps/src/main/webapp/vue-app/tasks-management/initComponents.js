@@ -47,6 +47,7 @@ import TasksSortByProjectDrawer from './components/tasks/TasksSortByProjectDrawe
 
 import TasksViewDashboard from './components/ProjectTasks/TasksViewDashboard.vue';
 import TasksViewToolbar from './components/ProjectTasks/TasksViewToolbar.vue';
+import TasksViewSwitcher from './components/ProjectTasks/TasksViewSwitcher.vue';
 import TasksViewBoard from './components/ProjectTasks/TasksViewBoard.vue';
 import TasksViewList from './components/ProjectTasks/TasksViewList.vue';
 import TasksViewListColumn from './components/ProjectTasks/TasksViewListColumn.vue';
@@ -93,6 +94,7 @@ const components = {
 
   'tasks-view-dashboard': TasksViewDashboard,
   'tasks-view-toolbar': TasksViewToolbar,
+  'tasks-view-switcher': TasksViewSwitcher,
   'tasks-view-board': TasksViewBoard,
   'tasks-view-board-column': TasksViewBoardColumn,
   'tasks-view-list': TasksViewList,
