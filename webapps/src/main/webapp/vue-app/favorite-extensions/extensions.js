@@ -21,7 +21,7 @@
 // The drawer resolves the section label from i18n key
 // `UITopBarFavoritesPortlet.types.<id>` and falls back to `name` when absent.
 extensionRegistry.registerExtension('favorite', 'favorite-type', {
-  rank: 60,
+  rank: 70,
   id: 'project',
   name: 'Projects',
   icon: 'fa-tasks',
@@ -32,7 +32,7 @@ extensionRegistry.registerComponent('favorite-project', 'favorite-drawer-item', 
 });
 
 extensionRegistry.registerExtension('favorite', 'favorite-type', {
-  rank: 61,
+  rank: 71,
   id: 'task',
   name: 'Tasks',
   icon: 'fa-check-square',
