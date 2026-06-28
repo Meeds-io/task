@@ -16,14 +16,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-import ProjectFavoriteItem from './components/ProjectFavoriteItem.vue';
-import TaskFavoriteItem from './components/TaskFavoriteItem.vue';
 
-const components = {
-  'project-favorite-item': ProjectFavoriteItem,
-  'task-favorite-item': TaskFavoriteItem,
-};
+// Add the favorite toggle inside the project card 3-dots menu
+// (consumed by ProjectCardFront.vue via extension-registry-components).
+extensionRegistry.registerComponent('TaskProjectMenu', 'task-project-menu', {
+  id: 'project-favorite',
+  rank: 5,
+  vueComponent: Vue.options.components['project-favorite-menu-action'],
+});
 
-for (const key in components) {
-  Vue.component(key, components[key]);
-}
+// Add the favorite toggle inside the task drawer 3-dots menu
+// (consumed by TaskDrawer.vue via loadExtensions('Task', 'task-menu')).
+extensionRegistry.registerExtension('Task', 'task-menu', {
+  id: 'task-favorite',
+  rank: 5,
+  enabled: true,
+  vueComponent: 'task-favorite-menu-item',
+});

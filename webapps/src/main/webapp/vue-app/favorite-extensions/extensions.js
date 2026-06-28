@@ -41,20 +41,3 @@ extensionRegistry.registerComponent('favorite-task', 'favorite-drawer-item', {
   id: 'task',
   vueComponent: Vue.options.components['task-favorite-item'],
 });
-
-// Add the favorite toggle inside the project card 3-dots menu
-// (consumed by ProjectCardFront.vue via extension-registry-components).
-extensionRegistry.registerComponent('TaskProjectMenu', 'task-project-menu', {
-  id: 'project-favorite',
-  rank: 5,
-  vueComponent: Vue.options.components['project-favorite-menu-action'],
-});
-
-// Add the favorite toggle inside the task drawer 3-dots menu
-// (consumed by TaskDrawer.vue via loadExtensions('Task', 'task-menu')).
-extensionRegistry.registerExtension('Task', 'task-menu', {
-  id: 'task-favorite',
-  rank: 5,
-  enabled: true,
-  vueComponent: 'task-favorite-menu-item',
-});

@@ -16,12 +16,12 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-import ProjectFavoriteItem from './components/ProjectFavoriteItem.vue';
-import TaskFavoriteItem from './components/TaskFavoriteItem.vue';
+import ProjectFavoriteMenuAction from './components/ProjectFavoriteMenuAction.vue';
+import TaskFavoriteMenuItem from './components/TaskFavoriteMenuItem.vue';
 
 const components = {
-  'project-favorite-item': ProjectFavoriteItem,
-  'task-favorite-item': TaskFavoriteItem,
+  'project-favorite-menu-action': ProjectFavoriteMenuAction,
+  'task-favorite-menu-item': TaskFavoriteMenuItem,
 };
 
 for (const key in components) {

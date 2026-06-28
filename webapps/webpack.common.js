@@ -35,6 +35,7 @@ const config = {
     taskContentLinkExtension: './src/main/webapp/vue-app/content-link/extensions.js',
     restrictedProject: './src/main/webapp/vue-app/restricted-project/main.js',
     favoriteExtensions: './src/main/webapp/vue-app/favorite-extensions/main.js',
+    taskFavoriteMenu: './src/main/webapp/vue-app/task-favorite-menu/main.js',
   },
   output: {
     filename: 'js/[name].bundle.js',
