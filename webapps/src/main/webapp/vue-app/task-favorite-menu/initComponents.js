@@ -18,10 +18,12 @@
  */
 import ProjectFavoriteMenuAction from './components/ProjectFavoriteMenuAction.vue';
 import TaskFavoriteMenuItem from './components/TaskFavoriteMenuItem.vue';
+import ProjectFavoriteBoardHeaderAction from './components/ProjectFavoriteBoardHeaderAction.vue';
 
 const components = {
   'project-favorite-menu-action': ProjectFavoriteMenuAction,
   'task-favorite-menu-item': TaskFavoriteMenuItem,
+  'project-favorite-board-header-action': ProjectFavoriteBoardHeaderAction,
 };
 
 for (const key in components) {
