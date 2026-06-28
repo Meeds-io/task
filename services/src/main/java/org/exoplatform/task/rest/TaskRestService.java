@@ -53,8 +53,11 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.social.metadata.favorite.FavoriteService;
+import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.CommentDto;
@@ -83,6 +86,7 @@ import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.social.html.model.HtmlTransformerContext;
 import io.meeds.social.html.utils.HtmlUtils;
+import io.meeds.task.plugin.TaskPermanentLinkPlugin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -115,6 +119,10 @@ public class TaskRestService implements ResourceContainer {
 
   private LabelService     labelService;
 
+  private FavoriteService  favoriteService;
+
+  private IdentityManager  identityManager;
+
   private static final String PERCENT_ENCODED_REGEX = "%(?![0-9a-fA-F]{2})";
 
   public TaskRestService(TaskService taskService,
@@ -123,7 +131,9 @@ public class TaskRestService implements ResourceContainer {
                          StatusService statusService,
                          UserService userService,
                          SpaceService spaceService,
-                         LabelService labelService) {
+                         LabelService labelService,
+                         FavoriteService favoriteService,
+                         IdentityManager identityManager) {
     this.taskService = taskService;
     this.commentService = commentService;
     this.projectService = projectService;
@@ -131,11 +141,29 @@ public class TaskRestService implements ResourceContainer {
     this.userService = userService;
     this.spaceService = spaceService;
     this.labelService = labelService;
+    this.favoriteService = favoriteService;
+    this.identityManager = identityManager;
   }
 
 
   private enum TaskType {
     ALL, INCOMING, OVERDUE, WATCHED, COLLABORATED, ASSIGNED
+  }
+
+  private boolean isFavorite(String objectType, long objectId) {
+    Identity identity = ConversationState.getCurrent().getIdentity();
+    if (identity == null) {
+      return false;
+    }
+    org.exoplatform.social.core.identity.model.Identity userIdentity =
+                                                                      identityManager.getOrCreateUserIdentity(identity.getUserId());
+    if (userIdentity == null) {
+      return false;
+    }
+    return favoriteService.isFavorite(new Favorite(objectType,
+                                                   String.valueOf(objectId),
+                                                   null,
+                                                   Long.parseLong(userIdentity.getId())));
   }
 
 
@@ -160,6 +188,7 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
     transformHtml(task, ConversationState.getCurrent().getIdentity());
+    task.setFavorite(isFavorite(TaskPermanentLinkPlugin.OBJECT_TYPE, task.getId()));
     return Response.ok(task).build();
     } catch (Exception e) {
       LOG.error("Can't get Task By Id {}", id, e);
