@@ -70,6 +70,8 @@ public class TaskDto implements Serializable {
 
   private String      activityId;
 
+  private boolean     favorite;
+
   public TaskDto clone() { // NOSONAR
     return new TaskDto(id,
                        title,
@@ -87,7 +89,8 @@ public class TaskDto implements Serializable {
                        startDate,
                        endDate,
                        dueDate,
-                       activityId);
+                       activityId,
+                       favorite);
   }
 
 }
