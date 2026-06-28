@@ -17,19 +17,21 @@
  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 -->
 <template>
-  <favorite-button
+  <v-list-item
     v-if="objectId"
-    :id="objectId"
-    :favorite="isFavorite"
-    :space-id="spaceId"
-    :small="false"
-    type="task"
-    type-label="task"
-    display-label
-    @added="added"
-    @removed="removed"
-    @add-error="addError"
-    @remove-error="removeError" />
+    :disabled="loading"
+    class="menu-list"
+    @click="toggleFavorite">
+    <v-list-item-title class="subtitle-2">
+      <v-icon
+        size="16"
+        class="pe-1"
+        :class="isFavorite && 'warning--text'">
+        {{ isFavorite && 'fas fa-star' || 'far fa-star' }}
+      </v-icon>
+      <span>{{ label }}</span>
+    </v-list-item-title>
+  </v-list-item>
 </template>
 <script>
 export default {
@@ -39,51 +41,86 @@ export default {
       default: null,
     },
   },
-  created() {
-    // Depending on how the drawer was opened, the task object may not carry the
-    // favorite flag (it is only enriched by GET /tasks/{id}); resolve it lazily
-    // so the toggle reflects the real state. favorite-button reacts to the prop.
-    if (this.task && this.task.id && typeof this.task.favorite !== 'boolean') {
-      this.$tasksService.getTaskById(this.task.id)
-        .then(task => this.$set(this.task, 'favorite', !!(task && task.favorite)))
-        .catch(() => this.$set(this.task, 'favorite', false));
-    }
-  },
+  data: () => ({
+    isFavorite: false,
+    loading: false,
+  }),
   computed: {
     objectId() {
       return this.task && this.task.id && String(this.task.id);
     },
-    isFavorite() {
-      return !!(this.task && this.task.favorite);
-    },
     spaceId() {
       return eXo.env.portal.spaceId && String(eXo.env.portal.spaceId);
     },
+    label() {
+      return this.isFavorite && this.$t('label.favorite.remove') || this.$t('label.favorite.add');
+    },
+  },
+  created() {
+    // Depending on how the drawer was opened, the task object may not carry the
+    // favorite flag (it is only enriched by GET /tasks/{id}); resolve it lazily.
+    if (this.task && this.task.id && typeof this.task.favorite !== 'boolean') {
+      this.$tasksService.getTaskById(this.task.id)
+        .then(task => this.isFavorite = !!(task && task.favorite))
+        .catch(() => this.isFavorite = false);
+    } else {
+      this.isFavorite = !!(this.task && this.task.favorite);
+    }
+    document.addEventListener('metadata.favorite.updated', this.favoriteUpdated);
+  },
+  beforeDestroy() {
+    document.removeEventListener('metadata.favorite.updated', this.favoriteUpdated);
   },
   methods: {
-    added() {
-      if (this.task) {
-        this.task.favorite = true;
+    favoriteUpdated(event) {
+      const metadata = event && event.detail;
+      if (metadata && metadata.objectType === 'task' && metadata.objectId === this.objectId) {
+        this.isFavorite = metadata.favorite;
       }
-      this.displayAlert(this.$t('Favorite.tooltip.SuccessfullyAddedAsFavorite'));
     },
-    removed() {
-      if (this.task) {
-        this.task.favorite = false;
+    toggleFavorite() {
+      if (this.loading || !this.objectId) {
+        return;
       }
-      this.displayAlert(this.$t('Favorite.tooltip.SuccessfullyDeletedFavorite'));
-    },
-    addError() {
-      this.displayAlert(this.$t('Favorite.tooltip.ErrorAddingAsFavorite', 'task'), 'error');
-    },
-    removeError() {
-      this.displayAlert(this.$t('Favorite.tooltip.ErrorDeletingFavorite', 'task'), 'error');
+      this.loading = true;
+      const wasFavorite = this.isFavorite;
+      const promise = wasFavorite
+        ? this.$favoriteService.removeFavorite('task', this.objectId)
+        : this.$favoriteService.addFavorite('task', this.objectId, null, this.spaceId);
+      promise.then(() => {
+        this.isFavorite = !wasFavorite;
+        if (this.task) {
+          this.task.favorite = this.isFavorite;
+        }
+        document.dispatchEvent(new CustomEvent(this.isFavorite && 'favorite-added' || 'favorite-removed', {
+          detail: {
+            type: 'task',
+            typeLabel: 'task',
+            id: this.objectId,
+            spaceId: this.spaceId,
+          },
+        }));
+        document.dispatchEvent(new CustomEvent('metadata.favorite.updated', {
+          detail: {
+            objectType: 'task',
+            objectId: this.objectId,
+            favorite: this.isFavorite,
+          },
+        }));
+        this.displayAlert(this.$t(this.isFavorite
+          && 'Favorite.tooltip.SuccessfullyAddedAsFavorite'
+          || 'Favorite.tooltip.SuccessfullyDeletedFavorite'));
+      })
+        .catch(() => this.displayAlert(this.$t('Favorite.tooltip.ErrorAddingAsFavorite', 'task'), 'error'))
+        .finally(() => this.loading = false);
     },
     displayAlert(message, type) {
-      document.dispatchEvent(new CustomEvent('notification-alert', {detail: {
-        message,
-        type: type || 'success',
-      }}));
+      document.dispatchEvent(new CustomEvent('notification-alert', {
+        detail: {
+          message,
+          type: type || 'success',
+        },
+      }));
     },
   },
 };

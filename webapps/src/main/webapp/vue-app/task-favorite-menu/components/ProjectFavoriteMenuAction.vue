@@ -17,19 +17,21 @@
  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 -->
 <template>
-  <favorite-button
+  <v-list-item
     v-if="objectId"
-    :id="objectId"
-    :favorite="isFavorite"
-    :space-id="spaceId"
-    :small="false"
-    type="project"
-    type-label="project"
-    display-label
-    @added="added"
-    @removed="removed"
-    @add-error="addError"
-    @remove-error="removeError" />
+    :disabled="loading"
+    class="menu-list"
+    @click="toggleFavorite">
+    <v-list-item-title class="subtitle-2">
+      <v-icon
+        size="16"
+        class="pe-1"
+        :class="isFavorite && 'warning--text'">
+        {{ isFavorite && 'fas fa-star' || 'far fa-star' }}
+      </v-icon>
+      <span>{{ label }}</span>
+    </v-list-item-title>
+  </v-list-item>
 </template>
 <script>
 export default {
@@ -39,42 +41,86 @@ export default {
       default: null,
     },
   },
+  data: () => ({
+    isFavorite: false,
+    loading: false,
+  }),
   computed: {
     objectId() {
       return this.project && this.project.id && String(this.project.id);
-    },
-    isFavorite() {
-      return !!(this.project && this.project.favorite);
     },
     spaceId() {
       return this.project && this.project.spaceDetails && this.project.spaceDetails.id
         && String(this.project.spaceDetails.id);
     },
+    label() {
+      return this.isFavorite && this.$t('label.favorite.remove') || this.$t('label.favorite.add');
+    },
+  },
+  watch: {
+    project: {
+      immediate: true,
+      handler(project) {
+        this.isFavorite = !!(project && project.favorite);
+      },
+    },
+  },
+  created() {
+    document.addEventListener('metadata.favorite.updated', this.favoriteUpdated);
+  },
+  beforeDestroy() {
+    document.removeEventListener('metadata.favorite.updated', this.favoriteUpdated);
   },
   methods: {
-    added() {
-      if (this.project) {
-        this.project.favorite = true;
+    favoriteUpdated(event) {
+      const metadata = event && event.detail;
+      if (metadata && metadata.objectType === 'project' && metadata.objectId === this.objectId) {
+        this.isFavorite = metadata.favorite;
       }
-      this.displayAlert(this.$t('Favorite.tooltip.SuccessfullyAddedAsFavorite'));
     },
-    removed() {
-      if (this.project) {
-        this.project.favorite = false;
+    toggleFavorite() {
+      if (this.loading || !this.objectId) {
+        return;
       }
-      this.displayAlert(this.$t('Favorite.tooltip.SuccessfullyDeletedFavorite'));
-    },
-    addError() {
-      this.displayAlert(this.$t('Favorite.tooltip.ErrorAddingAsFavorite', 'project'), 'error');
-    },
-    removeError() {
-      this.displayAlert(this.$t('Favorite.tooltip.ErrorDeletingFavorite', 'project'), 'error');
+      this.loading = true;
+      const wasFavorite = this.isFavorite;
+      const promise = wasFavorite
+        ? this.$favoriteService.removeFavorite('project', this.objectId)
+        : this.$favoriteService.addFavorite('project', this.objectId, null, this.spaceId);
+      promise.then(() => {
+        this.isFavorite = !wasFavorite;
+        if (this.project) {
+          this.project.favorite = this.isFavorite;
+        }
+        document.dispatchEvent(new CustomEvent(this.isFavorite && 'favorite-added' || 'favorite-removed', {
+          detail: {
+            type: 'project',
+            typeLabel: 'project',
+            id: this.objectId,
+            spaceId: this.spaceId,
+          },
+        }));
+        document.dispatchEvent(new CustomEvent('metadata.favorite.updated', {
+          detail: {
+            objectType: 'project',
+            objectId: this.objectId,
+            favorite: this.isFavorite,
+          },
+        }));
+        this.displayAlert(this.$t(this.isFavorite
+          && 'Favorite.tooltip.SuccessfullyAddedAsFavorite'
+          || 'Favorite.tooltip.SuccessfullyDeletedFavorite'));
+      })
+        .catch(() => this.displayAlert(this.$t('Favorite.tooltip.ErrorAddingAsFavorite', 'project'), 'error'))
+        .finally(() => this.loading = false);
     },
     displayAlert(message, type) {
-      document.dispatchEvent(new CustomEvent('notification-alert', {detail: {
-        message,
-        type: type || 'success',
-      }}));
+      document.dispatchEvent(new CustomEvent('notification-alert', {
+        detail: {
+          message,
+          type: type || 'success',
+        },
+      }));
     },
   },
 };

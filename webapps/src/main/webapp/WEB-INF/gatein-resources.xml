@@ -154,6 +154,12 @@
       <module>jquery</module>
       <as>$</as>
     </depends>
+    <depends>
+      <module>taskFavoriteMenuExtension</module>
+    </depends>
+    <depends>
+      <module>taskFavoriteExtensions</module>
+    </depends>
   </module>
 
   <module>
@@ -389,7 +395,7 @@
 
   <module>
     <name>taskFavoriteExtensions</name>
-    <load-group>FavoriteDrawerGRP</load-group>
+    <load-group>taskDrawerGrp</load-group>
     <script>
       <path>/js/favoriteExtensions.bundle.js</path>
     </script>
