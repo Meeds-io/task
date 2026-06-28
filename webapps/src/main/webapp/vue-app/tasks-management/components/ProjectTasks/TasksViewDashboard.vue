@@ -43,7 +43,7 @@
           type="task-board-header"
           parent-element="div"
           element="div"
-          class="flex-shrink-0 ms-4" />
+          class="d-flex align-center flex-shrink-0 ms-4" />
       </div>
       <div class="projectTasksTabFilter">
         <tasks-view-toolbar

@@ -17,8 +17,18 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-// Add the favorite toggle inside the project card 3-dots menu
-// (consumed by ProjectCardFront.vue via extension-registry-components).
+// Favorite as an inline star injected in the project board header
+// (TasksViewDashboard.vue renders the task-board-header extension point inline:
+// the favorite star + the AI icon when AI is enabled). Symmetric with AI's
+// project-ask-ai-board-header-action.
+extensionRegistry.registerComponent('TaskProjectBoard', 'task-board-header', {
+  id: 'project-favorite',
+  rank: 5,
+  vueComponent: Vue.options.components['project-favorite-board-header-action'],
+});
+
+// Favorite toggle as a menu row, used in the project card 3-dots menu
+// (ProjectCardFront.vue) and the board header overflow 3-dots when collapsed.
 extensionRegistry.registerComponent('TaskProjectMenu', 'task-project-menu', {
   id: 'project-favorite',
   rank: 5,
