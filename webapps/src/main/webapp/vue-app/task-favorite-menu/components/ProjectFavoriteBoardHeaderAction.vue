@@ -19,7 +19,7 @@
 <!-- Inline favorite star injected in the project board header (any viewer can use it). -->
 <template>
   <favorite-button
-    v-if="objectId"
+    v-if="objectId && !$vuetify.breakpoint.smAndDown"
     :id="objectId"
     :favorite="isFavorite"
     :space-id="spaceId"
