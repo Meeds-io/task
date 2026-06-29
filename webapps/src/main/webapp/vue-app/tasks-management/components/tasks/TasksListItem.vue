@@ -44,7 +44,7 @@
         </a>
       </div>
     </div>
-    <div class="taskTitle pe-14 d-lg-block d-md-none" @click="openTaskDrawer()">
+    <div class="taskTitle pe-6 d-lg-block d-md-none" @click="openTaskDrawer()">
       <a
         ref="tooltip"
         :class="getTitleTaskClass()"
@@ -53,39 +53,28 @@
         {{ task.task.title }}
       </a>
     </div>
-    <div class="taskProject pe-10">
+    <div class="taskProject pe-6">
       <div
         v-if="!isPersonnalTask"
-        class="projectSpaceDetails d-flex align-center TasksListViewProject">
-        <div class="spaceAvatar pe-1 d-lg-block d-md-none">
-          <a
-            v-if="task.space!==null"
-            :href="spaceUrl(task.space.id)">
-            <v-avatar
-              :size="30"
-              tile>
-              <v-img
-                :src="task.space.avatarUrl"
-                :height="30"
-                :width="30"
-                :max-height="30"
-                :max-width="30"
-                class="mx-auto spaceAvatarImg" />
-            </v-avatar>
-          </a>
+        class="projectSpaceDetails d-flex align-center TasksListViewProject"
+        @click="showProjectTasksDetails()">
+        <div
+          v-if="task.space"
+          class="spaceAvatar me-2 d-lg-block d-md-none flex-shrink-0">
+          <exo-space-avatar
+            :space="task.space"
+            :size="24"
+            avatar
+            popover />
         </div>
-        <div :class="task.space ? 'taskProjectNameChipSpace' : 'taskProjectNameChip'">
-          <v-chip
-            :color="getTaskColor()"
-            text-color="white"
-            class="font-weight-bold"
-            small
-            @click="showProjectTasksDetails()">
-            <span class="text-truncate" :title="getNameProject()">
-              {{ getNameProject() }}
-            </span>
-          </v-chip>
-        </div>
+        <span
+          class="projectColorDot flex-shrink-0 me-2"
+          :class="getTaskColor()"></span>
+        <span
+          class="taskProjectNameLabel text-truncate"
+          :title="getNameProject()">
+          {{ getNameProject() }}
+        </span>
       </div>
     </div>
     <div class="taskAssignee v-avatar d-flex pe-7 flex-nowrap">
@@ -126,7 +115,7 @@
         <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
       </div>
     </div>
-    <div class="taskStat pe-9 d-lg-block d-md-none " @click="openTaskDrawer()">
+    <div class="taskStat pe-4 d-lg-block d-md-none " @click="openTaskDrawer()">
       <span
         v-if="task && task.task && task.task.status && task.task.status"
         :title="getTaskStatusLabel(task.task.status.name)"

@@ -1223,6 +1223,12 @@
         background-color: @tableBackgroundAccent;
         border: 1px solid @tableBorder;
         border-radius: 4px;
+        cursor: pointer;
+        transition: box-shadow .15s ease, border-color .15s ease;
+        &:hover {
+          border-color: @primaryColor;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+        }
         .taskCheckBox {
           max-width: 3%;
           width: 3%;
@@ -1249,8 +1255,8 @@
           .strikethrough{
             text-decoration: line-through;
           }
-          max-width: 40%;
-          width: 40%;
+          max-width: 30%;
+          width: 30%;
           text-align: start;
           flex: 1 1 100%;
           overflow: hidden;
@@ -1269,27 +1275,24 @@
           }
         }
         .taskProject {
-          max-width: 10%;
-          width: 10%;
+          max-width: 22%;
+          width: 22%;
           text-align: start;
           .projectSpaceDetails {
             cursor: pointer;
-            .spaceAvatar {
-              //min-width: 30px;
+            min-width: 0;
+            .projectColorDot {
+              width: 10px;
+              height: 10px;
+              border-radius: 50%;
+              border: 0 !important;
+              /* default for projects with no colour; the project colour classes
+                 (.red, .munsell_blue, …) override this via their !important bg. */
+              background-color: @greyColorLighten1;
             }
-            .taskProjectNameChip {
-              max-width: 72%;
-              .v-chip.v-size--small {
-                height: auto!important;
-                cursor: pointer;
-              }
-            }
-            .taskProjectNameChipSpace {
-              max-width: 47%;
-              .v-chip.v-size--small {
-                height: auto!important;
-                cursor: pointer;
-              }
+            .taskProjectNameLabel {
+              font-size: 13px;
+              color: @textColor;
             }
           }
           .taskProjectName {
@@ -1326,8 +1329,8 @@
           cursor: pointer;
         }
         .taskStat {
-          max-width: 7%;
-          width: 7%;
+          max-width: 11%;
+          width: 11%;
           cursor: pointer;
           text-align: start;
           flex: 1 1 100%;
