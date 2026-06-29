@@ -23,6 +23,85 @@
 
 /*----------------------Tasks Management ---------------------*/
 
+/* The shared application-toolbar keeps a 16px .v-toolbar__content padding even
+   with px-0; remove it on the Projects/Tasks list toolbars so the Add button
+   and the right-hand controls line up with the cards' edges. */
+#projectListToolbar > .v-toolbar__content,
+#tasksListToolbar > .v-toolbar__content {
+  /* Flush with the content on both edges. The project grid uses a symmetric
+     column gutter (row mx-n2 + col px-2), so cards align to the container edges
+     and the toolbar lines up without any extra padding. */
+  padding-inline-start: 0 !important;
+  padding-inline-end: 0 !important;
+}
+
+/* Redesigned project card (single face, colored initials monogram). */
+.projectCardItem {
+  position: relative;
+  height: 175px;
+  border-radius: 8px;
+  text-align: start;
+  overflow: hidden;
+  .projectCardColorBar {
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border: 0 !important;
+  }
+  .projectMonogramDefault {
+    background: var(--allPagesPrimaryColor, #476A9C);
+  }
+  .projectCardTitle {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+    text-align: start;
+  }
+  .projectCardDescription {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 36px;
+    font-size: 13px;
+    color: @greyColorLighten1;
+    text-align: start;
+  }
+  .projectCardHeading {
+    text-align: start;
+  }
+  .projectCardFooter {
+    border-top: 1px solid @borderColor;
+  }
+  .projectCardProgress {
+    .projectCardProgressBar {
+      width: 72px;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      background-color: #e0e0e0;
+    }
+    .projectCardProgressSegment {
+      height: 100%;
+      min-width: 2px;
+      transition: width .2s ease;
+    }
+  }
+}
+
+/* Placeholder cards shown while the first page of projects is loading. */
+.projectCardSkeleton.v-skeleton-loader {
+  height: 175px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid @borderColor;
+  .v-skeleton-loader__article {
+    padding-top: 16px;
+  }
+}
+
 .addProjectDrawer {
   hr.my-0.v-divider.theme--light{
     margin-top: 5px!important;
@@ -716,357 +795,6 @@
   .tasksListContainer {
     .projectItem {
       position: relative;
-      .taskCardFlip {
-        transition: 0.6s;
-        transform-style: preserve-3d;
-        position: relative;
-        min-height: @taskCardParentMaxHeight;
-        padding: 0;
-        .taskCardFront {
-          z-index: 2;
-          transform: rotateY(0deg);
-          -webkit-backface-visibility: hidden;
-          backface-visibility: hidden;
-          position: absolute;
-          top: 0;
-          left: 0 ~'; /** orientation=lt */ ';
-          right: 0 ~'; /** orientation=rt */ ';
-          height: @taskCardMaxHeight;
-          max-height: @taskCardMaxHeight;
-          width: 100%;
-          max-width: 100%;
-          .asparagus_border_bottom {
-            border-bottom-color: #909958 !important;
-          }
-          .laurel_green_border_bottom {
-            border-bottom-color: #BED67E !important;
-          }
-          .moss_green_border_bottom {
-            border-bottom-color: #98CC81 !important;
-          }
-          .munsell_blue_border_bottom {
-            border-bottom-color: #319AB3 !important;
-          }
-          .sky_blue_border_bottom {
-            border-bottom-color: #4DBED9 !important;
-          }
-          .powder_blue_border_bottom {
-            border-bottom-color: #9EE4F5 !important;
-          }
-          .baby_blue_border_bottom {
-            border-bottom-color: #B2E2FF !important;
-          }
-          .navy_blue_border_bottom {
-            border-bottom-color: #4273C8 !important;
-          }
-          .blue_gray_border_bottom {
-            border-bottom-color: #8EB0EA !important;
-          }
-          .light_blue_border_bottom {
-            border-bottom-color: #B3CFFF !important;
-          }
-          .light_gray_border_bottom {
-            border-bottom-color: #CDCDCD !important;
-          }
-          .purple_border_bottom {
-            border-bottom-color: #774EA9 !important;
-          }
-          .light_purple_border_bottom {
-            border-bottom-color: #BC99E7 !important;
-          }
-          .pink_border_bottom {
-            border-bottom-color: #FFC8F0 !important;
-          }
-          .beige_border_bottom {
-            border-bottom-color: #FFE1BE !important;
-          }
-          .hot_pink_border_bottom {
-            border-bottom-color: #F97575 !important;
-          }
-          .light_brown_border_bottom {
-            border-bottom-color: #C5B294 !important;
-          }
-          .gray_border_bottom {
-            border-bottom-color: #A39594 !important;
-          }
-          .plum_border_bottom {
-            border-bottom-color: #CEA6AC !important;
-          }
-          .Orange_border_bottom {
-            border-bottom-color: #FFA500 !important;
-          }
-          .green_border_bottom {
-            border-bottom-color: #4CAF50 !important;
-          }
-          .red_border_bottom {
-            border-bottom-color: #F44336 !important;
-          }
-          .yellow_border_bottom {
-            border-bottom-color: #ffeb3b !important;
-          }
-          .brown_border_bottom {
-            border-bottom-color: #795548 !important;
-          }
-          .tasksCardItem {
-            height: @taskCardMaxHeight;
-            max-height: @taskCardMaxHeight;
-            flex-direction: column;
-            border: 1px solid @borderColor;
-            background-color: transparent!important;
-            border-bottom-width: 5px;
-            border-bottom-style: solid;
-            .taskItemToolbar {
-              background-color: transparent !important;
-              i {
-                color: @greyColorLighten1!important;
-              }
-              .projectCardTitle {
-                color: @textColor!important;
-                padding-left: 8px ~'; /** orientation=lt */ ';
-                padding-right: 8px ~'; /** orientation=rt */ ';
-              }
-              .uiIconInformation {
-                font-size: 20px;
-                margin-top: -3px;
-              }
-              .uiIconVerticalDots {
-                font-size: 16px;
-                margin-top: -3px;
-              }
-              .projectCardTitle {
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                max-width: 75%;
-                width: 75%;
-                cursor: pointer;
-              }
-            }
-            .noProjectColor {
-              background: @lightGrey;
-              .toolbarNoColor {
-                color: @baseColorLight;
-              }
-            }
-            .taskItemInfo {
-              padding: 8px!important;
-              .taskItemDescription {
-                min-height: 70px;
-                display: -webkit-box;
-                -webkit-line-clamp: 4;
-                -webkit-box-orient: vertical;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                max-height: 50%;
-                cursor: pointer;
-                p {
-                  margin-bottom: 0;
-                  color: @borderColorLight;
-                }
-                .noProjectDescription {
-                  color: @borderColorLight;
-                  font-size: @textFontSize;
-                }
-              }
-              .largeDescriptionArea {
-                margin-bottom: 0!important;
-              }
-              .ProjectSpace {
-                .v-list-item {
-                  min-height: 38px!important;
-                  .noSpaceProjectIcon {
-                    height: 28px;
-                    min-width: 28px;
-                    width: 28px;
-                    background: @greyColor;
-                    color: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                  }
-                  .noSpaceLabel {
-                    color: @greyColorLighten1;
-                  }
-                }
-              }
-            }
-            .SpaceAdmin {
-              position: absolute;
-              bottom: 0;
-              width: 100%;
-              padding: 0 10px;
-              .v-list-item {
-                min-height: 38px!important;
-              }
-              .spaceAdminWrapper {
-                position: relative;
-                z-index: 2;
-                .managerAvatarsList {
-                  .seeMoreAvatars {
-                    .seeMoreItem {
-                      position: relative;
-                      &:before {
-                        content: "";
-                        width: 100%;
-                        height: 100%;
-                        position: absolute;
-                        background: @baseColorMedium;
-                        border-radius: 50%;
-                        opacity: .5;
-                        z-index: 1;
-                      }
-                      .seeMoreAvatarList {
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        text-align: center;
-                        width: 30px;
-                        height: 30px;
-                        color: white;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        cursor: pointer;
-                        font-size: 15px;
-                        font-weight: bold;
-                        z-index: 1;
-                      }
-                    }
-                  }
-                }
-                .AllManagerAvatar {
-                  box-shadow: 0 0 2px 1px @greyColor;
-                  border-radius: 25px;
-                  z-index: 1;
-                  background: white;
-                  .uiIconArrowBack {
-                    font-size: 12px;
-                    padding-top: 6px;
-                    padding-left: 4px ~'; /** orientation=lt */ ';
-                    padding-right: 4px ~'; /** orientation=rt */ ';
-                    cursor: pointer;
-                  }
-                }
-              }
-            }
-          }
-        }
-        .tasksCardBack {
-          transform: rotateY(180deg);
-          backface-visibility: hidden;
-          -webkit-backface-visibility: hidden;
-          position: absolute;
-          top: 0;
-          left: 0 ~'; /** orientation=lt */ ';
-          right: 0 ~'; /** orientation=rt */ ';
-          height: @taskCardMaxHeight;
-          max-height: @taskCardMaxHeight;
-          width: 100%;
-          max-width: 100%;
-          .tasksCardItem {
-            height: @taskCardMaxHeight;
-            max-height: @taskCardMaxHeight;
-            flex-direction: column;
-            border: 1px solid @borderColor;
-            position: relative;
-            background-color: transparent!important;
-            border-bottom-width: 5px!important;
-            border-bottom-style: solid;
-            .projectDetailsReverse {
-              position: relative;
-              .reverseInfoIcon {
-                position: absolute;
-                top: 12px;
-                color: @greyColorLighten1;
-                font-size: 20px;
-              }
-            }
-            .noTasksProject {
-              height: 80%;
-              text-align: center;
-              padding-top: 50px;
-              padding-bottom: 24px;
-
-              .noTasksProjectIcon {
-                .uiIconTask {
-                  color: @greyColor;
-                  font-size: 40px;
-                  padding-bottom: 10px;
-                }
-              }
-            }
-            .echartStatsContent {
-              justify-content: space-evenly;
-              .echartAndLabel {
-                position: relative;
-                .projectTasksTotalNumber {
-                  position: absolute;
-                  left: 60px ~'; /** orientation=lt */ ';
-                  right: 60px ~'; /** orientation=rt */ ';
-                  top: 35%;
-                  span {
-                    display: block;
-                    text-align: center;
-                  }
-                  .totalNumber {
-                    font-size: 1.5rem;
-                  }
-                }
-              }
-              .projectStatusNumber{
-                width: 40%;
-                p {
-                  position: relative;
-                  &:before {
-                    position: absolute;
-                    content: '';
-                    width: 7px;
-                    height: 7px;
-                    border-radius: 50%;
-                    margin-left: -15px ~'; /** orientation=lt */ ';
-                    margin-right: -15px ~'; /** orientation=rt */ ';
-                    top: 5px;
-                  }
-                }
-                .blueLabel {
-                  &:before {
-                    background: @infoColor;
-                  }
-                }
-                .yellowLabel {
-                  &:before {
-                    background: @warningColor;
-                  }
-                }
-                .redLabel {
-                  &:before {
-                    background: @errorColor;
-                  }
-                }
-                .greenLabel {
-                  &:before {
-                    background: @successColor;
-                  }
-                }
-                .purpleLabel {
-                  &:before {
-                    background: #9834eb;
-                  }
-                }                                         
-                .grayLabel {
-                  &:before {
-                    background: @baseColorMedium;
-                  }
-                }                     
-              }
-            }
-          }
-        }
-      }
-      .taskCardFlipped {
-        transform: rotateY(180deg);
-      }
       .projectActionMenu {
         right: 27px ~'; /** orientation=lt */ ';
         left: 27px ~'; /** orientation=rt */ ';
@@ -2881,31 +2609,6 @@
                      GANTT CHART STYLE
 -----------------------------------------------------------*/
 .gantt-wrapper {
-  .unscheduled-task-container {
-    position: absolute;
-    z-index: 999;
-    top: 50%;
-    left: 30px;
-    .unscheduled-task-btn {
-      background-color: @greyColor!important;
-      .mdi-calendar-range {
-        color: @baseColorLight!important;
-      }
-      .unscheduled-task-badge {
-        position: absolute;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        top: -5px;
-        right: 1px;
-        background: @warningColor;
-        font-size: 10px;
-        border-radius: 50%;
-        width: 18px;
-        height: 18px;
-    }
-    }
-  }
   .gantt-chart-container {
     padding-top: 20px;
     .gantt-tasks-title {

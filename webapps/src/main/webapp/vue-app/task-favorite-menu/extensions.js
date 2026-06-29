@@ -27,13 +27,6 @@ extensionRegistry.registerComponent('TaskProjectBoard', 'task-board-header', {
   vueComponent: Vue.options.components['project-favorite-board-header-action'],
 });
 
-// Favorite toggle as a menu row, used in the project card 3-dots menu
-// (ProjectCardFront.vue) and the board header overflow 3-dots when collapsed.
-extensionRegistry.registerComponent('TaskProjectMenu', 'task-project-menu', {
-  id: 'project-favorite',
-  rank: 5,
-  vueComponent: Vue.options.components['project-favorite-menu-action'],
-});
 
 // Add the favorite toggle inside the task drawer 3-dots menu
 // (consumed by TaskDrawer.vue via loadExtensions('Task', 'task-menu')).

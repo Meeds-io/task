@@ -28,19 +28,9 @@
     </div>
   </div>
   <div v-else class="gantt-wrapper">
-    <div class="unscheduled-task-container">
-      <v-btn
-        :title="$t('label.noWorkPlan.tasks')"
-        class="unscheduled-task-btn"
-        fab
-        small
-        dark
-        @click="$root.$emit('displayTasksUnscheduledDrawer', unscheduledTaskList)">
-        <v-icon>mdi-calendar-range</v-icon>
-        <span class="unscheduled-task-badge">{{ unscheduledTaskList.length }}</span>
-      </v-btn>
-    </div>
-    <div 
+    <!-- The unscheduled-tasks button now lives in the board toolbar (after the
+         extension icons), so the floating button over the gantt was removed. -->
+    <div
       id="gantt-chart"
       class="gantt-chart-container">
     </div>
@@ -103,6 +93,9 @@ export default {
           this.initGanttChart(this.tasksToDisplay);
         }
       }
+      // Publish the unscheduled list so the toolbar button (which replaced the
+      // floating button) shows the right count on the initial gantt display.
+      this.$root.$emit('refresh-unscheduled-gantt', this.unscheduledTaskList);
     });
     this.$root.$on('refresh-gantt', taskItems => {
       this.unscheduledTaskList = [];
