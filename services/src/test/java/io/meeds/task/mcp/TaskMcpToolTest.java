@@ -74,12 +74,14 @@ import org.exoplatform.task.service.TaskService;
 
 import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.service.PermanentLinkService;
+import org.exoplatform.social.metadata.favorite.FavoriteService;
 import io.meeds.social.space.plugin.SpaceAclPlugin;
 import io.meeds.social.translation.service.TranslationService;
 import io.meeds.task.mcp.model.ProjectActivityModel;
 import io.meeds.task.mcp.model.ProjectCollectionModel;
 import io.meeds.task.mcp.model.ProjectLabel;
 import io.meeds.task.mcp.model.ProjectModel;
+import io.meeds.task.mcp.model.ProjectStatisticsModel;
 import io.meeds.task.mcp.model.ProjectStatus;
 import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
@@ -145,6 +147,9 @@ public class TaskMcpToolTest {
 
   @Mock
   private PermanentLinkService    permanentLinkService;
+
+  @Mock
+  private FavoriteService         favoriteService;
 
   @Mock
   private Identity                currentIdentity;
@@ -365,6 +370,153 @@ public class TaskMcpToolTest {
 
     verify(task).setStatus(newStatus);
     verify(taskService).updateTask(task);
+  }
+
+  @Test(expected = IllegalAccessException.class)
+  public void setTaskDatesWhenCurrentUserCannotEditShouldThrowException() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(false);
+    tool.setTaskDates(TASK_ID, "2024-01-01", null, null);
+  }
+
+  @Test
+  public void setTaskDatesShouldUpdateAndPersistTask() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    runWithDateFormatMockResult(() -> tool.setTaskDates(TASK_ID, "2024-01-01", null, "2024-01-05"));
+    verify(task).setStartDate(any());
+    verify(task).setDueDate(any());
+    verify(taskService).updateTask(task);
+  }
+
+  @Test
+  public void completeTaskShouldSetCompletedAndPersist() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    runWithDateFormatMockResult(() -> tool.completeTask(TASK_ID));
+    verify(task).setCompleted(true);
+    verify(taskService).updateTask(task);
+  }
+
+  @Test
+  public void reopenTaskShouldSetNotCompletedAndPersist() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    runWithDateFormatMockResult(() -> tool.reopenTask(TASK_ID));
+    verify(task).setCompleted(false);
+    verify(taskService).updateTask(task);
+  }
+
+  @Test
+  public void setTaskPriorityShouldSetPriorityAndPersist() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    runWithDateFormatMockResult(() -> tool.setTaskPriority(TASK_ID, Priority.HIGH));
+    verify(task).setPriority(Priority.HIGH);
+    verify(taskService).updateTask(task);
+  }
+
+  @Test
+  public void updateProjectShouldUpdateFieldsAndPersist() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canEdit(currentIdentity)).thenReturn(true);
+    when(projectService.updateProject(project)).thenReturn(project);
+    runWithDateFormatMockResult(() -> tool.updateProject(PROJECT_ID, "Renamed", "desc", "red"));
+    verify(project).setName("Renamed");
+    verify(project).setDescription("desc");
+    verify(project).setColor("red");
+    verify(projectService).updateProject(project);
+  }
+
+  @Test
+  public void addProjectMemberShouldPersistProject() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canEdit(currentIdentity)).thenReturn(true);
+    when(project.getParticipator()).thenReturn(new HashSet<>());
+    when(projectService.updateProject(project)).thenReturn(project);
+    runWithDateFormatMockResult(() -> tool.addProjectMember(PROJECT_ID, "@john"));
+    verify(project).setParticipator(any());
+    verify(projectService).updateProject(project);
+  }
+
+  @Test
+  public void createProjectStatusShouldDelegateToStatusService() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    StatusDto status = mock(StatusDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canEdit(currentIdentity)).thenReturn(true);
+    when(statusService.createStatus(project, "Review")).thenReturn(status);
+    when(status.getId()).thenReturn(9L);
+    when(status.getName()).thenReturn("Review");
+    when(status.getRank()).thenReturn(4);
+    ProjectStatus result = tool.createProjectStatus(PROJECT_ID, "Review");
+    assertEquals(9L, result.getId());
+    assertEquals("Review", result.getName());
+  }
+
+  @Test
+  public void getProjectStatisticsShouldCountByStatus() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    StatusDto todo = mock(StatusDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(Collections.singletonList(todo));
+    when(todo.getName()).thenReturn("ToDo");
+    when(taskService.countTaskStatusByProject(PROJECT_ID)).thenReturn(Collections.singletonList(new Object[] { "ToDo", 3L }));
+    ProjectStatisticsModel stats = tool.getProjectStatistics(PROJECT_ID);
+    assertEquals(3L, stats.getTotalUncompletedTasks());
+    assertEquals(Long.valueOf(3L), stats.getUncompletedByStatus().get("ToDo"));
+  }
+
+  @Test
+  public void favoriteTaskShouldCreateFavorite() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    org.exoplatform.social.core.identity.model.Identity identity =
+                                                                 mock(org.exoplatform.social.core.identity.model.Identity.class);
+    when(identity.getId()).thenReturn("1");
+    when(identityManager.getOrCreateUserIdentity(USER)).thenReturn(identity);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(favoriteService.isFavorite(any())).thenReturn(false);
+    tool.favoriteTask(TASK_ID);
+    verify(favoriteService).createFavorite(any());
+  }
+
+  @Test
+  public void unfavoriteProjectShouldDeleteFavorite() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    org.exoplatform.social.core.identity.model.Identity identity =
+                                                                 mock(org.exoplatform.social.core.identity.model.Identity.class);
+    when(identity.getId()).thenReturn("1");
+    when(identityManager.getOrCreateUserIdentity(USER)).thenReturn(identity);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(favoriteService.isFavorite(any())).thenReturn(true);
+    tool.unfavoriteProject(PROJECT_ID);
+    verify(favoriteService).deleteFavorite(any());
+  }
+
+  @Test
+  public void deleteTaskCommentByAuthorShouldRemoveComment() throws Exception {// NOSONAR
+    CommentDto comment = mock(CommentDto.class);
+    TaskDto task = mock(TaskDto.class);
+    when(task.getId()).thenReturn(TASK_ID);
+    when(comment.getTask()).thenReturn(task);
+    when(comment.getAuthor()).thenReturn(USER);
+    when(commentService.getComment(55L)).thenReturn(comment);
+    tool.deleteTaskComment(55L);
+    verify(commentService).removeComment(55L);
   }
 
   @Test(expected = ObjectNotFoundException.class)
@@ -792,7 +944,8 @@ public class TaskMcpToolTest {
             profilePropertyService,
             userAcl,
             portalConfigService,
-            permanentLinkService);
+            permanentLinkService,
+            favoriteService);
     }
 
     @Override
