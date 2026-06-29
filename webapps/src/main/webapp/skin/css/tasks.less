@@ -208,91 +208,6 @@
         color: @textLightColor;
       }
       .listOfManager,.listOfParticipant {
-
-        .listOfParticipantavatar{
-          margin-right: -2px ~'!important; /** orientation=lt */ ';
-          margin-left: -2px ~'!important; /** orientation=rt */ ';
-        }
-        .listOfManageravatar{
-          a.flex-nowrap.flex-shrink-0.d-flex {
-            margin-right: 17px ~'; /** orientation=lt */ ';
-            margin-left: 17px ~'; /** orientation=rt */ ';
-          }
-        }
-        .listOfParticipantavatar{
-          a.flex-nowrap.flex-shrink-0.d-flex {
-            margin-right: 10px ~'; /** orientation=lt */ ';
-            margin-left: 10px ~'; /** orientation=rt */ ';
-          }
-          .seeMoreAvatars{
-            margin-right: 7px ~'; /** orientation=lt */ ';
-            margin-left: 7px ~'; /** orientation=rt */ ';
-          }
-        }
-
-        .listOfManageravatar,.listOfParticipantavatar{
-          float: left ~'; /** orientation=lt */ ';
-          float: right ~'; /** orientation=rt */ ';
-          display: flex;
-          margin-right: 5px ~'; /** orientation=lt */ ';
-          margin-left: 5px ~'; /** orientation=rt */ ';
-          .seeMoreAvatars {
-            .seeMoreItem {
-              position: relative;
-              margin-top: 5px;
-              &:before {
-                content: "";
-                width: 100%;
-                height: 100%;
-                position: absolute;
-                background: @baseColorMedium;
-                border-radius: 50%;
-                opacity: .5;
-                z-index: 1;
-              }
-              .v-avatar{
-                height: 30px!important;
-                min-width: 30px!important;
-                width: 30px!important;
-              }
-              .seeMoreAvatarList {
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                text-align: center;
-                width: 30px;
-                height: 30px;
-                color: white;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                font-size: 15px;
-                font-weight: bold;
-                z-index: 1;
-              }
-            }
-          }
-        }
-        a.flex-nowrap.flex-shrink-0.d-flex {
-          .v-avatar.pull-left.my-auto {
-            height: 30px;
-            min-width: 30px;
-            width: 30px;
-          }
-          .peopleInfoIcon {
-            z-index: 9999;
-            background: #fff;
-            height: 19px;
-            width: 19px;
-            margin-top: 23px;
-            margin-left: -13px ~'!important; /** orientation=lt */ ';
-            margin-right: -14px ~'!important; /** orientation=lt */ ';
-            margin-right: -13px ~'!important; /** orientation=rt */ ';
-            margin-left: -14px ~'!important; /** orientation=rt */ ';
-          }
-        }
         .editManager,.editParticipant {
           margin-left: 10px ~'; /** orientation=lt */ ';
           margin-right: 10px ~'; /** orientation=rt */ ';
@@ -682,116 +597,6 @@
     margin-right: 19px ~'; /** orientation=rt */ ';
     display: block
   }
-  .tasksToolbar {
-    .inputTasksFilter {
-      max-width: 250px;
-      .v-input__slot {
-        margin-bottom: 0!important;
-        .v-text-field__slot {
-          input {
-            max-height: 22px!important;
-          }
-        }
-      }
-      .v-input__append-inner {
-        button.mdi-close {
-          font-size: 18px;
-          margin-top: 14px;
-        }
-      }
-    }
-    .taskFilterMobile {
-      color: @greyColorLighten1!important;
-      font-size: 16px!important;
-      margin-left: 12px ~'; /** orientation=lt */ ';
-      margin-right: 12px ~'; /** orientation=rt */ ';
-      display: none;
-    }
-    .inputTasksFilterMobile {
-      display: flex!important;
-      width: 90%;
-      max-width: 90%;
-      position: absolute;
-      top: 50px;
-      .v-input__append-outer {
-        margin-left: -25px ~'!important; /** orientation=lt */ ';
-        margin-right: -25px ~'!important; /** orientation=rt */ ';
-      }
-    }
-    .tasksFilterMobile {
-      display: none!important;
-    }
-    .selectPrimaryFilter {
-      width: auto;
-      height: 38px;
-      color: @greyColorLighten1;
-      &:focus {
-        outline: none;
-        box-shadow: none;
-      }
-    }
-
-    #widthTmpSelectTaskFilter {
-      display:none;
-      visibility:hidden;
-      width: inherit!important;
-    }
-
-    .selectTasksFilter {
-      height: 40px;
-      width: auto;
-      padding-right: 20px ~'; /** orientation=lt */ ';
-      padding-left: 20px ~'; /** orientation=rt */ ';
-      &:focus {
-        outline: none;
-        box-shadow: none;
-      }
-    }
-    .taskDisplay {
-      .uiIcon {
-        font-style: normal;
-        font-size: 16px;
-        padding-right: 10px ~'; /** orientation=lt */ ';
-        padding-left: 10px ~'; /** orientation=rt */ ';
-      }
-      .uiIconCards {
-        .far();
-        .fa-clipboard();
-      }
-      .uiIconList {
-        .fas();
-        .fa-list();
-      }
-    }
-    .v-tabs-slider-wrapper {
-      display: none;
-    }
-    .taskTabCards {
-      border: 1px solid @borderColor;
-      border-radius: 5px 0 0 5px;
-      height: 38px;
-      min-height: 38px;
-    }
-    .taskTabList {
-      border: 1px solid @borderColor;
-      border-radius: 0 5px 5px 0;
-      height: 38px;
-      min-height: 38px;
-    }
-    .v-tab.v-tab--active {
-      border: 1px solid @primaryColor!important;
-      background-color: @tabNormalLinkBackground!important;
-    }
-    .filterTasksSetting {
-      .uiIconFilterSetting {
-        .fa();
-        .fa-sliders-h();
-        font-style: normal;
-        font-size: 16px;
-        color: @primaryColor;
-      }
-    }
-  }
   .tasksListContainer {
     .projectItem {
       position: relative;
@@ -1116,56 +921,10 @@
       text-align: end;
     }
   }
-  .taskAssignee {
-    .assigneDetails {
-      padding-top: 2px;
-      padding-bottom: 2px;
-      padding-right: 4px ~'; /** orientation=lt */ ';
-      padding-left: 4px ~'; /** orientation=rt */ ';
-      padding-left: 0 ~'; /** orientation=lt */ ';
-      padding-right: 0 ~'; /** orientation=rt */ ';
-    }
-  }
   .hideTaskAssignee {
     height: 0!important;
     min-height: 0!important;
   }
-  .taskAssigneeAndLabels {
-    .taskAssignee {
-      height: 35px;
-      min-height: 35px;
-      .assigneDetails {
-        padding-top: 2px;
-        padding-bottom: 2px;
-        padding-right: 4px ~'; /** orientation=lt */ ';
-        padding-left: 4px ~'; /** orientation=rt */ ';
-        padding-left: 0 ~'; /** orientation=lt */ ';
-        padding-right: 0 ~'; /** orientation=rt */ ';
-      }
-    }
-  }
-  .taskActionsAndProject {
-    .taskProject {
-      max-width: 70%;
-      width: 70%;
-      .projectSpaceDetails {
-        align-items: center;
-        max-width: 80%;
-        display: inherit;
-        .taskProjectNameChip {
-          max-width: 100%;
-          width: 100%;
-          .v-chip.v-size--small {
-            height: auto!important;
-          }
-        }
-      }
-    }
-  }
-}
-.smallTaskCard {
-  min-height: 170px!important;
-  height: 170px!important;
 }
 .taskViewCard {
   min-height: inherit;
@@ -1243,47 +1002,6 @@
 .taskAssignee {
   //padding: 2px 4px;
   //padding-left: 0;
-  .taskWorkerAvatar {
-    background-position: center;
-    background-size: cover;
-    border-radius: 50%;
-    width: 26px;
-    height: 26px;
-    img {
-      display: none;
-    }
-  }
-  .seeMoreAvatars {
-    .seeMoreItem {
-      position: relative;
-      &:before {
-        content: "";
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        background: @baseColorMedium;
-        border-radius: 50%;
-        opacity: .5;
-        z-index: 1;
-      }
-      .seeMoreAvatarList {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        text-align: center;
-        height: 27px;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        font-size: 15px;
-        font-weight: bold;
-        z-index: 1;
-      }
-    }
-  }
 }
 .taskCard {
   .v-divider {
@@ -1350,41 +1068,6 @@
     height: 50vh;
     text-align: center;
     padding-top: 10%;
-    .noTasksProjectIcon {
-      i {
-        font-size: 70px;
-        color: @greyColor;
-        padding-bottom: 20px;
-      }
-      .uiIconClipboard{
-        &:after {
-          content: '\e9d0';
-          font-size: 29.5px;
-          position: absolute;
-          bottom: 12px;
-          right: -5px ~'; /** orientation=lt */ ';
-          background: -webkit-linear-gradient(-45deg, transparent 0%, transparent 46%, white 46%, white 56%,transparent 56%, transparent 100%), -webkit-linear-gradient(45deg, transparent 0%, transparent 46%, white 46%, white 56%,transparent 56%, transparent 100%);
-        }
-      }
-      .uiIconTask {
-        &:after {
-          content: '\e9d0';
-          font-size: 29.5px;
-          position: absolute;
-          bottom: 12px;
-          right: -5px ~'; /** orientation=lt */ ';
-          background: white;
-        }
-      }
-    }
-    .noTasksProjectLabel {
-      font-size: 18px;
-      color: @greyColorLighten1;
-    }
-    .noTasksProjectLink {
-      font-size: 1.1rem;
-      padding-top: 12px;
-    }
   }
   .tasksCardsContainer {
     /* Zooming exits */
@@ -1734,22 +1417,9 @@
       white-space: nowrap;
       display: inline-block;
     }
-    .taskProjectNameCard {
-      width: 120px;
-    }
     .spaceAvatar {
       .spaceAvatarImg {
         border-radius: 4px;
-      }
-    }
-    .noSpaceAvatar {
-      background: white;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      .noSpaceProjectIcon {
-        color: @greyColor;
       }
     }
     .noProjectColor {
@@ -1843,44 +1513,6 @@
       padding: 2px 4px;
       cursor: pointer;
     }
-    .noLabelText {
-      color: @greyColorLighten1;
-    }
-  }
-  .AllAssigneeAvatar {
-    box-shadow: 0 0 2px 1px @greyColor;
-    border-radius: 25px;
-    width: auto!important;
-    display: inline-flex!important;
-    padding: 2px 4px;
-    padding-left: 0 ~'; /** orientation=lt */ ';
-    padding-right: 0 ~'; /** orientation=rt */ ';
-    .uiIconArrowBack {
-      font-size: 12px;
-      padding-top: 6px;
-      padding-left: 4px ~'; /** orientation=lt */ ';
-      padding-right: 4px ~'; /** orientation=rt */ ';
-      cursor: pointer;
-    }
-  }
-  #TasksListToolbar {
-    height: auto!important;
-    .v-toolbar__content {
-      height: auto!important;
-      padding: 0;
-    }
-  }
-  .toolbarLarge {
-    .v-toolbar__content {
-      padding-bottom: 50px!important;
-    }
-  }
-}
-#ProjectListToolbar {
-  height: auto!important;
-  .v-toolbar__content {
-    height: auto!important;
-    padding: 0;
   }
 }
 
@@ -1944,21 +1576,6 @@
 
 /*----------- Task Snapshot CSS ---------------*/
 
-.flexCard {
-  flex: 1 1 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.btn-show{
-  color: @primaryColor!important;
-  margin-block-end: 5px;
-  border:none!important;
-}
-.btn-show:hover {
-  color: @primaryColor!important;
-  background-color: #f2f2f2!important;
-}
 .projectCard {
   border-radius: 15px 15px 15px 15px;
   margin-right: 10px ~'; /** orientation=lt */ ';
@@ -1994,9 +1611,6 @@
   margin-left: 25px ~'; /** orientation=rt */ ';
 }
 
-.color-title {
-  color: @greyColorLighten1;
-}
 .taskTitle {
   color: black;
   flex: 1 1 100%;
@@ -2015,50 +1629,11 @@
   margin-top: 5px;
   margin-block-end: 5px;
 }
-.iconlarge {
-  font-size: 40px;
-  color:@successColorLight;
-}
-.noTasks {
-  display: flex;
-  height: 370px;
-  align-items: center;
-  justify-content: center;
-  .noTasksContent {
-    text-align: center;
-    margin: auto;
-    .uiNoTaskIcon {
-      color: #6d7d9821;
-      font-size: 60px;
-      font-style: normal;
-      font-weight: normal;
-      .fa();
-      .fa-clipboard-list();
-    }
-    .noTasksTitle {
-      color: #4d5466;
-      font-weight: normal;
-      font-size: 22px;
-    }
-    p {
-      font-weight: normal;
-      font-size: 15px;
-      color: @greyColorLighten1;
-    }
-  }
-}
 .list-item {
   display: flex;
   width: 100%;
   margin-right: 10px ~'; /** orientation=lt */ ';
   margin-left: 10px ~'; /** orientation=rt */ ';
-}
-.list-leave-active {
-  transition: all 1s;
-}
-.list-leave-to {
-  opacity: 0;
-  transform: translateY(30px);
 }
 
 /*---------------------Responsive Style ---------------------------*/
@@ -2095,202 +1670,12 @@
   }
 }
 
-@media (max-width: @maxMobileWidth) {
-  #TasksParentContainer {
-    #TasksManagementPortlet {
-      .projectAndTasksContainer {
-        .tasksListContainer {
-          .projectItem {
-            .taskCardFlip {
-              min-height: 190px !important;
-              margin-bottom: 16px;
-              .taskCardFront {
-                height: auto;
-                max-height: inherit;
-                .tasksCardItem {
-                  height: 190px!important;
-                  max-height: 190px!important;
-                  background-color: transparent!important;
-                  border-bottom-width: 5px;
-                  border-bottom-style: solid;
-                  .taskItemToolbar {
-                    background-color: transparent !important;
-                    i {
-                      color: @greyColorLighten1!important;
-                    }
-                    .projectCardTitle {
-                      color: @textColor!important;
-                      padding-left: 8px ~'; /** orientation=lt */ ';
-                      padding-right: 8px ~'; /** orientation=rt */ ';
-                    }
-                  }
-                  .taskItemInfo {
-                    padding: 8px!important;
-                    .descriptionDivider {
-                      display: none!important;
-                    }
-                    .taskItemDescription {
-                      min-height: inherit;
-                    }
-                    .largeDescriptionAreaSpace{
-                      -webkit-line-clamp: 2;
-                    }
-                  }
-                }
-              }
-              .tasksCardBack {
-                height: auto;
-                max-height: inherit;
-                .tasksCardItem {
-                  height: auto;
-                  max-height: inherit;
-                  .noTasksProject {
-                    padding-top: 24px;
-                    padding-bottom: 24px;
-                    .noTasksProjectIcon {
-                      .uiIconTask {
-                        font-size: 30px;
-                      }
-                    }
-                  }
-                  .echartStatsContent {
-                    .echartAndLabel {
-                      margin-left: -35px;
-                    }
-                    .projectStatusNumber{
-                      margin-left: -25px
-                    }
-                    .echartPieContent {
-                      height: 130px!important;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-      .projectTasksDashboard {
-        .tasksViewBoard {
-          .projectTaskItem {
-            flex: 1 1 100%!important;
-            width: 100%!important;
-          }
-        }
-      }
-    }
-  }
-  .taskDisplay {
-    display: none!important;
-  }
-}
 
-@media (max-width: @maxLargeTabletWidth) {
-  #TasksParentContainer {
-    .projectAndTasksContainer {
-      .tasksList {
-        .tasksListItem {
-          .taskListItemView {
-            .taskAssignee {
-              width: 15%!important;
-              max-width: 15%!important;
-              padding-right: 12px;
-            }
-            .taskLabels {
-              .v-chip.v-size--small {
-                max-width: 80%;
-                padding: 0 4px;
-                margin: 0!important;
-              }
-            }
-          }
-        }
-      }
-    }
-    #taskCardItem {
-      .taskTitle {
-        cursor: pointer;
-        width: 80%;
-        max-width: 80%;
-        .strikethrough{
-          text-decoration: line-through;
-        }
-        .taskCardViewTitle{
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            cursor: pointer;
-        }
-      }
-    }
-    #TasksManagementPortlet {
-      .projectAndTasksContainer {
-        .projectTasksDashboard {
-          .tasksViewBoard {
-            .projectTaskItem {
-              flex: 1 1 50%;
-              width: 50%;
-            }
-          }
-        }
-      }
-    }
-  }
-}
 
-@media (max-width: 599px) {
-  #TasksManagementPortlet .projectAndTasksContainer .tasksToolbar{
-    /*.v-input__icon.v-input__icon--prepend-inner {
-      display: none;
-    }*/
-    .inputTasksFilter {
-      display: none;
-    }
-    .taskFilterMobile {
-      display: block;
-    }
-    .v-toolbar__title {
-      min-width: 40px!important;
-      margin-right: 5px;
-    }
-    button.btn.px-2.btn-primary.addNewProjectButton.v-btn.v-btn--contained.theme--light.v-size--default {
-      min-width: auto!important;
-    }
-    button.btn.px-2.btn-primary.filterTasksSetting.v-btn.v-btn--depressed.v-btn--flat.v-btn--outlined.theme--light.v-size--default {
-      min-width: auto!important;
-    }
-  }
-}
 @media (max-width: 399px) {
   .taskDrawer {
     .drawerTitle .taskProjectName .projectName {
       max-width: 120px !important;
-    }
-  }
-  #TasksManagementPortlet {
-    .projectAndTasksContainer {
-      .tasksToolbar  {
-        .selectPrimaryFilter {
-          width: 120px!important;
-          max-width: 120px!important;
-          text-overflow: ellipsis;
-        }
-        .selectTasksFilter {
-          width: 120px!important;
-          max-width: 120px!important;
-          text-overflow: ellipsis;
-        }
-        .taskFilterMobile {
-          margin-left: 2px;
-        }
-        .filterTasksSetting {
-          .uiIconFilterSetting {
-            padding-right: 0px !important;
-          }
-        }
-      }
     }
   }
 }
@@ -2416,11 +1801,6 @@
 .Orange {
   background-color: #FFA500 !important;
 }
-.CalendarTableColor {
-  .Orange {
-    background-color: #FFA500 !important;
-  }
-}
 .light_brown {
   background: #C5B294 !important;
   &:hover {
@@ -2440,78 +1820,6 @@
   }
 }
 
-.asparagus_border {
-  border-color: #909958 !important;
-}
-.laurel_green_border {
-  border-color: #BED67E !important;
-}
-.moss_green_border {
-  border-color: #98CC81 !important;
-}
-.munsell_blue_border {
-  border-color: #319AB3 !important;
-}
-.sky_blue_border {
-  border-color: #4DBED9 !important;
-}
-.powder_blue_border {
-  border-color: #9EE4F5 !important;
-}
-.baby_blue_border {
-  border-color: #B2E2FF !important;
-}
-.navy_blue_border {
-  border-color: #4273C8 !important;
-}
-.blue_gray_border {
-  border-color: #8EB0EA !important;
-}
-.light_blue_border {
-  border-color: #B3CFFF !important;
-}
-.light_gray_border {
-  border-color: #CDCDCD !important;
-}
-.purple_border {
-  border-color: #774EA9 !important;
-}
-.light_purple_border {
-  border-color: #BC99E7 !important;
-}
-.pink_border {
-  border-color: #FFC8F0 !important;
-}
-.beige_border {
-  border-color: #FFE1BE !important;
-}
-.hot_pink_border {
-  border-color: #F97575 !important;
-}
-.light_brown_border {
-  border-color: #C5B294 !important;
-}
-.gray_border {
-  border-color: #A39594 !important;
-}
-.plum_border {
-  border-color: #CEA6AC !important;
-}
-.Orange_border {
-  border-color: #FFA500 !important;
-}
-.green_border {
-  border-color: #4CAF50 !important;
-}
-.red_border {
-  border-color: #F44336 !important;
-}
-.yellow_border {
-  border-color: #ffeb3b !important;
-}
-.brown_border {
-  border-color: #795548 !important;
-}
 
 @keyframes beginDrag {
     from {
@@ -2548,9 +1856,6 @@
 .labelsActionMenu {
    max-width: 180px !important;
    min-width: 160px !important;
-  .label-edit-name{
-    max-width: 136px;
-  }
   .label-btn {
     cursor: pointer;
   }
@@ -2611,21 +1916,6 @@
 .gantt-wrapper {
   .gantt-chart-container {
     padding-top: 20px;
-    .gantt-tasks-title {
-      margin-top: 60px;
-      min-height: calc(~"100vh - 180px");
-      height: calc(~"100vh - 180px");
-      overflow: hidden;
-      min-width: 180px;
-      p {
-        max-width: 180px;
-        margin-bottom: 0!important;
-        padding-top: 10px;
-        padding-right: 10px;
-        height: 27px;
-        border-bottom: 1px solid #ebeff2;
-      }
-    }
   }
   
   .gantt {
