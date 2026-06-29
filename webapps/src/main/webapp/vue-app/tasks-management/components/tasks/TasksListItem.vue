@@ -58,15 +58,23 @@
         v-if="!isPersonnalTask"
         class="projectSpaceDetails d-flex align-center TasksListViewProject"
         @click="showProjectTasksDetails()">
-        <div
-          v-if="task.space"
-          class="spaceAvatar me-2 d-lg-block d-md-none flex-shrink-0">
-          <exo-space-avatar
-            :space="task.space"
-            :size="24"
-            avatar
-            popover />
-        </div>
+        <v-tooltip v-if="task.space" bottom>
+          <template #activator="{ on, attrs }">
+            <a
+              :href="spaceUrl(task.space.id)"
+              v-bind="attrs"
+              v-on="on"
+              class="spaceAvatar me-2 d-lg-block d-md-none flex-shrink-0">
+              <v-avatar :size="24" tile>
+                <img
+                  :src="task.space.avatarUrl"
+                  :alt="task.space.displayName"
+                  class="object-fit-cover">
+              </v-avatar>
+            </a>
+          </template>
+          <span>{{ task.space.displayName }}</span>
+        </v-tooltip>
         <span
           class="projectColorDot flex-shrink-0 me-2"
           :class="getTaskColor()"></span>
