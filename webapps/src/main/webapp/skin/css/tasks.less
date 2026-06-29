@@ -773,8 +773,15 @@
               border-color: var(--allPagesPrimaryColor, #476A9C) !important;
               color: var(--allPagesPrimaryColor, #476A9C);
               border: thin solid rgba(0, 0, 0, 0.12);
-              width: 28px;
+              /* Grow with the digit count (min-width keeps the 2-digit pill shape;
+                 padding + nowrap let 3+ digit counts like 105 fit without clipping). */
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              min-width: 28px;
               height: 21px;
+              padding: 0 6px;
+              white-space: nowrap;
               margin-left: 5px ~'; /** orientation=lt */ ';
               margin-right: 5px ~'; /** orientation=rt */ ';
               text-align: center;
