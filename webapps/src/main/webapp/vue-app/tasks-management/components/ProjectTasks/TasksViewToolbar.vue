@@ -51,6 +51,7 @@
           element="div"
           class="boardHeaderExtensions d-flex align-center flex-shrink-0" />
         <tasks-view-switcher
+          v-if="!$root.isMobile"
           :view="taskViewTabName"
           class="flex-shrink-0"
           @change="changeTaskViewTab" />
