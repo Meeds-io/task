@@ -17,30 +17,31 @@
 <template>
   <div
     :class="[getTaskPriorityColor(task.task.priority), removeCompletedTask && 'completedTask' || '']"
-    class="taskListItemView px-4 py-3 d-flex align-center">
+    class="taskListItemView px-4 py-3 d-flex align-center"
+    @click="openTaskDrawer()">
     <div class="taskCheckBox">
       <v-switch
         ref="autoFocusInput2"
         class="d-none"
         true-value="true"
         false-value="false" />
-      <i 
-        :title="$t(getTaskCompletedTitle())" 
-        :class="getTaskCompleted()" 
-        @click="updateCompleted"></i>
+      <i
+        :title="$t(getTaskCompletedTitle())"
+        :class="getTaskCompleted()"
+        @click.stop="updateCompleted"></i>
     </div>
     <div class="taskTitle pe-10">
       <a
         ref="tooltip"
         :class="getTitleTaskClass()"
         class="text-truncate"
-        :title="task.task.title"
-        @click="openTaskDrawer()">{{ task.task.title }}
+        :title="task.task.title">{{ task.task.title }}
       </a>
     </div>
     <div
       class="taskAssignee d-flex v-avatar flex-nowrap me-2 justify-start position-relative"
-      :style="`min-height:${avatarSize+4}px`">
+      :style="`min-height:${avatarSize+4}px`"
+      @click.stop>
       <exo-user-avatars-list
         :users="avatarToDisplay"
         :max="1"
@@ -53,7 +54,7 @@
         retrieve-extra-information
         @open-detail="$root.$emit('displayTasksAssigneeAndCoworker', avatarToDisplay)" />
     </div>
-    <div class="taskLabels pe-7" @click="openTaskDrawer()">
+    <div class="taskLabels pe-7">
       <v-chip
         v-if="task.labels && task.labels.length == 1"
         :color="task.labels[0].color"
@@ -73,13 +74,13 @@
         <span class="taskAttachNumber caption">{{ task.labels.length }}</span>
       </div>
     </div>
-    <div class="taskActions d-flex justify-center align-center pe-9" @click="openTaskDrawer()">
+    <div class="taskActions d-flex justify-center align-center pe-9">
       <div v-if="task.commentCount" class="taskComment d-flex align-center">
         <i class="far fa-comment uiCommentIcon"></i>
         <span class="taskCommentNumber caption">{{ task.commentCount }}</span>
       </div>
     </div>
-    <div class="taskStat d-lg-block d-md-none pe-9" @click="openTaskDrawer()">
+    <div class="taskStat d-lg-block d-md-none pe-2">
       <span
         v-if="task && task.task && task.task.status && task.task.status"
         :title="getTaskStatusLabel(task.task.status.name)"
@@ -87,7 +88,7 @@
         {{ getTaskStatusLabel(task.task.status.name) }}
       </span>
     </div>
-    <div class="taskDueDate" @click="openTaskDrawer()">
+    <div class="taskDueDate">
       <div v-if="taskDueDate" :class="getOverdueTask(taskDueDate) ? 'error-color' : ''">
         <date-format :value="taskDueDate" :format="dateTimeFormat" />
       </div>

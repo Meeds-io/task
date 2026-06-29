@@ -90,6 +90,21 @@
   }
 }
 
+/* The shared user-avatars-list lifts the hovered avatar with .mt-n1 (margin-top
+   -4px). A negative margin reflows the flex line, so the row/card footer (and the
+   progress bar) shifted with it. Keep the visual lift but do it via transform
+   (no layout impact) so only the avatar moves, not its neighbours. */
+.v-application .taskListItemView .mt-n1,
+.v-application .projectCardItem .mt-n1 {
+  margin-top: 0 !important;
+  transform: translateY(-4px) !important;
+}
+/* The task row's assignee cell carries Vuetify's `v-avatar` class (overflow:hidden
+   + rounded), which clipped the lifted/overlapping avatars. Let them overflow. */
+.v-application .taskListItemView .taskAssignee {
+  overflow: visible !important;
+}
+
 /* Placeholder cards shown while the first page of projects is loading. */
 .projectCardSkeleton.v-skeleton-loader {
   height: 175px;
@@ -1294,9 +1309,6 @@
               color: @textColor;
             }
           }
-          .taskProjectName {
-            max-width: 160px;
-          }
         }
         .taskAssignee {
           max-width: 3%;
@@ -1381,9 +1393,12 @@
       }
     }
     .tasksViewList {
+      .taskListItemView {
+        cursor: pointer;
+      }
       .taskTitle {
-        width: 59%!important;
-        max-width: 59%!important;
+        width: 55%!important;
+        max-width: 55%!important;
       }
       .taskAssignee {
         max-width: 5%!important;
@@ -1402,111 +1417,13 @@
         width: 6%!important;
       }
       .taskStat {
-        max-width: 10%!important;
-        width: 10%!important;
+        max-width: 14%!important;
+        width: 14%!important;
       }
       .taskDueDate {
         max-width: 7%!important;
         width: 7%!important;
       }
-    }
-  }
-  .taskProject {
-    .taskProjectName {
-      flex: 1 1 auto;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      display: inline-block;
-    }
-    .spaceAvatar {
-      .spaceAvatarImg {
-        border-radius: 4px;
-      }
-    }
-    .noProjectColor {
-      background: @baseColorLight!important;
-      border: 2px solid @baseColorLight;
-    }
-    .beige {
-      background: #FFE1BE!important;
-      border: 2px solid #FFE1BE;
-    }
-    .asparagus {
-      background: #909958!important;
-      border: 2px solid #909958;
-    }
-    .laurel_green {
-      background: #BED67E!important;
-      border: 2px solid #BED67E;
-    }
-    .moss_green {
-      background: #98CC81!important;
-      border: 2px solid #98CC81;
-    }
-    .munsell_blue {
-      background: #319AB3!important;
-      border: 2px solid #319AB3;
-    }
-    .sky_blue {
-      background: #4DBED9!important;
-      border: 2px solid #4DBED9;
-    }
-    .powder_blue {
-      background: #9EE4F5!important;
-      border: 2px solid #9EE4F5;
-    }
-    .baby_blue {
-      background: #B2E2FF!important;
-      border: 2px solid #B2E2FF;
-    }
-    .navy_blue {
-      background: #4273C8!important;
-      border: 2px solid #4273C8;
-    }
-    .blue_gray {
-      background: #8EB0EA!important;
-      border: 2px solid #8EB0EA;
-    }
-    .light_blue {
-      background: #B3CFFF!important;
-      border: 2px solid #B3CFFF;
-    }
-    .light_gray {
-      background: #CDCDCD!important;
-      border: 2px solid #CDCDCD;
-    }
-    .purple {
-      background: #774EA9!important;
-      border: 2px solid #774EA9;
-    }
-    .light_purple {
-      background: #BC99E7!important;
-      border: 2px solid #BC99E7;
-    }
-    .pink {
-      background: #FFC8F0!important;
-      border: 2px solid #FFC8F0;
-    }
-    .hot_pink {
-      background: #F97575!important;
-      border: 2px solid #F97575;
-    }
-    .Orange {
-      background: #FFA500!important;
-      border: 2px solid #FFA500;
-    }
-    .light_brown {
-      background: #C5B294!important;
-      border: 2px solid #C5B294;
-    }
-    .gray {
-      background: #A39594!important;
-      border: 2px solid #A39594;
-    }
-    .plum {
-      background: #CEA6AC!important;
-      border: 2px solid #CEA6AC;
     }
   }
   .taskLabels {
