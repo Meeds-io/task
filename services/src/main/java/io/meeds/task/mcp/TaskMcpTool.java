@@ -534,6 +534,31 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   @SneakyThrows
+  public List<ProjectLabel> listTaskLabels(long taskId) throws IllegalAccessException, ObjectNotFoundException {
+    TaskDto task = getTask(taskId);
+    if (task == null) {
+      throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
+    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
+    }
+    return getTaskLabels(task, getProjectId(task), getCurrentUserAclIdentity());
+  }
+
+  @SneakyThrows
+  public ProjectLabel updateProjectLabel(long labelId, String name) throws IllegalAccessException, ObjectNotFoundException {
+    LabelDto label = getEditableLabel(labelId);
+    label.setName(name);
+    label = labelService.updateLabel(label);
+    return new ProjectLabel(label.getId(), label.getName());
+  }
+
+  @SneakyThrows
+  public void deleteProjectLabel(long labelId) throws IllegalAccessException, ObjectNotFoundException {
+    getEditableLabel(labelId);
+    labelService.removeLabel(labelId);
+  }
+
+  @SneakyThrows
   public void updateTaskStatus(Long taskId, Long statusId) throws IllegalAccessException, ObjectNotFoundException {
     TaskDto task = getTask(taskId);
     if (task == null) {
@@ -1162,6 +1187,22 @@ public class TaskMcpTool implements McpToolPlugin {
                    .map(l -> new ProjectLabel(l.getId(), l.getName()))
                    .toList();
     }
+  }
+
+  private LabelDto getEditableLabel(long labelId) throws ObjectNotFoundException, IllegalAccessException {
+    LabelDto label = labelService.getLabel(labelId);
+    if (label == null) {
+      throw new ObjectNotFoundException(MSG_LABEL_NOT_FOUND.formatted(labelId, ""));
+    }
+    ProjectDto project = label.getProject();
+    if (project != null) {
+      if (!project.canEdit(getCurrentUserAclIdentity())) {
+        throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_EDITABLE.formatted(project.getId(), getCurrentUserName()));
+      }
+    } else if (!StringUtils.equals(label.getUsername(), getCurrentUserName())) {
+      throw new IllegalAccessException("Label '%s' is not editable by user '%s'.".formatted(labelId, getCurrentUserName()));
+    }
+    return label;
   }
 
   private List<ProjectLabel> getProjectLabels(long projectId) {

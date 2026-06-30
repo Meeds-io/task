@@ -351,6 +351,75 @@ public class TaskMcpToolTest {
   }
 
   @Test
+  public void listTaskLabelsShouldReturnAssignedLabels() throws Exception {// NOSONAR
+    TaskDto task = mock(TaskDto.class);
+    StatusDto status = mock(StatusDto.class);
+    ProjectDto project = mock(ProjectDto.class);
+    LabelDto label = mock(LabelDto.class);
+
+    when(task.getStatus()).thenReturn(status);
+    when(status.getProject()).thenReturn(project);
+    when(project.getId()).thenReturn(PROJECT_ID);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(label.getId()).thenReturn(7L);
+    when(label.getName()).thenReturn("urgent");
+    when(labelService.findLabelsByTask(task, PROJECT_ID, currentIdentity, 0, 100)).thenReturn(Collections.singletonList(label));
+
+    List<ProjectLabel> result = tool.listTaskLabels(TASK_ID);
+
+    assertEquals(1, result.size());
+    assertEquals(7L, result.get(0).getId());
+    assertEquals("urgent", result.get(0).getName());
+  }
+
+  @Test
+  public void updateProjectLabelShouldRenameAndReturn() throws Exception {// NOSONAR
+    LabelDto label = mock(LabelDto.class);
+    ProjectDto project = mock(ProjectDto.class);
+
+    when(labelService.getLabel(99L)).thenReturn(label);
+    when(label.getProject()).thenReturn(project);
+    when(project.canEdit(currentIdentity)).thenReturn(true);
+    when(labelService.updateLabel(label)).thenReturn(label);
+    when(label.getId()).thenReturn(99L);
+    when(label.getName()).thenReturn("Renamed");
+
+    ProjectLabel result = tool.updateProjectLabel(99L, "Renamed");
+
+    verify(label).setName("Renamed");
+    verify(labelService).updateLabel(label);
+    assertEquals(99L, result.getId());
+    assertEquals("Renamed", result.getName());
+  }
+
+  @Test(expected = IllegalAccessException.class)
+  public void updateProjectLabelWhenNotEditableShouldThrowException() throws Exception {// NOSONAR
+    LabelDto label = mock(LabelDto.class);
+    ProjectDto project = mock(ProjectDto.class);
+
+    when(labelService.getLabel(99L)).thenReturn(label);
+    when(label.getProject()).thenReturn(project);
+    when(project.canEdit(currentIdentity)).thenReturn(false);
+
+    tool.updateProjectLabel(99L, "Renamed");
+  }
+
+  @Test
+  public void deleteProjectLabelShouldDelegateToService() throws Exception {// NOSONAR
+    LabelDto label = mock(LabelDto.class);
+    ProjectDto project = mock(ProjectDto.class);
+
+    when(labelService.getLabel(99L)).thenReturn(label);
+    when(label.getProject()).thenReturn(project);
+    when(project.canEdit(currentIdentity)).thenReturn(true);
+
+    tool.deleteProjectLabel(99L);
+
+    verify(labelService).removeLabel(99L);
+  }
+
+  @Test
   public void updateTaskStatusShouldSetStatusAndPersistTask() throws Exception {// NOSONAR
     TaskDto task = mockTask();
     ProjectDto project = mock(ProjectDto.class);
