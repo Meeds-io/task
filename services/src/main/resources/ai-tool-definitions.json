@@ -908,6 +908,63 @@
         "openWorldHint": false
       },
       "require_approval": true
+    },
+    {
+      "name": "list_task_labels",
+      "title": "List a Task's labels",
+      "description": "List the labels currently assigned to a given task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "update_project_label",
+      "title": "Rename a Task Project label",
+      "description": "Rename an existing project label. The new name applies everywhere the label is used.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "label_id": { "type": "integer" },
+          "name": { "type": "string" }
+        },
+        "required": ["label_id", "name"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "delete_project_label",
+      "title": "Delete a Task Project label",
+      "description": "Permanently delete a project label and remove it from every task it was assigned to.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "label_id": { "type": "integer" }
+        },
+        "required": ["label_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
     }
   ]
 }
