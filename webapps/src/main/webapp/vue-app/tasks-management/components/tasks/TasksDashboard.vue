@@ -183,6 +183,7 @@ export default {
         priority: '',
         projectId: -2,
         showCompletedTasks: this.showCompletedTasks,
+        favorite: false,
         groupBy: '',
         orderBy: '',
       },
@@ -199,7 +200,8 @@ export default {
         orderBy: '',
         offset: this.offset,
         limit: 20,
-        showCompletedTasks: this.showCompletedTasks
+        showCompletedTasks: this.showCompletedTasks,
+        favorite: false
       },
       defaultAvatar: '/portal/rest/v1/social/users/default-image/avatar',
     };
@@ -235,19 +237,23 @@ export default {
   },
   created() {
     this.getTasksByPrimary(this.primaryFilter);
-    this.groupBy = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).groupBy : false;
+    const filterStorageNone = localStorage.getItem('filterStorageNone+list');
+    if (filterStorageNone) {
+      const filterStorageNoneJSON = JSON.parse(localStorage.getItem('filterStorageNone+list'));
+      this.groupBy = filterStorageNoneJSON ? filterStorageNoneJSON.groupBy : false;
 
-    this.orderBy = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).orderBy : false;
+      this.orderBy = filterStorageNoneJSON ? filterStorageNoneJSON.orderBy : false;
 
-    this.showCompletedTasks = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).showCompletedTasks : false;
-    this.filterTasks.showCompletedTasks = this.showCompletedTasks;
+      this.showCompletedTasks = filterStorageNoneJSON ? filterStorageNoneJSON.showCompletedTasks : false;
+      this.filterTasks.showCompletedTasks = this.showCompletedTasks;
 
-    this.$root.$on('task-added', () => {
-      this.updateTasksList();
-    });
+      this.filterTasks.favorite = filterStorageNoneJSON ? filterStorageNoneJSON.favorite : false;
+      this.taskQueryFilter.favorite = this.filterTasks.favorite;
+
+      this.$root.$on('task-added', () => {
+        this.updateTasksList();
+      });
+    }  
 
     this.$root.$on('task-assignee-coworker-updated', () => {
       this.updateTasksList();
@@ -325,6 +331,7 @@ export default {
           this.filterTasks.statusId = e.statusId;
           this.filterTasks.priority = e.priority;
           this.filterTasks.showCompletedTasks = e.showCompletedTasks;
+          this.filterTasks.favorite = e.favorite;
           this.resetSearch();
           this.searchTasks();
         }

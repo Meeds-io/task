@@ -27,7 +27,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DELETE;
@@ -58,6 +60,7 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.favorite.model.Favorite;
+import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.CommentDto;
@@ -84,6 +87,7 @@ import org.exoplatform.task.util.CommentUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.util.UserUtil;
 
+import io.meeds.task.plugin.TaskAclPlugin;
 import io.meeds.social.html.model.HtmlTransformerContext;
 import io.meeds.social.html.utils.HtmlUtils;
 import io.meeds.task.plugin.TaskPermanentLinkPlugin;
@@ -300,6 +304,7 @@ public class TaskRestService implements ResourceContainer {
                               @Parameter(description = "coworker term") @QueryParam("coworker") String coworker,
                               @Parameter(description = "watchers term") @QueryParam("watcher") String watcher,
                               @Parameter(description = "showCompletedTasks term") @Schema(defaultValue = "false") @QueryParam("showCompletedTasks") boolean showCompletedTasks,
+                              @Parameter(description = "Restrict results to the current user's favorite tasks") @Schema(defaultValue = "false") @QueryParam("favorite") boolean favorite,
                               @Parameter(description = "statusId term") @QueryParam("statusId") String statusId,
                               @Parameter(description = "space_group_id term") @QueryParam("space_group_id") String spaceGroupId,
                               @Parameter(description = "groupBy term") @QueryParam("groupBy") String groupBy,
@@ -407,6 +412,18 @@ public class TaskRestService implements ResourceContainer {
                                                 limit);
       List<TaskDto> taskList = tasks.getListTasks();
 
+      long tasksSize = tasks.getTasksSize();
+      if (favorite) {
+        long userIdentityId = Long.parseLong(identityManager.getOrCreateUserIdentity(currentUser).getId());
+        Set<Long> favoriteTaskIds = favoriteService.getFavoriteItemsByCreatorAndType(TaskAclPlugin.OBJECT_TYPE, userIdentityId, 0, -1)
+                                                    .stream()
+                                                    .map(MetadataItem::getObjectId)
+                                                    .map(Long::parseLong)
+                                                    .collect(Collectors.toSet());
+        taskList = taskList.stream().filter(task -> favoriteTaskIds.contains(task.getId())).collect(Collectors.toList());
+        tasksSize = taskList.size();
+      }
+
       if (StringUtils.isNotBlank(groupBy)
           && !TaskUtil.DUEDATE.equalsIgnoreCase(groupBy)
           && !TaskUtil.NONE.equalsIgnoreCase(groupBy)) {
@@ -421,7 +438,7 @@ public class TaskRestService implements ResourceContainer {
         return Response.ok(new FiltreTaskList(groupTasks)).build();
       }
       return Response.ok(new PaginatedTaskList(taskList.stream().map(task -> getTaskDetails(task, currIdentity)).toList(),
-                                               tasks.getTasksSize()))
+                                               tasksSize))
                      .build();
     } catch (Exception e) {
       LOG.error("Can't filter Tasks", e);
