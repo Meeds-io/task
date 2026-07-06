@@ -237,23 +237,23 @@ export default {
   },
   created() {
     this.getTasksByPrimary(this.primaryFilter);
-    this.groupBy = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).groupBy : false;
+    const filterStorageNone = localStorage.getItem('filterStorageNone+list');
+    if (filterStorageNone) {
+      const filterStorageNoneJSON = JSON.parse(localStorage.getItem('filterStorageNone+list'));
+      this.groupBy = filterStorageNoneJSON ? filterStorageNoneJSON.groupBy : false;
 
-    this.orderBy = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).orderBy : false;
+      this.orderBy = filterStorageNoneJSON ? filterStorageNoneJSON.orderBy : false;
 
-    this.showCompletedTasks = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).showCompletedTasks : false;
-    this.filterTasks.showCompletedTasks = this.showCompletedTasks;
+      this.showCompletedTasks = filterStorageNoneJSON ? filterStorageNoneJSON.showCompletedTasks : false;
+      this.filterTasks.showCompletedTasks = this.showCompletedTasks;
 
-    this.filterTasks.favorite = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).favorite || false : false;
-    this.taskQueryFilter.favorite = this.filterTasks.favorite;
+      this.filterTasks.favorite = filterStorageNoneJSON ? filterStorageNoneJSON.favorite : false;
+      this.taskQueryFilter.favorite = this.filterTasks.favorite;
 
-    this.$root.$on('task-added', () => {
-      this.updateTasksList();
-    });
+      this.$root.$on('task-added', () => {
+        this.updateTasksList();
+      });
+    }  
 
     this.$root.$on('task-assignee-coworker-updated', () => {
       this.updateTasksList();
