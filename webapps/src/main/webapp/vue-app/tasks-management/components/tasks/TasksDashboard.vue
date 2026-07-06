@@ -247,6 +247,10 @@ export default {
       JSON.parse(localStorage.getItem('filterStorageNone+list')).showCompletedTasks : false;
     this.filterTasks.showCompletedTasks = this.showCompletedTasks;
 
+    this.filterTasks.favorite = localStorage.getItem('filterStorageNone+list') ?
+      JSON.parse(localStorage.getItem('filterStorageNone+list')).favorite || false : false;
+    this.taskQueryFilter.favorite = this.filterTasks.favorite;
+
     this.$root.$on('task-added', () => {
       this.updateTasksList();
     });

@@ -319,7 +319,9 @@ export default {
 
       this.orderBy = projectId > 0 && localStorageSaveFilter && localStorageSaveFilter.projectId === projectId && localStorageSaveFilter.orderBy ||
       localStorageSaveFilter && localStorageSaveFilter.projectId === 'None' && localStorageSaveFilter.orderBy ? localStorageSaveFilter.orderBy : '';
-      
+
+      this.favoritesOnly = !!(localStorageSaveFilter && localStorageSaveFilter.favorite);
+
       this.$root.$emit('reset-filter-task-sort', this.orderBy);
       this.$refs.filterTasksDrawer.open();
     },
@@ -470,6 +472,7 @@ export default {
       this.$projectService.saveFilterSettings(value).then((response) => {
         if (response) {
           value.showCompletedTasks = this.showCompletedTasks;
+          value.favorite = this.favoritesOnly;
           if (this.project) {
             localStorage.setItem(`filterStorage${value.projectId}+${value.tabView}`, JSON.stringify(value));
           } else {
