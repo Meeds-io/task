@@ -32,7 +32,7 @@ export function getMyTasksList(type, query, offset, limit) {
 
 export function filterTasksList(tasks, groupBy, orderBy, filterLabelIds, projectId) {
   document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
-  return fetch(`${tasksConstants.PORTAL}/${tasksConstants.PORTAL_REST}/tasks/filter?projectId=${projectId || tasks.projectId || -2}&query=${tasks.query || ''}&dueDate=${tasks.dueDate || ''}&priority=${tasks.priority || ''}&statusId=${tasks.statusId || ''}&showCompletedTasks=${tasks.showCompletedTasks || ''}&assignee=${tasks.assignee || ''}&watcher=${tasks.watcher || ''}&coworker=${tasks.coworker || ''}&groupBy=${groupBy || tasks.groupBy || ''}&orderBy=${orderBy || tasks.orderBy || ''}&dueCategory=${tasks.dueCategory || ''}&filterLabelIds=${filterLabelIds || tasks.filterLabelIds || ''}&offset=${tasks.offset || 0}&limit=${tasks.limit|| 0}`, {
+  return fetch(`${tasksConstants.PORTAL}/${tasksConstants.PORTAL_REST}/tasks/filter?projectId=${projectId || tasks.projectId || -2}&query=${tasks.query || ''}&dueDate=${tasks.dueDate || ''}&priority=${tasks.priority || ''}&statusId=${tasks.statusId || ''}&showCompletedTasks=${tasks.showCompletedTasks || ''}&favorite=${tasks.favorite || ''}&assignee=${tasks.assignee || ''}&watcher=${tasks.watcher || ''}&coworker=${tasks.coworker || ''}&groupBy=${groupBy || tasks.groupBy || ''}&orderBy=${orderBy || tasks.orderBy || ''}&dueCategory=${tasks.dueCategory || ''}&filterLabelIds=${filterLabelIds || tasks.filterLabelIds || ''}&offset=${tasks.offset || 0}&limit=${tasks.limit|| 0}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {

@@ -256,6 +256,7 @@ export default {
           offset: 0,
           limit: 0,
           showCompletedTasks: projectFilter.showCompletedTasks,
+          favorite: projectFilter.favorite || false,
         };
       } else {
         this.tasksFilter = {
@@ -264,6 +265,7 @@ export default {
           offset: 0,
           limit: 0,
           showCompletedTasks: false,
+          favorite: false,
         };
       }
       
@@ -394,6 +396,7 @@ export default {
             offset: 0,
             limit: 0,
             showCompletedTasks: projectFilter.showCompletedTasks,
+            favorite: projectFilter.favorite || false,
           };
           return this.getFilter(this.tasksFilter, ProjectId);
         }
@@ -406,8 +409,9 @@ export default {
             offset: 0,
             limit: 0,
             showCompletedTasks: false,
+            favorite: false,
           };
-          
+
           if (this.tasksFilter.groupBy === 'completed') {
             this.tasksFilter.showCompletedTasks = true;
           }
@@ -417,6 +421,7 @@ export default {
             projectId: ProjectId,
             tabView: (this.taskViewTabName !== '' ? this.taskViewTabName : 'list'),
             showCompletedTasks: this.showCompletedTasks,
+            favorite: this.tasksFilter.favorite,
           };
           localStorage.setItem(`filterStorage${ProjectId}+${jsonToSave.tabView}`, JSON.stringify(jsonToSave));
           return this.getFilter(this.tasksFilter, ProjectId);
