@@ -76,18 +76,11 @@
           max-height="36"
           icon
           @click="openDrawer">
-          <v-badge
-            :value="filterNumber > 0"
-            :content="filterNumber"
-            color="primary"
-            overlap
-            bordered>
-            <v-icon
-              size="20"
-              :class="filterNumber > 0 && 'primary--text' || 'text-light-color'">
-              fa-sliders-h
-            </v-icon>
-          </v-badge>
+          <v-icon
+            size="20"
+            :class="filterNumber > 0 && 'primary--text' || 'text-light-color'">
+            fa-sliders-h
+          </v-icon>
         </v-btn>
       </template>
     </div>
