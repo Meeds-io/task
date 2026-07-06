@@ -39,6 +39,8 @@ import org.exoplatform.social.core.profile.ProfileFilter;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.core.identity.SpaceMemberFilterListAccess.Type;
+import org.exoplatform.social.metadata.favorite.FavoriteService;
+import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dto.ProjectDto;
@@ -49,6 +51,9 @@ import org.exoplatform.task.model.User;
 import org.exoplatform.task.service.*;
 import org.exoplatform.task.util.*;
 import org.gatein.common.text.EntityEncoder;
+
+import io.meeds.task.plugin.ProjectPermanentLinkPlugin;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -82,6 +87,8 @@ public class ProjectRestService implements ResourceContainer {
 
   private IdentityManager  identityManager;
 
+  private FavoriteService  favoriteService;
+
   public ProjectRestService(TaskService taskService,
                             CommentService commentService,
                             ProjectService projectService,
@@ -89,7 +96,8 @@ public class ProjectRestService implements ResourceContainer {
                             UserService userService,
                             SpaceService spaceService,
                             LabelService labelService,
-                            IdentityManager identityManager) {
+                            IdentityManager identityManager,
+                            FavoriteService favoriteService) {
     this.taskService = taskService;
     this.commentService = commentService;
     this.projectService = projectService;
@@ -98,6 +106,23 @@ public class ProjectRestService implements ResourceContainer {
     this.spaceService = spaceService;
     this.labelService = labelService;
     this.identityManager = identityManager;
+    this.favoriteService = favoriteService;
+  }
+
+  private boolean isFavorite(String objectType, long objectId) {
+    Identity identity = ConversationState.getCurrent().getIdentity();
+    if (identity == null) {
+      return false;
+    }
+    org.exoplatform.social.core.identity.model.Identity userIdentity =
+                                                                      identityManager.getOrCreateUserIdentity(identity.getUserId());
+    if (userIdentity == null) {
+      return false;
+    }
+    return favoriteService.isFavorite(new Favorite(objectType,
+                                                   String.valueOf(objectId),
+                                                   null,
+                                                   Long.parseLong(userIdentity.getId())));
   }
 
   private enum TaskType {
@@ -486,6 +511,7 @@ public class ProjectRestService implements ResourceContainer {
     projectJson.put("description", project.getDescription());
     // projectJson.put("status", statusService.getStatus(projectId));
     projectJson.put("canManage", project.canEdit(ConversationState.getCurrent().getIdentity()));
+    projectJson.put("favorite", isFavorite(ProjectPermanentLinkPlugin.OBJECT_TYPE, projectId));
     return projectJson;
   }
 

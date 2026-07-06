@@ -59,6 +59,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
+import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dto.ChangeLogEntry;
@@ -89,6 +90,7 @@ import org.exoplatform.task.util.UserUtil;
 import io.meeds.task.plugin.TaskAclPlugin;
 import io.meeds.social.html.model.HtmlTransformerContext;
 import io.meeds.social.html.utils.HtmlUtils;
+import io.meeds.task.plugin.TaskPermanentLinkPlugin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -152,6 +154,22 @@ public class TaskRestService implements ResourceContainer {
     ALL, INCOMING, OVERDUE, WATCHED, COLLABORATED, ASSIGNED
   }
 
+  private boolean isFavorite(String objectType, long objectId) {
+    Identity identity = ConversationState.getCurrent().getIdentity();
+    if (identity == null) {
+      return false;
+    }
+    org.exoplatform.social.core.identity.model.Identity userIdentity =
+                                                                      identityManager.getOrCreateUserIdentity(identity.getUserId());
+    if (userIdentity == null) {
+      return false;
+    }
+    return favoriteService.isFavorite(new Favorite(objectType,
+                                                   String.valueOf(objectId),
+                                                   null,
+                                                   Long.parseLong(userIdentity.getId())));
+  }
+
 
 
   @GET
@@ -174,6 +192,7 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
     transformHtml(task, ConversationState.getCurrent().getIdentity());
+    task.setFavorite(isFavorite(TaskPermanentLinkPlugin.OBJECT_TYPE, task.getId()));
     return Response.ok(task).build();
     } catch (Exception e) {
       LOG.error("Can't get Task By Id {}", id, e);
