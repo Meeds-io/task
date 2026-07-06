@@ -183,6 +183,7 @@ export default {
         priority: '',
         projectId: -2,
         showCompletedTasks: this.showCompletedTasks,
+        favorite: false,
         groupBy: '',
         orderBy: '',
       },
@@ -199,7 +200,8 @@ export default {
         orderBy: '',
         offset: this.offset,
         limit: 20,
-        showCompletedTasks: this.showCompletedTasks
+        showCompletedTasks: this.showCompletedTasks,
+        favorite: false
       },
       defaultAvatar: '/portal/rest/v1/social/users/default-image/avatar',
     };
@@ -325,6 +327,7 @@ export default {
           this.filterTasks.statusId = e.statusId;
           this.filterTasks.priority = e.priority;
           this.filterTasks.showCompletedTasks = e.showCompletedTasks;
+          this.filterTasks.favorite = e.favorite;
           this.resetSearch();
           this.searchTasks();
         }

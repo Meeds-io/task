@@ -48,6 +48,7 @@ import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -99,6 +100,9 @@ public class TestProjectRestService {
   @Mock
   IdentityManager identityManager;
 
+  @Mock
+  FavoriteService favoriteService;
+
   @Before
   public void setup() {
     RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
@@ -113,7 +117,9 @@ public class TestProjectRestService {
                                                           statusService,
                                                           userService,
                                                           spaceService,
-                                                          labelService);
+                                                          labelService,
+                                                          favoriteService,
+                                                          identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
     TaskDto task1 = new TaskDto();

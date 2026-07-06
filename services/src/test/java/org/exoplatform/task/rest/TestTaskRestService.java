@@ -43,7 +43,10 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.social.metadata.favorite.FavoriteService;
+import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.task.dto.*;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.rest.model.CommentEntity;
@@ -73,6 +76,12 @@ public class TestTaskRestService {
   @Mock
   LabelService   labelService;
 
+  @Mock
+  FavoriteService favoriteService;
+
+  @Mock
+  IdentityManager identityManager;
+
 
 
   @Before
@@ -89,7 +98,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
     TaskDto task1 = new TaskDto();
@@ -155,7 +166,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
     TaskDto task1 = new TaskDto();
@@ -196,7 +209,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
     TaskDto task1 = new TaskDto();
@@ -218,7 +233,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity john = new Identity("john");
     ConversationState.setCurrent(new ConversationState(john));
     TaskDto task1 = new TaskDto();
@@ -265,7 +282,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity john = new Identity("john");
     ConversationState.setCurrent(new ConversationState(john));
     TaskDto task1 = new TaskDto();
@@ -314,7 +333,9 @@ public class TestTaskRestService {
               statusService,
               userService,
               spaceService,
-              labelService);
+              labelService,
+              favoriteService,
+              identityManager);
       Identity john = new Identity("john");
       ConversationState.setCurrent(new ConversationState(john));
       TaskDto task = new TaskDto();
@@ -337,7 +358,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
 
@@ -390,7 +413,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
 
@@ -457,7 +482,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
 
@@ -535,7 +562,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
 
@@ -575,7 +604,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
     ProjectDto project = new ProjectDto();
@@ -638,7 +669,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
     ProjectDto project = new ProjectDto();
@@ -672,7 +705,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
     ProjectDto project = new ProjectDto();
@@ -710,7 +745,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity john = new Identity("john");
     ConversationState.setCurrent(new ConversationState(john));
 
@@ -760,7 +797,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
 
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
@@ -797,7 +836,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity john = new Identity("john");
     ConversationState.setCurrent(new ConversationState(john));
 
@@ -852,7 +893,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity john = new Identity("john");
     ConversationState.setCurrent(new ConversationState(john));
 
@@ -898,7 +941,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
     TaskDto task1 = new TaskDto();
@@ -925,7 +970,7 @@ public class TestTaskRestService {
     TasksList tasksList = new TasksList(Collections.singletonList(task2),1);
     when(taskService.filterTasks("exo",-2,"exo",labelIDs,null,null,assignee,coworkers, watchers,null,null,root,null,null,null,false,true,false,false,null,null,0,0)).thenReturn(tasksList);
     // When
-    Response response = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,null,null,null,null,null,null,null,0,0,false,false);
+    Response response = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,false,null,null,null,null,null,null,null,0,0,false,false);
 
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
@@ -935,19 +980,74 @@ public class TestTaskRestService {
 
     when(taskService.filterTasks("exo",-2,"exo",labelIDs,null,null,assignee,coworkers, watchers,null,null,root,null,null,null,false,true,false,false,"priority","project",0,0)).thenReturn(tasksList);
 
-    Response response1 = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,null,null,"project","priority",null,null,null,0,0,false,false);
+    Response response1 = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,false,null,null,"project","priority",null,null,null,0,0,false,false);
 
     assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
 
 
     Identity exo = new Identity(null);
     ConversationState.setCurrent(new ConversationState(exo));
-    Response response2 = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,null,null,"project","priority",null,null,null,0,0,false,false);
+    Response response2 = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,false,null,null,"project","priority",null,null,null,0,0,false,false);
 
     // Then
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
 
 
+  }
+
+  @Test
+  public void testFilterFavoriteTasks() throws Exception {
+    // Given
+    TaskRestService taskRestService = new TaskRestService(taskService,
+            commentService,
+            projectService,
+            statusService,
+            userService,
+            spaceService,
+            labelService,
+            favoriteService,
+            identityManager);
+    Identity root = new Identity("root");
+    ConversationState.setCurrent(new ConversationState(root));
+
+    TaskDto task1 = new TaskDto();
+    task1.setId(10);
+    TaskDto task2 = new TaskDto();
+    task2.setId(20);
+
+    List<Long> labelIDs = new ArrayList<>();
+    List<String> assignee = new ArrayList<>();
+    List<String> coworkers = new ArrayList<>();
+    List<String> watchers = new ArrayList<>();
+
+    TasksList tasksList = new TasksList(Arrays.asList(task1, task2), 2);
+    when(taskService.filterTasks("exo", -2, "exo", labelIDs, null, null, assignee, coworkers, watchers, null, null, root, null, null, null, false, true, false, false, null, null, 0, 0)).thenReturn(tasksList);
+
+    // Current user identity id resolution
+    org.exoplatform.social.core.identity.model.Identity userIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    when(userIdentity.getId()).thenReturn("1");
+    when(identityManager.getOrCreateUserIdentity("root")).thenReturn(userIdentity);
+
+    // Only task2 (id=20) is a favorite of the current user
+    MetadataItem favoriteItem = new MetadataItem();
+    favoriteItem.setObjectId("20");
+    when(favoriteService.getFavoriteItemsByCreatorAndType("task", 1L, 0, -1)).thenReturn(Collections.singletonList(favoriteItem));
+
+    // When favorite=true
+    Response response = taskRestService.filterTasks(null, -2, "exo", null, null, null, null, null, false, true, null, null, null, null, null, null, null, 0, 0, false, false);
+
+    // Then only the favorite task is returned
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    PaginatedTaskList tasks = (PaginatedTaskList) response.getEntity();
+    assertNotNull(tasks.getTasks());
+    assertEquals(1, tasks.getTasks().size());
+    assertEquals(1, tasks.getTasksNumber());
+
+    // When favorite=false, the favorite filter is not applied and both tasks are returned
+    Response responseAll = taskRestService.filterTasks(null, -2, "exo", null, null, null, null, null, false, false, null, null, null, null, null, null, null, 0, 0, false, false);
+    assertEquals(Response.Status.OK.getStatusCode(), responseAll.getStatus());
+    PaginatedTaskList allTasks = (PaginatedTaskList) responseAll.getEntity();
+    assertEquals(2, allTasks.getTasks().size());
   }
 
   @Test
@@ -959,7 +1059,9 @@ public class TestTaskRestService {
             statusService,
             userService,
             spaceService,
-            labelService);
+            labelService,
+            favoriteService,
+            identityManager);
     Identity root = new Identity("root");
     ConversationState.setCurrent(new ConversationState(root));
     TaskDto task = new TaskDto();

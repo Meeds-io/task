@@ -138,6 +138,20 @@
                     </select>
 
 
+                    <div class="favoritesOnly d-flex flex-wrap pt-2">
+                      <form class="switchEnabled">
+                        <label class="col-form-label pt-0" max-rows="6">
+                          <i class="fas fa-star me-1"></i>{{ $t(`label.filter.favoritesOnly`) }}:</label>
+                        <label class="switch">
+                          <input
+                            v-model="favoritesOnly"
+                            type="checkbox">
+                          <div class="slider round"><span class="absolute-yes">{{ $t(`filter.task.showCompleted.yes`,"YES") }}</span></div>
+                          <span class="absolute-no">{{ $t(`filter.task.showCompleted.no`) }}</span>
+                        </label>
+                      </form>
+                    </div>
+
                     <div class="showCompleteTasks d-flex flex-wrap pt-2">
                       <form class="switchEnabled">
                         <label class="col-form-label pt-0" max-rows="6">{{ $t(`filter.task.showCompleted`)
@@ -240,6 +254,7 @@ export default {
   data () {
     return {
       tab: null,
+      favoritesOnly: false,
       dueDateSelected: '',
       prioritySelected: '',
       statusSelected: '',
@@ -323,6 +338,7 @@ export default {
       this.orderBy='';
       this.labels='';
       this.showCompletedTasks=false;
+      this.favoritesOnly=false;
       this.getFilterNumber();
       this.$root.$emit('reset-filter-task-group-sort',this.groupBy);
     },
@@ -340,6 +356,7 @@ export default {
       this.orderBy = '';
       this.labels = '';
       this.showCompletedTasks = false;
+      this.favoritesOnly = false;
       this.getFilterNumber();
       const jsonToSave = {
         groupBy: this.groupBy,
@@ -361,6 +378,7 @@ export default {
       this.orderBy='';
       this.labels='';
       this.showCompletedTasks=false;
+      this.favoritesOnly=false;
       this.$root.$emit('reset-filter-task-group-sort',this.groupBy);
       this.getFilterNumber(source);
     },
@@ -378,6 +396,7 @@ export default {
           dueDate: this.dueDateSelected,
           priority: this.prioritySelected,
           showCompletedTasks: this.showCompletedTasks,
+          favorite: this.favoritesOnly,
           groupBy: this.groupBy,
           orderBy: this.orderBy,
         };
@@ -438,6 +457,9 @@ export default {
         filtersnumber++;
       }
       if (this.showCompletedTasks){
+        filtersnumber++;
+      }
+      if (this.favoritesOnly){
         filtersnumber++;
       }
       localStorage.setItem('filtersNumber', JSON.stringify(filtersnumber));
