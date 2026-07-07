@@ -782,11 +782,47 @@
   }
   .projectTasksDashboard {
     min-height: calc(~"100vh - 117px")!important;
-    .projectTasksTabFilter {
-      flex: 0 1 70%;
+    .projectBoardToolbar {
+      /* Match the agenda header height/spacing (its application-toolbar is a
+         default v-toolbar) while staying a plain flex row, so the view-switcher
+         menu is not trapped in a v-toolbar stacking context. */
+      min-height: 64px;
+      margin-bottom: 4px;
+      /* Match the board columns' horizontal padding (px-3 = 12px) so the back
+         arrow lines up with the first column content and the right-hand icons
+         line up with the last column content. */
+      padding-inline: 12px;
+      /* Normalise the favorite/AI extension icons + their hover area to the
+         same size as the view / search / advanced-filter icons (36x36). */
+      .boardHeaderExtensions {
+        .v-icon {
+          font-size: 20px !important;
+        }
+        .v-btn {
+          width: 36px !important;
+          height: 36px !important;
+          /* Drop the components' own horizontal margins (e.g. the AI button's
+             me-2) so all the header icons are evenly spaced. */
+          margin-inline-start: 0 !important;
+          margin-inline-end: 0 !important;
+        }
+      }
+      .tasksViewSwitcher {
+        position: relative;
+      }
+      .tasksViewSwitcherMenu {
+        position: absolute;
+        top: calc(100% + 4px);
+        inset-inline-end: 0;
+        z-index: 1000;
+        min-width: 160px;
+        /* The kanban cards use 3D transforms (rotateY/backface) which put them
+           on compositing layers; promote the menu to its own layer too so it
+           composites above the board instead of being painted behind it. */
+        transform: translateZ(0);
+      }
     }
     .taskViewBreadcrumb {
-      flex: 0 1 30%;
       a {
         i {
           color: @greyColorLighten1;
@@ -796,43 +832,6 @@
           letter-spacing: .5px;
           padding-left: 10px ~'; /** orientation=lt */ ';
           padding-right: 10px ~'; /** orientation=rt */ ';
-        }
-      }
-    }
-    .tasksToolbar {
-      height: auto!important;
-      .v-toolbar__content {
-        height: auto!important;
-        padding: 0!important;
-        .taskDisplay {
-          .projectTasksViewTabs {
-            .v-tabs-bar {
-              height: auto!important;
-              .taskTabBoard {
-                border: 1px solid @borderColor;
-                border-radius: 5px 0 0 5px;
-                height: 38px;
-                min-height: 38px;
-                .uiIconBoard {
-                  .far();
-                  .fa-clipboard();
-                }
-              }
-              .taskTabList {
-                border-radius: 0;
-              }
-              .taskTabGantt {
-                border: 1px solid @borderColor;
-                border-radius: 0 5px 5px 0;
-                height: 38px;
-                min-height: 38px;
-                .uiIconGantt {
-                  .fas();
-                  .fa-stream();
-                }
-              }
-            }
-          }
         }
       }
     }
@@ -1786,17 +1785,6 @@
     }
   }
 }
-@media (max-width: 599px) {
-  .projectTasksDashboard {
-    .taskViewBreadcrumb {
-      flex: 0 1 80% !important;
-    }
-    .projectTasksTabFilter{
-      flex: 0 1 20% !important;
-    }
-  }
-}
-
 @media (max-width: 399px) {
   .taskDrawer {
     .drawerTitle .taskProjectName .projectName {
