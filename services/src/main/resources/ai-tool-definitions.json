@@ -545,6 +545,426 @@
         "openWorldHint": false
       },
       "require_approval": true
+    },
+    {
+      "name": "set_task_dates",
+      "title": "Set a Task's dates",
+      "description": "Set or reschedule the start, due and/or end dates of an existing task. Pass a date as a string; omit a date to clear it.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" },
+          "start_date": {
+            "type": "string",
+            "description": "Optional task start date as a string, parsed into a date."
+          },
+          "end_date": {
+            "type": "string",
+            "description": "Optional task end date as a string, parsed into a date."
+          },
+          "due_date": {
+            "type": "string",
+            "description": "Optional task due date as a string, parsed into a date."
+          }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "complete_task",
+      "title": "Complete a Task",
+      "description": "Mark a task as completed (ticks the task's completion checkmark).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "reopen_task",
+      "title": "Reopen a Task",
+      "description": "Mark a completed task as not completed (re-opens it).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "set_task_priority",
+      "title": "Set a Task's priority",
+      "description": "Set the priority of a task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" },
+          "priority": {
+            "type": "string",
+            "enum": ["NONE", "LOW", "NORMAL", "HIGH"],
+            "description": "Task priority."
+          }
+        },
+        "required": ["task_id", "priority"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "list_unscheduled_tasks",
+      "title": "List unscheduled Tasks",
+      "description": "List the uncompleted tasks of a project that have neither a start nor a due date (the tasks that still need to be scheduled in the Plan view).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "limit": { "type": "integer" }
+        },
+        "required": ["project_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "update_project",
+      "title": "Update a Task Project",
+      "description": "Update a task project's name, description and/or colour.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "color": { "type": "string", "description": "Optional project colour (e.g. red, munsell_blue, green)." }
+        },
+        "required": ["project_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "add_project_member",
+      "title": "Add a Project member",
+      "description": "Add a user as a participant of a task project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "username": { "type": "string", "description": "Username of the participant to add." }
+        },
+        "required": ["project_id", "username"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "remove_project_member",
+      "title": "Remove a Project member",
+      "description": "Remove a user from the participants of a task project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "username": { "type": "string", "description": "Username of the participant to remove." }
+        },
+        "required": ["project_id", "username"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "set_project_manager",
+      "title": "Set a Project manager",
+      "description": "Add a user as a manager of a task project (can edit the project and its workflow).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "username": { "type": "string", "description": "Username of the manager to add." }
+        },
+        "required": ["project_id", "username"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "remove_project_manager",
+      "title": "Remove a Project manager",
+      "description": "Remove a user from the managers of a task project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "username": { "type": "string", "description": "Username of the manager to remove." }
+        },
+        "required": ["project_id", "username"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "create_project_status",
+      "title": "Create a Project status",
+      "description": "Create a new status (Dashboard UI column) in a task project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" },
+          "name": { "type": "string", "description": "Name of the new status / column." }
+        },
+        "required": ["project_id", "name"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "rename_project_status",
+      "title": "Rename a Project status",
+      "description": "Rename an existing status (Dashboard UI column) of a task project.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "status_id": { "type": "integer" },
+          "name": { "type": "string", "description": "New name for the status / column." }
+        },
+        "required": ["status_id", "name"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "get_project_statistics",
+      "title": "Get Project statistics",
+      "description": "Get the count of uncompleted tasks of a project, broken down by status (Dashboard UI column), plus the total.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" }
+        },
+        "required": ["project_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "favorite_project",
+      "title": "Favorite a Project",
+      "description": "Add a task project to the current user's favorites.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" }
+        },
+        "required": ["project_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "unfavorite_project",
+      "title": "Unfavorite a Project",
+      "description": "Remove a task project from the current user's favorites.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_id": { "type": "integer" }
+        },
+        "required": ["project_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "favorite_task",
+      "title": "Favorite a Task",
+      "description": "Add a task to the current user's favorites.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "unfavorite_task",
+      "title": "Unfavorite a Task",
+      "description": "Remove a task from the current user's favorites.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "delete_task_comment",
+      "title": "Delete a Task comment",
+      "description": "Delete a comment from a task. Only the comment author or a user who can edit the task may delete it.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "comment_id": { "type": "integer" }
+        },
+        "required": ["comment_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "list_task_labels",
+      "title": "List a Task's labels",
+      "description": "List the labels currently assigned to a given task.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "integer" }
+        },
+        "required": ["task_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "update_project_label",
+      "title": "Rename a Task Project label",
+      "description": "Rename an existing project label. The new name applies everywhere the label is used.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "label_id": { "type": "integer" },
+          "name": { "type": "string" }
+        },
+        "required": ["label_id", "name"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "delete_project_label",
+      "title": "Delete a Task Project label",
+      "description": "Permanently delete a project label and remove it from every task it was assigned to.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "label_id": { "type": "integer" }
+        },
+        "required": ["label_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
     }
   ]
 }
