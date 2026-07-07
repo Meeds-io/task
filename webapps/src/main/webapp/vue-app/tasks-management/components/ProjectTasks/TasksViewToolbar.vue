@@ -16,58 +16,74 @@
 -->
 <template>
   <div>
-    <v-toolbar
-      id="TasksDashboardToolbar"
-      flat
-      class="tasksToolbar">
-      <div class="taskDisplay">
-        <v-tabs
-          class="projectTasksViewTabs">
-          <v-tab
-            :href="taskCardTabView"
-            class="taskTabBoard"
-            @change="changeTaskViewTab('board')">
-            <i class="uiIcon uiIconBoard"></i>
-            <span>{{ $t('label.boardView') }}</span>
-          </v-tab>
-          <v-tab
-            :href="taskListTabView"
-            class="taskTabList"
-            @change="changeTaskViewTab('list')">
-            <i class="uiIcon uiIconList"></i>
-            <span>{{ $t('label.listView') }}</span>
-          </v-tab>
-          <v-tab
-            :href="taskGanttTabView"
-            class="taskTabGantt"
-            @change="changeTaskViewTab('gantt')">
-            <i class="uiIcon uiIconGantt"></i>
-            <span>{{ $t('label.ganttView') }}</span>
-          </v-tab>
-        </v-tabs>
-      </div>
-      <v-spacer />
-      <v-scale-transition>
-        <v-text-field
-          v-if="taskViewTabName != 'gantt'"
-          v-model="keyword"
-          :placeholder=" $t('label.filterTask') "
-          prepend-inner-icon="fa-filter"
-          class="inputTasksFilter pa-0 me-3 my-auto"
-          clearable />
-      </v-scale-transition>
-      <v-scale-transition>
+    <div class="projectBoardToolbar d-flex align-center">
+      <!-- Search expanded: back arrow + full-width input (same scheme as Agenda/Documents) -->
+      <template v-if="searchOpen">
         <v-btn
-          class="btn px-2 btn-primary filterTasksSetting"
-          outlined
-          @click="openDrawer">
-          <i class="uiIcon uiIconFilterSetting pe-3"></i>
-          <span class="d-none font-weight-regular caption d-sm-inline">
-            {{ $t('label.filter') }} {{ getFilterNum() }}
-          </span>
+          class="px-0 me-2 flex-shrink-0"
+          small
+          icon
+          @click="closeSearch">
+          <v-icon size="22" class="icon-default-color">fa-arrow-left</v-icon>
         </v-btn>
-      </v-scale-transition>
-    </v-toolbar>
+        <v-text-field
+          ref="searchField"
+          v-model="keyword"
+          :placeholder="$t('label.filterTask')"
+          prepend-inner-icon="fa-filter"
+          class="flex-grow-1 pa-0 my-auto"
+          autocomplete="off"
+          hide-details
+          clearable
+          @input="onKeyword"
+          @keydown.esc="closeSearch" />
+      </template>
+      <!-- Default: breadcrumb on the left, all actions grouped on the right -->
+      <template v-else>
+        <div class="d-flex align-center text-truncate flex-grow-1">
+          <slot name="left"></slot>
+        </div>
+        <extension-registry-components
+          :params="{ project }"
+          name="TaskProjectBoard"
+          type="task-board-header"
+          parent-element="div"
+          element="div"
+          class="boardHeaderExtensions d-flex align-center flex-shrink-0" />
+        <tasks-view-switcher
+          v-if="!$root.isMobile"
+          :view="taskViewTabName"
+          class="flex-shrink-0"
+          @change="changeTaskViewTab" />
+        <v-btn
+          v-if="taskViewTabName !== 'gantt'"
+          :title="$t('label.filterTask')"
+          class="flex-shrink-0"
+          max-width="36"
+          max-height="36"
+          icon
+          @click="openSearch">
+          <v-icon
+            size="20"
+            :class="keyword && keyword.length && 'primary--text' || 'text-light-color'">
+            fa-filter
+          </v-icon>
+        </v-btn>
+        <v-btn
+          :title="$t('label.filter')"
+          class="flex-shrink-0"
+          max-width="36"
+          max-height="36"
+          icon
+          @click="openDrawer">
+          <v-icon
+            size="20"
+            :class="filterNumber > 0 && 'primary--text' || 'text-light-color'">
+            fa-sliders-h
+          </v-icon>
+        </v-btn>
+      </template>
+    </div>
     <tasks-filter-drawer
       ref="filterTasksDrawer"
       :project="project.id"
@@ -91,18 +107,6 @@ export default {
       type: Array,
       default: () => []
     },
-    taskCardTabView: {
-      type: String,
-      default: ''
-    },
-    taskListTabView: {
-      type: String,
-      default: ''
-    },
-    taskGanttTabView: {
-      type: String,
-      default: ''
-    },
     showCompletedTasks: {
       type: Boolean,
       default: false
@@ -111,35 +115,37 @@ export default {
   data () {
     return {
       keyword: null,
-      awaitingSearch: false,
       filterNumber: 0,
-      searchonkeyChange: true,
       taskViewTabName: 'board',
+      searchOpen: false,
+      searchTimer: null,
     };
   },
-  watch: {        
-    keyword() {  
-      if (!this.awaitingSearch) {
-        const searchonkeyChange = this.searchonkeyChange;
-        setTimeout(() => {
-          this.$emit('keyword-changed', this.keyword,searchonkeyChange);
-          this.awaitingSearch = false;
-        }, 1000);
-      }
-      this.awaitingSearch = true;
-      if (this.searchonkeyChange){
-        this.resetFields('query'); }      
-      this.searchonkeyChange= true;
-    },
-  },
   created() {
+    this.filterNumber = Number(localStorage.getItem('filtersNumber')) || 0;
     this.$root.$on('hide-tasks-project', () => {
-      $('a.v-tab').removeClass('v-tab--active');
-      $('a.taskTabBoard').addClass('v-tab--active');
-      this.keyword = null ;
+      this.taskViewTabName = 'board';
+      this.keyword = null;
+      this.searchOpen = false;
     });
   },
   methods: {
+    openSearch() {
+      this.searchOpen = true;
+      this.$nextTick(() => this.$refs.searchField && this.$refs.searchField.focus());
+    },
+    closeSearch() {
+      this.searchOpen = false;
+    },
+    onKeyword(term) {
+      this.keyword = term;
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer);
+      }
+      this.searchTimer = setTimeout(() => {
+        this.$emit('keyword-changed', this.keyword, true);
+      }, 600);
+    },
     openDrawer() {
       this.$refs.filterTasksDrawer.open();
     },
@@ -152,13 +158,10 @@ export default {
       this.$root.$emit('open-task-drawer', defaultTask);
     },
     resetFilterTask(){
-      this.searchonkeyChange=false;
-      this.keyword='';
-      this.searchonkeyChange=true;
+      this.keyword = '';
       this.$emit('reset-filter-task-dashboard');
     },
     filterTasks(e) {
-      this.searchonkeyChange = false;
       this.keyword = e.tasks.query;
       this.$emit('filter-task-dashboard', {
         tasks: e.tasks,
@@ -172,26 +175,7 @@ export default {
     filterNumChanged(filtersnumber){
       this.filterNumber=filtersnumber;
     },
-    getFilterNum(){
-      const numOfFilter = localStorage.getItem('filtersNumber');
-      this.filterNumber=Number(numOfFilter);
-      if (this.filterNumber>0){
-        return `(${this.filterNumber})`;
-      } return '';
-    },
     changeTaskViewTab(view){
-      $('a.v-tab').removeClass('v-tab--active');
-      if ( view === 'list') {
-        $('a.taskTabList').addClass('v-tab--active');
-      }
-
-      if ( view === 'board') {
-        $('a.taskTabBoard').addClass('v-tab--active');
-      }
-
-      if ( view === 'gantt') {
-        $('a.taskTabGantt').addClass('v-tab--active');
-      }
       this.taskViewTabName=view;
       this.$emit('taskViewChangeTab', view);
     }
