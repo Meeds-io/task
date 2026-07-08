@@ -462,6 +462,20 @@ public class TaskMcpToolTest {
   }
 
   @Test
+  public void setTaskDatesShouldNotOverwriteOmittedDates() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    // Setting only the end date must not wipe an existing start/due date
+    runWithDateFormatMockResult(() -> tool.setTaskDates(TASK_ID, null, "2024-01-10", null));
+    verify(task).setEndDate(any());
+    verify(task, never()).setStartDate(any());
+    verify(task, never()).setDueDate(any());
+    verify(taskService).updateTask(task);
+  }
+
+  @Test
   public void completeTaskShouldSetCompletedAndPersist() throws Exception {// NOSONAR
     TaskDto task = mockTask();
     when(taskService.getTask(TASK_ID)).thenReturn(task);
