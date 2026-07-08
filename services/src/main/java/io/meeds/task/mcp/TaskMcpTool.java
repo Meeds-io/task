@@ -32,8 +32,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 
@@ -54,6 +56,8 @@ import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.social.metadata.favorite.FavoriteService;
+import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
@@ -83,6 +87,7 @@ import io.meeds.task.mcp.model.ProjectActivityModel;
 import io.meeds.task.mcp.model.ProjectCollectionModel;
 import io.meeds.task.mcp.model.ProjectLabel;
 import io.meeds.task.mcp.model.ProjectModel;
+import io.meeds.task.mcp.model.ProjectStatisticsModel;
 import io.meeds.task.mcp.model.ProjectStatus;
 import io.meeds.task.mcp.model.TaskChangeLog;
 import io.meeds.task.mcp.model.TaskCollectionModel;
@@ -150,6 +155,8 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private final PermanentLinkService    permanentLinkService;
 
+  private final FavoriteService         favoriteService;
+
   public TaskMcpTool(ProjectService projectService,
                      StatusService statusService,
                      TaskService taskService,
@@ -162,7 +169,9 @@ public class TaskMcpTool implements McpToolPlugin {
                      ProfilePropertyService profilePropertyService,
                      UserACL userAcl,
                      UserPortalConfigService portalConfigService,
-                     PermanentLinkService permanentLinkService) {
+                     PermanentLinkService permanentLinkService,
+                     FavoriteService favoriteService) {
+    this.favoriteService = favoriteService;
     this.projectService = projectService;
     this.statusService = statusService;
     this.taskService = taskService;
@@ -525,6 +534,31 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   @SneakyThrows
+  public List<ProjectLabel> listTaskLabels(long taskId) throws IllegalAccessException, ObjectNotFoundException {
+    TaskDto task = getTask(taskId);
+    if (task == null) {
+      throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
+    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
+    }
+    return getTaskLabels(task, getProjectId(task), getCurrentUserAclIdentity());
+  }
+
+  @SneakyThrows
+  public ProjectLabel updateProjectLabel(long labelId, String name) throws IllegalAccessException, ObjectNotFoundException {
+    LabelDto label = getEditableLabel(labelId);
+    label.setName(name);
+    label = labelService.updateLabel(label);
+    return new ProjectLabel(label.getId(), label.getName());
+  }
+
+  @SneakyThrows
+  public void deleteProjectLabel(long labelId) throws IllegalAccessException, ObjectNotFoundException {
+    getEditableLabel(labelId);
+    labelService.removeLabel(labelId);
+  }
+
+  @SneakyThrows
   public void updateTaskStatus(Long taskId, Long statusId) throws IllegalAccessException, ObjectNotFoundException {
     TaskDto task = getTask(taskId);
     if (task == null) {
@@ -539,6 +573,247 @@ public class TaskMcpTool implements McpToolPlugin {
     }
     task.setStatus(status);
     taskService.updateTask(task);
+  }
+
+  public TaskModel setTaskDates(long taskId,
+                                String startDate,
+                                String endDate,
+                                String dueDate) throws ObjectNotFoundException, IllegalAccessException {
+    TaskDto task = getEditableTask(taskId);
+    task.setStartDate(toDate(startDate));
+    task.setEndDate(toDate(endDate));
+    task.setDueDate(toDate(dueDate));
+    task = taskService.updateTask(task);
+    return toTaskModel(task);
+  }
+
+  public TaskModel completeTask(long taskId) throws ObjectNotFoundException, IllegalAccessException {
+    return setTaskCompleted(taskId, true);
+  }
+
+  public TaskModel reopenTask(long taskId) throws ObjectNotFoundException, IllegalAccessException {
+    return setTaskCompleted(taskId, false);
+  }
+
+  public TaskModel setTaskPriority(long taskId, Priority priority) throws ObjectNotFoundException, IllegalAccessException {
+    TaskDto task = getEditableTask(taskId);
+    task.setPriority(priority == null ? Priority.NONE : priority);
+    task = taskService.updateTask(task);
+    return toTaskModel(task);
+  }
+
+  public TaskCollectionModel listUnscheduledTasks(Long projectId,
+                                                  Integer limit) throws IllegalAccessException, ObjectNotFoundException {
+    int max = getInteger(limit, DEFAULT_LIMIT);
+    List<TaskModel> unscheduled = getTasks(projectId, 0, MAX_TO_LOAD, true).stream()
+                                                                           .filter(t -> t.getStartDate() == null
+                                                                               && t.getDueDate() == null)
+                                                                           .limit(max)
+                                                                           .map(this::toTaskModel)
+                                                                           .toList();
+    return new TaskCollectionModel(unscheduled, 0, max, unscheduled.size());
+  }
+
+  private TaskModel setTaskCompleted(long taskId, boolean completed) throws ObjectNotFoundException, IllegalAccessException {
+    TaskDto task = getEditableTask(taskId);
+    task.setCompleted(completed);
+    task = taskService.updateTask(task);
+    return toTaskModel(task);
+  }
+
+  private TaskDto getEditableTask(long taskId) throws ObjectNotFoundException, IllegalAccessException {
+    TaskDto task = getTask(taskId);
+    if (task == null) {
+      throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
+    } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, getCurrentUserName()));
+    }
+    return task;
+  }
+
+  public ProjectModel updateProject(Long projectId,
+                                    String name,
+                                    String description,
+                                    String color) throws ObjectNotFoundException, IllegalAccessException {
+    ProjectDto project = getEditableProject(projectId);
+    if (StringUtils.isNotBlank(name)) {
+      project.setName(name);
+    }
+    if (description != null) {
+      project.setDescription(description);
+    }
+    if (StringUtils.isNotBlank(color)) {
+      project.setColor(color);
+    }
+    project = projectService.updateProject(project);
+    return toProjectModel(project);
+  }
+
+  public ProjectModel addProjectMember(Long projectId, String username) throws ObjectNotFoundException, IllegalAccessException {
+    return updateProjectMembership(projectId, username, true, false);
+  }
+
+  public ProjectModel removeProjectMember(Long projectId, String username) throws ObjectNotFoundException,
+                                                                          IllegalAccessException {
+    return updateProjectMembership(projectId, username, false, false);
+  }
+
+  public ProjectModel setProjectManager(Long projectId, String username) throws ObjectNotFoundException, IllegalAccessException {
+    return updateProjectMembership(projectId, username, true, true);
+  }
+
+  public ProjectModel removeProjectManager(Long projectId, String username) throws ObjectNotFoundException,
+                                                                           IllegalAccessException {
+    return updateProjectMembership(projectId, username, false, true);
+  }
+
+  public ProjectStatus createProjectStatus(Long projectId, String name) throws ObjectNotFoundException, IllegalAccessException {
+    ProjectDto project = getEditableProject(projectId);
+    StatusDto status = statusService.createStatus(project, name);
+    return new ProjectStatus(status.getId(), status.getName(), status.getRank());
+  }
+
+  @SneakyThrows
+  public ProjectStatus renameProjectStatus(Long statusId, String name) throws ObjectNotFoundException, IllegalAccessException {
+    StatusDto status = statusService.getStatus(statusId);
+    if (status == null) {
+      throw new ObjectNotFoundException(MSG_STATUS_NOT_FOUND.formatted(statusId, "[]"));
+    }
+    // ensure the caller can edit the owning project
+    getEditableProject(status.getProject().getId());
+    status = statusService.updateStatus(statusId, name);
+    return new ProjectStatus(status.getId(), status.getName(), status.getRank());
+  }
+
+  private ProjectModel updateProjectMembership(Long projectId,
+                                               String username,
+                                               boolean add,
+                                               boolean manager) throws ObjectNotFoundException, IllegalAccessException {
+    if (StringUtils.isBlank(username)) {
+      throw new IllegalArgumentException("Parameter 'username' is mandatory");
+    }
+    username = username.startsWith("@") ? username.substring(1) : username;
+    ProjectDto project = getEditableProject(projectId);
+    Set<String> members = new HashSet<>(manager ? safeSet(project.getManager()) : safeSet(project.getParticipator()));
+    if (add) {
+      members.add(username);
+    } else {
+      members.remove(username);
+    }
+    if (manager) {
+      project.setManager(members);
+    } else {
+      project.setParticipator(members);
+    }
+    project = projectService.updateProject(project);
+    return toProjectModel(project);
+  }
+
+  private Set<String> safeSet(Set<String> set) {
+    return set == null ? Collections.emptySet() : set;
+  }
+
+  private ProjectDto getEditableProject(Long projectId) throws ObjectNotFoundException, IllegalAccessException {
+    ProjectDto project = getProject(projectId);
+    if (project == null) {
+      throw new ObjectNotFoundException(MSG_TASK_PROJECT_NOT_FOUND.formatted(projectId));
+    } else if (!project.canEdit(getCurrentUserAclIdentity())) {
+      throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_EDITABLE.formatted(projectId, getCurrentUserName()));
+    }
+    return project;
+  }
+
+  public ProjectStatisticsModel getProjectStatistics(Long projectId) throws ObjectNotFoundException, IllegalAccessException {
+    getViewableProject(projectId);
+    Map<String, Long> byStatus = new LinkedHashMap<>();
+    for (StatusDto status : statusService.getStatuses(projectId)) {
+      byStatus.put(status.getName(), 0L);
+    }
+    long total = 0;
+    List<Object[]> rows = taskService.countTaskStatusByProject(projectId);
+    if (rows != null) {
+      for (Object[] row : rows) {
+        String name = (String) row[0];
+        long count = ((Number) row[1]).longValue();
+        byStatus.put(name, count);
+        total += count;
+      }
+    }
+    return new ProjectStatisticsModel(total, byStatus);
+  }
+
+  public void favoriteProject(Long projectId) throws ObjectNotFoundException, IllegalAccessException {
+    getViewableProject(projectId);
+    createFavorite(ProjectPermanentLinkPlugin.OBJECT_TYPE, String.valueOf(projectId));
+  }
+
+  public void unfavoriteProject(Long projectId) throws ObjectNotFoundException, IllegalAccessException {
+    getViewableProject(projectId);
+    removeFavorite(ProjectPermanentLinkPlugin.OBJECT_TYPE, String.valueOf(projectId));
+  }
+
+  public void favoriteTask(long taskId) throws ObjectNotFoundException, IllegalAccessException {
+    getAccessibleTask(taskId);
+    createFavorite(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId));
+  }
+
+  public void unfavoriteTask(long taskId) throws ObjectNotFoundException, IllegalAccessException {
+    getAccessibleTask(taskId);
+    removeFavorite(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId));
+  }
+
+  @SneakyThrows
+  public void deleteTaskComment(long commentId) throws ObjectNotFoundException, IllegalAccessException {
+    CommentDto comment = commentService.getComment(commentId);
+    if (comment == null) {
+      throw new ObjectNotFoundException("Comment with identifier '%s' is not found".formatted(commentId));
+    }
+    long taskId = comment.getTask().getId();
+    boolean isAuthor = StringUtils.equals(comment.getAuthor(), getCurrentUserName());
+    if (!isAuthor && !userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException("Comment '%s' is not deletable by user '%s'".formatted(commentId, getCurrentUserName()));
+    }
+    commentService.removeComment(commentId);
+  }
+
+  @SneakyThrows
+  private void createFavorite(String objectType, String objectId) {
+    Favorite favorite = new Favorite(objectType, objectId, null, getCurrentUserIdentityId());
+    if (!favoriteService.isFavorite(favorite)) {
+      favoriteService.createFavorite(favorite);
+    }
+  }
+
+  @SneakyThrows
+  private void removeFavorite(String objectType, String objectId) {
+    Favorite favorite = new Favorite(objectType, objectId, null, getCurrentUserIdentityId());
+    if (favoriteService.isFavorite(favorite)) {
+      favoriteService.deleteFavorite(favorite);
+    }
+  }
+
+  private long getCurrentUserIdentityId() {
+    return Long.parseLong(identityManager.getOrCreateUserIdentity(getCurrentUserName()).getId());
+  }
+
+  private ProjectDto getViewableProject(Long projectId) throws ObjectNotFoundException, IllegalAccessException {
+    ProjectDto project = getProject(projectId);
+    if (project == null) {
+      throw new ObjectNotFoundException(MSG_TASK_PROJECT_NOT_FOUND.formatted(projectId));
+    } else if (!project.canView(getCurrentUserAclIdentity())) {
+      throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(projectId, getCurrentUserName()));
+    }
+    return project;
+  }
+
+  private TaskDto getAccessibleTask(long taskId) throws ObjectNotFoundException, IllegalAccessException {
+    TaskDto task = getTask(taskId);
+    if (task == null) {
+      throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
+    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
+    }
+    return task;
   }
 
   public ProjectActivityModel listProjectActivitySince(Long projectId, Integer days) throws IllegalAccessException,
@@ -912,6 +1187,22 @@ public class TaskMcpTool implements McpToolPlugin {
                    .map(l -> new ProjectLabel(l.getId(), l.getName()))
                    .toList();
     }
+  }
+
+  private LabelDto getEditableLabel(long labelId) throws ObjectNotFoundException, IllegalAccessException {
+    LabelDto label = labelService.getLabel(labelId);
+    if (label == null) {
+      throw new ObjectNotFoundException(MSG_LABEL_NOT_FOUND.formatted(labelId, ""));
+    }
+    ProjectDto project = label.getProject();
+    if (project != null) {
+      if (!project.canEdit(getCurrentUserAclIdentity())) {
+        throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_EDITABLE.formatted(project.getId(), getCurrentUserName()));
+      }
+    } else if (!StringUtils.equals(label.getUsername(), getCurrentUserName())) {
+      throw new IllegalAccessException("Label '%s' is not editable by user '%s'.".formatted(labelId, getCurrentUserName()));
+    }
+    return label;
   }
 
   private List<ProjectLabel> getProjectLabels(long projectId) {
