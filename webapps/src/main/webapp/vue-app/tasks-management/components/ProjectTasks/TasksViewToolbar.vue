@@ -50,6 +50,16 @@
           parent-element="div"
           element="div"
           class="boardHeaderExtensions d-flex align-center flex-shrink-0" />
+        <v-btn
+          v-if="taskViewTabName === 'gantt'"
+          :title="$t('label.noWorkPlan.tasks')"
+          class="flex-shrink-0"
+          max-width="36"
+          max-height="36"
+          icon
+          @click="$root.$emit('displayTasksUnscheduledDrawer', unscheduledTaskList)">
+          <v-icon size="20" class="text-light-color">fa-calendar-alt</v-icon>
+        </v-btn>
         <tasks-view-switcher
           v-if="!$root.isMobile"
           :view="taskViewTabName"
@@ -76,11 +86,18 @@
           max-height="36"
           icon
           @click="openDrawer">
-          <v-icon
-            size="20"
-            :class="filterNumber > 0 && 'primary--text' || 'text-light-color'">
-            fa-sliders-h
-          </v-icon>
+          <v-badge
+            :value="filterNumber > 0"
+            :content="filterNumber"
+            color="primary"
+            overlap
+            bordered>
+            <v-icon
+              size="20"
+              :class="filterNumber > 0 && 'primary--text' || 'text-light-color'">
+              fa-sliders-h
+            </v-icon>
+          </v-badge>
         </v-btn>
       </template>
     </div>
@@ -119,6 +136,7 @@ export default {
       taskViewTabName: 'board',
       searchOpen: false,
       searchTimer: null,
+      unscheduledTaskList: [],
     };
   },
   created() {
@@ -128,6 +146,10 @@ export default {
       this.keyword = null;
       this.searchOpen = false;
     });
+    // The Plan/Gantt view broadcasts its unscheduled tasks; mirror the list so the
+    // toolbar button can show the count and open the drawer (replaces the floating
+    // button that used to overlay the gantt).
+    this.$root.$on('refresh-unscheduled-gantt', list => this.unscheduledTaskList = list || []);
   },
   methods: {
     openSearch() {

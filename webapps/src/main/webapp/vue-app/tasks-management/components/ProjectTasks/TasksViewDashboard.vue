@@ -26,39 +26,26 @@
       :ok-label="$t('label.ok')"
       :cancel-label="$t('popup.cancel')"
       @ok="deleteConfirm()" />
-    <div class="projectTasksWrapper d-flex justify-space-between">
-      <div class="taskViewBreadcrumb d-flex text-truncate pe-4 pt-1 pb-5">
-        <a
-          :title="project.name"
-          class="text-color text-truncate flex-shrink-1 flex-grow-0"
-          @click="hideProjectDetails()">
-          <i class="uiIcon uiBackIcon"></i>
-          <span>{{ project.name }}</span>
-        </a>
-        <extension-registry-components
-          :params="{
-            project,
-          }"
-          name="TaskProjectBoard"
-          type="task-board-header"
-          parent-element="div"
-          element="div"
-          class="d-flex align-center flex-shrink-0 ms-4" />
-      </div>
-      <div class="projectTasksTabFilter">
-        <tasks-view-toolbar
-          :project="project"
-          :status-list="statusList"
-          :task-card-tab-view="'#tasks-view-board'"
-          :task-list-tab-view="'#tasks-view-list'"
-          :task-gantt-tab-view="'#tasks-view-gantt'"
-          :show-completed-tasks="showCompletedTasks"
-          @keyword-changed="filterByKeyword"
-          @taskViewChangeTab="getChangeTabValue"
-          @filter-task-dashboard="filterTaskDashboard"
-          @reset-filter-task-dashboard="resetFiltertaskDashboard" />
-      </div>
-    </div>
+    <tasks-view-toolbar
+      :project="project"
+      :status-list="statusList"
+      :show-completed-tasks="showCompletedTasks"
+      @keyword-changed="filterByKeyword"
+      @taskViewChangeTab="getChangeTabValue"
+      @filter-task-dashboard="filterTaskDashboard"
+      @reset-filter-task-dashboard="resetFiltertaskDashboard">
+      <template #left>
+        <div class="taskViewBreadcrumb d-flex align-center text-truncate">
+          <a
+            :title="project.name"
+            class="text-color text-truncate flex-shrink-1 flex-grow-0"
+            @click="hideProjectDetails()">
+            <i class="uiIcon uiBackIcon"></i>
+            <span>{{ project.name }}</span>
+          </a>
+        </div>
+      </template>
+    </tasks-view-toolbar>
     <div v-if="filterProjectActive && groupName && groupName.projectName" class="px-0 ">
       <div 
         v-for="(projectItem,i) in groupName.projectName" 
@@ -256,7 +243,6 @@ export default {
           offset: 0,
           limit: 0,
           showCompletedTasks: projectFilter.showCompletedTasks,
-          favorite: projectFilter.favorite || false,
         };
       } else {
         this.tasksFilter = {
@@ -265,7 +251,6 @@ export default {
           offset: 0,
           limit: 0,
           showCompletedTasks: false,
-          favorite: false,
         };
       }
       
@@ -396,7 +381,6 @@ export default {
             offset: 0,
             limit: 0,
             showCompletedTasks: projectFilter.showCompletedTasks,
-            favorite: projectFilter.favorite || false,
           };
           return this.getFilter(this.tasksFilter, ProjectId);
         }
@@ -409,9 +393,8 @@ export default {
             offset: 0,
             limit: 0,
             showCompletedTasks: false,
-            favorite: false,
           };
-
+          
           if (this.tasksFilter.groupBy === 'completed') {
             this.tasksFilter.showCompletedTasks = true;
           }
@@ -421,7 +404,6 @@ export default {
             projectId: ProjectId,
             tabView: (this.taskViewTabName !== '' ? this.taskViewTabName : 'list'),
             showCompletedTasks: this.showCompletedTasks,
-            favorite: this.tasksFilter.favorite,
           };
           localStorage.setItem(`filterStorage${ProjectId}+${jsonToSave.tabView}`, JSON.stringify(jsonToSave));
           return this.getFilter(this.tasksFilter, ProjectId);

@@ -16,75 +16,30 @@
 -->
 <template>
   <div id="TasksToolbar">
-    <v-toolbar
-      id="TasksListToolbar"
-      :class="showMobileTaskFilter && 'toolbarLarge'"
-      flat
-      class="tasksToolbar">
-      <v-toolbar-title>
-        <v-btn
-          class="btn px-2 btn-primary addNewProjectButton"
-          @click="openTaskDrawer()">
-          <v-icon dark class="d-block d-sm-none">mdi-plus</v-icon>
-          <span class="d-none font-weight-regular d-sm-inline">
-            + {{ $t('label.addTask') }}
-          </span>
-        </v-btn>
-      </v-toolbar-title>
-      <v-scale-transition>
-        <v-icon
-          size="20"
-          class="taskFilterMobile"
-          :class="showMobileTaskFilter && 'tasksFilterMobile'"
-          @click="showMobileTaskFilter = !showMobileTaskFilter">
-          fas fa-filter
-        </v-icon>
-      </v-scale-transition>
-      <v-spacer />
-      <v-spacer />
-      <v-scale-transition>
-        <v-text-field
-          v-model="keyword"
-          :placeholder=" $t('label.filterTask') "
-          prepend-inner-icon="fa-filter"
-          :append-outer-icon="showMobileTaskFilter && 'mdi-close'"
-          class="inputTasksFilter pa-0 ms-3 me-3 my-auto"
-          :class="showMobileTaskFilter && 'inputTasksFilterMobile'"
-          @click:append-outer="clearMessage"
-          :clearable="!showMobileTaskFilter" />
-      </v-scale-transition>
-      <v-scale-transition>
-        <select
-          id="filterTaskSelect"
-          v-model="primaryFilterSelected"
-          name="primaryFilter"
-          class="selectPrimaryFilter input-block-level ignore-vuetify-classes  pa-0 me-3 my-auto"
-          @change="changePrimaryFilter">
-          <option
-            v-for="item in primaryFilter"
-            :key="item.name"
-            :value="item.name">
-            {{ $t('label.dueDate.'+item.name.toLowerCase()) }}
-          </option>
-        </select>
-      </v-scale-transition>
-      <v-scale-transition>
-        <select id="widthTmpSelectTaskFilter">
-          <option id="widthTmpSelectOption"></option>
-        </select>
-      </v-scale-transition>
-      <v-scale-transition>
-        <v-btn
-          class="btn px-2 btn-primary filterTasksSetting"
-          outlined
-          @click="openDrawer">
-          <i class="uiIcon uiIconFilterSetting pe-3"></i>
-          <span class="d-none font-weight-regular caption d-sm-inline">
-            {{ $t('label.filter') }} {{ getFilterNum() }}
-          </span>
-        </v-btn>
-      </v-scale-transition>
-    </v-toolbar>
+    <application-toolbar
+      id="tasksListToolbar"
+      :left-button="{
+        icon: 'fa-plus',
+        text: $t('label.addTask'),
+      }"
+      :right-text-filter="{
+        minCharacters: 1,
+        placeholder: $t('label.filterTask'),
+        tooltip: $t('label.filterTask'),
+      }"
+      :right-select-box="{
+        selected: primaryFilterSelected,
+        items: primaryFilterItems,
+      }"
+      :right-filter-button="{
+        text: $t('label.filter'),
+        displayText: !$root.isMobile,
+      }"
+      :filters-count="filterNumber"
+      @left-button-click="openTaskDrawer"
+      @filter-text-input-end-typing="onKeyword"
+      @filter-select-change="onPrimaryFilterChange"
+      @filter-button-click="openDrawer" />
     <tasks-filter-drawer
       ref="filterTasksDrawer"
       :query="keyword"
@@ -115,49 +70,47 @@ export default {
     return {
       tasks: null,
       keyword: null,
-      awaitingSearch: false,
-      searchOnKeyChange: true,
       filterNumber: 0,
       primaryFilterSelected: 'ALL',
-      drawer: null,
-      showMobileTaskFilter: false,
       primaryFilter: [
         {name: 'ALL'},{name: 'ASSIGNED'},{name: 'COLLABORATED'},{name: 'OVERDUE'},{name: 'TODAY'},{name: 'TOMORROW'},{name: 'UPCOMING'}
       ],
     };
   },
+  computed: {
+    primaryFilterItems() {
+      return this.primaryFilter.map(item => ({
+        value: item.name,
+        text: this.$t(`label.dueDate.${item.name.toLowerCase()}`),
+      }));
+    },
+  },
   watch: {
     filterNumber() {
       this.$emit('filter-count-changed', this.filterNumber);
     },
-    keyword() {
-      if (!this.awaitingSearch) {
-        const searchOnKeyChange = this.searchOnKeyChange;
-        setTimeout(() => {
-          this.$emit('keyword-changed', this.keyword,searchOnKeyChange);
-          this.awaitingSearch = false;
-        }, 1000);
-      }
-      this.awaitingSearch = true;  
-      this.searchOnKeyChange= true;
-    },
   },
   created() {
-    this.primaryFilterSelected = localStorage.getItem('primary-filter-tasks');
+    this.primaryFilterSelected = localStorage.getItem('primary-filter-tasks') || 'ALL';
     localStorage.setItem('primary-filter-tasks', 'ALL');
   },
   mounted() {
-    $('#widthTmpSelectOption').html($('#filterTaskSelect option:selected').text());
-    const widthElem = $('#widthTmpSelectTaskFilter').width() + 40;
-    $('#filterTaskSelect').width(widthElem);
-    this.changePrimaryFilter();
+    this.$emit('primary-filter-task', this.primaryFilterSelected);
   },
   methods: {
+    onKeyword(term) {
+      this.keyword = term;
+      this.$emit('keyword-changed', term, true);
+    },
+    onPrimaryFilterChange(value) {
+      this.primaryFilterSelected = value;
+      this.keyword = '';
+      this.$emit('primary-filter-task', value);
+    },
     resetFilterTask(){
       this.$emit('reset-filter-task-dashboard');
     },
     filterTaskquery(e, filterGroupSort, filterLabels) {
-      this.searchOnKeyChange = false;
       this.keyword = e.query;
       this.$emit('filter-task-query', e, filterGroupSort, filterLabels);
     },
@@ -178,32 +131,13 @@ export default {
       };
       this.$root.$emit('open-task-drawer', defaultTask);
     },
-    changePrimaryFilter(){  
-      this.searchOnKeyChange=false; 
-      this.keyword='';   
-      this.$emit('primary-filter-task', this.primaryFilterSelected);
-      $('#widthTmpSelectOption').html($('#filterTaskSelect option:selected').text());
-      const widthElem = $('#widthTmpSelectTaskFilter').width() + 40;
-      $('#filterTaskSelect').width(widthElem);   
-    },
     resetFields(activeField){
-      this.searchOnKeyChange=false;
       this.keyword='';
       this.$refs.filterTasksDrawer.resetFields(activeField);
     },
     filterNumChanged(filtersnumber){
       this.filterNumber=filtersnumber;
     },
-    getFilterNum(){
-      if (this.filterNumber>0){
-        return `(${this.filterNumber})`;
-      } return '';
-    },
-    clearMessage() {
-      this.keyword = '';
-      this.showMobileTaskFilter = !this.showMobileTaskFilter;
-    }
-
   }
 };
 </script>

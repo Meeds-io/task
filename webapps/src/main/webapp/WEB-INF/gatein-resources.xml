@@ -261,6 +261,9 @@
         <module>taskCommentsDrawer</module>
       </depends>
       <depends>
+        <module>applicationToolbarComponent</module>
+      </depends>
+      <depends>
         <module>ExtendedDomPurify</module>
       </depends>
       <depends>

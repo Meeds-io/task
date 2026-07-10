@@ -20,7 +20,6 @@ import ProjectDashboard from './components/Project/ProjectDashboard.vue';
 import ProjectListToolbar from './components/Project/ProjectListToolbar.vue';
 import ProjectCard from './components/Project/ProjectCard.vue';
 import ProjectCardFront from './components/Project/ProjectCardFront.vue';
-import ProjectCardReverse from './components/Project/ProjectCardReverse.vue';
 import AddProjectDrawer from './components/Project/AddProjectDrawer.vue';
 import ExoTaskEditor from './components/Project/ExoTaskEditor.vue';
 import ProjectManagersDrawer from './components/Project/ProjectManagersDrawer.vue';
@@ -67,7 +66,6 @@ const components = {
   'project-card-list': ProjectCardList,
   'project-card': ProjectCard,
   'project-card-front': ProjectCardFront,
-  'project-card-Reverse': ProjectCardReverse,
   'add-project-drawer': AddProjectDrawer,
   'exo-task-editor': ExoTaskEditor,
   'project-manager-drawer': ProjectManagersDrawer,
