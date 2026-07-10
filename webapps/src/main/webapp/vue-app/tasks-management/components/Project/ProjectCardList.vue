@@ -37,20 +37,42 @@
         </span>
       </v-btn>
     </div>
+    <div v-else-if="showSkeleton">
+      <v-card flat class="transparent">
+        <v-container class="full-width pa-0 py-4">
+          <v-row class="mx-n2 my-0 border-box-sizing">
+            <v-col
+              v-for="n in skeletonCount"
+              :key="`project-skeleton-${n}`"
+              cols="12"
+              md="6"
+              lg="4"
+              xl="4"
+              class="px-2 py-0 projectItem">
+              <div class="py-3">
+                <v-skeleton-loader
+                  type="article"
+                  class="projectCardSkeleton" />
+              </div>
+            </v-col>
+          </v-row>
+        </v-container>
+      </v-card>
+    </div>
     <div v-else>
       <v-card flat class="transparent">
         <v-item-group class="py-4">
           <v-container class="full-width pa-0">
-            <v-row class="ma-0 border-box-sizing">
+            <v-row class="mx-n2 my-0 border-box-sizing">
               <v-col
-                v-for="project in projects"
+                v-for="project in displayedProjects"
                 :key="project.id"
                 :id="`project-${project.id}`"
                 cols="12"
                 md="6"
                 lg="4"
                 xl="4"
-                class="pa-0 projectItem">
+                class="px-2 py-0 projectItem">
                 <project-card
                   :project="project"
                   @refreshProjects="searchProjects" />
@@ -110,11 +132,26 @@ export default {
     };
   },
   computed: {
+    displayedProjects() {
+      // The backend has no "favorites" filter, so filter the loaded list by the
+      // favorite flag client-side when that option is selected.
+      if (this.projectFilterSelected === 'FAVORITES') {
+        return this.projects.filter(project => project.favorite);
+      }
+      return this.projects;
+    },
     canShowMore() {
       return this.loadingProjects || this.projects.length >= this.limitToFetch;
     },
     showPlaceholder() {
       return !this.projects?.length && !this.loadingProjects;
+    },
+    showSkeleton() {
+      // Initial load: show placeholder cards until the first page arrives.
+      return this.loadingProjects && !this.projects?.length;
+    },
+    skeletonCount() {
+      return Math.min(this.limit, 6);
     },
     showPlaceholderResetSearch() {
       return this.projectFilterSelected !== 'ALL' || this.keyword?.length;

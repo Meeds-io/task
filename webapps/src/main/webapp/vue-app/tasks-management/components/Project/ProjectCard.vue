@@ -15,23 +15,12 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div id="projectCard">
-    <v-flex :class="flipCard && 'taskCardFlip taskCardFlipped' || 'taskCardFlip'">
-      <div class="taskCardFront py-3 pe-4">
-        <project-card-front
-          :project="project"
-          @openDrawer="openEditDrawer"
-          @closed="onCloseDrawer"
-          @refreshProjects="refreshProjects"
-          @flip="flipCard = true; flip()" />
-      </div>
-      <div class="tasksCardBack py-3 pe-4">
-        <project-card-Reverse
-          ref="reversCard"
-          :project="project"
-          @flip="flipCard = false; flip()" />
-      </div>
-    </v-flex>
+  <div id="projectCard" class="py-3">
+    <project-card-front
+      :project="project"
+      @openDrawer="openEditDrawer"
+      @closed="onCloseDrawer"
+      @refreshProjects="refreshProjects" />
   </div>
 </template>
 <script>
@@ -41,11 +30,6 @@ export default {
       type: Object,
       default: () => ({}),
     }
-  },
-  data () {
-    return {
-      flipCard: false,
-    };
   },
   methods: {
     openEditDrawer() {
@@ -57,11 +41,6 @@ export default {
     refreshProjects: function(){
       this.$emit('refreshProjects');
     },
-    flip: function(){
-      if (this.flipCard){
-        this.$refs.reversCard.getStats(this.project);
-      }
-    }
   }
 };
 </script>

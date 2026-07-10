@@ -15,67 +15,34 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div id="projectBoardToolbar">
-    <v-toolbar
-      id="ProjectListToolbar"
-      :class="showMobileTaskFilter && 'toolbarLarge'"
-      flat
-      class="tasksToolbar pb-3 transparent">
-      <v-toolbar-title v-if="enableCreateButton">
-        <v-btn
-          class="btn px-2 btn-primary addNewProjectButton"
-          @click="openDrawer">
-          <!--<i class="uiIcon uiIconPlus"></i>-->
-          <v-icon dark class="d-block d-sm-none">mdi-plus</v-icon>
-          <span class="d-none font-weight-regular d-sm-flex align-center">
-            <i class="uiIcon uiIconPlus"></i>
-            <span class="ms-2 addProject">{{ $t('label.addProject') }}</span> 
-          </span>
-        </v-btn>
-      </v-toolbar-title>
-      <v-scale-transition>
-        <v-icon
-          size="20"
-          class="taskFilterMobile"
-          :class="showMobileTaskFilter && 'tasksFilterMobile'"
-          @click="showMobileTaskFilter = !showMobileTaskFilter">
-          fas fa-filter
-        </v-icon>
-      </v-scale-transition>
-      <v-spacer />
-      <v-scale-transition>
-        <v-text-field
-          v-model="keyword"
-          :placeholder="$t('label.filterProject')"
-          prepend-inner-icon="fa-filter"
-          :append-outer-icon="showMobileTaskFilter && 'mdi-close'"
-          class="inputTasksFilter inputProjectFilter pa-0 ms-3 me-3 my-auto"
-          :class="showMobileTaskFilter && 'inputTasksFilterMobile'"
-          @click:append-outer="clearMessage"
-          :clearable="!showMobileTaskFilter" />
-      </v-scale-transition>
-      <v-scale-transition v-if="!spaceName">
-        <select
-          id="filterTaskSelect"
-          v-model="projectFilterSelected"
-          name="projectFilter"
-          class="selectTasksFilter my-auto me-2 subtitle-1 ignore-vuetify-classes d-sm-inline"
-          @change="changeProjectFilter">
-          <option
-            v-for="item in projectFilter"
-            :key="item.name"
-            :value="item.name">
-            {{ $t('label.project.filter.'+item.name.toLowerCase()) }}
-          </option>
-        </select>
-      </v-scale-transition>
-      <v-scale-transition>
-        <select id="widthTmpSelectTaskFilter">
-          <option id="widthTmpSelectOption"></option>
-        </select>
-      </v-scale-transition>
-    </v-toolbar>
-  </div>
+  <application-toolbar
+    id="projectListToolbar"
+    compact
+    :right-text-filter="{
+      minCharacters: 1,
+      placeholder: $t('label.filterProject'),
+      tooltip: $t('label.filterProject'),
+    }"
+    :right-select-box="{
+      hide: !!spaceName,
+      selected: projectFilterSelected,
+      items: projectFilterItems,
+    }"
+    @filter-text-input-end-typing="onKeyword"
+    @filter-select-change="onFilterChange">
+    <template #left>
+      <!-- The slot itself is always declared (ApplicationToolbar reads $slots.left
+           non-reactively); the create button is gated inside so it appears once the
+           async space permission resolves, e.g. when displayed inside a space. -->
+      <v-btn
+        v-if="enableCreateButton"
+        class="btn btn-primary addNewProjectButton text-none"
+        @click="openDrawer">
+        <v-icon size="16" dark class="me-2">fa-plus</v-icon>
+        <span>{{ $t('label.addProject') }}</span>
+      </v-btn>
+    </template>
+  </application-toolbar>
 </template>
 <script>
 export default {
@@ -96,32 +63,24 @@ export default {
   data () {
     return {
       projectFilter: [
-        {name: 'ALL'},{name: 'MANAGED'},{name: 'COLLABORATED'},{name: 'WITH_TASKS'}
+        {name: 'ALL'},{name: 'MANAGED'},{name: 'COLLABORATED'},{name: 'WITH_TASKS'},{name: 'FAVORITES'}
       ],
-      showMobileTaskFilter: false,
       currentSpace: false,
     };
-  },
-  watch: {
-    keyword() {
-      this.$emit('keyword-changed', this.keyword);
-    },
-    projectFilterSelected() {
-      this.$emit('filter-changed', this.projectFilterSelected);
-    }
-  },
-  created() {
-    this.retrieveCurrentSpace();
   },
   computed: {
     enableCreateButton() {
       return eXo.env.portal.spaceId ? this.currentSpace && this.currentSpace.canEdit : true;
-    }
+    },
+    projectFilterItems() {
+      return this.projectFilter.map(item => ({
+        value: item.name,
+        text: this.$t(`label.project.filter.${item.name.toLowerCase()}`),
+      }));
+    },
   },
-  mounted() {
-    $('#widthTmpSelectOption').html($('#filterTaskSelect option:selected').text());
-    const widthElem = $('#widthTmpSelectTaskFilter').width() + 40;
-    $('#filterTaskSelect').width(widthElem);
+  created() {
+    this.retrieveCurrentSpace();
   },
   methods: {
     retrieveCurrentSpace() {
@@ -134,14 +93,11 @@ export default {
     openDrawer() {
       this.$root.$emit('open-project-drawer', {});
     },
-    clearMessage() {
-      this.keyword = '';
-      this.showMobileTaskFilter = !this.showMobileTaskFilter;
+    onKeyword(term) {
+      this.$emit('keyword-changed', term);
     },
-    changeProjectFilter() {
-      $('#widthTmpSelectOption').html($('#filterTaskSelect option:selected').text());
-      const widthElem = $('#widthTmpSelectTaskFilter').width() + 40;
-      $('#filterTaskSelect').width(widthElem);   
+    onFilterChange(value) {
+      this.$emit('filter-changed', value);
     }
   }
 };

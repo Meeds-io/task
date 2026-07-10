@@ -40,7 +40,7 @@
         <span class="unscheduled-task-badge">{{ unscheduledTaskList.length }}</span>
       </v-btn>
     </div>
-    <div 
+    <div
       id="gantt-chart"
       class="gantt-chart-container">
     </div>
@@ -103,6 +103,9 @@ export default {
           this.initGanttChart(this.tasksToDisplay);
         }
       }
+      // Publish the unscheduled list so the unscheduled-tasks drawer shows the
+      // right count on the initial gantt display too.
+      this.$root.$emit('refresh-unscheduled-gantt', this.unscheduledTaskList);
     });
     this.$root.$on('refresh-gantt', taskItems => {
       this.unscheduledTaskList = [];
@@ -337,6 +340,44 @@ export default {
       this.gantt.change_view_mode(this.ganttScale);
       this.isGanttDisplayed = true;
       this.addScrollToDateArea();
+      this.bindGanttPopupRepositioning();
+    },
+    bindGanttPopupRepositioning() {
+      const chart = document.getElementById('gantt-chart');
+      if (!chart || chart.dataset.popupBound) {
+        return;
+      }
+      chart.dataset.popupBound = 'true';
+      // frappe-gantt positions its hover popup in a mixed coordinate space, so it
+      // lands far from the bar. Reposition it just below the hovered bar in our own
+      // code (after the library has positioned it) instead of patching the library.
+      // This listener is on the container, so it runs in the bubbling phase AFTER
+      // the library's own bar-level handler has positioned the popup. Repositioning
+      // synchronously here overwrites that position before the browser paints, so
+      // there is no wrong-position flash / flicker.
+      chart.addEventListener('mouseover', event => {
+        const bar = event.target.closest && event.target.closest('.bar-wrapper');
+        if (bar) {
+          this.repositionGanttPopup(bar);
+        }
+      });
+    },
+    repositionGanttPopup(bar) {
+      const popup = document.querySelector('#gantt-chart .popup-wrapper');
+      if (!popup || !popup.offsetParent) {
+        return;
+      }
+      const barRect = bar.getBoundingClientRect();
+      // The popup's offsetParent is the scrolling grid, with offsets that are hard
+      // to model directly. Calibrate instead: park the popup at (0,0), read where it
+      // actually lands, then offset from there to just below the bar. Robust to the
+      // grid's scroll. getBoundingClientRect forces layout but not paint, so the
+      // intermediate (0,0) position is never shown.
+      popup.style.left = '0px';
+      popup.style.top = '0px';
+      const base = popup.getBoundingClientRect();
+      popup.style.left = `${barRect.left - base.left}px`;
+      popup.style.top = `${barRect.bottom - base.top + 8}px`;
     }
   }
 };
