@@ -575,14 +575,22 @@ public class TaskMcpTool implements McpToolPlugin {
     taskService.updateTask(task);
   }
 
+  // Patch a task's start/end/due dates: only the dates actually passed are updated,
+  // so setting one date (e.g. end) never wipes the others that were set before.
   public TaskModel setTaskDates(long taskId,
                                 String startDate,
                                 String endDate,
                                 String dueDate) throws ObjectNotFoundException, IllegalAccessException {
     TaskDto task = getEditableTask(taskId);
-    task.setStartDate(toDate(startDate));
-    task.setEndDate(toDate(endDate));
-    task.setDueDate(toDate(dueDate));
+    if (StringUtils.isNotBlank(startDate)) {
+      task.setStartDate(toDate(startDate));
+    }
+    if (StringUtils.isNotBlank(endDate)) {
+      task.setEndDate(toDate(endDate));
+    }
+    if (StringUtils.isNotBlank(dueDate)) {
+      task.setDueDate(toDate(dueDate));
+    }
     task = taskService.updateTask(task);
     return toTaskModel(task);
   }
