@@ -64,6 +64,7 @@ export default {
       default: false,
     },
   },
+  emits: ['removed'],
   data: () => ({
     isFavorite: true,
     task: null,

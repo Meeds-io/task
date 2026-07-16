@@ -217,10 +217,16 @@ public class TestTaskRestService {
     task1.setAssignee("root");
     taskService.createTask(task1);
     when(taskService.getTask(1)).thenReturn(task1);
+    org.exoplatform.social.core.identity.model.Identity rootIdentity =
+                                                                      mock(org.exoplatform.social.core.identity.model.Identity.class);
+    when(rootIdentity.getId()).thenReturn("1");
+    when(identityManager.getOrCreateUserIdentity("root")).thenReturn(rootIdentity);
+    when(favoriteService.isFavorite(any())).thenReturn(true);
     // When
     Response response = taskRestService.getTaskById((long)1);
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertTrue(((TaskDto) response.getEntity()).isFavorite());
   }
 
   @Test

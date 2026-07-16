@@ -20,11 +20,13 @@ package org.exoplatform.task.rest;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -286,12 +288,18 @@ public class TestProjectRestService {
     project.setManager(manager);
 
     when(projectService.getProject(1L)).thenReturn(project);
+    org.exoplatform.social.core.identity.model.Identity johnIdentity =
+                                                                       mock(org.exoplatform.social.core.identity.model.Identity.class);
+    when(johnIdentity.getId()).thenReturn("1");
+    when(identityManager.getOrCreateUserIdentity("john")).thenReturn(johnIdentity);
+    when(favoriteService.isFavorite(any())).thenReturn(true);
 
     // When
     Response response = projectRestService.getProjectById(1,true);
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertNotNull(response.getEntity());
+    assertTrue(new JSONObject((String) response.getEntity()).getBoolean("favorite"));
 
     when(projectService.getManager(1)).thenReturn(new HashSet<>(Arrays.asList(null, "")));
     when(projectService.getParticipator(1)).thenReturn(new HashSet<>(Arrays.asList(null, "")));

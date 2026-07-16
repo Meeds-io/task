@@ -40,7 +40,6 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.core.identity.SpaceMemberFilterListAccess.Type;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
-import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dto.ProjectDto;
@@ -107,22 +106,6 @@ public class ProjectRestService implements ResourceContainer {
     this.labelService = labelService;
     this.identityManager = identityManager;
     this.favoriteService = favoriteService;
-  }
-
-  private boolean isFavorite(String objectType, long objectId) {
-    Identity identity = ConversationState.getCurrent().getIdentity();
-    if (identity == null) {
-      return false;
-    }
-    org.exoplatform.social.core.identity.model.Identity userIdentity =
-                                                                      identityManager.getOrCreateUserIdentity(identity.getUserId());
-    if (userIdentity == null) {
-      return false;
-    }
-    return favoriteService.isFavorite(new Favorite(objectType,
-                                                   String.valueOf(objectId),
-                                                   null,
-                                                   Long.parseLong(userIdentity.getId())));
   }
 
   private enum TaskType {
@@ -214,7 +197,11 @@ public class ProjectRestService implements ResourceContainer {
       if (!project.canView(currentUser)) {
         return Response.status(Response.Status.UNAUTHORIZED).build();
       }
-      return Response.ok(buildJsonProject(project, participatorParam).toString()).build();
+      boolean favorite = FavoriteUtil.isFavorite(favoriteService,
+                                                  identityManager,
+                                                  ProjectPermanentLinkPlugin.OBJECT_TYPE,
+                                                  id);
+      return Response.ok(buildJsonProject(project, participatorParam, favorite).toString()).build();
     } catch (Exception e) {
       LOG.error("Can't get Project with id {}", id, e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -346,15 +333,19 @@ public class ProjectRestService implements ResourceContainer {
                               boolean participatorParam) throws JSONException {
 
     Identity currentUser = ConversationState.getCurrent().getIdentity();
+    Set<String> favoriteProjectIds = FavoriteUtil.getFavoriteObjectIds(favoriteService,
+                                                                        identityManager,
+                                                                        ProjectPermanentLinkPlugin.OBJECT_TYPE);
     for (ProjectDto project : projects) {
       if (project.canView(currentUser)) {
-        projectsJsonArray.put(buildJsonProject(project, participatorParam));
+        boolean favorite = favoriteProjectIds.contains(String.valueOf(project.getId()));
+        projectsJsonArray.put(buildJsonProject(project, participatorParam, favorite));
       }
     }
     return projectsJsonArray;
   }
 
-  private JSONObject buildJsonProject(ProjectDto project, boolean participatorParam) throws JSONException {
+  private JSONObject buildJsonProject(ProjectDto project, boolean participatorParam, boolean favorite) throws JSONException {
 
     long projectId = project.getId();
     Space space = null;
@@ -511,7 +502,7 @@ public class ProjectRestService implements ResourceContainer {
     projectJson.put("description", project.getDescription());
     // projectJson.put("status", statusService.getStatus(projectId));
     projectJson.put("canManage", project.canEdit(ConversationState.getCurrent().getIdentity()));
-    projectJson.put("favorite", isFavorite(ProjectPermanentLinkPlugin.OBJECT_TYPE, projectId));
+    projectJson.put("favorite", favorite);
     return projectJson;
   }
 

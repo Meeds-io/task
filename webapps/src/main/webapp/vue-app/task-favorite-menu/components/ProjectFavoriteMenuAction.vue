@@ -89,9 +89,6 @@ export default {
         : this.$favoriteService.addFavorite('project', this.objectId, null, this.spaceId);
       promise.then(() => {
         this.isFavorite = !wasFavorite;
-        if (this.project) {
-          this.project.favorite = this.isFavorite;
-        }
         document.dispatchEvent(new CustomEvent(this.isFavorite && 'favorite-added' || 'favorite-removed', {
           detail: {
             type: 'project',

@@ -57,7 +57,6 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
-import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.CommentDto;
@@ -81,6 +80,7 @@ import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.util.CommentUtil;
+import org.exoplatform.task.util.FavoriteUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.util.UserUtil;
 
@@ -150,22 +150,6 @@ public class TaskRestService implements ResourceContainer {
     ALL, INCOMING, OVERDUE, WATCHED, COLLABORATED, ASSIGNED
   }
 
-  private boolean isFavorite(String objectType, long objectId) {
-    Identity identity = ConversationState.getCurrent().getIdentity();
-    if (identity == null) {
-      return false;
-    }
-    org.exoplatform.social.core.identity.model.Identity userIdentity =
-                                                                      identityManager.getOrCreateUserIdentity(identity.getUserId());
-    if (userIdentity == null) {
-      return false;
-    }
-    return favoriteService.isFavorite(new Favorite(objectType,
-                                                   String.valueOf(objectId),
-                                                   null,
-                                                   Long.parseLong(userIdentity.getId())));
-  }
-
 
 
   @GET
@@ -188,7 +172,7 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
     transformHtml(task, ConversationState.getCurrent().getIdentity());
-    task.setFavorite(isFavorite(TaskPermanentLinkPlugin.OBJECT_TYPE, task.getId()));
+    task.setFavorite(FavoriteUtil.isFavorite(favoriteService, identityManager, TaskPermanentLinkPlugin.OBJECT_TYPE, task.getId()));
     return Response.ok(task).build();
     } catch (Exception e) {
       LOG.error("Can't get Task By Id {}", id, e);
