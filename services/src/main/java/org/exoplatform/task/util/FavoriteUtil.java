@@ -1,7 +1,7 @@
 /**
  * This file is part of the Meeds project (https://meeds.io/).
  *
- * Copyright (C) 2020 - 2025 Meeds Association contact@meeds.io
+ * Copyright (C) 2020 - 2026 Meeds Association contact@meeds.io
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -46,10 +46,7 @@ public final class FavoriteUtil {
    * @param objectId object technical identifier
    * @return true if the current user marked the object as favorite
    */
-  public static boolean isFavorite(FavoriteService favoriteService,
-                                    IdentityManager identityManager,
-                                    String objectType,
-                                    long objectId) {
+  public static boolean isFavorite(FavoriteService favoriteService, IdentityManager identityManager, String objectType, long objectId) {
     Long currentUserIdentityId = getCurrentUserIdentityId(identityManager);
     if (currentUserIdentityId == null) {
       return false;
@@ -68,17 +65,12 @@ public final class FavoriteUtil {
    * @param objectType favorite object type (e.g. project/task)
    * @return {@link Set} of favorite object ids (as {@link String}) for the current user
    */
-  public static Set<String> getFavoriteObjectIds(FavoriteService favoriteService,
-                                                   IdentityManager identityManager,
-                                                   String objectType) {
+  public static Set<String> getFavoriteObjectIds(FavoriteService favoriteService, IdentityManager identityManager, String objectType) {
     Long currentUserIdentityId = getCurrentUserIdentityId(identityManager);
     if (currentUserIdentityId == null) {
       return Collections.emptySet();
     }
-    List<MetadataItem> favoriteItems = favoriteService.getFavoriteItemsByCreatorAndType(objectType,
-                                                                                         currentUserIdentityId,
-                                                                                         0,
-                                                                                         -1);
+    List<MetadataItem> favoriteItems = favoriteService.getFavoriteItemsByCreatorAndType(objectType, currentUserIdentityId, 0, -1);
     Set<String> favoriteObjectIds = new HashSet<>();
     for (MetadataItem favoriteItem : favoriteItems) {
       favoriteObjectIds.add(favoriteItem.getObjectId());

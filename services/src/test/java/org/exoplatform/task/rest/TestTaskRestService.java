@@ -1,7 +1,7 @@
 /**
  * This file is part of the Meeds project (https://meeds.io/).
  *
- * Copyright (C) 2020 - 2025 Meeds Association contact@meeds.io
+ * Copyright (C) 2020 - 2026 Meeds Association contact@meeds.io
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -217,8 +217,7 @@ public class TestTaskRestService {
     task1.setAssignee("root");
     taskService.createTask(task1);
     when(taskService.getTask(1)).thenReturn(task1);
-    org.exoplatform.social.core.identity.model.Identity rootIdentity =
-                                                                      mock(org.exoplatform.social.core.identity.model.Identity.class);
+    org.exoplatform.social.core.identity.model.Identity rootIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
     when(rootIdentity.getId()).thenReturn("1");
     when(identityManager.getOrCreateUserIdentity("root")).thenReturn(rootIdentity);
     when(favoriteService.isFavorite(any())).thenReturn(true);

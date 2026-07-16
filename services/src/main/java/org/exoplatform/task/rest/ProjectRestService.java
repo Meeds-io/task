@@ -1,7 +1,7 @@
 /**
  * This file is part of the Meeds project (https://meeds.io/).
  *
- * Copyright (C) 2020 - 2025 Meeds Association contact@meeds.io
+ * Copyright (C) 2020 - 2026 Meeds Association contact@meeds.io
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -197,10 +197,7 @@ public class ProjectRestService implements ResourceContainer {
       if (!project.canView(currentUser)) {
         return Response.status(Response.Status.UNAUTHORIZED).build();
       }
-      boolean favorite = FavoriteUtil.isFavorite(favoriteService,
-                                                  identityManager,
-                                                  ProjectPermanentLinkPlugin.OBJECT_TYPE,
-                                                  id);
+      boolean favorite = FavoriteUtil.isFavorite(favoriteService, identityManager, ProjectPermanentLinkPlugin.OBJECT_TYPE, id);
       return Response.ok(buildJsonProject(project, participatorParam, favorite).toString()).build();
     } catch (Exception e) {
       LOG.error("Can't get Project with id {}", id, e);
@@ -333,9 +330,7 @@ public class ProjectRestService implements ResourceContainer {
                               boolean participatorParam) throws JSONException {
 
     Identity currentUser = ConversationState.getCurrent().getIdentity();
-    Set<String> favoriteProjectIds = FavoriteUtil.getFavoriteObjectIds(favoriteService,
-                                                                        identityManager,
-                                                                        ProjectPermanentLinkPlugin.OBJECT_TYPE);
+    Set<String> favoriteProjectIds = FavoriteUtil.getFavoriteObjectIds(favoriteService, identityManager, ProjectPermanentLinkPlugin.OBJECT_TYPE);
     for (ProjectDto project : projects) {
       if (project.canView(currentUser)) {
         boolean favorite = favoriteProjectIds.contains(String.valueOf(project.getId()));
