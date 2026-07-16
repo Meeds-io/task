@@ -39,6 +39,7 @@ import org.exoplatform.social.core.profile.ProfileFilter;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.core.identity.SpaceMemberFilterListAccess.Type;
+import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dto.ProjectDto;
@@ -49,6 +50,9 @@ import org.exoplatform.task.model.User;
 import org.exoplatform.task.service.*;
 import org.exoplatform.task.util.*;
 import org.gatein.common.text.EntityEncoder;
+
+import io.meeds.task.plugin.ProjectPermanentLinkPlugin;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -82,6 +86,8 @@ public class ProjectRestService implements ResourceContainer {
 
   private IdentityManager  identityManager;
 
+  private FavoriteService  favoriteService;
+
   public ProjectRestService(TaskService taskService,
                             CommentService commentService,
                             ProjectService projectService,
@@ -89,7 +95,8 @@ public class ProjectRestService implements ResourceContainer {
                             UserService userService,
                             SpaceService spaceService,
                             LabelService labelService,
-                            IdentityManager identityManager) {
+                            IdentityManager identityManager,
+                            FavoriteService favoriteService) {
     this.taskService = taskService;
     this.commentService = commentService;
     this.projectService = projectService;
@@ -98,6 +105,7 @@ public class ProjectRestService implements ResourceContainer {
     this.spaceService = spaceService;
     this.labelService = labelService;
     this.identityManager = identityManager;
+    this.favoriteService = favoriteService;
   }
 
   private enum TaskType {
@@ -189,7 +197,8 @@ public class ProjectRestService implements ResourceContainer {
       if (!project.canView(currentUser)) {
         return Response.status(Response.Status.UNAUTHORIZED).build();
       }
-      return Response.ok(buildJsonProject(project, participatorParam).toString()).build();
+      boolean favorite = FavoriteUtil.isFavorite(favoriteService, identityManager, ProjectPermanentLinkPlugin.OBJECT_TYPE, id);
+      return Response.ok(buildJsonProject(project, participatorParam, favorite).toString()).build();
     } catch (Exception e) {
       LOG.error("Can't get Project with id {}", id, e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -321,15 +330,17 @@ public class ProjectRestService implements ResourceContainer {
                               boolean participatorParam) throws JSONException {
 
     Identity currentUser = ConversationState.getCurrent().getIdentity();
+    Set<String> favoriteProjectIds = FavoriteUtil.getFavoriteObjectIds(favoriteService, identityManager, ProjectPermanentLinkPlugin.OBJECT_TYPE);
     for (ProjectDto project : projects) {
       if (project.canView(currentUser)) {
-        projectsJsonArray.put(buildJsonProject(project, participatorParam));
+        boolean favorite = favoriteProjectIds.contains(String.valueOf(project.getId()));
+        projectsJsonArray.put(buildJsonProject(project, participatorParam, favorite));
       }
     }
     return projectsJsonArray;
   }
 
-  private JSONObject buildJsonProject(ProjectDto project, boolean participatorParam) throws JSONException {
+  private JSONObject buildJsonProject(ProjectDto project, boolean participatorParam, boolean favorite) throws JSONException {
 
     long projectId = project.getId();
     Space space = null;
@@ -486,6 +497,7 @@ public class ProjectRestService implements ResourceContainer {
     projectJson.put("description", project.getDescription());
     // projectJson.put("status", statusService.getStatus(projectId));
     projectJson.put("canManage", project.canEdit(ConversationState.getCurrent().getIdentity()));
+    projectJson.put("favorite", favorite);
     return projectJson;
   }
 

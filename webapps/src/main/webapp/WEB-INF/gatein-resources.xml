@@ -387,4 +387,44 @@
     </depends>
   </module>
 
+  <module>
+    <name>TaskFavoriteDrawerExtension</name>
+    <load-group>FavoriteDrawerGRP</load-group>
+    <script>
+      <path>/js/favoriteExtensions.bundle.js</path>
+    </script>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>commonVueComponents</module>
+    </depends>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+  </module>
+
+  <module>
+    <name>taskFavoriteMenuTaskExtension</name>
+    <load-group>taskDrawerGrp</load-group>
+    <script>
+      <path>/js/taskFavoriteMenu.bundle.js</path>
+    </script>
+    <depends>
+      <module>vue</module>
+    </depends>
+    <depends>
+      <module>eXoVueI18n</module>
+    </depends>
+    <depends>
+      <module>commonVueComponents</module>
+    </depends>
+    <depends>
+      <module>extensionRegistry</module>
+    </depends>
+  </module>
+
 </gatein-resources>
