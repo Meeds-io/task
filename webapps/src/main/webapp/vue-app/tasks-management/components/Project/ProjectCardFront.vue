@@ -305,7 +305,9 @@ export default {
     }
   },
   beforeDestroy() {
-    this.statsObserver && this.statsObserver.disconnect();
+    if (this.statsObserver) {
+      this.statsObserver.disconnect();
+    }
   },
   methods: {
     fetchStats() {
