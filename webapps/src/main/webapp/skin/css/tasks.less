@@ -611,6 +611,116 @@
     margin-right: 19px ~'; /** orientation=rt */ ';
     display: block
   }
+  .tasksToolbar {
+    .inputTasksFilter {
+      max-width: 250px;
+      .v-input__slot {
+        margin-bottom: 0!important;
+        .v-text-field__slot {
+          input {
+            max-height: 22px!important;
+          }
+        }
+      }
+      .v-input__append-inner {
+        button.mdi-close {
+          font-size: 18px;
+          margin-top: 14px;
+        }
+      }
+    }
+    .taskFilterMobile {
+      color: @greyColorLighten1!important;
+      font-size: 16px!important;
+      margin-left: 12px ~'; /** orientation=lt */ ';
+      margin-right: 12px ~'; /** orientation=rt */ ';
+      display: none;
+    }
+    .inputTasksFilterMobile {
+      display: flex!important;
+      width: 90%;
+      max-width: 90%;
+      position: absolute;
+      top: 50px;
+      .v-input__append-outer {
+        margin-left: -25px ~'!important; /** orientation=lt */ ';
+        margin-right: -25px ~'!important; /** orientation=rt */ ';
+      }
+    }
+    .tasksFilterMobile {
+      display: none!important;
+    }
+    .selectPrimaryFilter {
+      width: auto;
+      height: 38px;
+      color: @greyColorLighten1;
+      &:focus {
+        outline: none;
+        box-shadow: none;
+      }
+    }
+
+    #widthTmpSelectTaskFilter {
+      display:none;
+      visibility:hidden;
+      width: inherit!important;
+    }
+
+    .selectTasksFilter {
+      height: 40px;
+      width: auto;
+      padding-right: 20px ~'; /** orientation=lt */ ';
+      padding-left: 20px ~'; /** orientation=rt */ ';
+      &:focus {
+        outline: none;
+        box-shadow: none;
+      }
+    }
+    .taskDisplay {
+      .uiIcon {
+        font-style: normal;
+        font-size: 16px;
+        padding-right: 10px ~'; /** orientation=lt */ ';
+        padding-left: 10px ~'; /** orientation=rt */ ';
+      }
+      .uiIconCards {
+        .far();
+        .fa-clipboard();
+      }
+      .uiIconList {
+        .fas();
+        .fa-list();
+      }
+    }
+    .v-tabs-slider-wrapper {
+      display: none;
+    }
+    .taskTabCards {
+      border: 1px solid @borderColor;
+      border-radius: 5px 0 0 5px;
+      height: 38px;
+      min-height: 38px;
+    }
+    .taskTabList {
+      border: 1px solid @borderColor;
+      border-radius: 0 5px 5px 0;
+      height: 38px;
+      min-height: 38px;
+    }
+    .v-tab.v-tab--active {
+      border: 1px solid @primaryColor!important;
+      background-color: @tabNormalLinkBackground!important;
+    }
+    .filterTasksSetting {
+      .uiIconFilterSetting {
+        .fa();
+        .fa-sliders-h();
+        font-style: normal;
+        font-size: 16px;
+        color: @primaryColor;
+      }
+    }
+  }
   .tasksListContainer {
     .projectItem {
       position: relative;
