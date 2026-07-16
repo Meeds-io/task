@@ -1929,6 +1929,31 @@
                      GANTT CHART STYLE
 -----------------------------------------------------------*/
 .gantt-wrapper {
+  .unscheduled-task-container {
+    position: absolute;
+    z-index: 999;
+    top: 50%;
+    left: 30px;
+    .unscheduled-task-btn {
+      background-color: @greyColor!important;
+      .mdi-calendar-range {
+        color: @baseColorLight!important;
+      }
+      .unscheduled-task-badge {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        top: -5px;
+        right: 1px;
+        background: @warningColor;
+        font-size: 10px;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
   .gantt-chart-container {
     padding-top: 20px;
   }

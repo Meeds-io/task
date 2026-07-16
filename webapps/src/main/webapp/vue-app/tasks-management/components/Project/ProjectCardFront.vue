@@ -292,6 +292,23 @@ export default {
   },
   mounted() {
     if (this.project && this.project.id && this.$projectService && this.$projectService.getProjectStats) {
+      // Cards render off-screen in the same tick (a page of 20+ fires no REST
+      // calls until scrolled into view), so only fetch stats once the card
+      // actually becomes visible instead of unconditionally for every card.
+      this.statsObserver = new IntersectionObserver(entries => {
+        if (entries.some(entry => entry.isIntersecting)) {
+          this.statsObserver.disconnect();
+          this.fetchStats();
+        }
+      });
+      this.statsObserver.observe(this.$el);
+    }
+  },
+  beforeDestroy() {
+    this.statsObserver && this.statsObserver.disconnect();
+  },
+  methods: {
+    fetchStats() {
       // Order the status segments by their column rank so the bar mirrors the
       // board's left-to-right workflow; counts come from the statistics endpoint.
       // Both are awaited together so the ranks are known on the first render of
@@ -309,9 +326,7 @@ export default {
           this.statusStats = data && data.statusStats || [];
         })
         .catch(() => this.tasksCount = null);
-    }
-  },
-  methods: {
+    },
     showProjectTasksDetails(project) {
       document.dispatchEvent(new CustomEvent('showProjectTasks', {detail: project}));
     },
