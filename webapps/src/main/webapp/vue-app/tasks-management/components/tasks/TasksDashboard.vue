@@ -282,8 +282,31 @@ export default {
         window.setTimeout(() => this.updateTasksList(), 500);
       }
     });
+
+    document.addEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
+  },
+  beforeDestroy() {
+    document.removeEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
   },
   methods: {
+    onFavoriteUpdated(event) {
+      const detail = event && event.detail;
+      // React only to a task being un-bookmarked while the "Favorites only" filter is active:
+      // in that case the row no longer belongs to the list and must be removed on the spot.
+      if (!detail
+          || detail.objectType !== 'task'
+          || detail.favorite
+          || (!this.filterTasks.favorite && !this.taskQueryFilter.favorite)) {
+        return;
+      }
+      const objectId = String(detail.objectId);
+      if (this.filterActive && this.filterTaskQueryResult && this.filterTaskQueryResult.tasks) {
+        this.filterTaskQueryResult.tasks = this.filterTaskQueryResult.tasks
+          .map(group => group.filter(t => t && String(t.id) !== objectId));
+      } else {
+        this.tasks = this.tasks.filter(t => t && String(t.id) !== objectId);
+      }
+    },
     keywordChanged(keyword,searchonkeyChange){
       this.keyword=keyword;
       if (searchonkeyChange){
