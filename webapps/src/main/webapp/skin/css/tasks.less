@@ -544,6 +544,9 @@
     box-shadow: none!important;
   }
 }
+.tasksViewSwitcherMenu {
+  min-width: 160px;
+}
 
 #tasksListApplication {
   min-height: calc(~"100vh - 200px");
@@ -806,20 +809,6 @@
           margin-inline-start: 0 !important;
           margin-inline-end: 0 !important;
         }
-      }
-      .tasksViewSwitcher {
-        position: relative;
-      }
-      .tasksViewSwitcherMenu {
-        position: absolute;
-        top: calc(100% + 4px);
-        inset-inline-end: 0;
-        z-index: 1000;
-        min-width: 160px;
-        /* The kanban cards use 3D transforms (rotateY/backface) which put them
-           on compositing layers; promote the menu to its own layer too so it
-           composites above the board instead of being painted behind it. */
-        transform: translateZ(0);
       }
     }
     .taskViewBreadcrumb {

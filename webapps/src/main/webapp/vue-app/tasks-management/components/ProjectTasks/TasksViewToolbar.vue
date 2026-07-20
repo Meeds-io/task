@@ -112,6 +112,7 @@ export default {
       default: false
     },
   },
+  emits: ['keyword-changed'],
   data () {
     return {
       keyword: null,
@@ -137,8 +138,7 @@ export default {
     closeSearch() {
       this.searchOpen = false;
     },
-    onKeyword(term) {
-      this.keyword = term;
+    onKeyword() {
       if (this.searchTimer) {
         clearTimeout(this.searchTimer);
       }
