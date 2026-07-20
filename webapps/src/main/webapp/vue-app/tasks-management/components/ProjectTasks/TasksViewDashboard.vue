@@ -348,8 +348,31 @@ export default {
         }
       }
     });
+
+    document.addEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
+  },
+  beforeDestroy() {
+    document.removeEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
   },
   methods: {
+    onFavoriteUpdated(event) {
+      const detail = event && event.detail;
+      // React only to a task being un-bookmarked while the "Favorites only" filter is active:
+      // the task no longer matches the filter and must be dropped from the list (flat or grouped).
+      if (!detail || detail.objectType !== 'task' || detail.favorite || !this.tasksFilter.favorite) {
+        return;
+      }
+      const objectId = String(detail.objectId);
+      if (Array.isArray(this.tasksList[0])) {
+        const targetTasksArrayIndex = this.tasksList.findIndex(tasksArray => tasksArray.findIndex(t => String(t.id) === objectId) > -1);
+        if (targetTasksArrayIndex > -1) {
+          const updatedArray = this.tasksList[targetTasksArrayIndex].filter(t => String(t.id) !== objectId);
+          this.$set(this.tasksList, targetTasksArrayIndex, updatedArray);
+        }
+      } else {
+        this.tasksList = this.tasksList.filter(t => String(t.id) !== objectId);
+      }
+    },
     hideProjectDetails() {
       this.$root.$emit('set-url', {type: 'myProjects',id: ''});
       this.$root.$emit('close-quick-task-form');

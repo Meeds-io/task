@@ -1041,18 +1041,23 @@ public class TestTaskRestService {
     // When favorite=true
     Response response = taskRestService.filterTasks(null, -2, "exo", null, null, null, null, null, false, true, null, null, null, null, null, null, null, 0, 0, false, false);
 
-    // Then only the favorite task is returned
+    // Then only the favorite task is returned, and it carries favorite=true
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     PaginatedTaskList tasks = (PaginatedTaskList) response.getEntity();
     assertNotNull(tasks.getTasks());
     assertEquals(1, tasks.getTasks().size());
     assertEquals(1, tasks.getTasksNumber());
+    assertEquals(20, tasks.getTasks().get(0).getTask().getId());
+    assertTrue(tasks.getTasks().get(0).getTask().isFavorite());
 
-    // When favorite=false, the favorite filter is not applied and both tasks are returned
+    // When favorite=false, the favorite filter is not applied and both tasks are returned, but each
+    // row still carries its correct favorite flag so the front-end never has to guess it
     Response responseAll = taskRestService.filterTasks(null, -2, "exo", null, null, null, null, null, false, false, null, null, null, null, null, null, null, 0, 0, false, false);
     assertEquals(Response.Status.OK.getStatusCode(), responseAll.getStatus());
     PaginatedTaskList allTasks = (PaginatedTaskList) responseAll.getEntity();
     assertEquals(2, allTasks.getTasks().size());
+    assertFalse(allTasks.getTasks().stream().anyMatch(t -> t.getTask().getId() == 10 && t.getTask().isFavorite()));
+    assertTrue(allTasks.getTasks().stream().anyMatch(t -> t.getTask().getId() == 20 && t.getTask().isFavorite()));
   }
 
   @Test

@@ -59,7 +59,6 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
-import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dto.ChangeLogEntry;
@@ -155,6 +154,27 @@ public class TaskRestService implements ResourceContainer {
     ALL, INCOMING, OVERDUE, WATCHED, COLLABORATED, ASSIGNED
   }
 
+  /**
+   * Resolves, in a single batched call, the set of task ids bookmarked as favorites by the given
+   * user. Used to flag every list row returned by the filter endpoint without issuing one
+   * {@code isFavorite} lookup per task (avoids an N+1 query pattern on large task lists).
+   *
+   * @param username the login of the user whose favorite tasks are resolved
+   * @return the set of favorite task ids, never {@code null} (empty when the user identity cannot
+   *         be resolved)
+   */
+  private Set<Long> getFavoriteTaskIds(String username) {
+    org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getOrCreateUserIdentity(username);
+    if (userIdentity == null) {
+      return Collections.emptySet();
+    }
+    long userIdentityId = Long.parseLong(userIdentity.getId());
+    return favoriteService.getFavoriteItemsByCreatorAndType(TaskAclPlugin.OBJECT_TYPE, userIdentityId, 0, -1)
+                          .stream()
+                          .map(MetadataItem::getObjectId)
+                          .map(Long::parseLong)
+                          .collect(Collectors.toSet());
+  }
 
 
   @GET
@@ -398,16 +418,14 @@ public class TaskRestService implements ResourceContainer {
       List<TaskDto> taskList = tasks.getListTasks();
 
       long tasksSize = tasks.getTasksSize();
+      Set<Long> favoriteTaskIds = getFavoriteTaskIds(currentUser);
       if (favorite) {
-        long userIdentityId = Long.parseLong(identityManager.getOrCreateUserIdentity(currentUser).getId());
-        Set<Long> favoriteTaskIds = favoriteService.getFavoriteItemsByCreatorAndType(TaskAclPlugin.OBJECT_TYPE, userIdentityId, 0, -1)
-                                                    .stream()
-                                                    .map(MetadataItem::getObjectId)
-                                                    .map(Long::parseLong)
-                                                    .collect(Collectors.toSet());
         taskList = taskList.stream().filter(task -> favoriteTaskIds.contains(task.getId())).collect(Collectors.toList());
         tasksSize = taskList.size();
       }
+      // Flag every returned row with its favorite state so the front-end 3-dots menu never has to
+      // guess it (a wrong guess could otherwise invert an un-bookmark into an add-favorite call).
+      taskList.forEach(task -> task.setFavorite(favoriteTaskIds.contains(task.getId())));
 
       if (StringUtils.isNotBlank(groupBy)
           && !TaskUtil.DUEDATE.equalsIgnoreCase(groupBy)
