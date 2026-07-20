@@ -141,7 +141,7 @@
                     <div class="favoritesOnly d-flex flex-wrap pt-2">
                       <form class="switchEnabled">
                         <label class="col-form-label pt-0" max-rows="6">
-                          <i class="fas fa-star me-1"></i>{{ $t(`label.filter.favoritesOnly`) }}:</label>
+                          <i class="far fa-star me-1 icon-default-color"></i>{{ $t(`label.filter.favoritesOnly`) }}:</label>
                         <label class="switch">
                           <input
                             v-model="favoritesOnly"

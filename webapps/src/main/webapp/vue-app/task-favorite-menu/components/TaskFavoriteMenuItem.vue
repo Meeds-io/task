@@ -26,7 +26,7 @@
       <v-icon
         size="16"
         class="pe-1"
-        :class="isFavorite && 'warning--text'">
+        :class="isFavorite && 'yellow--text text--darken-2'">
         {{ isFavorite && 'fas fa-star' || 'far fa-star' }}
       </v-icon>
       <span>{{ label }}</span>
