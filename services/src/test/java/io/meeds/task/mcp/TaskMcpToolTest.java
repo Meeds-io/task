@@ -446,7 +446,7 @@ public class TaskMcpToolTest {
     TaskDto task = mockTask();
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(false);
-    tool.setTaskDates(TASK_ID, "2024-01-01", null, null);
+    tool.setTaskDates(TASK_ID, "2024-01-01", null);
   }
 
   @Test
@@ -455,7 +455,7 @@ public class TaskMcpToolTest {
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
-    runWithDateFormatMockResult(() -> tool.setTaskDates(TASK_ID, "2024-01-01", null, "2024-01-05"));
+    runWithDateFormatMockResult(() -> tool.setTaskDates(TASK_ID, "2024-01-01", "2024-01-05"));
     verify(task).setStartDate(any());
     verify(task).setDueDate(any());
     verify(taskService).updateTask(task);
@@ -467,11 +467,25 @@ public class TaskMcpToolTest {
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
-    // Setting only the end date must not wipe an existing start/due date
-    runWithDateFormatMockResult(() -> tool.setTaskDates(TASK_ID, null, "2024-01-10", null));
-    verify(task).setEndDate(any());
-    verify(task, never()).setStartDate(any());
+    // Setting only the start date must not wipe an existing due date
+    runWithDateFormatMockResult(() -> tool.setTaskDates(TASK_ID, "2024-01-05", null));
+    verify(task).setStartDate(any());
     verify(task, never()).setDueDate(any());
+    verify(task, never()).setEndDate(any());
+    verify(taskService).updateTask(task);
+  }
+
+  @Test
+  public void setTaskDatesWithOnlyDueDateShouldUpdateDueNotStartAndNeverEnd() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    // Setting only the due date updates the due date, not the start date, and never the vestigial end date
+    runWithDateFormatMockResult(() -> tool.setTaskDates(TASK_ID, null, "2024-01-10"));
+    verify(task).setDueDate(any());
+    verify(task, never()).setStartDate(any());
+    verify(task, never()).setEndDate(any());
     verify(taskService).updateTask(task);
   }
 
@@ -675,7 +689,6 @@ public class TaskMcpToolTest {
                                                                                  null,
                                                                                  null,
                                                                                  null,
-                                                                                 null,
                                                                                  null));
 
     assertEquals(TASK_ID, result.getId());
@@ -699,7 +712,6 @@ public class TaskMcpToolTest {
                                                                                   "Description",
                                                                                   USER,
                                                                                   new HashSet<>(Collections.singletonList(OTHER_USER)),
-                                                                                  null,
                                                                                   null,
                                                                                   null,
                                                                                   Priority.HIGH,

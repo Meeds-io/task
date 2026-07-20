@@ -289,13 +289,30 @@ public class TaskMcpTool implements McpToolPlugin {
     return toProjectModel(project);
   }
 
+  /**
+   * Creates a task inside a project. Dates mirror the Task UI: a "Start Date"
+   * and a "Due date" (the vestigial {@code endDate} field is intentionally not
+   * exposed here).
+   *
+   * @param projectId   id of the project to create the task in
+   * @param title       task title
+   * @param description task description
+   * @param assignee    username of the assignee
+   * @param coworkers   usernames of the coworkers
+   * @param startDate   the start date (ISO string), or blank for none
+   * @param dueDate     the due date (ISO string), or blank for none
+   * @param priority    task priority (defaults to {@link Priority#NONE} when null)
+   * @param statusId    id of the target status, or null for the project default status
+   * @return the created task model
+   * @throws ObjectNotFoundException if the project does not exist
+   * @throws IllegalAccessException  if the current user cannot create tasks in the project
+   */
   public TaskModel createTaskInProject(long projectId, // NOSONAR
                                        String title,
                                        String description,
                                        String assignee,
                                        Set<String> coworkers,
                                        String startDate,
-                                       String endDate,
                                        String dueDate,
                                        Priority priority,
                                        Long statusId) throws ObjectNotFoundException, IllegalAccessException {
@@ -307,7 +324,6 @@ public class TaskMcpTool implements McpToolPlugin {
     task.setAssignee(assignee);
     task.setCoworker(coworkers);
     task.setStartDate(toDate(startDate));
-    task.setEndDate(toDate(endDate));
     task.setDueDate(toDate(dueDate));
     task.setPriority(priority == null ? Priority.NONE : priority);
     task.setCreatedBy(aclIdentity.getUserId());
@@ -335,12 +351,26 @@ public class TaskMcpTool implements McpToolPlugin {
     return toTaskModel(task);
   }
 
+  /**
+   * Creates a personal (label-less, project-less) task. Dates mirror the Task
+   * UI: a "Start Date" and a "Due date" (the vestigial {@code endDate} field is
+   * intentionally not exposed here).
+   *
+   * @param title       task title
+   * @param description task description
+   * @param assignee    username of the assignee
+   * @param coworkers   usernames of the coworkers
+   * @param startDate   the start date (ISO string), or blank for none
+   * @param dueDate     the due date (ISO string), or blank for none
+   * @param priority    task priority (defaults to {@link Priority#NONE} when null)
+   * @param statusId    id of the target status, or null for none
+   * @return the created task model
+   */
   public TaskModel createPersonalTask(String title, // NOSONAR
                                       String description,
                                       String assignee,
                                       Set<String> coworkers,
                                       String startDate,
-                                      String endDate,
                                       String dueDate,
                                       Priority priority,
                                       Long statusId) {
@@ -351,7 +381,6 @@ public class TaskMcpTool implements McpToolPlugin {
     task.setAssignee(assignee);
     task.setCoworker(coworkers);
     task.setStartDate(toDate(startDate));
-    task.setEndDate(toDate(endDate));
     task.setDueDate(toDate(dueDate));
     task.setPriority(priority == null ? Priority.NONE : priority);
     task.setCreatedBy(aclIdentity.getUserId());
@@ -575,18 +604,26 @@ public class TaskMcpTool implements McpToolPlugin {
     taskService.updateTask(task);
   }
 
-  // Patch a task's start/end/due dates: only the dates actually passed are updated,
-  // so setting one date (e.g. end) never wipes the others that were set before.
+  /**
+   * Patches a task's start and due dates. This is a partial update: only the
+   * dates actually passed (non-blank) are updated, so setting one date (e.g.
+   * the due date) never wipes the other one that was set before. These are the
+   * two dates surfaced by the Task UI ("Start Date" + "Due date"); the vestigial
+   * {@code endDate} field is intentionally not exposed here.
+   *
+   * @param taskId    id of the task to update
+   * @param startDate the new start date (ISO string), or blank to leave it unchanged
+   * @param dueDate   the new due date (ISO string), or blank to leave it unchanged
+   * @return the updated task model
+   * @throws ObjectNotFoundException if the task does not exist
+   * @throws IllegalAccessException  if the current user cannot edit the task
+   */
   public TaskModel setTaskDates(long taskId,
                                 String startDate,
-                                String endDate,
                                 String dueDate) throws ObjectNotFoundException, IllegalAccessException {
     TaskDto task = getEditableTask(taskId);
     if (StringUtils.isNotBlank(startDate)) {
       task.setStartDate(toDate(startDate));
-    }
-    if (StringUtils.isNotBlank(endDate)) {
-      task.setEndDate(toDate(endDate));
     }
     if (StringUtils.isNotBlank(dueDate)) {
       task.setDueDate(toDate(dueDate));
