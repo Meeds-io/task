@@ -236,7 +236,9 @@ export default {
     },
   },
   created() {
-    this.getTasksByPrimary(this.primaryFilter);
+    // Restore the persisted filters (groupBy/orderBy/showCompletedTasks/favorite) from
+    // localStorage BEFORE the initial fetch fires, so the first searchTasks() honors them.
+    // Otherwise a reload restores the toggle ON but fetches the list unfiltered (favorite=false).
     const filterStorageNone = localStorage.getItem('filterStorageNone+list');
     if (filterStorageNone) {
       const filterStorageNoneJSON = JSON.parse(localStorage.getItem('filterStorageNone+list'));
@@ -253,7 +255,9 @@ export default {
       this.$root.$on('task-added', () => {
         this.updateTasksList();
       });
-    }  
+    }
+
+    this.getTasksByPrimary(this.primaryFilter);
 
     this.$root.$on('task-assignee-coworker-updated', () => {
       this.updateTasksList();
