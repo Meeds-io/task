@@ -93,9 +93,21 @@ export default {
   created() {
     this.primaryFilterSelected = localStorage.getItem('primary-filter-tasks') || 'ALL';
     localStorage.setItem('primary-filter-tasks', 'ALL');
+    // Show the persisted secondary-filter count right away so the chip matches what the drawer
+    // restores. Only "Favorites only" and "Show completed" survive a reload, and it is computed
+    // from this view's own storage key rather than the shared `filtersNumber` (written by the
+    // project toolbar too, which would otherwise leak its count into this list).
+    const savedFilter = localStorage.getItem('filterStorageNone+list')
+      && JSON.parse(localStorage.getItem('filterStorageNone+list'));
+    this.filterNumber = savedFilter && ((savedFilter.favorite && 1 || 0) + (savedFilter.showCompletedTasks && 1 || 0)) || 0;
   },
   mounted() {
-    this.$emit('primary-filter-task', this.primaryFilterSelected);
+    // Only replay a primary filter handed over by the home "Tasks" portlet. On a plain reload the
+    // value is already back to 'ALL' and the dashboard fetched it in created(): re-emitting would
+    // just refetch and, worse, reset the drawer fields/count that were restored from localStorage.
+    if (this.primaryFilterSelected !== 'ALL') {
+      this.$emit('primary-filter-task', this.primaryFilterSelected);
+    }
   },
   methods: {
     onKeyword(term) {

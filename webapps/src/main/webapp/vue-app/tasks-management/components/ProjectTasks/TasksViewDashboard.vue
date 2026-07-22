@@ -256,6 +256,9 @@ export default {
           offset: 0,
           limit: 0,
           showCompletedTasks: projectFilter.showCompletedTasks,
+          // The filter drawer persists and restores "Favorites only" for a project too, so the
+          // fetch must carry it back; otherwise the toggle reads ON while the list is unfiltered.
+          favorite: !!projectFilter.favorite,
         };
       } else {
         this.tasksFilter = {
@@ -264,6 +267,7 @@ export default {
           offset: 0,
           limit: 0,
           showCompletedTasks: false,
+          favorite: false,
         };
       }
       
@@ -346,8 +350,31 @@ export default {
         }
       }
     });
+
+    document.addEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
+  },
+  beforeDestroy() {
+    document.removeEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
   },
   methods: {
+    onFavoriteUpdated(event) {
+      const detail = event && event.detail;
+      // React only to a task being un-bookmarked while the "Favorites only" filter is active:
+      // the task no longer matches the filter and must be dropped from the list (flat or grouped).
+      if (!detail || detail.objectType !== 'task' || detail.favorite || !this.tasksFilter.favorite) {
+        return;
+      }
+      const objectId = String(detail.objectId);
+      if (Array.isArray(this.tasksList[0])) {
+        const targetTasksArrayIndex = this.tasksList.findIndex(tasksArray => tasksArray.findIndex(t => String(t.id) === objectId) > -1);
+        if (targetTasksArrayIndex > -1) {
+          const updatedArray = this.tasksList[targetTasksArrayIndex].filter(t => String(t.id) !== objectId);
+          this.$set(this.tasksList, targetTasksArrayIndex, updatedArray);
+        }
+      } else {
+        this.tasksList = this.tasksList.filter(t => String(t.id) !== objectId);
+      }
+    },
     hideProjectDetails() {
       this.$root.$emit('set-url', {type: 'myProjects',id: ''});
       this.$root.$emit('close-quick-task-form');
@@ -394,6 +421,9 @@ export default {
             offset: 0,
             limit: 0,
             showCompletedTasks: projectFilter.showCompletedTasks,
+            // Same as the project watcher: the persisted "Favorites only" toggle must reach the
+            // request, else a reload shows the filter as set while listing every task.
+            favorite: !!projectFilter.favorite,
           };
           return this.getFilter(this.tasksFilter, ProjectId);
         }
@@ -406,8 +436,9 @@ export default {
             offset: 0,
             limit: 0,
             showCompletedTasks: false,
+            favorite: false,
           };
-          
+
           if (this.tasksFilter.groupBy === 'completed') {
             this.tasksFilter.showCompletedTasks = true;
           }
@@ -417,6 +448,7 @@ export default {
             projectId: ProjectId,
             tabView: (this.taskViewTabName !== '' ? this.taskViewTabName : 'list'),
             showCompletedTasks: this.showCompletedTasks,
+            favorite: false,
           };
           localStorage.setItem(`filterStorage${ProjectId}+${jsonToSave.tabView}`, JSON.stringify(jsonToSave));
           return this.getFilter(this.tasksFilter, ProjectId);

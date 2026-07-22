@@ -183,6 +183,7 @@ export default {
         priority: '',
         projectId: -2,
         showCompletedTasks: this.showCompletedTasks,
+        favorite: false,
         groupBy: '',
         orderBy: '',
       },
@@ -199,7 +200,8 @@ export default {
         orderBy: '',
         offset: this.offset,
         limit: 20,
-        showCompletedTasks: this.showCompletedTasks
+        showCompletedTasks: this.showCompletedTasks,
+        favorite: false
       },
       defaultAvatar: '/portal/rest/v1/social/users/default-image/avatar',
     };
@@ -234,20 +236,28 @@ export default {
     },
   },
   created() {
+    // Restore the persisted filters (groupBy/orderBy/showCompletedTasks/favorite) from
+    // localStorage BEFORE the initial fetch fires, so the first searchTasks() honors them.
+    // Otherwise a reload restores the toggle ON but fetches the list unfiltered (favorite=false).
+    const filterStorageNone = localStorage.getItem('filterStorageNone+list');
+    if (filterStorageNone) {
+      const filterStorageNoneJSON = JSON.parse(localStorage.getItem('filterStorageNone+list'));
+      this.groupBy = filterStorageNoneJSON ? filterStorageNoneJSON.groupBy : false;
+
+      this.orderBy = filterStorageNoneJSON ? filterStorageNoneJSON.orderBy : false;
+
+      this.showCompletedTasks = filterStorageNoneJSON ? filterStorageNoneJSON.showCompletedTasks : false;
+      this.filterTasks.showCompletedTasks = this.showCompletedTasks;
+
+      this.filterTasks.favorite = filterStorageNoneJSON ? filterStorageNoneJSON.favorite : false;
+      this.taskQueryFilter.favorite = this.filterTasks.favorite;
+
+      this.$root.$on('task-added', () => {
+        this.updateTasksList();
+      });
+    }
+
     this.getTasksByPrimary(this.primaryFilter);
-    this.groupBy = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).groupBy : false;
-
-    this.orderBy = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).orderBy : false;
-
-    this.showCompletedTasks = localStorage.getItem('filterStorageNone+list') ?
-      JSON.parse(localStorage.getItem('filterStorageNone+list')).showCompletedTasks : false;
-    this.filterTasks.showCompletedTasks = this.showCompletedTasks;
-
-    this.$root.$on('task-added', () => {
-      this.updateTasksList();
-    });
 
     this.$root.$on('task-assignee-coworker-updated', () => {
       this.updateTasksList();
@@ -276,8 +286,31 @@ export default {
         window.setTimeout(() => this.updateTasksList(), 500);
       }
     });
+
+    document.addEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
+  },
+  beforeDestroy() {
+    document.removeEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
   },
   methods: {
+    onFavoriteUpdated(event) {
+      const detail = event && event.detail;
+      // React only to a task being un-bookmarked while the "Favorites only" filter is active:
+      // in that case the row no longer belongs to the list and must be removed on the spot.
+      if (!detail
+          || detail.objectType !== 'task'
+          || detail.favorite
+          || (!this.filterTasks.favorite && !this.taskQueryFilter.favorite)) {
+        return;
+      }
+      const objectId = String(detail.objectId);
+      if (this.filterActive && this.filterTaskQueryResult && this.filterTaskQueryResult.tasks) {
+        this.filterTaskQueryResult.tasks = this.filterTaskQueryResult.tasks
+          .map(group => group.filter(t => t && String(t.id) !== objectId));
+      } else {
+        this.tasks = this.tasks.filter(t => t && String(t.id) !== objectId);
+      }
+    },
     keywordChanged(keyword,searchonkeyChange){
       this.keyword=keyword;
       if (searchonkeyChange){
@@ -307,6 +340,9 @@ export default {
       if (this.primaryFilter === 'ALL') {
         this.taskQueryFilter = e;
         this.taskQueryFilter.limit = this.limit;
+        // Keep the fallback filter in sync: updateTasksList() and the un-bookmark listener read
+        // filterTasks, so a stale favorite there would re-apply a filter the user just turned off.
+        this.filterTasks.favorite = e.favorite;
         this.resetSearch();
         this.searchTasks(this.taskQueryFilter);
       } else {
@@ -325,6 +361,7 @@ export default {
           this.filterTasks.statusId = e.statusId;
           this.filterTasks.priority = e.priority;
           this.filterTasks.showCompletedTasks = e.showCompletedTasks;
+          this.filterTasks.favorite = e.favorite;
           this.resetSearch();
           this.searchTasks();
         }
@@ -375,7 +412,15 @@ export default {
       }).then(data => this.displayToolbar = data?.tasksNumber || false);
     },
     getTasksByPrimary(primaryFilter) {
-      this.primaryFilter=primaryFilter;         
+      this.primaryFilter=primaryFilter;
+      // A real primary-filter change (the toolbar exists) clears the drawer's secondary filters
+      // below via resetFields('primary'); drop the favorites restriction from the queries as well,
+      // otherwise the list stays filtered on favorites while the drawer shows no filter at all.
+      // On the initial load the toolbar isn't rendered yet, so the persisted filter is preserved.
+      if (this.$refs.taskToolBar) {
+        this.filterTasks.favorite = false;
+        this.taskQueryFilter.favorite = false;
+      }
       if (primaryFilter && (primaryFilter === 'OVERDUE' || primaryFilter === 'TODAY' || primaryFilter === 'TOMORROW' || primaryFilter === 'UPCOMING')){
         this.filterTasks.dueDate=primaryFilter;
         this.filterTasks.assignee='';
