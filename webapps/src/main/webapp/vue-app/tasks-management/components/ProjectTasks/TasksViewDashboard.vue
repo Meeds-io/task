@@ -243,6 +243,9 @@ export default {
           offset: 0,
           limit: 0,
           showCompletedTasks: projectFilter.showCompletedTasks,
+          // The filter drawer persists and restores "Favorites only" for a project too, so the
+          // fetch must carry it back; otherwise the toggle reads ON while the list is unfiltered.
+          favorite: !!projectFilter.favorite,
         };
       } else {
         this.tasksFilter = {
@@ -251,6 +254,7 @@ export default {
           offset: 0,
           limit: 0,
           showCompletedTasks: false,
+          favorite: false,
         };
       }
       
@@ -404,6 +408,9 @@ export default {
             offset: 0,
             limit: 0,
             showCompletedTasks: projectFilter.showCompletedTasks,
+            // Same as the project watcher: the persisted "Favorites only" toggle must reach the
+            // request, else a reload shows the filter as set while listing every task.
+            favorite: !!projectFilter.favorite,
           };
           return this.getFilter(this.tasksFilter, ProjectId);
         }
@@ -416,8 +423,9 @@ export default {
             offset: 0,
             limit: 0,
             showCompletedTasks: false,
+            favorite: false,
           };
-          
+
           if (this.tasksFilter.groupBy === 'completed') {
             this.tasksFilter.showCompletedTasks = true;
           }
@@ -427,6 +435,7 @@ export default {
             projectId: ProjectId,
             tabView: (this.taskViewTabName !== '' ? this.taskViewTabName : 'list'),
             showCompletedTasks: this.showCompletedTasks,
+            favorite: false,
           };
           localStorage.setItem(`filterStorage${ProjectId}+${jsonToSave.tabView}`, JSON.stringify(jsonToSave));
           return this.getFilter(this.tasksFilter, ProjectId);

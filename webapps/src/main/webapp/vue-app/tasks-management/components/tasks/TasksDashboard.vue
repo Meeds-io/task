@@ -340,6 +340,9 @@ export default {
       if (this.primaryFilter === 'ALL') {
         this.taskQueryFilter = e;
         this.taskQueryFilter.limit = this.limit;
+        // Keep the fallback filter in sync: updateTasksList() and the un-bookmark listener read
+        // filterTasks, so a stale favorite there would re-apply a filter the user just turned off.
+        this.filterTasks.favorite = e.favorite;
         this.resetSearch();
         this.searchTasks(this.taskQueryFilter);
       } else {
@@ -409,7 +412,15 @@ export default {
       }).then(data => this.displayToolbar = data?.tasksNumber || false);
     },
     getTasksByPrimary(primaryFilter) {
-      this.primaryFilter=primaryFilter;         
+      this.primaryFilter=primaryFilter;
+      // A real primary-filter change (the toolbar exists) clears the drawer's secondary filters
+      // below via resetFields('primary'); drop the favorites restriction from the queries as well,
+      // otherwise the list stays filtered on favorites while the drawer shows no filter at all.
+      // On the initial load the toolbar isn't rendered yet, so the persisted filter is preserved.
+      if (this.$refs.taskToolBar) {
+        this.filterTasks.favorite = false;
+        this.taskQueryFilter.favorite = false;
+      }
       if (primaryFilter && (primaryFilter === 'OVERDUE' || primaryFilter === 'TODAY' || primaryFilter === 'TOMORROW' || primaryFilter === 'UPCOMING')){
         this.filterTasks.dueDate=primaryFilter;
         this.filterTasks.assignee='';
