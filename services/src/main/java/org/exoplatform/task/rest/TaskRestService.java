@@ -1074,6 +1074,47 @@ public class TaskRestService implements ResourceContainer {
         }
   }
 
+  @PUT
+  @Path("comments/{commentId}")
+  @RolesAllowed("users")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Operation(summary = "Updates a specific task comment by id", method = "PUT", description = "This updates the content of a specific task comment by id")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response updateComment(@Parameter(description = "Comment text", required = true) String commentText,
+                                @Parameter(description = "Comment id", required = true) @PathParam("commentId") long commentId) {
+    try {
+    CommentDto comment = commentService.getComment(commentId);
+    if (comment == null) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    }
+    Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
+    String currentUser = currentUserIdentity.getUserId();
+    if (!TaskUtil.canEditComment(currentUserIdentity, comment)) {
+      return Response.status(Response.Status.FORBIDDEN).build();
+    }
+    if (StringUtils.isBlank(commentText)) {
+      return Response.status(Response.Status.BAD_REQUEST).build();
+    }
+    commentText = commentText.replaceAll(PERCENT_ENCODED_REGEX, "%25");
+    commentText = commentText.replaceAll("\\+", "%2b");
+    commentText = URLDecoder.decode(commentText, "UTF-8");
+    CommentDto updatedComment = commentService.updateComment(commentId, commentText);
+    transformHtml(updatedComment, currentUserIdentity);
+    CommentEntity commentEntity = new CommentEntity(updatedComment,
+                                                    userService.loadUser(updatedComment.getAuthor()),
+                                                    CommentUtil.formatMention(updatedComment.getComment(),
+                                                                              TaskUtil.getUserLanguage(currentUser)));
+    return Response.ok(commentEntity).build();
+        } catch (Exception e) {
+        LOG.error("Can't update Comment {}", commentId, e);
+        return Response.serverError().entity(e.getMessage()).build();
+        }
+  }
+
   @DELETE
   @Path("comments/{commentId}")
   @RolesAllowed("users")

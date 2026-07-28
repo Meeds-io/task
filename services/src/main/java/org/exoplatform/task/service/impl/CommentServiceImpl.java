@@ -20,6 +20,7 @@ package org.exoplatform.task.service.impl;
 
 import static org.exoplatform.task.util.TaskUtil.TASK_COMMENT_CREATED;
 import static org.exoplatform.task.util.TaskUtil.TASK_COMMENT_DELETED;
+import static org.exoplatform.task.util.TaskUtil.TASK_COMMENT_UPDATED;
 import static org.exoplatform.task.util.TaskUtil.broadcastEvent;
 
 import java.util.List;
@@ -111,6 +112,22 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public CommentDto addComment(TaskDto task, String username, String comment) throws EntityNotFoundException {
         return addComment(task, 0, username, comment);
+    }
+
+    @Override
+    public CommentDto updateComment(long commentId, String commentText) throws EntityNotFoundException {
+
+      CommentDto comment = commentStorage.getComment(commentId);
+
+      if (comment == null) {
+        LOG.info("Can not find comment with ID: " + commentId);
+        throw new EntityNotFoundException(commentId, CommentDto.class);
+      }
+      CommentDto updatedComment = commentStorage.updateComment(commentId, commentText);
+      if (updatedComment != null) {
+        broadcastEvent(listenerService, TASK_COMMENT_UPDATED, updatedComment.getTask(), updatedComment);
+      }
+      return updatedComment;
     }
 
     @Override

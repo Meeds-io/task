@@ -38,6 +38,8 @@ public class CommentDto implements Serializable {
 
     private Date createdTime;
 
+    private Date updatedTime;
+
     private TaskDto task;
 
     private CommentDto parentComment;
@@ -53,6 +55,7 @@ public class CommentDto implements Serializable {
         commentDto.setComment(this.getComment());
         commentDto.setSubComments(this.getSubComments());
         commentDto.setCreatedTime(this.getCreatedTime());
+        commentDto.setUpdatedTime(this.getUpdatedTime());
         commentDto.setTask(this.getTask().clone());
 
         return commentDto;
