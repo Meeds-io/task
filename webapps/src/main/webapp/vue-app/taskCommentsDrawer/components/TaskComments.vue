@@ -19,9 +19,11 @@
     <task-comment-item
       :comment="comment"
       :comments="comments"
+      :task="task"
       :can-delete="canDelete"
       @openConfirmDeleteDialog="confirmCommentDelete($event)"
-      @openCommentEditor="commentActions($event)" />
+      @openCommentEditor="commentActions($event)"
+      @commentUpdated="$emit('commentUpdated', $event)" />
     <div class="editorContent commentEditorContainer" :class="comment.comment.id === lastComment && newCommentEditor && 'newCommentEditor'">
       <task-comment-editor
         ref="commentEditor"

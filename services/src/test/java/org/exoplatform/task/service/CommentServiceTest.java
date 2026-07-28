@@ -47,6 +47,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import java.util.Date;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -161,6 +162,28 @@ public class CommentServiceTest {
 
     assertEquals(TestUtils.EXISTING_COMMENT_ID, commentCaptor.getValue().getId().longValue());
 
+  }
+
+  @Test
+  public void testUpdateComment() throws EntityNotFoundException {
+    Comment comment = TestUtils.getDefaultComment();
+
+    when(daoHandler.getCommentHandler().find(TestUtils.EXISTING_COMMENT_ID)).thenReturn(comment);
+    when(commentHandler.update(any())).thenAnswer(invocation -> invocation.getArgument(0, Comment.class));
+
+    CommentDto updatedComment = commentService.updateComment(TestUtils.EXISTING_COMMENT_ID, "Updated content");
+
+    verify(commentHandler, times(1)).update(commentCaptor.capture());
+    assertEquals("Updated content", commentCaptor.getValue().getComment());
+    assertEquals("Updated content", updatedComment.getComment());
+    assertNotNull("The comment update time should be stamped", updatedComment.getUpdatedTime());
+  }
+
+  @Test(expected = EntityNotFoundException.class)
+  public void testUpdateCommentNotFound() throws EntityNotFoundException {
+    when(daoHandler.getCommentHandler().find(TestUtils.UNEXISTING_COMMENT_ID)).thenReturn(null);
+
+    commentService.updateComment(TestUtils.UNEXISTING_COMMENT_ID, "Updated content");
   }
 
   @Test

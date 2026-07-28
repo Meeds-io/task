@@ -42,7 +42,7 @@
           margin-left: auto ~'; /** orientation=lt */ ';
           margin-right: auto ~'; /** orientation=rt */ ';
           margin-top: -4px;
-          .deleteComment {
+          .commentActions {
             right: 0;
             top:0;
           }
@@ -158,17 +158,18 @@
     .TaskCommentContent {
       .commentItem {
         width: 100%;
+        position: relative;
+        .commentActionMenu {
+          min-width: 120px;
+        }
         .commentHeader {
           width: 100%;
           .removeCommentBtn {
             margin-left: auto ~'; /** orientation=lt */ ';
             margin-right: auto ~'; /** orientation=rt */ ';
-            .deleteComment {
+            .commentActions {
               right: 0;
               top:0;
-              .uiIconTrashMini {
-                font-size: 12px;
-              }
             }
           }
           .externalTagClass {

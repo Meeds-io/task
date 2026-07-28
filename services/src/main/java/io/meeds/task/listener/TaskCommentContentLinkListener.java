@@ -20,6 +20,7 @@ package io.meeds.task.listener;
 
 import static org.exoplatform.task.util.TaskUtil.TASK_COMMENT_CREATED;
 import static org.exoplatform.task.util.TaskUtil.TASK_COMMENT_DELETED;
+import static org.exoplatform.task.util.TaskUtil.TASK_COMMENT_UPDATED;
 
 import java.util.Arrays;
 import java.util.List;
@@ -44,6 +45,7 @@ import jakarta.annotation.PostConstruct;
 public class TaskCommentContentLinkListener extends Listener<TaskDto, CommentDto> {
 
   private static final List<String> SUPPORTED_EVENTS = Arrays.asList(TASK_COMMENT_CREATED,
+                                                                     TASK_COMMENT_UPDATED,
                                                                      TASK_COMMENT_DELETED);
 
   @Autowired
