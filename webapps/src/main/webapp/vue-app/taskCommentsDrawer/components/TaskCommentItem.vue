@@ -159,6 +159,7 @@ export default {
       default: () => null
     },
   },
+  emits: ['openCommentEditor', 'openConfirmDeleteDialog', 'commentUpdated'],
   data() {
     return {
       hover: false,
