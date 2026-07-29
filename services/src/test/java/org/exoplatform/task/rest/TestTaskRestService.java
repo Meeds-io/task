@@ -833,6 +833,75 @@ public class TestTaskRestService {
   }
 
   @Test
+  public void testUpdateComment() throws Exception {
+    // Given
+    TaskRestService taskRestService = new TaskRestService(taskService,
+            commentService,
+            projectService,
+            statusService,
+            userService,
+            spaceService,
+            labelService,
+            favoriteService,
+            identityManager);
+    Identity john = new Identity("john");
+    ConversationState.setCurrent(new ConversationState(john));
+
+    TaskDto task = new TaskDto();
+    task.setId(1);
+    task.setCreatedBy("john");
+
+    CommentDto comment = new CommentDto();
+    comment.setId(1);
+    comment.setAuthor(john.getUserId());
+    comment.setComment("commentText");
+    comment.setTask(task);
+
+    CommentDto updatedComment = new CommentDto();
+    updatedComment.setId(1);
+    updatedComment.setAuthor(john.getUserId());
+    updatedComment.setComment("updatedText");
+    updatedComment.setTask(task);
+    updatedComment.setUpdatedTime(new Date());
+
+    when(commentService.getComment(1)).thenReturn(comment);
+    when(commentService.updateComment(1, "updatedText")).thenReturn(updatedComment);
+
+    // Updating an unknown comment
+    Response response = taskRestService.updateComment("updatedText", 2);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
+
+    // Updating a comment of another author
+    comment.setAuthor("mary");
+    response = taskRestService.updateComment("updatedText", 1);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+    comment.setAuthor(john.getUserId());
+
+    // Sending an empty content
+    response = taskRestService.updateComment("", 1);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+
+    // The author updates his own comment
+    response = taskRestService.updateComment("updatedText", 1);
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    CommentEntity commentModel = (CommentEntity) response.getEntity();
+    assertNotNull(commentModel);
+    assertEquals("updatedText", commentModel.getComment().getComment());
+    assertNotNull("The comment update time should be returned", commentModel.getComment().getUpdatedTime());
+    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("updatedText", Locale.ENGLISH.getLanguage()));
+
+    // Sending an encoded content
+    when(commentService.updateComment(1, "x <= 2")).thenReturn(updatedComment);
+    response = taskRestService.updateComment("x%20%3C%3D%202", 1);
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+
+    // The service fails to update the comment
+    when(commentService.updateComment(1, "brokenText")).thenThrow(new RuntimeException("Unexpected error"));
+    response = taskRestService.updateComment("brokenText", 1);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
+  }
+
+  @Test
   public void testDeleteComment() throws Exception {
     // Given
     TaskRestService taskRestService = new TaskRestService(taskService,

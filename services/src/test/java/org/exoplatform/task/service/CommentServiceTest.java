@@ -179,6 +179,18 @@ public class CommentServiceTest {
     assertNotNull("The comment update time should be stamped", updatedComment.getUpdatedTime());
   }
 
+  @Test
+  public void testCloneCommentKeepsUpdateTime() {
+    CommentDto comment = TestUtils.getDefaultCommentDto();
+    comment.setTask(TestUtils.getDefaultTaskDto());
+    comment.setUpdatedTime(new Date());
+
+    CommentDto clone = comment.clone();
+
+    assertEquals(comment.getComment(), clone.getComment());
+    assertEquals(comment.getUpdatedTime(), clone.getUpdatedTime());
+  }
+
   @Test(expected = EntityNotFoundException.class)
   public void testUpdateCommentNotFound() throws EntityNotFoundException {
     when(daoHandler.getCommentHandler().find(TestUtils.UNEXISTING_COMMENT_ID)).thenReturn(null);
