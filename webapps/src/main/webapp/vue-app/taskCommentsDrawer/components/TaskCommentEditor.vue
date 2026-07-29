@@ -115,6 +115,7 @@ export default {
       default: false
     }
   },
+  emits: ['input', 'addNewComment', 'updateComment', 'cancelEdit', 'attachments-edited'],
   data() {
     return {
       inputVal: null,

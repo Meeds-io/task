@@ -1100,7 +1100,7 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).build();
     }
     commentText = commentText.replaceAll(PERCENT_ENCODED_REGEX, "%25");
-    commentText = commentText.replaceAll("\\+", "%2b");
+    commentText = commentText.replace("+", "%2b");
     commentText = URLDecoder.decode(commentText, "UTF-8");
     CommentDto updatedComment = commentService.updateComment(commentId, commentText);
     transformHtml(updatedComment, currentUserIdentity);

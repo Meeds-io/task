@@ -315,7 +315,7 @@ export function updateTaskComment(commentId, comment) {
     },
     body: comment
   }).then((resp) => {
-    if (resp && resp.ok) {
+    if (resp?.ok) {
       return resp.json();
     } else {
       throw new Error('Error when updating task comment');

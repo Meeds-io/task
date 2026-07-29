@@ -78,6 +78,7 @@ export default {
       default: false
     }
   },
+  emits: ['commentUpdated', 'confirmDialogOpened', 'confirmDialogClosed'],
   data() {
     return {
       MESSAGE_MAX_LENGTH: 1300,
