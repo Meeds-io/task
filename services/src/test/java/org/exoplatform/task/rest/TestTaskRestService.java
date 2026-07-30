@@ -48,6 +48,8 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.task.dto.*;
+import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.exception.NotAllowedOperationOnEntityException;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.rest.model.CommentEntity;
 import org.exoplatform.task.service.*;
@@ -830,6 +832,83 @@ public class TestTaskRestService {
     when(taskService.isExternal("root")).thenReturn(false);
     Response response = taskRestService.findUsersToMention("root");
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+  }
+
+  @Test
+  public void testUpdateComment() throws Exception {
+    // Given
+    TaskRestService taskRestService = new TaskRestService(taskService,
+            commentService,
+            projectService,
+            statusService,
+            userService,
+            spaceService,
+            labelService,
+            favoriteService,
+            identityManager);
+    Identity john = new Identity("john");
+    ConversationState.setCurrent(new ConversationState(john));
+
+    TaskDto task = new TaskDto();
+    task.setId(1);
+    task.setCreatedBy("john");
+
+    CommentDto updatedComment = new CommentDto();
+    updatedComment.setId(1);
+    updatedComment.setAuthor(john.getUserId());
+    updatedComment.setComment("updatedText");
+    updatedComment.setTask(task);
+    updatedComment.setUpdatedTime(new Date());
+
+    // the permission and existence checks belong to the service, the endpoint
+    // only maps its exceptions to the http statuses
+    when(commentService.updateComment(eq(1L), eq("updatedText"), any())).thenReturn(updatedComment);
+    when(commentService.updateComment(eq(2L),
+                                     anyString(),
+                                     any())).thenThrow(new EntityNotFoundException(2L, CommentDto.class));
+    when(commentService.updateComment(eq(3L),
+                                     anyString(),
+                                     any())).thenThrow(new NotAllowedOperationOnEntityException(3L,
+                                                                                               CommentDto.class,
+                                                                                               "edit"));
+
+    // Sending an empty content
+    Response response = taskRestService.updateComment("", 1);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+
+    // Updating an unknown comment
+    response = taskRestService.updateComment("updatedText", 2);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
+
+    // Updating a comment of another author
+    response = taskRestService.updateComment("updatedText", 3);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+
+    // The author updates his own comment
+    response = taskRestService.updateComment("updatedText", 1);
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    CommentEntity commentModel = (CommentEntity) response.getEntity();
+    assertNotNull(commentModel);
+    assertEquals("updatedText", commentModel.getComment().getComment());
+    assertNotNull("The comment update time should be returned", commentModel.getComment().getUpdatedTime());
+    assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("updatedText", Locale.ENGLISH.getLanguage()));
+
+    // Sending an encoded content
+    when(commentService.updateComment(eq(1L), eq("x <= 2"), any())).thenReturn(updatedComment);
+    response = taskRestService.updateComment("x%20%3C%3D%202", 1);
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+
+    // The service fails to update the comment
+    when(commentService.updateComment(eq(1L),
+                                     eq("brokenText"),
+                                     any())).thenThrow(new RuntimeException("Unexpected error"));
+    response = taskRestService.updateComment("brokenText", 1);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
+
+    // The service returns no comment at all
+    when(commentService.updateComment(eq(1L), eq("noResultText"), any())).thenReturn(null);
+    response = taskRestService.updateComment("noResultText", 1);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
   }
 
   @Test
