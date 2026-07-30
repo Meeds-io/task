@@ -68,6 +68,8 @@ import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.dto.TasksList;
+import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.exception.NotAllowedOperationOnEntityException;
 import org.exoplatform.task.model.GroupKey;
 import org.exoplatform.task.model.User;
 import org.exoplatform.task.rest.model.CommentEntity;
@@ -1086,29 +1088,26 @@ public class TaskRestService implements ResourceContainer {
           @ApiResponse(responseCode = "404", description = "Resource not found") })
   public Response updateComment(@Parameter(description = "Comment text", required = true) String commentText,
                                 @Parameter(description = "Comment id", required = true) @PathParam("commentId") long commentId) {
-    try {
-    CommentDto comment = commentService.getComment(commentId);
-    if (comment == null) {
-      return Response.status(Response.Status.NOT_FOUND).build();
-    }
-    Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
-    String currentUser = currentUserIdentity.getUserId();
-    if (!TaskUtil.canEditComment(currentUserIdentity, comment)) {
-      return Response.status(Response.Status.FORBIDDEN).build();
-    }
     if (StringUtils.isBlank(commentText)) {
       return Response.status(Response.Status.BAD_REQUEST).build();
     }
+    try {
+    Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
+    String currentUser = currentUserIdentity.getUserId();
     commentText = commentText.replaceAll(PERCENT_ENCODED_REGEX, "%25");
     commentText = commentText.replace("+", "%2b");
     commentText = URLDecoder.decode(commentText, "UTF-8");
-    CommentDto updatedComment = commentService.updateComment(commentId, commentText);
+    CommentDto updatedComment = commentService.updateComment(commentId, commentText, currentUserIdentity);
     transformHtml(updatedComment, currentUserIdentity);
     CommentEntity commentEntity = new CommentEntity(updatedComment,
                                                     userService.loadUser(updatedComment.getAuthor()),
                                                     CommentUtil.formatMention(updatedComment.getComment(),
                                                                               TaskUtil.getUserLanguage(currentUser)));
     return Response.ok(commentEntity).build();
+        } catch (EntityNotFoundException e) {
+        return Response.status(Response.Status.NOT_FOUND).build();
+        } catch (NotAllowedOperationOnEntityException e) {
+        return Response.status(Response.Status.FORBIDDEN).build();
         } catch (Exception e) {
         LOG.error("Can't update Comment {}", commentId, e);
         return Response.serverError().entity(e.getMessage()).build();

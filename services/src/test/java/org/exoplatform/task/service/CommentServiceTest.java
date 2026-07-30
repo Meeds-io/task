@@ -26,7 +26,9 @@ import org.exoplatform.task.dao.*;
 import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.UserSettingDto;
+import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.exception.NotAllowedOperationOnEntityException;
 import org.exoplatform.task.service.impl.CommentServiceImpl;
 import org.exoplatform.task.storage.CommentStorage;
 import org.exoplatform.task.storage.ProjectStorage;
@@ -165,18 +167,30 @@ public class CommentServiceTest {
   }
 
   @Test
-  public void testUpdateComment() throws EntityNotFoundException {
+  public void testUpdateComment() throws EntityNotFoundException, NotAllowedOperationOnEntityException {
     Comment comment = TestUtils.getDefaultComment();
 
     when(daoHandler.getCommentHandler().find(TestUtils.EXISTING_COMMENT_ID)).thenReturn(comment);
     when(commentHandler.update(any())).thenAnswer(invocation -> invocation.getArgument(0, Comment.class));
 
-    CommentDto updatedComment = commentService.updateComment(TestUtils.EXISTING_COMMENT_ID, "Updated content");
+    CommentDto updatedComment = commentService.updateComment(TestUtils.EXISTING_COMMENT_ID,
+                                                             "Updated content",
+                                                             new Identity(comment.getAuthor()));
 
     verify(commentHandler, times(1)).update(commentCaptor.capture());
     assertEquals("Updated content", commentCaptor.getValue().getComment());
     assertEquals("Updated content", updatedComment.getComment());
     assertNotNull("The comment update time should be stamped", updatedComment.getUpdatedTime());
+  }
+
+  @Test(expected = NotAllowedOperationOnEntityException.class)
+  public void testUpdateCommentOfAnotherAuthor() throws EntityNotFoundException, NotAllowedOperationOnEntityException {
+    Comment comment = TestUtils.getDefaultComment();
+
+    when(daoHandler.getCommentHandler().find(TestUtils.EXISTING_COMMENT_ID)).thenReturn(comment);
+
+    // only the author of a comment is allowed to edit it
+    commentService.updateComment(TestUtils.EXISTING_COMMENT_ID, "Updated content", new Identity("intruder"));
   }
 
   @Test
@@ -192,10 +206,10 @@ public class CommentServiceTest {
   }
 
   @Test(expected = EntityNotFoundException.class)
-  public void testUpdateCommentNotFound() throws EntityNotFoundException {
+  public void testUpdateCommentNotFound() throws EntityNotFoundException, NotAllowedOperationOnEntityException {
     when(daoHandler.getCommentHandler().find(TestUtils.UNEXISTING_COMMENT_ID)).thenReturn(null);
 
-    commentService.updateComment(TestUtils.UNEXISTING_COMMENT_ID, "Updated content");
+    commentService.updateComment(TestUtils.UNEXISTING_COMMENT_ID, "Updated content", new Identity("Tib"));
   }
 
   @Test

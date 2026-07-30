@@ -48,6 +48,8 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.task.dto.*;
+import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.exception.NotAllowedOperationOnEntityException;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.rest.model.CommentEntity;
 import org.exoplatform.task.service.*;
@@ -851,12 +853,6 @@ public class TestTaskRestService {
     task.setId(1);
     task.setCreatedBy("john");
 
-    CommentDto comment = new CommentDto();
-    comment.setId(1);
-    comment.setAuthor(john.getUserId());
-    comment.setComment("commentText");
-    comment.setTask(task);
-
     CommentDto updatedComment = new CommentDto();
     updatedComment.setId(1);
     updatedComment.setAuthor(john.getUserId());
@@ -864,22 +860,29 @@ public class TestTaskRestService {
     updatedComment.setTask(task);
     updatedComment.setUpdatedTime(new Date());
 
-    when(commentService.getComment(1)).thenReturn(comment);
-    when(commentService.updateComment(1, "updatedText")).thenReturn(updatedComment);
+    // the permission and existence checks belong to the service, the endpoint
+    // only maps its exceptions to the http statuses
+    when(commentService.updateComment(eq(1L), eq("updatedText"), any())).thenReturn(updatedComment);
+    when(commentService.updateComment(eq(2L),
+                                     anyString(),
+                                     any())).thenThrow(new EntityNotFoundException(2L, CommentDto.class));
+    when(commentService.updateComment(eq(3L),
+                                     anyString(),
+                                     any())).thenThrow(new NotAllowedOperationOnEntityException(3L,
+                                                                                               CommentDto.class,
+                                                                                               "edit"));
+
+    // Sending an empty content
+    Response response = taskRestService.updateComment("", 1);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
 
     // Updating an unknown comment
-    Response response = taskRestService.updateComment("updatedText", 2);
+    response = taskRestService.updateComment("updatedText", 2);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
 
     // Updating a comment of another author
-    comment.setAuthor("mary");
-    response = taskRestService.updateComment("updatedText", 1);
+    response = taskRestService.updateComment("updatedText", 3);
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
-    comment.setAuthor(john.getUserId());
-
-    // Sending an empty content
-    response = taskRestService.updateComment("", 1);
-    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
 
     // The author updates his own comment
     response = taskRestService.updateComment("updatedText", 1);
@@ -891,12 +894,14 @@ public class TestTaskRestService {
     assertEquals(commentModel.getFormattedComment(), CommentUtil.formatMention("updatedText", Locale.ENGLISH.getLanguage()));
 
     // Sending an encoded content
-    when(commentService.updateComment(1, "x <= 2")).thenReturn(updatedComment);
+    when(commentService.updateComment(eq(1L), eq("x <= 2"), any())).thenReturn(updatedComment);
     response = taskRestService.updateComment("x%20%3C%3D%202", 1);
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
 
     // The service fails to update the comment
-    when(commentService.updateComment(1, "brokenText")).thenThrow(new RuntimeException("Unexpected error"));
+    when(commentService.updateComment(eq(1L),
+                                     eq("brokenText"),
+                                     any())).thenThrow(new RuntimeException("Unexpected error"));
     response = taskRestService.updateComment("brokenText", 1);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
   }
