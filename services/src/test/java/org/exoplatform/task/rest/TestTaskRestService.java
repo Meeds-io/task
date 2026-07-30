@@ -904,6 +904,11 @@ public class TestTaskRestService {
                                      any())).thenThrow(new RuntimeException("Unexpected error"));
     response = taskRestService.updateComment("brokenText", 1);
     assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
+
+    // The service returns no comment at all
+    when(commentService.updateComment(eq(1L), eq("noResultText"), any())).thenReturn(null);
+    response = taskRestService.updateComment("noResultText", 1);
+    assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
   }
 
   @Test
