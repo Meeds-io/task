@@ -20,9 +20,11 @@ package org.exoplatform.task.service;
 
 import java.util.List;
 
+import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.exception.NotAllowedOperationOnEntityException;
 
 public interface CommentService {
 
@@ -33,14 +35,20 @@ public interface CommentService {
   CommentDto addComment(TaskDto task, long parentCommentId, String username, String comment) throws EntityNotFoundException;
 
   /**
-   * Updates the content of an existing comment
+   * Updates the content of an existing comment. Only its author is allowed to
+   * edit a comment, unlike the deletion which is also allowed to the project
+   * managers.
    *
    * @param commentId Comment identifier
    * @param commentText new comment content
+   * @param identity identity of the user attempting the edition
    * @return updated {@link CommentDto}
    * @throws EntityNotFoundException when the comment does not exist
+   * @throws NotAllowedOperationOnEntityException when the user is not the
+   *           author of the comment
    */
-  CommentDto updateComment(long commentId, String commentText) throws EntityNotFoundException;
+  CommentDto updateComment(long commentId, String commentText, Identity identity) throws EntityNotFoundException,
+                                                                                  NotAllowedOperationOnEntityException;
 
   void removeComment(long commentId) throws EntityNotFoundException;
 
