@@ -1098,6 +1098,10 @@ public class TaskRestService implements ResourceContainer {
     commentText = commentText.replace("+", "%2b");
     commentText = URLDecoder.decode(commentText, "UTF-8");
     CommentDto updatedComment = commentService.updateComment(commentId, commentText, currentUserIdentity);
+    if (updatedComment == null) {
+      LOG.error("Comment {} could not be updated", commentId);
+      return Response.serverError().build();
+    }
     transformHtml(updatedComment, currentUserIdentity);
     CommentEntity commentEntity = new CommentEntity(updatedComment,
                                                     userService.loadUser(updatedComment.getAuthor()),
