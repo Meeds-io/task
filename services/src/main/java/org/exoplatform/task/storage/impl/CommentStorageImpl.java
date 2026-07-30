@@ -140,6 +140,19 @@ public class CommentStorageImpl implements CommentStorage {
     }
 
     @Override
+    public CommentDto updateComment(long commentId, String commentText) throws EntityNotFoundException {
+        Comment comment = daoHandler.getCommentHandler().find(commentId);
+        if (comment == null) {
+            throw new EntityNotFoundException(commentId, CommentDto.class);
+        }
+        CommentDto commentDto = StorageUtil.commentToDto(comment, projectStorage);
+        commentDto.setComment(commentText);
+        commentDto.setUpdatedTime(new Date());
+        return StorageUtil.commentToDto(daoHandler.getCommentHandler().update(StorageUtil.commentToEntity(commentDto)),
+                                        projectStorage);
+    }
+
+    @Override
     public void removeComment(long commentId) throws EntityNotFoundException {
         daoHandler.getCommentHandler().delete(StorageUtil.commentToEntity(getComment(commentId)));
     }

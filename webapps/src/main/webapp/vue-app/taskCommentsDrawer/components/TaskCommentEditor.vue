@@ -18,10 +18,11 @@
   <div v-if="editorReady">
     <div class="comment d-flex align-start mb-2">
       <exo-user-avatar
+        v-if="!editMode"
         :profile-id="currentUserName"
         :size="30"
         :url="null"
-        extra-class="me-2" 
+        extra-class="me-2"
         avatar />
       <rich-editor
         ref="taskCommentEditor"
@@ -29,7 +30,7 @@
         :ck-editor-id="id"
         :max-length="MESSAGE_MAX_LENGTH"
         :placeholder="placeholder"
-        :object-id="newCommentId"
+        :object-id="editorObjectId"
         :tag-enabled="false"
         :suggester-space-u-r-l="taskSpaceUrl"
         ck-editor-type="taskCommentContent"
@@ -40,11 +41,32 @@
         @attachments-edited="attachmentsEdit"
         @validity-updated="validMessage = $event" />
     </div>
+    <!-- no avatar in edition mode: the buttons align on the composer left edge -->
+    <div v-if="editMode" class="d-flex mb-2">
+      <v-btn
+        :disabled="postDisabled"
+        depressed
+        small
+        type="button"
+        class="btn btn-primary ignore-vuetify-classes btnStyle me-2 updateCommentBtn"
+        @click="updateComment()">
+        {{ $t('comment.label.update') }}
+      </v-btn>
+      <v-btn
+        depressed
+        small
+        type="button"
+        class="btn ignore-vuetify-classes btnStyle cancelCommentBtn"
+        @click="cancelEdit()">
+        {{ $t('comment.label.cancel') }}
+      </v-btn>
+    </div>
     <v-btn
+      v-else
       :disabled="postDisabled"
       depressed
       small
-      type="button" 
+      type="button"
       class="btn btn-primary ignore-vuetify-classes btnStyle ms-10 mb-2 commentBtn"
       @click="addNewComment()">
       {{ $t('comment.label.comment') }}
@@ -87,8 +109,13 @@ export default {
     commentId: {
       type: String,
       default: ''
+    },
+    editMode: {
+      type: Boolean,
+      default: false
     }
   },
+  emits: ['input', 'addNewComment', 'updateComment', 'cancelEdit', 'attachments-edited'],
   data() {
     return {
       inputVal: null,
@@ -124,6 +151,9 @@ export default {
     postDisabled() {
       return !this.validMessage || (!this.inputVal && !this.taskCommentAttachmentsEdited);
     },
+    editorObjectId() {
+      return this.editMode && this.commentId || this.newCommentId;
+    },
     taskSpaceUrl() {
       const projectMembers = this.task?.status?.project?.participator;
       if (projectMembers?.length) {
@@ -136,31 +166,38 @@ export default {
     },
   },
   mounted() {
-    this.$root.$on('task-comment-created', () => {
-      this.reset();
-    });
-
-    document.addEventListener('Task-comments-drawer-closed', this.reset);
-
-    this.$root.$on('showEditor', commentId => {
-      this.$nextTick().then(() => {
-        this.showEditor(commentId);
-      });
-    });
-    
-    if ( this.showCommentEditor ) {
+    if (this.editMode) {
+      // The edition editor is driven by its parent comment, not by the
+      // reply/new comment global events
+      this.inputVal = this.value;
       this.editorReady = true;
+    } else {
+      this.$root.$on('task-comment-created', () => {
+        this.reset();
+      });
+
+      document.addEventListener('Task-comments-drawer-closed', this.reset);
+
+      this.$root.$on('showEditor', commentId => {
+        this.$nextTick().then(() => {
+          this.showEditor(commentId);
+        });
+      });
+
+      if ( this.showCommentEditor ) {
+        this.editorReady = true;
+      }
+      this.$root.$on('newCommentEditor', (lastComment) => {
+        this.editorReady = false;
+        this.newCommentId = null;
+        window.setTimeout(() => {
+          this.showCommentEditor = `commentContent-${lastComment}` === this.id;
+          if (this.showCommentEditor) {
+            this.editorReady = true;
+          }
+        }, 100);
+      });
     }
-    this.$root.$on('newCommentEditor', (lastComment) => {
-      this.editorReady = false;
-      this.newCommentId = null;
-      window.setTimeout(() => {
-        this.showCommentEditor = `commentContent-${lastComment}` === this.id;
-        if (this.showCommentEditor) {
-          this.editorReady = true;
-        }
-      }, 100);
-    });
     const thiss = this;
     $('body').suggester('addProvider', 'task:people', function (query, callback) {
       const _this = this;
@@ -194,6 +231,12 @@ export default {
     },
     addNewComment() {
       this.$emit('addNewComment', this.commentId);
+    },
+    updateComment() {
+      this.$emit('updateComment', this.commentId);
+    },
+    cancelEdit() {
+      this.$emit('cancelEdit', this.commentId);
     },
     reset() {
       this.inputVal = '';

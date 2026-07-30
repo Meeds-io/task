@@ -305,6 +305,24 @@ export function addTaskSubComment(taskId, parentCommentId, comment) {
   });
 }
 
+export function updateTaskComment(commentId, comment) {
+  return fetch(`/portal/rest/tasks/comments/${commentId}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: comment
+  }).then((resp) => {
+    if (resp?.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error when updating task comment');
+    }
+  });
+}
+
 export function removeTaskComment(commentId) {
   return fetch(`/portal/rest/tasks/comments/${commentId}`, {
     method: 'DELETE',

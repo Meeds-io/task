@@ -68,6 +68,8 @@ import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.dto.TasksList;
+import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.exception.NotAllowedOperationOnEntityException;
 import org.exoplatform.task.model.GroupKey;
 import org.exoplatform.task.model.User;
 import org.exoplatform.task.rest.model.CommentEntity;
@@ -1070,6 +1072,48 @@ public class TaskRestService implements ResourceContainer {
     return Response.ok(commentEntity).build();
         } catch (Exception e) {
         LOG.error("Can't add SubComment to Task {}", id, e);
+        return Response.serverError().entity(e.getMessage()).build();
+        }
+  }
+
+  @PUT
+  @Path("comments/{commentId}")
+  @RolesAllowed("users")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Operation(summary = "Updates a specific task comment by id", method = "PUT", description = "This updates the content of a specific task comment by id")
+  @ApiResponses(value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "400", description = "Invalid query input"),
+          @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response updateComment(@Parameter(description = "Comment text", required = true) String commentText,
+                                @Parameter(description = "Comment id", required = true) @PathParam("commentId") long commentId) {
+    if (StringUtils.isBlank(commentText)) {
+      return Response.status(Response.Status.BAD_REQUEST).build();
+    }
+    try {
+    Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
+    String currentUser = currentUserIdentity.getUserId();
+    commentText = commentText.replaceAll(PERCENT_ENCODED_REGEX, "%25");
+    commentText = commentText.replace("+", "%2b");
+    commentText = URLDecoder.decode(commentText, "UTF-8");
+    CommentDto updatedComment = commentService.updateComment(commentId, commentText, currentUserIdentity);
+    if (updatedComment == null) {
+      LOG.error("Comment {} could not be updated", commentId);
+      return Response.serverError().build();
+    }
+    transformHtml(updatedComment, currentUserIdentity);
+    CommentEntity commentEntity = new CommentEntity(updatedComment,
+                                                    userService.loadUser(updatedComment.getAuthor()),
+                                                    CommentUtil.formatMention(updatedComment.getComment(),
+                                                                              TaskUtil.getUserLanguage(currentUser)));
+    return Response.ok(commentEntity).build();
+        } catch (EntityNotFoundException e) {
+        return Response.status(Response.Status.NOT_FOUND).build();
+        } catch (NotAllowedOperationOnEntityException e) {
+        return Response.status(Response.Status.FORBIDDEN).build();
+        } catch (Exception e) {
+        LOG.error("Can't update Comment {}", commentId, e);
         return Response.serverError().entity(e.getMessage()).build();
         }
   }
