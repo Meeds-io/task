@@ -61,8 +61,6 @@ public final class TaskUtil {
 
   public static final String           TASK_COMMENT_CREATED                            = "exo.task.taskCommentCreation";
 
-  public static final String           TASK_COMMENT_UPDATED                            = "exo.task.taskCommentUpdate";
-
   public static final String           TASK_COMMENT_DELETED                            = "exo.task.taskCommentDeletion";
 
   public static final String           GAMIFICATION_TASK_ADDON_CREATE_TASK             = "createNewTask";
@@ -455,18 +453,6 @@ public final class TaskUtil {
     }
 
     return false;
-  }
-
-  /**
-   * Only the author of a comment can edit its content, unlike the deletion
-   * which is also allowed to the project managers.
-   *
-   * @param identity user identity
-   * @param comment comment to edit
-   * @return true if the user can edit the comment
-   */
-  public static boolean canEditComment(Identity identity, CommentDto comment) {
-    return comment != null && identity != null && identity.getUserId().equals(comment.getAuthor());
   }
 
   public static TaskDto saveTaskField(TaskDto task, Identity userId, String param, String[] values, TimeZone timezone, TaskService taskService, LabelService labelService, StatusService statusService)

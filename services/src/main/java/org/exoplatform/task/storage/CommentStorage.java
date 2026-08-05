@@ -38,16 +38,6 @@ public interface CommentStorage {
 
   CommentDto addComment(TaskDto task, long parentCommentId, String username, String comment) throws EntityNotFoundException;
 
-  /**
-   * Updates the content of an existing comment and stamps its update time
-   *
-   * @param commentId Comment identifier
-   * @param commentText new comment content
-   * @return updated {@link CommentDto}
-   * @throws EntityNotFoundException when the comment does not exist
-   */
-  CommentDto updateComment(long commentId, String commentText) throws EntityNotFoundException;
-
   void removeComment(long commentId) throws EntityNotFoundException;
 
   /**

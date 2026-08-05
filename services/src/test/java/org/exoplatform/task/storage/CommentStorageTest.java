@@ -92,32 +92,6 @@ public class CommentStorageTest extends AbstractTest {
   }
 
   @Test
-  public void testUpdateComment() throws EntityNotFoundException {
-    TaskDto task = taskService.createTask(newDefaultSimpleTask());
-
-    CommentDto comment = commentStorage.addComment(task, USERNAME, "initial comment @john");
-    Assert.assertNull("A comment which was never edited has no update time", comment.getUpdatedTime());
-
-    CommentDto updatedComment = commentStorage.updateComment(comment.getId(), "updated comment @mary");
-
-    Assert.assertEquals(comment.getId(), updatedComment.getId());
-    Assert.assertEquals("updated comment @mary", updatedComment.getComment());
-    Assert.assertNotNull("An edited comment is stamped with an update time", updatedComment.getUpdatedTime());
-    Assert.assertEquals(USERNAME, updatedComment.getAuthor());
-
-    // the mentions are recomputed from the new content
-    Set<String> mentionedUsers = taskService.getMentionedUsers(task.getId());
-    Assert.assertTrue(mentionedUsers.contains("mary"));
-
-    try {
-      commentStorage.updateComment(999999L, "no such comment");
-      Assert.fail("Updating an unknown comment should raise an EntityNotFoundException");
-    } catch (EntityNotFoundException e) {
-      // expected
-    }
-  }
-
-  @Test
   public void testFindTaskByMentionedUser() throws Exception {
     TaskDto task = newDefaultSimpleTask();
     task = taskService.createTask(task);

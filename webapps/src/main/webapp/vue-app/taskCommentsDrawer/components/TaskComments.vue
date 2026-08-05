@@ -19,11 +19,9 @@
     <task-comment-item
       :comment="comment"
       :comments="comments"
-      :task="task"
       :can-delete="canDelete"
       @openConfirmDeleteDialog="confirmCommentDelete($event)"
-      @openCommentEditor="commentActions($event)"
-      @commentUpdated="$emit('commentUpdated', $event)" />
+      @openCommentEditor="commentActions($event)" />
     <div class="editorContent commentEditorContainer" :class="comment.comment.id === lastComment && newCommentEditor && 'newCommentEditor'">
       <task-comment-editor
         ref="commentEditor"
@@ -78,7 +76,6 @@ export default {
       default: false
     }
   },
-  emits: ['commentUpdated', 'confirmDialogOpened', 'confirmDialogClosed'],
   data() {
     return {
       MESSAGE_MAX_LENGTH: 1300,

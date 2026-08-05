@@ -28,7 +28,7 @@
         link-style
         popover />
       <div class="commentContent ps-3 d-flex align-center flex-grow-0 flex-shrink-0">
-        <span :title="displayCommentDate(commentDate)" class="dateTime caption font-italic d-block text-sub-title">{{ relativeTime }}</span>
+        <span :title="displayCommentDate(comment.comment.createdTime.time)" class="dateTime caption font-italic d-block text-sub-title">{{ relativeTime }}</span>
       </div>
     </div>
     <div class="commentBody d-block overflow-hidden ms-10 mt-1">
@@ -95,15 +95,8 @@ export default {
     };
   },
   computed: {
-    updatedTime() {
-      return this.comment.comment.updatedTime?.time || null;
-    },
-    commentDate() {
-      return this.updatedTime || this.comment.comment.createdTime.time;
-    },
     relativeTime() {
-      const relativeTime = this.getRelativeTime(this.commentDate);
-      return this.updatedTime && this.$t('comment.label.updatedTime').replace('{0}', relativeTime) || relativeTime;
+      return this.getRelativeTime(this.comment.comment.createdTime.time);
     },
     id() {
       return `comment-${this.comment.comment.id}`;
@@ -135,7 +128,7 @@ export default {
       } else if (elapsed < msPerMaxDays) {
         return this.$t('task.timeConvert.About_?_Days').replace('{0}', Math.round(elapsed / msPerDay));
       } else {
-        return this.displayCommentDate(previous);
+        return this.displayCommentDate(this.comment.comment.createdTime.time);
       }
     },
     displayCommentDate( dateTimeValue ) {

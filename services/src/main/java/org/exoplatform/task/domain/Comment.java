@@ -83,10 +83,6 @@ public class Comment {
   @Column(name = "CREATED_TIME")
   private Date                 createdTime = Calendar.getInstance().getTime();
 
-  @Temporal(TemporalType.TIMESTAMP)
-  @Column(name = "UPDATED_TIME")
-  private Date                 updatedTime;
-
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "TASK_ID")
   @EqualsAndHashCode.Exclude
@@ -124,7 +120,6 @@ public class Comment {
     c.setComment(getComment());
     c.setMentionedUsers(new HashSet<>(getMentionedUsers()));
     c.setCreatedTime(getCreatedTime());
-    c.setUpdatedTime(getUpdatedTime());
     c.setTask(getTask().clone());
     return c;
   }

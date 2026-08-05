@@ -365,7 +365,6 @@ public final class StorageUtil{
           commentEntity.setParentComment(getCommentEntityById(commentDto.getParentComment().getId()));
         }
         commentEntity.setCreatedTime(commentDto.getCreatedTime());
-        commentEntity.setUpdatedTime(commentDto.getUpdatedTime());
 
         commentEntity.setTask(getTaskEntityById(commentDto.getTask().getId()));
         commentEntity.setMentionedUsers(processMentions(commentDto.getTask(), commentDto.getComment()));
@@ -384,7 +383,6 @@ public final class StorageUtil{
             commentDto.setParentComment(commentToDto(comment.getParentComment(), projectStorage));
         }
         commentDto.setCreatedTime(comment.getCreatedTime());
-        commentDto.setUpdatedTime(comment.getUpdatedTime());
         commentDto.setTask(taskToDto(comment.getTask(), projectStorage));
         commentDto.setMentionedUsers(comment.getMentionedUsers());
         return commentDto;
