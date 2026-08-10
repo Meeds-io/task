@@ -41,8 +41,8 @@
       v-if="showPlaceholder"
       class="noTasksProject">
       <v-icon size="60" class="primary--text mb-3">fas fa-tasks</v-icon>
-      <p class="text-header-title font-weight-regular mb-3">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter1') || $t('label.tasks.welcome') }}</p>
-      <p class="text-header-title font-weight-regular">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter2') || $t('label.noTask.today') }}</p>
+      <p class="text-title font-weight-regular mb-3">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter1') || $t('label.tasks.welcome') }}</p>
+      <p class="text-title font-weight-regular">{{ showPlaceholderResetSearch && $t('label.task.noResultWithFilter2') || $t('label.noTask.today') }}</p>
       <v-btn
         class="btn btn-primary my-4"
         v-on="{
