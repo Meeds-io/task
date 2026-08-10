@@ -18,8 +18,8 @@
   <div v-if="hideGantt">
     <div class="noTasksProject">
       <v-icon size="60" class="primary--text mb-3">fas fa-tasks</v-icon>
-      <p class="text-header-title font-weight-regular mb-3">{{ $t('label.tasks.welcome') }}</p>
-      <div class="text-header-title font-weight-regular mb-3"><span>{{ $t('label.noTasks') }}</span></div>
+      <p class="text-title font-weight-regular mb-3">{{ $t('label.tasks.welcome') }}</p>
+      <div class="text-title font-weight-regular mb-3"><span>{{ $t('label.noTasks') }}</span></div>
       <div class="addunscheduledTask">
         <v-btn @click="$root.$emit('displayTasksUnscheduledDrawer', unscheduledTaskList)" depressed>
           {{ $t('Unscheduled Tasks') }}

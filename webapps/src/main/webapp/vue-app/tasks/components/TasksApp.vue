@@ -21,7 +21,9 @@
         :loading="loadingTasks"
         extra-class="application-body">
         <template #title>
-          <span class="widget-text-header text-truncate"> {{ $t('label.tasks.header') }} </span>
+          <span class="text-header">
+            <span class="text-truncate">{{ $t('label.tasks.header') }}</span>
+          </span>
         </template>
         <template #action>
           <div>
