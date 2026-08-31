@@ -404,11 +404,7 @@
           <name>pluginIds</name>
           <value>TaskAssignPlugin</value>
           <value>TaskCoworkerPlugin</value>
-          <value>TaskDueDatePlugin</value>
-          <value>TaskCompletedPlugin</value>
-          <value>TaskCommentedPlugin</value>
           <value>TaskMentionedPlugin</value>
-          <value>TaskEditionPlugin</value>
         </values-param>
       </init-params>
     </component-plugin>
