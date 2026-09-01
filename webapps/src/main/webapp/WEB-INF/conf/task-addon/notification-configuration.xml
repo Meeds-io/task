@@ -378,4 +378,35 @@
       </init-params>
     </component-plugin>
   </external-component-plugins>
+
+  <!-- Digest mail notifications: the category this addon owns -->
+  <external-component-plugins>
+    <target-component>io.meeds.commons.digest.DigestCategoryRegistry</target-component>
+    <component-plugin>
+      <name>tasks</name>
+      <set-method>addCategoryProvider</set-method>
+      <type>io.meeds.commons.digest.plugin.DigestCategoryPlugin</type>
+      <description>The task notifications: assignments, due dates, comments and mentions</description>
+      <init-params>
+        <value-param>
+          <name>id</name>
+          <value>tasks</value>
+        </value-param>
+        <value-param>
+          <name>labelKey</name>
+          <value>digest.category.tasks</value>
+        </value-param>
+        <value-param>
+          <name>order</name>
+          <value>40</value>
+        </value-param>
+        <values-param>
+          <name>pluginIds</name>
+          <value>TaskAssignPlugin</value>
+          <value>TaskCoworkerPlugin</value>
+          <value>TaskMentionedPlugin</value>
+        </values-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
 </configuration>
