@@ -72,8 +72,15 @@
   </component>
 
   <component>
-    <key>io.meeds.task.search.TaskSearchConnector</key>
     <type>io.meeds.task.search.TaskSearchConnector</type>
+    <init-params>
+      <properties-param>
+        <name>constructor.params</name>
+        <property
+          name="index"
+          value="${task.es.index:task_alias}" />
+      </properties-param>
+    </init-params>
   </component>
 
   <component>

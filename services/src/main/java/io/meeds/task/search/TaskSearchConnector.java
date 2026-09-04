@@ -22,6 +22,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.search.es.ElasticSearchException;
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
+import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.task.model.TaskSearchFilter;
@@ -29,28 +30,15 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-@Component
 public class TaskSearchConnector {
 
-  private static final Log       LOG                           = ExoLogger.getLogger(TaskSearchConnector.class);
-
-  @Autowired
-  private ElasticSearchingClient client;
-
-  @Value("${task.es.index:task_alias}")
-  private String                 index;
-
-  @Value("${task.search.type:task}")
-  private String                 searchType;
+  private static final Log       LOG = ExoLogger.getLogger(TaskSearchConnector.class);
 
   private static final String    SEARCH_QUERY                  = """
       {
@@ -131,6 +119,16 @@ public class TaskSearchConnector {
   private static final String    PERMISSIONS_REPLACEMENT       = "@permissions@";
 
   private static final String    SORT_REPLACEMENT              = "@sortQuery@";
+
+  private ElasticSearchingClient client;
+
+  private String                 index;
+
+  public TaskSearchConnector(ElasticSearchingClient client,
+                             InitParams initParams) {
+    this.client = client;
+    this.index = initParams.getPropertiesParam("constructor.params").getProperty("index");
+  }
 
   public List<Long> search(TaskSearchFilter filter) {
     String esQuery = buildSearchQuery(SEARCH_QUERY, filter);
