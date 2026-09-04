@@ -25,8 +25,8 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.service.LinkProvider;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.integration.notification.NotificationUtils;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.TaskService;
 
@@ -34,6 +34,7 @@ import io.meeds.commons.digest.model.DigestItem;
 import io.meeds.commons.digest.model.DigestLine;
 import io.meeds.commons.digest.plugin.DigestLineContext;
 import io.meeds.commons.digest.plugin.DigestLinePlugin;
+import io.meeds.task.plugin.TaskPermanentLinkPlugin;
 
 /**
  * The digest email lines of the task notifications: assigned, added as
@@ -48,12 +49,12 @@ public class TaskDigestLinePlugin extends DigestLinePlugin {
 
   public static final String  TASK_MENTIONED_PLUGIN = "TaskMentionedPlugin";
 
-  /** The stored parameters, the same names as in the notifications */
-  static final String         TASK_ID_PARAM         = "taskId";
+  /** The stored parameters: the very keys the notification plugins write */
+  static final String         TASK_ID_PARAM         = NotificationUtils.TASK_ID;
 
-  static final String         CREATOR_PARAM         = "creator";
+  static final String         CREATOR_PARAM         = NotificationUtils.CREATOR.getKey();
 
-  static final String         TASK_URL_PARAM        = "taskUrl";
+  static final String         TASK_URL_PARAM        = NotificationUtils.TASK_URL;
 
   private static final String LINE_KEY_PREFIX       = "digest.line.";
 
@@ -109,8 +110,8 @@ public class TaskDigestLinePlugin extends DigestLinePlugin {
     if (StringUtils.startsWith(stored, "http")) {
       return stored;
     }
-    return CommonsUtils.getCurrentDomain() + "/" + LinkProvider.getPortalName(null) + "/" + CommonsUtils.getCurrentPortalOwner()
-        + "/tasks/taskDetail/" + task.getId();
+    return CommonsUtils.getCurrentDomain()
+        + String.format(TaskPermanentLinkPlugin.URL_FORMAT, CommonsUtils.getCurrentPortalOwner(), task.getId());
   }
 
   private String fullName(String username) {
