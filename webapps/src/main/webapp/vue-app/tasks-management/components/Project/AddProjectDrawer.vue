@@ -90,14 +90,9 @@
         </div>
         <v-divider class="py-3" />
         <div class="projectLabelsName mt-3 mb-3">
-          <v-label
-            for="labels">
-            {{ $t('label.labels') }}
-          </v-label>
           <project-labels
             :project="project"
-            @add-label="addLabelOnCreate"
-            @edit-label-on-create="editLabelBeforeCreate" />
+            @set-labels="setLabelsOnCreate"/>
         </div>
       </v-form>
     </template>
@@ -166,12 +161,8 @@ export default {
     });
   },
   methods: {
-    addLabelOnCreate(label){
-      this.labelsToAdd.push(label);
-    },
-    editLabelBeforeCreate(label){
-      const objIndex = this.labelsToAdd.findIndex((obj => obj.name === label.name));
-      this.labelsToAdd[objIndex].name = label.text;
+    setLabelsOnCreate(labels) {
+      this.labelsToAdd = labels;
     },
     open(project) {
       if (project && project.id){
@@ -219,6 +210,7 @@ export default {
           description: '',
           id: '',
         };
+        this.labelsToAdd = [];
         window.setTimeout(() => {
           document.dispatchEvent(new CustomEvent('loadAllProjectLabels', {
             detail: null
