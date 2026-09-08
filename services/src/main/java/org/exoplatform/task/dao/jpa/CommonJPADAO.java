@@ -138,8 +138,11 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
             maxLogSq.where(cb.equal(l.get("task"), root));
 
             Expression<Date> taskCreated = root.get("createdTime");
-            Expression<Date> maxCommentTime = cb.coalesce(maxCommentSq.getSelection(), taskCreated);
-            Expression<Date> maxLogTime = cb.coalesce(maxLogSq.getSelection(), taskCreated);
+            // Use the subqueries themselves as scalar expressions: their selection
+            // belongs to the subquery tree and cannot be spliced into the outer query
+            // (Hibernate 7.4 rejects it, see SqmCriteriaRootValidator)
+            Expression<Date> maxCommentTime = cb.coalesce(maxCommentSq, taskCreated);
+            Expression<Date> maxLogTime = cb.coalesce(maxLogSq, taskCreated);
 
             Case<Date> tmpSelectCase = cb.selectCase();
             Expression<Date> tmpMax = tmpSelectCase.when(cb.greaterThan(taskCreated, maxCommentTime), taskCreated)

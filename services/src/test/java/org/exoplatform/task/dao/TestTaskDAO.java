@@ -221,6 +221,60 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   @Test
+  public void testFindLastUpdatedTasksOrdersByLastActivity() throws Exception {
+    Calendar calendar = Calendar.getInstance();
+
+    calendar.add(Calendar.MINUTE, -40);
+    Task commentedTask = newTaskInstance("commented task", "task commented lately", "root");
+    commentedTask.setCreatedTime(calendar.getTime());
+    tDAO.create(commentedTask);
+
+    calendar = Calendar.getInstance();
+    // older than the untouched task on purpose: only its change log can lift it above
+    calendar.add(Calendar.MINUTE, -35);
+    Task loggedTask = newTaskInstance("logged task", "task changed lately", "root");
+    loggedTask.setCreatedTime(calendar.getTime());
+    tDAO.create(loggedTask);
+
+    calendar = Calendar.getInstance();
+    calendar.add(Calendar.MINUTE, -30);
+    Task untouchedTask = newTaskInstance("untouched task", "task with no comment nor change log", "root");
+    untouchedTask.setCreatedTime(calendar.getTime());
+    tDAO.create(untouchedTask);
+
+    calendar = Calendar.getInstance();
+    calendar.add(Calendar.MINUTE, -5);
+    Comment comment = new Comment();
+    comment.setAuthor(username);
+    comment.setComment("a comment made 5 minutes ago");
+    comment.setCreatedTime(calendar.getTime());
+    comment.setTask(commentedTask);
+    cDAO.create(comment);
+
+    calendar = Calendar.getInstance();
+    calendar.add(Calendar.MINUTE, -10);
+    ChangeLog changeLog = new ChangeLog();
+    changeLog.setTask(loggedTask);
+    changeLog.setAuthor(username);
+    changeLog.setActionName("edit");
+    changeLog.setTarget("title");
+    changeLog.setCreatedTime(calendar.getTime());
+    daoHandler.getTaskLogHandler().create(changeLog);
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setAssignee(Arrays.asList("root"));
+
+    ListAccess<Task> list = tDAO.findLastUpdatedTasks(taskQuery);
+
+    Assert.assertEquals(3, list.getSize());
+
+    Task[] tasks = list.load(0, -1);
+    Assert.assertEquals("commented task", tasks[0].getTitle());
+    Assert.assertEquals("logged task", tasks[1].getTitle());
+    Assert.assertEquals("untouched task", tasks[2].getTitle());
+  }
+
+  @Test
   public void testFindTaskByQueryAdvance() throws Exception {
     Project project = new Project();
     project.setName("Project1");
