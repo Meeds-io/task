@@ -27,8 +27,10 @@
       <v-flex
         class="mx-0 drawerHeader flex-grow-0 width-full">
         <v-list-item class="px-0">
-          <v-list-item-content class="drawerTitle d-flex text-header-title text-truncate">
-            <span class="ps-2">{{ $t('label.comments') }}</span>
+          <v-list-item-content class="drawerTitle d-flex">
+            <span class="text-title">
+              <span class="ps-2 text-truncate">{{ $t('label.comments') }}</span>
+            </span>
           </v-list-item-content>
           <v-list-item-action class="drawerIcons align-end d-flex flex-row">
             <v-btn
