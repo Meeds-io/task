@@ -32,7 +32,6 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.task.service.UserService;
 import org.mockito.Mockito;
 
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
