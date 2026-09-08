@@ -275,6 +275,47 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   @Test
+  public void testFindLastUpdatedTasksBreaksTiesOnId() throws Exception {
+    Calendar calendar = Calendar.getInstance();
+    calendar.add(Calendar.MINUTE, -15);
+    Date sharedCreationDate = calendar.getTime();
+
+    // no comment, no change log: the three tasks share the very same last activity date
+    Task firstTask = newTaskInstance("first task", "created first", "root");
+    firstTask.setCreatedTime(sharedCreationDate);
+    tDAO.create(firstTask);
+
+    Task secondTask = newTaskInstance("second task", "created second", "root");
+    secondTask.setCreatedTime(sharedCreationDate);
+    tDAO.create(secondTask);
+
+    Task thirdTask = newTaskInstance("third task", "created third", "root");
+    thirdTask.setCreatedTime(sharedCreationDate);
+    tDAO.create(thirdTask);
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setAssignee(Arrays.asList("root"));
+
+    ListAccess<Task> list = tDAO.findLastUpdatedTasks(taskQuery);
+    Assert.assertEquals(3, list.getSize());
+
+    // ties are broken on the identifier, newest first
+    Task[] tasks = list.load(0, -1);
+    Assert.assertEquals("third task", tasks[0].getTitle());
+    Assert.assertEquals("second task", tasks[1].getTitle());
+    Assert.assertEquals("first task", tasks[2].getTitle());
+
+    // and that order is stable across pages: no row repeated, none skipped
+    List<String> paged = new ArrayList<>();
+    for (int offset = 0; offset < 3; offset++) {
+      Task[] page = list.load(offset, 1);
+      Assert.assertEquals(1, page.length);
+      paged.add(page[0].getTitle());
+    }
+    Assert.assertEquals(Arrays.asList("third task", "second task", "first task"), paged);
+  }
+
+  @Test
   public void testFindTaskByQueryAdvance() throws Exception {
     Project project = new Project();
     project.setName("Project1");

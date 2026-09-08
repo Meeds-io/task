@@ -122,9 +122,11 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
       List<OrderBy> orderby = query.getOrderBy();
       if(orderby != null && !orderby.isEmpty()) {
         List<Order> orders = new ArrayList<>(orderby.size());
+        boolean orderedByLastActivity = false;
         for (OrderBy orderBy : orderby) {
           Order order;
           if (orderBy.getFieldName().equals("lastTaskActivity")) {
+            orderedByLastActivity = true;
             Subquery<Date> maxCommentSq = q.subquery(Date.class);
             Root<Comment> c = maxCommentSq.from(Comment.class);
 
@@ -167,6 +169,11 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
             order = cb.desc(p);
           }
           orders.add(order);
+        }
+        if (orderedByLastActivity) {
+          // Tasks sharing the same last activity date must keep a stable relative
+          // order, else paging over this query can repeat or skip a row
+          orders.add(cb.desc(root.get("id")));
         }
         q.orderBy(orders);
       }
