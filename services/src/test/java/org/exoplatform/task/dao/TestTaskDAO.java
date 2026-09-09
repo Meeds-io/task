@@ -221,6 +221,101 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   @Test
+  public void testFindLastUpdatedTasksOrdersByLastActivity() throws Exception {
+    Calendar calendar = Calendar.getInstance();
+
+    calendar.add(Calendar.MINUTE, -40);
+    Task commentedTask = newTaskInstance("commented task", "task commented lately", "root");
+    commentedTask.setCreatedTime(calendar.getTime());
+    tDAO.create(commentedTask);
+
+    calendar = Calendar.getInstance();
+    // older than the untouched task on purpose: only its change log can lift it above
+    calendar.add(Calendar.MINUTE, -35);
+    Task loggedTask = newTaskInstance("logged task", "task changed lately", "root");
+    loggedTask.setCreatedTime(calendar.getTime());
+    tDAO.create(loggedTask);
+
+    calendar = Calendar.getInstance();
+    calendar.add(Calendar.MINUTE, -30);
+    Task untouchedTask = newTaskInstance("untouched task", "task with no comment nor change log", "root");
+    untouchedTask.setCreatedTime(calendar.getTime());
+    tDAO.create(untouchedTask);
+
+    calendar = Calendar.getInstance();
+    calendar.add(Calendar.MINUTE, -5);
+    Comment comment = new Comment();
+    comment.setAuthor(username);
+    comment.setComment("a comment made 5 minutes ago");
+    comment.setCreatedTime(calendar.getTime());
+    comment.setTask(commentedTask);
+    cDAO.create(comment);
+
+    calendar = Calendar.getInstance();
+    calendar.add(Calendar.MINUTE, -10);
+    ChangeLog changeLog = new ChangeLog();
+    changeLog.setTask(loggedTask);
+    changeLog.setAuthor(username);
+    changeLog.setActionName("edit");
+    changeLog.setTarget("title");
+    changeLog.setCreatedTime(calendar.getTime());
+    daoHandler.getTaskLogHandler().create(changeLog);
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setAssignee(Arrays.asList("root"));
+
+    ListAccess<Task> list = tDAO.findLastUpdatedTasks(taskQuery);
+
+    Assert.assertEquals(3, list.getSize());
+
+    Task[] tasks = list.load(0, -1);
+    Assert.assertEquals("commented task", tasks[0].getTitle());
+    Assert.assertEquals("logged task", tasks[1].getTitle());
+    Assert.assertEquals("untouched task", tasks[2].getTitle());
+  }
+
+  @Test
+  public void testFindLastUpdatedTasksBreaksTiesOnId() throws Exception {
+    Calendar calendar = Calendar.getInstance();
+    calendar.add(Calendar.MINUTE, -15);
+    Date sharedCreationDate = calendar.getTime();
+
+    // no comment, no change log: the three tasks share the very same last activity date
+    Task firstTask = newTaskInstance("first task", "created first", "root");
+    firstTask.setCreatedTime(sharedCreationDate);
+    tDAO.create(firstTask);
+
+    Task secondTask = newTaskInstance("second task", "created second", "root");
+    secondTask.setCreatedTime(sharedCreationDate);
+    tDAO.create(secondTask);
+
+    Task thirdTask = newTaskInstance("third task", "created third", "root");
+    thirdTask.setCreatedTime(sharedCreationDate);
+    tDAO.create(thirdTask);
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setAssignee(Arrays.asList("root"));
+
+    ListAccess<Task> list = tDAO.findLastUpdatedTasks(taskQuery);
+    Assert.assertEquals(3, list.getSize());
+
+    // ties are broken on the identifier, newest first
+    Task[] tasks = list.load(0, -1);
+    Assert.assertEquals("third task", tasks[0].getTitle());
+    Assert.assertEquals("second task", tasks[1].getTitle());
+    Assert.assertEquals("first task", tasks[2].getTitle());
+
+    // and that order is stable across pages: no row repeated, none skipped
+    List<String> paged = new ArrayList<>();
+    for (int offset = 0; offset < 3; offset++) {
+      Task[] page = list.load(offset, 1);
+      Assert.assertEquals(1, page.length);
+      paged.add(page[0].getTitle());
+    }
+    Assert.assertEquals(Arrays.asList("third task", "second task", "first task"), paged);
+  }
+
+  @Test
   public void testFindTaskByQueryAdvance() throws Exception {
     Project project = new Project();
     project.setName("Project1");
