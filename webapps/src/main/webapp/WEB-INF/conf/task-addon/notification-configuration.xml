@@ -386,7 +386,7 @@
       <name>tasks</name>
       <set-method>addCategoryProvider</set-method>
       <type>io.meeds.commons.digest.plugin.DigestCategoryPlugin</type>
-      <description>The task notifications: assignments, due dates, comments and mentions</description>
+      <description>The task notifications: assignments, coworkers and mentions</description>
       <init-params>
         <value-param>
           <name>id</name>
