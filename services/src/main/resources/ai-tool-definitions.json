@@ -303,10 +303,6 @@
             "type": "string",
             "description": "Optional task start date as a string, parsed into a date."
           },
-          "end_date": {
-            "type": "string",
-            "description": "Optional task end date as a string, parsed into a date."
-          },
           "due_date": {
             "type": "string",
             "description": "Optional task due date as a string, parsed into a date."
@@ -357,10 +353,6 @@
           "start_date": {
             "type": "string",
             "description": "Optional task start date as a string, parsed into a date."
-          },
-          "end_date": {
-            "type": "string",
-            "description": "Optional task end date as a string, parsed into a date."
           },
           "due_date": {
             "type": "string",
@@ -549,7 +541,7 @@
     {
       "name": "set_task_dates",
       "title": "Set a Task's dates",
-      "description": "Set or reschedule the start, due and/or end dates of an existing task. Pass a date as a string; omit a date to clear it.",
+      "description": "Set or reschedule the start and/or due dates of an existing task. Pass a date as a string; omitting a date leaves it unchanged.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -557,10 +549,6 @@
           "start_date": {
             "type": "string",
             "description": "Optional task start date as a string, parsed into a date."
-          },
-          "end_date": {
-            "type": "string",
-            "description": "Optional task end date as a string, parsed into a date."
           },
           "due_date": {
             "type": "string",
