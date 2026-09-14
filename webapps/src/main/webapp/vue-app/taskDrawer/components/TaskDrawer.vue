@@ -26,6 +26,7 @@
     <pinneable-drawer
       id="task-Drawer"
       app-name="task"
+      :placement-disabled="!!taskId"
       ref="addTaskDrawer"
       v-model="drawer"
       :temporary="confirmDrawerClose"
