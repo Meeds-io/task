@@ -18,7 +18,6 @@
  */
 package org.exoplatform.task.integration.notification;
 
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -155,11 +154,6 @@ public class PushTemplateProvider extends TemplateProvider {
       return messageInfo.body(body).subject(taskUrl).end();
     }
 
-    @Override
-    protected boolean makeDigest(NotificationContext ctx, Writer writer) {
-      return false;
-    }
-
   };
 
   private class CommentTemplateBuilder extends AbstractTemplateBuilder {
@@ -265,11 +259,6 @@ public class PushTemplateProvider extends TemplateProvider {
       ctx.setException(templateContext.getException());
       MessageInfo messageInfo = new MessageInfo();
       return messageInfo.body(body).subject(taskUrl).end();
-    }
-
-    @Override
-    protected boolean makeDigest(NotificationContext ctx, Writer writer) {
-      return false;
     }
   }
 
