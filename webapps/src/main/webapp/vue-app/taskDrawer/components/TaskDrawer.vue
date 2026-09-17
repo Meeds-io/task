@@ -23,8 +23,10 @@
       :ok-label="$t('label.ok')"
       :cancel-label="$t('popup.cancel')"
       @ok="deleteConfirm()" />
-    <exo-drawer
+    <pinneable-drawer
       id="task-Drawer"
+      app-name="task"
+      :placement-disabled="!!taskId"
       ref="addTaskDrawer"
       v-model="drawer"
       :temporary="confirmDrawerClose"
@@ -219,7 +221,7 @@
           </v-btn>
         </div>
       </template>
-    </exo-drawer>
+    </pinneable-drawer>
     <template v-if="drawer">
       <task-comments-drawer
         ref="taskCommentDrawer"
