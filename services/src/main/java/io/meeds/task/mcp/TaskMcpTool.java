@@ -297,7 +297,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param projectId   id of the project to create the task in
    * @param title       task title
    * @param description task description
-   * @param assignee    username of the assignee
+   * @param assignee    username of the assignee, or blank for the calling user:
+   *                      a personal task shows only in its assignee's list, so
+   *                      one without an assignee would be listed nowhere
    * @param coworkers   usernames of the coworkers
    * @param startDate   the start date (ISO string), or blank for none
    * @param dueDate     the due date (ISO string), or blank for none
@@ -383,7 +385,7 @@ public class TaskMcpTool implements McpToolPlugin {
     TaskDto task = new TaskDto();
     task.setTitle(title);
     task.setDescription(description);
-    task.setAssignee(assignee);
+    task.setAssignee(StringUtils.isBlank(assignee) ? aclIdentity.getUserId() : assignee);
     task.setCoworker(coworkers);
     task.setStartDate(toDate(startDate));
     task.setDueDate(toDate(dueDate));
