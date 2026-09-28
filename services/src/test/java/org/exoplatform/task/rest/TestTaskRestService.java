@@ -37,12 +37,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
-import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
@@ -295,156 +293,46 @@ public class TestTaskRestService {
             identityManager);
     Identity john = new Identity("john");
     ConversationState.setCurrent(new ConversationState(john));
-    TaskDto task1 = new TaskDto();
-    TaskDto task2 = new TaskDto();
-    task1.setId(1);
-    task1.setTitle("oldTask");
-    task1.setCreatedBy("john");
-    task1.setAssignee("john");
-    task2.setId(2);
-    task2.setTitle("updatedTask");
-    taskService.createTask(task1);
-    taskService.createTask(task2);
+    TaskDto task = new TaskDto();
+    task.setTitle("updatedTask");
+    when(taskService.updateTask(eq(1L), eq(task), eq(john))).thenReturn(task);
+    when(taskService.updateTask(eq(2L), any(), any())).thenThrow(new IllegalAccessException());
+    when(taskService.updateTask(eq(3L), any(), any())).thenThrow(new ObjectNotFoundException("task"));
+    when(taskService.updateTask(eq(4L), any(), any())).thenThrow(new IllegalArgumentException("task.status.notFound"));
 
     // When
     Response response = taskRestService.updateTaskById(1, null);
 
     // Then
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    verify(taskService, never()).updateTask(anyLong(), any(), any());
 
     // When
-    Response response1 = taskRestService.updateTaskById(3, task2);
+    response = taskRestService.updateTaskById(3, task);
 
     // Then
-    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response1.getStatus());
-
-    when(taskService.getTask(1)).thenReturn(task1);
-    when(taskService.updateTask(task2)).thenReturn(task2);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
 
     // When
-    Response response2 = taskRestService.updateTaskById(1, task2);
+    response = taskRestService.updateTaskById(2, task);
 
     // Then
-    assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
-    TaskDto task = (TaskDto) response2.getEntity();
-    assertNotNull(task);
-    assertEquals("updatedTask", task.getTitle());
-  }
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
 
+    // When
+    response = taskRestService.updateTaskById(4, task);
 
-  /**
-   * The update applies to the task of the path, authorized on that stored
-   * task, and a move is authorized on the project of the status the storage
-   * will resolve from the posted status id.
-   */
-  @Test
-  public void testUpdateTaskByIdAuthorizesOnTheStoredTaskAndTheLoadedStatus() throws Exception {
-    TaskRestService taskRestService = new TaskRestService(taskService,
-            commentService,
-            projectService,
-            statusService,
-            userService,
-            spaceService,
-            labelService,
-            favoriteService,
-            identityManager);
-    ConversationState.setCurrent(new ConversationState(new Identity("john")));
-    UserACL userACL = mock(UserACL.class);
-    lenient().when(userACL.getAdminGroups()).thenReturn("/platform/administrators");
+    // Then
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    assertEquals("task.status.notFound", response.getEntity());
 
-    ProjectDto allowedProject = new ProjectDto();
-    allowedProject.setId(1);
-    allowedProject.setParticipator(new HashSet<>(Collections.singletonList("john")));
-    ProjectDto forbiddenProject = new ProjectDto();
-    forbiddenProject.setId(2);
-    forbiddenProject.setParticipator(new HashSet<>(Collections.singletonList("mary")));
-    StatusDto allowedStatus = new StatusDto();
-    allowedStatus.setId(10L);
-    allowedStatus.setProject(allowedProject);
-    StatusDto forbiddenStatus = new StatusDto();
-    forbiddenStatus.setId(20L);
-    forbiddenStatus.setProject(forbiddenProject);
-    lenient().when(projectService.getProject(1L)).thenReturn(allowedProject);
-    lenient().when(projectService.getProject(2L)).thenReturn(forbiddenProject);
-    lenient().when(statusService.getStatus(10L)).thenReturn(allowedStatus);
-    lenient().when(statusService.getStatus(20L)).thenReturn(forbiddenStatus);
+    // When
+    response = taskRestService.updateTaskById(1, task);
 
-    TaskDto johnTask = new TaskDto();
-    johnTask.setId(1);
-    johnTask.setAssignee("john");
-    TaskDto maryTask = new TaskDto();
-    maryTask.setId(2);
-    maryTask.setAssignee("mary");
-    lenient().when(taskService.getTask(1)).thenReturn(johnTask);
-    lenient().when(taskService.getTask(2)).thenReturn(maryTask);
-    lenient().when(taskService.updateTask(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-    try (MockedStatic<CommonsUtils> commonsUtils = mockStatic(CommonsUtils.class)) {
-      commonsUtils.when(() -> CommonsUtils.getService(UserACL.class)).thenReturn(userACL);
-
-      // Another user's personal task, with a status of a project that the
-      // body declares john a participant of
-      StatusDto postedStatus = new StatusDto();
-      postedStatus.setId(10L);
-      ProjectDto postedProject = new ProjectDto();
-      postedProject.setId(2);
-      postedProject.setParticipator(new HashSet<>(Collections.singletonList("john")));
-      postedStatus.setProject(postedProject);
-      TaskDto body = new TaskDto();
-      body.setId(2);
-      body.setStatus(postedStatus);
-      Response response = taskRestService.updateTaskById(2, body);
-      assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
-
-      // A move of john's task to a status of a project he cannot view
-      body = new TaskDto();
-      body.setId(1);
-      postedStatus = new StatusDto();
-      postedStatus.setId(20L);
-      postedStatus.setProject(allowedProject);
-      body.setStatus(postedStatus);
-      response = taskRestService.updateTaskById(1, body);
-      assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
-
-      // A status that does not exist
-      postedStatus = new StatusDto();
-      postedStatus.setId(30L);
-      body.setStatus(postedStatus);
-      response = taskRestService.updateTaskById(1, body);
-      assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-      verify(taskService, never()).updateTask(any());
-
-      // John's task, with a body naming mary's task and a status of his project
-      body = new TaskDto();
-      body.setId(2);
-      body.setTitle("updated");
-      postedStatus = new StatusDto();
-      postedStatus.setId(10L);
-      body.setStatus(postedStatus);
-      response = taskRestService.updateTaskById(1, body);
-      assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
-      verify(taskService).updateTask(argThat(updated -> updated.getId() == 1 && updated.getStatus() == allowedStatus));
-
-      // A status change inside the task's own project, by its assignee who
-      // is not a member of that project: no move, so no project check
-      StatusDto otherForbiddenStatus = new StatusDto();
-      otherForbiddenStatus.setId(21L);
-      otherForbiddenStatus.setProject(forbiddenProject);
-      lenient().when(statusService.getStatus(21L)).thenReturn(otherForbiddenStatus);
-      TaskDto johnProjectTask = new TaskDto();
-      johnProjectTask.setId(3);
-      johnProjectTask.setAssignee("john");
-      johnProjectTask.setStatus(forbiddenStatus);
-      lenient().when(taskService.getTask(3)).thenReturn(johnProjectTask);
-      body = new TaskDto();
-      body.setId(3);
-      postedStatus = new StatusDto();
-      postedStatus.setId(21L);
-      body.setStatus(postedStatus);
-      response = taskRestService.updateTaskById(3, body);
-      assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
-      verify(taskService).updateTask(argThat(updated -> updated.getId() == 3 && updated.getStatus() == otherForbiddenStatus));
-    }
+    // Then
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals("updatedTask", ((TaskDto) response.getEntity()).getTitle());
+    verify(taskService, never()).updateTask(any());
   }
 
   @Test
