@@ -20,9 +20,11 @@ package org.exoplatform.task.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -439,6 +441,16 @@ public class TaskServiceTest {
       updated = service.updateTask(3, givenTask, john);
       assertEquals(3, updated.getId());
       assertSame(otherForbiddenStatus, updated.getStatus());
+
+      // John's personal task, updated without a status: no status lookup
+      Mockito.clearInvocations(statusService);
+      givenTask = new TaskDto();
+      givenTask.setTitle("personal");
+      updated = service.updateTask(1, givenTask, john);
+      assertEquals(1, updated.getId());
+      assertNull(updated.getStatus());
+      verify(storage).update(givenTask);
+      verify(statusService, never()).getStatus(anyLong());
     }
   }
 
