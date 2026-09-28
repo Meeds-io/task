@@ -49,6 +49,7 @@ import org.exoplatform.task.model.TaskSearchFilter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -614,44 +615,19 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).build();
     }
     try {
-    TaskDto task = taskService.getTask(id);
-    if (task == null) {
+      TaskDto task = taskService.updateTask(id, updatedTask, ConversationState.getCurrent().getIdentity());
+      transformHtml(task, ConversationState.getCurrent().getIdentity());
+      return Response.ok(task).build();
+    } catch (ObjectNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
-    }
-    // The permission is checked on the stored task, and the update applies
-    // to that task only, whatever id the body carries
-    if (!TaskUtil.hasEditPermission(taskService, task)) {
+    } catch (IllegalAccessException e) {
       return Response.status(Response.Status.FORBIDDEN).build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.error("Can't update Task {}", id, e);
+      return Response.serverError().entity(e.getMessage()).build();
     }
-    updatedTask.setId(id);
-    if (updatedTask.getStatus() != null) {
-      // The storage resolves the status by its id alone: authorize a move on
-      // the project of the loaded status, never on the project the body sends
-      StatusDto status = updatedTask.getStatus().getId() == null ? null
-                                                                   : statusService.getStatus(updatedTask.getStatus().getId());
-      if (status == null || status.getProject() == null) {
-        LOG.debug("Task {} status {} not found", id, updatedTask.getStatus().getId());
-        return Response.status(Response.Status.BAD_REQUEST).build();
-      }
-      long currentProjectId = task.getStatus() == null || task.getStatus().getProject() == null ? 0
-                                                                                                  : task.getStatus()
-                                                                                                        .getProject()
-                                                                                                        .getId();
-      if (status.getProject().getId() != currentProjectId) {
-        ProjectDto project = projectService.getProject(status.getProject().getId());
-        if (project == null || !project.canView(ConversationState.getCurrent().getIdentity())) {
-          return Response.status(Response.Status.FORBIDDEN).build();
-        }
-      }
-      updatedTask.setStatus(status);
-    }
-    task = taskService.updateTask(updatedTask);
-    transformHtml(task, ConversationState.getCurrent().getIdentity());
-    return Response.ok(task).build();
-        } catch (Exception e) {
-        LOG.error("Can't update Task {}", id, e);
-        return Response.serverError().entity(e.getMessage()).build();
-        }
   }
 
 

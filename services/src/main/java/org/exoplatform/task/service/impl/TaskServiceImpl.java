@@ -19,7 +19,9 @@
 package org.exoplatform.task.service.impl;
 
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
@@ -39,6 +41,7 @@ import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.service.TaskPayload;
 import org.exoplatform.task.service.ProjectService;
+import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.util.ProjectUtil;
@@ -103,8 +106,54 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    public TaskDto updateTask(long taskId, TaskDto task, Identity identity) throws ObjectNotFoundException,
+                                                                            IllegalAccessException {
+      if (task == null) {
+        throw new IllegalArgumentException("TaskDto must not be NULL");
+      }
+      TaskDto storedTask = taskStorage.getTaskById(taskId);
+      if (storedTask == null) {
+        throw new ObjectNotFoundException("Task " + taskId + " not found");
+      }
+      if (!TaskUtil.hasEditPermission(this, storedTask, identity)) {
+        throw new IllegalAccessException("User " + (identity == null ? null : identity.getUserId()) + " cannot edit task "
+            + taskId);
+      }
+      task.setId(taskId);
+      if (task.getStatus() != null) {
+        // The storage resolves the status by its id alone: authorize a move on
+        // the project of the loaded status, never on the project the task carries
+        StatusDto status = task.getStatus().getId() == null ? null
+                                                            : ExoContainerContext.getService(StatusService.class)
+                                                                                 .getStatus(task.getStatus().getId());
+        if (status == null || status.getProject() == null) {
+          throw new IllegalArgumentException("task.status.notFound");
+        }
+        long currentProjectId = storedTask.getStatus() == null || storedTask.getStatus().getProject() == null ? 0
+                                                                                                              : storedTask.getStatus()
+                                                                                                                          .getProject()
+                                                                                                                          .getId();
+        if (status.getProject().getId() != currentProjectId && !canViewProject(status.getProject().getId(), identity)) {
+          throw new IllegalAccessException("User " + identity.getUserId() + " cannot move task " + taskId + " to project "
+              + status.getProject().getId());
+        }
+        task.setStatus(status);
+      }
+      return updateTask(task);
+    }
+
+    @Override
     public void updateTaskOrder(long currentTaskId, Status newStatus, long[] orders) {
         taskStorage.updateTaskOrder(currentTaskId, newStatus, orders);
+    }
+
+    private boolean canViewProject(long projectId, Identity identity) {
+      try {
+        ProjectDto project = ExoContainerContext.getService(ProjectService.class).getProject(projectId);
+        return project != null && project.canView(identity);
+      } catch (EntityNotFoundException e) {
+        return false;
+      }
     }
 
     @Override
