@@ -120,6 +120,9 @@ public class TaskServiceImpl implements TaskService {
             + taskId);
       }
       task.setId(taskId);
+      // The authorship is an edit permission input: never taken from the update
+      task.setCreatedBy(storedTask.getCreatedBy());
+      task.setCreatedTime(storedTask.getCreatedTime());
       if (task.getStatus() != null) {
         // The storage resolves the status by its id alone: authorize a move on
         // the project of the loaded status, never on the project the task carries

@@ -366,9 +366,12 @@ public class TaskServiceTest {
     when(statusService.getStatus(20L)).thenReturn(forbiddenStatus);
     when(statusService.getStatus(21L)).thenReturn(otherForbiddenStatus);
 
+    Date createdTime = new Date();
     TaskDto johnTask = new TaskDto();
     johnTask.setId(1);
     johnTask.setAssignee("john");
+    johnTask.setCreatedBy("mary");
+    johnTask.setCreatedTime(createdTime);
     TaskDto maryTask = new TaskDto();
     maryTask.setId(2);
     maryTask.setAssignee("mary");
@@ -446,8 +449,12 @@ public class TaskServiceTest {
       Mockito.clearInvocations(statusService);
       givenTask = new TaskDto();
       givenTask.setTitle("personal");
+      givenTask.setCreatedBy("john");
+      givenTask.setCreatedTime(new Date(0));
       updated = service.updateTask(1, givenTask, john);
       assertEquals(1, updated.getId());
+      assertEquals("mary", updated.getCreatedBy());
+      assertSame(createdTime, updated.getCreatedTime());
       assertNull(updated.getStatus());
       verify(storage).update(givenTask);
       verify(statusService, never()).getStatus(anyLong());
