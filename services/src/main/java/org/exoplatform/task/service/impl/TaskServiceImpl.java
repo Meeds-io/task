@@ -150,15 +150,6 @@ public class TaskServiceImpl implements TaskService {
         taskStorage.updateTaskOrder(currentTaskId, newStatus, orders);
     }
 
-    private boolean canViewProject(long projectId, Identity identity) {
-      try {
-        ProjectDto project = ExoContainerContext.getService(ProjectService.class).getProject(projectId);
-        return project != null && project.canView(identity);
-      } catch (EntityNotFoundException e) {
-        return false;
-      }
-    }
-
     @Override
     public void removeTask(long id) throws EntityNotFoundException {
         TaskDto task = getTask(id);// Can throw TaskNotFoundException
@@ -555,5 +546,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public List<Long> getAllIds(int offset, int limit) {
       return taskStorage.getAllIds(offset, limit);
+    }
+
+    private boolean canViewProject(long projectId, Identity identity) {
+      try {
+        ProjectDto project = ExoContainerContext.getService(ProjectService.class).getProject(projectId);
+        return project != null && project.canView(identity);
+      } catch (EntityNotFoundException e) {
+        return false;
+      }
     }
 }
