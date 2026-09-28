@@ -521,12 +521,24 @@ public class TaskRestService implements ResourceContainer {
 
     try {
       Identity identity = ConversationState.getCurrent().getIdentity();
+      // A creation never targets an existing task, whatever id is posted
+      task.setId(0);
       task.setCreatedBy(identity.getUserId());
       task.setCreatedTime(new Date());
 
       Long projectId = null;
 
-      if (task.getStatus() != null && task.getStatus().getProject() != null) {
+      if (task.getStatus() != null && task.getStatus().getId() != null && task.getStatus().getId() > 0) {
+        // The task is stored under the project of this status, whatever
+        // project the request puts next to it: authorize on that one
+        StatusDto status = statusService.getStatus(task.getStatus().getId());
+        if (status == null || status.getProject() == null) {
+          LOG.debug("Task's status {} not found", task.getStatus().getId());
+          return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        task.setStatus(status);
+        projectId = status.getProject().getId();
+      } else if (task.getStatus() != null && task.getStatus().getProject() != null) {
         projectId = task.getStatus().getProject().getId();
       }
 
