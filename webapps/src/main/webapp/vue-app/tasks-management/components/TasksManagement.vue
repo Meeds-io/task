@@ -66,11 +66,6 @@ export default {
       }
     };
   },
-  computed: {
-    isDrawerClosed() {
-      return !this.$refs.taskDrawer.$refs.addTaskDrawer.drawer;
-    }
-  },
   created(){
     this.$root.$on('show-alert', this.displayMessage);
     this.$root.$on('open-project-drawer', project => {
@@ -85,8 +80,12 @@ export default {
       if (context.type==='task'){
         this.setTaskUrl(context.id);
       }
-      if (context.type==='project' && this.isDrawerClosed ){
-        this.setProjectUrl(context.id);
+      if (context.type==='project') {
+        if (this.isTaskDisplayed()) {
+          this.showProjectDetails(context.id);
+        } else {
+          this.setProjectUrl(context.id);
+        }
       }
       if (context.type==='myProjects'){
         this.getMyProjects();
@@ -185,10 +184,16 @@ export default {
     },
     setProjectUrl(id){
       const urlPath = document.location.pathname;
+      this.showProjectDetails(id);
+      window.history.pushState('task', 'Task details', `${urlPath.split('tasks')[0]}tasks/projectDetail/${id}`);
+    },
+    showProjectDetails(id){
       this.projectId=id;
       this.showTabs=false;
       this.displayDetails=true;
-      window.history.pushState('task', 'Task details', `${urlPath.split('tasks')[0]}tasks/projectDetail/${id}`); 
+    },
+    isTaskDisplayed() {
+      return !!(this.$refs.taskDrawer?.drawer && this.$refs.taskDrawer?.taskId);
     },
     displayMessage(message) {
       this.$root.$emit('alert-message', message?.message, message?.type || 'success');
