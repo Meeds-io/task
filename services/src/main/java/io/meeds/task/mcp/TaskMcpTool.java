@@ -363,8 +363,13 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param startDate   the start date (ISO string), or blank for none
    * @param dueDate     the due date (ISO string), or blank for none
    * @param priority    task priority (defaults to {@link Priority#NONE} when null)
-   * @param statusId    id of the target status, or null for none
+   * @param statusId    id of the target status, or null for none; the task is
+   *                      then stored in that status's project, which the
+   *                      current user must be able to view
    * @return the created task model
+   * @throws ObjectNotFoundException if the status does not exist
+   * @throws IllegalAccessException  if the current user cannot create tasks in
+   *                                   the project of the status
    */
   public TaskModel createPersonalTask(String title, // NOSONAR
                                       String description,
@@ -373,7 +378,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                       String startDate,
                                       String dueDate,
                                       Priority priority,
-                                      Long statusId) {
+                                      Long statusId) throws ObjectNotFoundException, IllegalAccessException {
     Identity aclIdentity = getCurrentUserAclIdentity();
     TaskDto task = new TaskDto();
     task.setTitle(title);
@@ -386,7 +391,12 @@ public class TaskMcpTool implements McpToolPlugin {
     task.setCreatedBy(aclIdentity.getUserId());
     task.setCreatedTime(new Date());
     if (statusId != null) {
-      task.setStatus(statusService.getStatus(statusId));
+      StatusDto status = statusService.getStatus(statusId);
+      if (status == null || status.getProject() == null) {
+        throw new ObjectNotFoundException("Task Status with id '%s' doesn't exist".formatted(statusId));
+      }
+      checkCanCreateInProject(status.getProject().getId());
+      task.setStatus(status);
     }
     task = taskService.createTask(task);
     return toTaskModel(task);
