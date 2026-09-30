@@ -278,6 +278,78 @@ public class TestTaskRestService {
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
   }
 
+  /**
+   * The storage files a task under the project of the status whose id is
+   * posted, so the permission is checked on that project, never on the
+   * project id the client puts next to it.
+   */
+  @Test
+  public void testAddTaskAuthorizesOnTheProjectOfThePostedStatus() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService,
+            commentService,
+            projectService,
+            statusService,
+            userService,
+            spaceService,
+            labelService,
+            favoriteService,
+            identityManager);
+    ConversationState.setCurrent(new ConversationState(new Identity("john")));
+
+    ProjectDto allowedProject = new ProjectDto();
+    allowedProject.setId(1);
+    allowedProject.setParticipator(new HashSet<>(Collections.singletonList("john")));
+    ProjectDto forbiddenProject = new ProjectDto();
+    forbiddenProject.setId(2);
+    forbiddenProject.setParticipator(new HashSet<>(Collections.singletonList("mary")));
+    StatusDto allowedStatus = new StatusDto();
+    allowedStatus.setId(10L);
+    allowedStatus.setProject(allowedProject);
+    StatusDto forbiddenStatus = new StatusDto();
+    forbiddenStatus.setId(20L);
+    forbiddenStatus.setProject(forbiddenProject);
+    lenient().when(projectService.getProject(1L)).thenReturn(allowedProject);
+    lenient().when(projectService.getProject(2L)).thenReturn(forbiddenProject);
+    lenient().when(statusService.getStatus(10L)).thenReturn(allowedStatus);
+    lenient().when(statusService.getStatus(20L)).thenReturn(forbiddenStatus);
+
+    // A status of the forbidden project, posted with the allowed project's id
+    StatusDto postedStatus = new StatusDto();
+    postedStatus.setId(20L);
+    postedStatus.setProject(allowedProject);
+    TaskDto task = new TaskDto();
+    task.setTitle("task");
+    task.setStatus(postedStatus);
+    Response response = taskRestService.addTask(task);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+
+    // A status posted with no project at all
+    postedStatus = new StatusDto();
+    postedStatus.setId(20L);
+    task.setStatus(postedStatus);
+    response = taskRestService.addTask(task);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+
+    // A status that does not exist
+    postedStatus = new StatusDto();
+    postedStatus.setId(30L);
+    postedStatus.setProject(allowedProject);
+    task.setStatus(postedStatus);
+    response = taskRestService.addTask(task);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    verify(taskService, never()).createTask(any());
+
+    // A status of the allowed project, posted with the id of an existing task
+    postedStatus = new StatusDto();
+    postedStatus.setId(10L);
+    postedStatus.setProject(allowedProject);
+    task.setStatus(postedStatus);
+    task.setId(99);
+    response = taskRestService.addTask(task);
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    verify(taskService).createTask(argThat(created -> created.getStatus() == allowedStatus && created.getId() == 0));
+  }
+
   @Test
   public void testUpdateTaskById() throws Exception {
     // Given
