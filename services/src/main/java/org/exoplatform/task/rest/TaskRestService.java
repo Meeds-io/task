@@ -49,6 +49,7 @@ import org.exoplatform.task.model.TaskSearchFilter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -614,23 +615,19 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).build();
     }
     try {
-    TaskDto task = taskService.getTask(id);
-    if (task == null) {
+      TaskDto task = taskService.updateTask(id, updatedTask, ConversationState.getCurrent().getIdentity());
+      transformHtml(task, ConversationState.getCurrent().getIdentity());
+      return Response.ok(task).build();
+    } catch (ObjectNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
-    }
-    if (task.getStatus() == null) {
-      task.setStatus(updatedTask.getStatus());
-    }
-    if (!TaskUtil.hasEditPermission(taskService, task)) {
+    } catch (IllegalAccessException e) {
       return Response.status(Response.Status.FORBIDDEN).build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.error("Can't update Task {}", id, e);
+      return Response.serverError().entity(e.getMessage()).build();
     }
-    task = taskService.updateTask(updatedTask);
-    transformHtml(task, ConversationState.getCurrent().getIdentity());
-    return Response.ok(task).build();
-        } catch (Exception e) {
-        LOG.error("Can't update Task {}", id, e);
-        return Response.serverError().entity(e.getMessage()).build();
-        }
   }
 
 
