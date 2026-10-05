@@ -18,6 +18,7 @@
  */
 package org.exoplatform.task.service;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
@@ -52,6 +53,23 @@ public interface TaskService {
      * @return TaskDto the updated task.
      */
     TaskDto updateTask(TaskDto task);
+
+    /**
+     * Update a task on behalf of a user. The permission is checked on the
+     * stored task, and the update applies to that task whatever id the given
+     * task carries. A given status is loaded by its id, and moving the task to
+     * a status of another project requires the user to view that project.
+     *
+     * @param taskId the id of the task to update.
+     * @param task the updated task.
+     * @param identity the user updating the task.
+     * @return TaskDto the updated task.
+     * @throws ObjectNotFoundException when the task is not found.
+     * @throws IllegalAccessException when the user cannot edit the task, or
+     *           cannot view the project of the given status.
+     * @throws IllegalArgumentException when the given status is not found.
+     */
+    TaskDto updateTask(long taskId, TaskDto task, Identity identity) throws ObjectNotFoundException, IllegalAccessException;
 
     void updateTaskOrder(long currentTaskId, Status newStatus, long[] orders);
 
