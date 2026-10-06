@@ -54,7 +54,7 @@
           icon
           small
           @click="displayActionMenu = true">
-          <v-icon size="18" class="text-light-color">fa-ellipsis-v</v-icon>
+          <v-icon size="18">fa-ellipsis-v</v-icon>
         </v-btn>
         <v-menu
           v-model="displayActionMenu"
