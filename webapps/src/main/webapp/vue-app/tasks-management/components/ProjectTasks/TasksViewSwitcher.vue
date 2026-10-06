@@ -36,9 +36,8 @@
           <v-icon
             v-if="selectedOption"
             :class="selectedOption.icon"
-            class="text-light-color"
             size="20" />
-          <v-icon class="ps-2 text-light-color" size="12">fa-chevron-down</v-icon>
+          <v-icon class="ps-2" size="12">fa-chevron-down</v-icon>
         </v-btn>
       </template>
       <v-list class="pa-0" dense>
@@ -50,7 +49,7 @@
           @click="select(item)">
           <v-list-item-icon class="me-2 my-0 align-self-center">
             <v-icon
-              :class="[item.icon, 'text-light-color']"
+              :class="item.icon"
               size="16" />
           </v-list-item-icon>
           <v-list-item-title>{{ item.label }}</v-list-item-title>
