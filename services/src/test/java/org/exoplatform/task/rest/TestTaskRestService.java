@@ -39,6 +39,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
@@ -278,6 +279,78 @@ public class TestTaskRestService {
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
   }
 
+  /**
+   * The storage files a task under the project of the status whose id is
+   * posted, so the permission is checked on that project, never on the
+   * project id the client puts next to it.
+   */
+  @Test
+  public void testAddTaskAuthorizesOnTheProjectOfThePostedStatus() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService,
+            commentService,
+            projectService,
+            statusService,
+            userService,
+            spaceService,
+            labelService,
+            favoriteService,
+            identityManager);
+    ConversationState.setCurrent(new ConversationState(new Identity("john")));
+
+    ProjectDto allowedProject = new ProjectDto();
+    allowedProject.setId(1);
+    allowedProject.setParticipator(new HashSet<>(Collections.singletonList("john")));
+    ProjectDto forbiddenProject = new ProjectDto();
+    forbiddenProject.setId(2);
+    forbiddenProject.setParticipator(new HashSet<>(Collections.singletonList("mary")));
+    StatusDto allowedStatus = new StatusDto();
+    allowedStatus.setId(10L);
+    allowedStatus.setProject(allowedProject);
+    StatusDto forbiddenStatus = new StatusDto();
+    forbiddenStatus.setId(20L);
+    forbiddenStatus.setProject(forbiddenProject);
+    lenient().when(projectService.getProject(1L)).thenReturn(allowedProject);
+    lenient().when(projectService.getProject(2L)).thenReturn(forbiddenProject);
+    lenient().when(statusService.getStatus(10L)).thenReturn(allowedStatus);
+    lenient().when(statusService.getStatus(20L)).thenReturn(forbiddenStatus);
+
+    // A status of the forbidden project, posted with the allowed project's id
+    StatusDto postedStatus = new StatusDto();
+    postedStatus.setId(20L);
+    postedStatus.setProject(allowedProject);
+    TaskDto task = new TaskDto();
+    task.setTitle("task");
+    task.setStatus(postedStatus);
+    Response response = taskRestService.addTask(task);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+
+    // A status posted with no project at all
+    postedStatus = new StatusDto();
+    postedStatus.setId(20L);
+    task.setStatus(postedStatus);
+    response = taskRestService.addTask(task);
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+
+    // A status that does not exist
+    postedStatus = new StatusDto();
+    postedStatus.setId(30L);
+    postedStatus.setProject(allowedProject);
+    task.setStatus(postedStatus);
+    response = taskRestService.addTask(task);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    verify(taskService, never()).createTask(any());
+
+    // A status of the allowed project, posted with the id of an existing task
+    postedStatus = new StatusDto();
+    postedStatus.setId(10L);
+    postedStatus.setProject(allowedProject);
+    task.setStatus(postedStatus);
+    task.setId(99);
+    response = taskRestService.addTask(task);
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    verify(taskService).createTask(argThat(created -> created.getStatus() == allowedStatus && created.getId() == 0));
+  }
+
   @Test
   public void testUpdateTaskById() throws Exception {
     // Given
@@ -292,42 +365,47 @@ public class TestTaskRestService {
             identityManager);
     Identity john = new Identity("john");
     ConversationState.setCurrent(new ConversationState(john));
-    TaskDto task1 = new TaskDto();
-    TaskDto task2 = new TaskDto();
-    task1.setId(1);
-    task1.setTitle("oldTask");
-    task1.setCreatedBy("john");
-    task1.setAssignee("john");
-    task2.setId(2);
-    task2.setTitle("updatedTask");
-    taskService.createTask(task1);
-    taskService.createTask(task2);
+    TaskDto task = new TaskDto();
+    task.setTitle("updatedTask");
+    when(taskService.updateTask(eq(1L), eq(task), eq(john))).thenReturn(task);
+    when(taskService.updateTask(eq(2L), any(), any())).thenThrow(new IllegalAccessException());
+    when(taskService.updateTask(eq(3L), any(), any())).thenThrow(new ObjectNotFoundException("task"));
+    when(taskService.updateTask(eq(4L), any(), any())).thenThrow(new IllegalArgumentException("task.status.notFound"));
 
     // When
     Response response = taskRestService.updateTaskById(1, null);
 
     // Then
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    verify(taskService, never()).updateTask(anyLong(), any(), any());
 
     // When
-    Response response1 = taskRestService.updateTaskById(3, task2);
+    response = taskRestService.updateTaskById(3, task);
 
     // Then
-    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response1.getStatus());
-
-    when(taskService.getTask(1)).thenReturn(task1);
-    when(taskService.updateTask(task2)).thenReturn(task2);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
 
     // When
-    Response response2 = taskRestService.updateTaskById(1, task2);
+    response = taskRestService.updateTaskById(2, task);
 
     // Then
-    assertEquals(Response.Status.OK.getStatusCode(), response2.getStatus());
-    TaskDto task = (TaskDto) response2.getEntity();
-    assertNotNull(task);
-    assertEquals("updatedTask", task.getTitle());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+
+    // When
+    response = taskRestService.updateTaskById(4, task);
+
+    // Then
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    assertEquals("task.status.notFound", response.getEntity());
+
+    // When
+    response = taskRestService.updateTaskById(1, task);
+
+    // Then
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals("updatedTask", ((TaskDto) response.getEntity()).getTitle());
+    verify(taskService, never()).updateTask(any());
   }
-
 
   @Test
   public void deleteTaskById() throws Exception {

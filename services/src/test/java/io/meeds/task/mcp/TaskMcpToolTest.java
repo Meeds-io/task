@@ -19,10 +19,12 @@
 package io.meeds.task.mcp;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
@@ -693,6 +695,67 @@ public class TaskMcpToolTest {
 
     assertEquals(TASK_ID, result.getId());
     verify(taskService).createTask(any(TaskDto.class));
+  }
+
+  /**
+   * The storage files the task under the project of the status: a status id
+   * the tool receives must belong to a project the user can view.
+   */
+  @Test
+  public void createPersonalTaskShouldRefuseAStatusOfAProjectTheUserCannotView() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    StatusDto status = mock(StatusDto.class);
+    when(status.getProject()).thenReturn(project);
+    when(project.getId()).thenReturn(PROJECT_ID);
+    when(statusService.getStatus(20L)).thenReturn(status);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(false);
+
+    try {
+      tool.createPersonalTask("Title", "Description", USER, Collections.emptySet(), null, null, null, 20L);
+      fail("A status of a project the user cannot view must be refused");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    verify(taskService, never()).createTask(any(TaskDto.class));
+  }
+
+  @Test
+  public void createPersonalTaskShouldRefuseAnUnknownStatus() throws Exception {// NOSONAR
+    when(statusService.getStatus(30L)).thenReturn(null);
+
+    try {
+      tool.createPersonalTask("Title", "Description", USER, Collections.emptySet(), null, null, null, 30L);
+      fail("An unknown status must be refused");
+    } catch (ObjectNotFoundException e) {
+      // Expected
+    }
+    verify(taskService, never()).createTask(any(TaskDto.class));
+  }
+
+  @Test
+  public void createPersonalTaskShouldCreateTaskInAStatusOfAViewableProject() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    StatusDto status = mock(StatusDto.class);
+    when(status.getProject()).thenReturn(project);
+    when(project.getId()).thenReturn(PROJECT_ID);
+    when(statusService.getStatus(10L)).thenReturn(status);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    TaskDto createdTask = mockTask();
+    when(taskService.createTask(any(TaskDto.class))).thenReturn(createdTask);
+
+    TaskModel result = runWithDateFormatMockResult(() -> tool.createPersonalTask("Title",
+                                                                                 "Description",
+                                                                                 USER,
+                                                                                 Collections.emptySet(),
+                                                                                 null,
+                                                                                 null,
+                                                                                 null,
+                                                                                 10L));
+
+    assertEquals(TASK_ID, result.getId());
+    verify(taskService).createTask(argThat(task -> task.getStatus() == status));
   }
 
   @Test

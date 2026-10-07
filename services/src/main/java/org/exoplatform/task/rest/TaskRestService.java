@@ -49,6 +49,7 @@ import org.exoplatform.task.model.TaskSearchFilter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -521,12 +522,24 @@ public class TaskRestService implements ResourceContainer {
 
     try {
       Identity identity = ConversationState.getCurrent().getIdentity();
+      // A creation never targets an existing task, whatever id is posted
+      task.setId(0);
       task.setCreatedBy(identity.getUserId());
       task.setCreatedTime(new Date());
 
       Long projectId = null;
 
-      if (task.getStatus() != null && task.getStatus().getProject() != null) {
+      if (task.getStatus() != null && task.getStatus().getId() != null && task.getStatus().getId() > 0) {
+        // The task is stored under the project of this status, whatever
+        // project the request puts next to it: authorize on that one
+        StatusDto status = statusService.getStatus(task.getStatus().getId());
+        if (status == null || status.getProject() == null) {
+          LOG.debug("Task's status {} not found", task.getStatus().getId());
+          return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        task.setStatus(status);
+        projectId = status.getProject().getId();
+      } else if (task.getStatus() != null && task.getStatus().getProject() != null) {
         projectId = task.getStatus().getProject().getId();
       }
 
@@ -614,23 +627,19 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.BAD_REQUEST).build();
     }
     try {
-    TaskDto task = taskService.getTask(id);
-    if (task == null) {
+      TaskDto task = taskService.updateTask(id, updatedTask, ConversationState.getCurrent().getIdentity());
+      transformHtml(task, ConversationState.getCurrent().getIdentity());
+      return Response.ok(task).build();
+    } catch (ObjectNotFoundException e) {
       return Response.status(Response.Status.NOT_FOUND).build();
-    }
-    if (task.getStatus() == null) {
-      task.setStatus(updatedTask.getStatus());
-    }
-    if (!TaskUtil.hasEditPermission(taskService, task)) {
+    } catch (IllegalAccessException e) {
       return Response.status(Response.Status.FORBIDDEN).build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+    } catch (Exception e) {
+      LOG.error("Can't update Task {}", id, e);
+      return Response.serverError().entity(e.getMessage()).build();
     }
-    task = taskService.updateTask(updatedTask);
-    transformHtml(task, ConversationState.getCurrent().getIdentity());
-    return Response.ok(task).build();
-        } catch (Exception e) {
-        LOG.error("Can't update Task {}", id, e);
-        return Response.serverError().entity(e.getMessage()).build();
-        }
   }
 
 

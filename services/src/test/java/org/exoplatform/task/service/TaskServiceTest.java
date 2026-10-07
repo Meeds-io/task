@@ -20,8 +20,13 @@ package org.exoplatform.task.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,6 +34,7 @@ import static org.mockito.Mockito.when;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -45,8 +51,11 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
@@ -60,6 +69,8 @@ import org.exoplatform.task.dao.StatusHandler;
 import org.exoplatform.task.dao.TaskHandler;
 import org.exoplatform.task.dao.TaskLogHandler;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.exception.ParameterEntityException;
@@ -316,6 +327,138 @@ public class TaskServiceTest {
     verify(taskHandler, times(1)).update(taskCaptor.capture());
     //assertEquals(TestUtils.getDefaultStatus(), taskCaptor.getValue().getStatus());
 
+  }
+
+  /**
+   * The update applies to the task of the given id, authorized on that stored
+   * task, and a move is authorized on the project of the status the storage
+   * will resolve from the given status id.
+   */
+  @Test
+  public void testUpdateTaskAuthorizesOnTheStoredTaskAndTheLoadedStatus() throws Exception {
+    TaskStorage storage = Mockito.mock(TaskStorage.class);
+    TaskService service = new TaskServiceImpl(storage, daoHandler, listenerService);
+    ProjectService projectService = Mockito.mock(ProjectService.class);
+    UserACL userACL = Mockito.mock(UserACL.class);
+    when(userACL.getAdminGroups()).thenReturn("/platform/administrators");
+    containerContext.when(() -> ExoContainerContext.getService(StatusService.class)).thenReturn(statusService);
+    containerContext.when(() -> ExoContainerContext.getService(ProjectService.class)).thenReturn(projectService);
+    Identity john = new Identity("john");
+
+    ProjectDto allowedProject = new ProjectDto();
+    allowedProject.setId(1);
+    allowedProject.setParticipator(new HashSet<>(Collections.singletonList("john")));
+    ProjectDto forbiddenProject = new ProjectDto();
+    forbiddenProject.setId(2);
+    forbiddenProject.setParticipator(new HashSet<>(Collections.singletonList("mary")));
+    StatusDto allowedStatus = new StatusDto();
+    allowedStatus.setId(10L);
+    allowedStatus.setProject(allowedProject);
+    StatusDto forbiddenStatus = new StatusDto();
+    forbiddenStatus.setId(20L);
+    forbiddenStatus.setProject(forbiddenProject);
+    StatusDto otherForbiddenStatus = new StatusDto();
+    otherForbiddenStatus.setId(21L);
+    otherForbiddenStatus.setProject(forbiddenProject);
+    when(projectService.getProject(1L)).thenReturn(allowedProject);
+    when(projectService.getProject(2L)).thenReturn(forbiddenProject);
+    when(statusService.getStatus(10L)).thenReturn(allowedStatus);
+    when(statusService.getStatus(20L)).thenReturn(forbiddenStatus);
+    when(statusService.getStatus(21L)).thenReturn(otherForbiddenStatus);
+
+    Date createdTime = new Date();
+    TaskDto johnTask = new TaskDto();
+    johnTask.setId(1);
+    johnTask.setAssignee("john");
+    johnTask.setCreatedBy("mary");
+    johnTask.setCreatedTime(createdTime);
+    TaskDto maryTask = new TaskDto();
+    maryTask.setId(2);
+    maryTask.setAssignee("mary");
+    TaskDto johnProjectTask = new TaskDto();
+    johnProjectTask.setId(3);
+    johnProjectTask.setAssignee("john");
+    johnProjectTask.setStatus(forbiddenStatus);
+    when(storage.getTaskById(1)).thenReturn(johnTask);
+    when(storage.getTaskById(2)).thenReturn(maryTask);
+    when(storage.getTaskById(3)).thenReturn(johnProjectTask);
+    when(storage.update(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    try (MockedStatic<CommonsUtils> commonsUtils = mockStatic(CommonsUtils.class)) {
+      commonsUtils.when(() -> CommonsUtils.getService(UserACL.class)).thenReturn(userACL);
+
+      // A task that does not exist
+      assertThrows(ObjectNotFoundException.class, () -> service.updateTask(4, new TaskDto(), john));
+
+      // Another user's personal task, with a status of a project that the
+      // given task declares john a participant of
+      StatusDto givenStatus = new StatusDto();
+      givenStatus.setId(10L);
+      ProjectDto givenProject = new ProjectDto();
+      givenProject.setId(2);
+      givenProject.setParticipator(new HashSet<>(Collections.singletonList("john")));
+      givenStatus.setProject(givenProject);
+      TaskDto givenTask = new TaskDto();
+      givenTask.setId(2);
+      givenTask.setStatus(givenStatus);
+      TaskDto maryTaskUpdate = givenTask;
+      assertThrows(IllegalAccessException.class, () -> service.updateTask(2, maryTaskUpdate, john));
+
+      // A move of john's task to a status of a project he cannot view
+      TaskDto forbiddenMove = new TaskDto();
+      forbiddenMove.setId(1);
+      givenStatus = new StatusDto();
+      givenStatus.setId(20L);
+      givenStatus.setProject(allowedProject);
+      forbiddenMove.setStatus(givenStatus);
+      assertThrows(IllegalAccessException.class, () -> service.updateTask(1, forbiddenMove, john));
+
+      // A status that does not exist
+      TaskDto unknownStatus = new TaskDto();
+      givenStatus = new StatusDto();
+      givenStatus.setId(30L);
+      unknownStatus.setStatus(givenStatus);
+      IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                                                        () -> service.updateTask(1, unknownStatus, john));
+      assertEquals("task.status.notFound", exception.getMessage());
+      verify(storage, never()).update(any());
+
+      // John's task, with a given task naming mary's task and a status of his project
+      givenTask = new TaskDto();
+      givenTask.setId(2);
+      givenTask.setTitle("updated");
+      givenStatus = new StatusDto();
+      givenStatus.setId(10L);
+      givenTask.setStatus(givenStatus);
+      TaskDto updated = service.updateTask(1, givenTask, john);
+      assertEquals(1, updated.getId());
+      assertSame(allowedStatus, updated.getStatus());
+
+      // A status change inside the task's own project, by its assignee who
+      // is not a member of that project: no move, so no project check
+      givenTask = new TaskDto();
+      givenTask.setId(3);
+      givenStatus = new StatusDto();
+      givenStatus.setId(21L);
+      givenTask.setStatus(givenStatus);
+      updated = service.updateTask(3, givenTask, john);
+      assertEquals(3, updated.getId());
+      assertSame(otherForbiddenStatus, updated.getStatus());
+
+      // John's personal task, updated without a status: no status lookup
+      Mockito.clearInvocations(statusService);
+      givenTask = new TaskDto();
+      givenTask.setTitle("personal");
+      givenTask.setCreatedBy("john");
+      givenTask.setCreatedTime(new Date(0));
+      updated = service.updateTask(1, givenTask, john);
+      assertEquals(1, updated.getId());
+      assertEquals("mary", updated.getCreatedBy());
+      assertSame(createdTime, updated.getCreatedTime());
+      assertNull(updated.getStatus());
+      verify(storage).update(givenTask);
+      verify(statusService, never()).getStatus(anyLong());
+    }
   }
 
   @Test
