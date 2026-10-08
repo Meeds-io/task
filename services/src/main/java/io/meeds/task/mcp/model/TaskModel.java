@@ -89,6 +89,13 @@ public class TaskModel {
   @JsonProperty("space_id")
   private Long               spaceId;
 
+  /**
+   * The days an open task is past its due date, in the user's time zone;
+   * none for a task not overdue (EXO-91122).
+   */
+  @JsonProperty("days_overdue")
+  private Integer            daysOverdue;
+
   @JsonProperty("list_task_comments_tool")
   private final String       retrieveTaskCommentsTool = "list_task_comments_by_id"; // NOSONAR
 
@@ -115,7 +122,8 @@ public class TaskModel {
          model.projectName,
          model.status,
          model.labels,
-         model.spaceId);
+         model.spaceId,
+         model.daysOverdue);
   }
 
 }

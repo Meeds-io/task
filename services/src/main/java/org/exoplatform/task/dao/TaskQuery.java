@@ -204,6 +204,20 @@ public class TaskQuery extends Query implements Cloneable {
     }
   }
 
+  /**
+   * Selects the overdue tasks: open, with a due date strictly before the
+   * given instant, the start of the user's day (EXO-91122). A task due at
+   * that instant, today, is not overdue; a task with no due date never is.
+   *
+   * @param startOfToday the start of today in the user's time zone
+   */
+  public void setOverdueAt(Date startOfToday) {
+    if (startOfToday != null) {
+      setCompleted(false);
+      add(lt(TASK_DUEDATE, startOfToday));
+    }
+  }
+
   public void setIsIncomingOf(String username) {
     add(and(Conditions.or(
             eq(TASK_ASSIGNEE, username), in(TASK_COWORKER, Collections.singletonList(username)), eq(TASK_CREATOR, username),
