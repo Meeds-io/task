@@ -137,13 +137,14 @@
     {
       "name": "list_tasks",
       "title": "List Tasks",
-      "description": "List tasks, optionally filtered by project.",
+      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date; an overdue task carries days_overdue.",
       "input_schema": {
         "type": "object",
         "properties": {
           "project_id": { "type": "integer" },
           "hide_completed_tasks": { "type": "boolean" },
           "include_change_log": { "type": "boolean" },
+          "overdue_only": { "type": "boolean", "description": "Only the open tasks whose due date is before today, in the user's time zone; a task due today is not overdue." },
           "offset": { "type": "integer" },
           "limit": { "type": "integer" }
         }
@@ -177,11 +178,12 @@
     {
       "name": "list_assigned_tasks",
       "title": "Get Self Assigned Tasks",
-      "description": "List uncompleted tasks assigned to the current user.",
+      "description": "List uncompleted tasks assigned to the current user, or of which they are a coworker. With overdue_only, only those past their due date; an overdue task carries days_overdue.",
       "input_schema": {
         "type": "object",
         "properties": {
-          "limit": { "type": "integer" }
+          "limit": { "type": "integer" },
+          "overdue_only": { "type": "boolean", "description": "Only the tasks whose due date is before today, in the user's time zone; a task due today is not overdue." }
         }
       },
       "annotations": {

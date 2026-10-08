@@ -19,6 +19,8 @@
 package io.meeds.task.mcp;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -35,6 +37,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -62,6 +69,10 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dao.condition.AggregateCondition;
+import org.exoplatform.task.dao.condition.Condition;
+import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.CommentDto;
@@ -112,6 +123,10 @@ public class TaskMcpToolTest {
   private static final String     PROJECT_NAME = "Project";
 
   private static final String     LABEL_NAME   = "Feature";
+
+  private static final ZoneId     USER_ZONE    = ZoneId.of("Europe/Paris");
+
+  private static final LocalDate  TODAY        = LocalDate.of(2026, 10, 8);
 
   @Mock
   private ProjectService          projectService;
@@ -627,6 +642,100 @@ public class TaskMcpToolTest {
     tool.getProjectIdByTaskId(TASK_ID);
   }
 
+  /**
+   * A task is overdue from the day after its due date, in the user's time
+   * zone: due yesterday is 1 day overdue, due today is not overdue, and a
+   * due date late yesterday in UTC that is already today in Paris is not
+   * overdue there. A completed task, or one with no due date, never is.
+   * Mutant: the server's zone used, or a task due today counted.
+   */
+  @Test
+  public void daysOverdueCountsWholeDaysInTheUsersTimeZone() {// NOSONAR
+    assertEquals(Integer.valueOf(1), TaskMcpTool.getDaysOverdue(openTaskDue("2026-10-07T00:00:00+02:00"), USER_ZONE, TODAY));
+    assertEquals(Integer.valueOf(10), TaskMcpTool.getDaysOverdue(openTaskDue("2026-09-28T00:00:00+02:00"), USER_ZONE, TODAY));
+    assertNull(TaskMcpTool.getDaysOverdue(openTaskDue("2026-10-08T00:00:00+02:00"), USER_ZONE, TODAY));
+    assertNull(TaskMcpTool.getDaysOverdue(openTaskDue("2026-10-07T23:30:00Z"), USER_ZONE, TODAY));
+    assertEquals(Integer.valueOf(1), TaskMcpTool.getDaysOverdue(openTaskDue("2026-10-07T23:30:00Z"), ZoneOffset.UTC, TODAY));
+    TaskDto completed = openTaskDue("2026-09-28T00:00:00+02:00");
+    when(completed.isCompleted()).thenReturn(true);
+    assertNull(TaskMcpTool.getDaysOverdue(completed, USER_ZONE, TODAY));
+    assertNull(TaskMcpTool.getDaysOverdue(mock(TaskDto.class), USER_ZONE, TODAY));
+  }
+
+  /**
+   * Without a project, overdue_only lists every task the user can access
+   * that is open and due before the start of today in their time zone,
+   * personal tasks included; the count is the count of that same query, and
+   * each task carries its days overdue. Mutants: no due-date condition; the
+   * count of every task.
+   */
+  @Test
+  public void listTasksOverdueOnlySelectsOpenTasksDueBeforeTodayInTheUsersZone() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-09-28T00:00:00+02:00")));
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null));
+
+    assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
+    assertTrue(selectsOpenTasksOnly(query.getValue()));
+    verify(taskService).countTasks(query.getValue());
+    assertEquals(1L, result.getCount());
+    assertEquals(Integer.valueOf(10), result.getTasks().get(0).getDaysOverdue());
+  }
+
+  /**
+   * Without overdue_only, list_tasks keeps its query, and its count now
+   * honours hide_completed_tasks like its page does. Mutant: the count of
+   * every task.
+   */
+  @Test
+  public void listTasksCountsWhatItLists() throws Exception {// NOSONAR
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    when(taskService.countTasks(any())).thenReturn(4);
+
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null);
+
+    assertNull(findDueDateBefore(query.getValue()));
+    assertTrue(selectsOpenTasksOnly(query.getValue()));
+    verify(taskService).countTasks(query.getValue());
+    assertEquals(4L, result.getCount());
+  }
+
+  /**
+   * overdue_only on list_assigned_tasks lists the overdue tasks the user is
+   * assigned to or a coworker of, counted by the same query. Mutant: the
+   * plain uncompleted list.
+   */
+  @Test
+  public void listAssignedTasksOverdueOnlyQueriesTheOverdueTasks() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-07T00:00:00+02:00")));
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.singletonList(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, true));
+
+    assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
+    verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
+    assertEquals(1L, result.getCount());
+    assertEquals(Integer.valueOf(1), result.getTasks().get(0).getDaysOverdue());
+  }
+
+  /**
+   * @param dueDate an ISO 8601 instant
+   * @return an open task due then
+   */
+  private TaskDto openTaskDue(String dueDate) {
+    TaskDto task = mock(TaskDto.class);
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse(dueDate)));
+    return task;
+  }
+
   @Test
   public void listAssignedTasksShouldReturnCollection() throws Exception {// NOSONAR
     TaskDto task = mockTask();
@@ -634,7 +743,7 @@ public class TaskMcpToolTest {
     when(taskService.getUncompletedTasks(USER, 5)).thenReturn(Collections.singletonList(task));
     when(taskService.countUncompletedTasks(USER)).thenReturn(1L);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, null));
 
     assertEquals(1, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
@@ -647,7 +756,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(0);
 
-    TaskCollectionModel result = tool.listTasks(null, false, false, null, null);
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null);
 
     assertEquals(0, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
@@ -989,7 +1098,7 @@ public class TaskMcpToolTest {
                                                                 .thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null));
 
     assertEquals(1, result.getTasks().size());
     assertEquals(1L, result.getCount());
@@ -1004,14 +1113,14 @@ public class TaskMcpToolTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(false);
 
-    tool.listTasks(PROJECT_ID, false, false, 0, 10);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10);
   }
 
   @Test(expected = ObjectNotFoundException.class)
   public void listTasksWithProjectWhenProjectServiceThrowsEntityNotFoundShouldThrowObjectNotFound() throws Exception { // NOSONAR
     when(projectService.getProject(PROJECT_ID)).thenThrow(new EntityNotFoundException(PROJECT_ID, ProjectDto.class));
 
-    tool.listTasks(PROJECT_ID, false, false, 0, 10);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10);
   }
 
   @Test
@@ -1138,6 +1247,55 @@ public class TaskMcpToolTest {
     public Locale getCurrentUserLocale() {
       return Locale.ENGLISH;
     }
+
+    @Override
+    protected ZoneId getCurrentUserZone() {
+      return USER_ZONE;
+    }
+
+    @Override
+    protected LocalDate getToday(ZoneId zone) {
+      return TODAY;
+    }
+  }
+
+  /**
+   * @param query a task query
+   * @return the instant its due-date "before" condition compares with, null
+   *         for none
+   */
+  private static Date findDueDateBefore(TaskQuery query) {
+    List<Condition> conditions = new ArrayList<>();
+    conditions.add(query.getCondition());
+    for (int i = 0; i < conditions.size(); i++) {
+      Condition condition = conditions.get(i);
+      if (condition instanceof AggregateCondition aggregate) {
+        conditions.addAll(aggregate.getConditions());
+      } else if (condition instanceof SingleCondition<?> single && SingleCondition.LT.equals(single.getType())
+          && "dueDate".equals(single.getField())) {
+        return (Date) single.getValue();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * @param query a task query
+   * @return whether it selects the open tasks only
+   */
+  private static boolean selectsOpenTasksOnly(TaskQuery query) {
+    List<Condition> conditions = new ArrayList<>();
+    conditions.add(query.getCondition());
+    for (int i = 0; i < conditions.size(); i++) {
+      Condition condition = conditions.get(i);
+      if (condition instanceof AggregateCondition aggregate) {
+        conditions.addAll(aggregate.getConditions());
+      } else if (condition instanceof SingleCondition<?> single && SingleCondition.IS_FALSE.equals(single.getType())
+          && "completed".equals(single.getField())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @FunctionalInterface
