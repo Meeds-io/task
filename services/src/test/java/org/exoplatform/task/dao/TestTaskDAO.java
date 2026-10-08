@@ -286,8 +286,9 @@ public class TestTaskDAO extends AbstractTest {
   /**
    * The overdue query (EXO-91122) runs through the engine: open tasks the
    * user is assigned to or a coworker of, due strictly before the start of
-   * today in their time zone. A task due at that instant, a completed task
-   * and a task with no due date are left out. Mutant: lte instead of lt.
+   * today in their time zone. A task due at that instant, a completed task,
+   * a task with no due date and another user's task are left out. Mutant:
+   * lte instead of lt.
    *
    * @throws Exception never
    */
@@ -311,6 +312,9 @@ public class TestTaskDAO extends AbstractTest {
     coworkerLate.setCoworker(new HashSet<>(Arrays.asList(username)));
     coworkerLate.setDueDate(Date.from(startOfToday.minusSeconds(1).toInstant()));
     tDAO.create(coworkerLate);
+    Task someoneElsesLate = newTaskInstance("someone else's late", "", "john");
+    someoneElsesLate.setDueDate(Date.from(startOfToday.minusDays(2).toInstant()));
+    tDAO.create(someoneElsesLate);
 
     TaskQuery taskQuery = new TaskQuery();
     taskQuery.setAssigneeOrCoworker(Arrays.asList(username));
