@@ -1133,29 +1133,15 @@ public class TaskMcpTool implements McpToolPlugin {
     return taskService.countUncompletedTasks(currentUserName);
   }
 
+  /**
+   * @param projectId the project, null or 0 for every accessible task
+   * @param uncompleteOnly whether the completed tasks are left out
+   * @return the count of the tasks {@link #getTaskQuery} selects
+   * @throws IllegalAccessException when the user can't view the project
+   */
   @SneakyThrows
   private long countTaskModels(Long projectId, boolean uncompleteOnly) throws IllegalAccessException {
-    if (projectId == null || projectId == 0) {
-      TaskQuery taskQuery = new TaskQuery();
-      taskQuery.setAccessible(getCurrentUserAclIdentity());
-      if (uncompleteOnly) {
-        taskQuery.setCompleted(false);
-      }
-      return taskService.countTasks(taskQuery);
-    } else {
-      ProjectDto project = projectService.getProject(projectId);
-      if (project == null || !project.canView(getCurrentUserAclIdentity())) {
-        throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(projectId,
-                                                                                   getCurrentUserName()));
-      } else {
-        TaskQuery taskQuery = new TaskQuery();
-        taskQuery.setProjectIds(Collections.singletonList(projectId));
-        if (uncompleteOnly) {
-          taskQuery.setCompleted(false);
-        }
-        return taskService.countTasks(taskQuery);
-      }
-    }
+    return countTasks(getTaskQuery(projectId, uncompleteOnly, false, null));
   }
 
   private int countTaskComments(long taskId) {

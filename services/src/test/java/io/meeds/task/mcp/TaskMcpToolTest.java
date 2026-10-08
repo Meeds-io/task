@@ -667,7 +667,7 @@ public class TaskMcpToolTest {
    * that is open and due before the start of today in their time zone,
    * personal tasks included; the count is the count of that same query, and
    * each task carries its days overdue. Mutants: no due-date condition; the
-   * count of every task.
+   * count of every task; the user's scope dropped.
    */
   @Test
   public void listTasksOverdueOnlySelectsOpenTasksDueBeforeTodayInTheUsersZone() throws Exception {// NOSONAR
@@ -681,15 +681,15 @@ public class TaskMcpToolTest {
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
+    assertTrue("only the tasks the user can access", scopedToTheUser(query.getValue()));
     verify(taskService).countTasks(query.getValue());
     assertEquals(1L, result.getCount());
     assertEquals(Integer.valueOf(10), result.getTasks().get(0).getDaysOverdue());
   }
 
   /**
-   * Without overdue_only, list_tasks keeps its query, and its count now
-   * honours hide_completed_tasks like its page does. Mutant: the count of
-   * every task.
+   * Without overdue_only, list_tasks counts with the query it lists,
+   * hide_completed_tasks included. Mutant: the count of every task.
    */
   @Test
   public void listTasksCountsWhatItLists() throws Exception {// NOSONAR
@@ -721,6 +721,7 @@ public class TaskMcpToolTest {
     TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, true));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
+    assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
     verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
     assertEquals(1L, result.getCount());
     assertEquals(Integer.valueOf(1), result.getTasks().get(0).getDaysOverdue());
@@ -1277,6 +1278,27 @@ public class TaskMcpToolTest {
       }
     }
     return null;
+  }
+
+  /**
+   * @param query a task query
+   * @return whether it is scoped to the current user's tasks: an assignee
+   *         condition naming them, as the accessible and the
+   *         assignee-or-coworker scopes both carry
+   */
+  private static boolean scopedToTheUser(TaskQuery query) {
+    List<Condition> conditions = new ArrayList<>();
+    conditions.add(query.getCondition());
+    for (int i = 0; i < conditions.size(); i++) {
+      Condition condition = conditions.get(i);
+      if (condition instanceof AggregateCondition aggregate) {
+        conditions.addAll(aggregate.getConditions());
+      } else if (condition instanceof SingleCondition<?> single && "assignee".equals(single.getField())
+          && (USER.equals(single.getValue()) || (single.getValue() instanceof List<?> values && values.contains(USER)))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
