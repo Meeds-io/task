@@ -36,8 +36,9 @@
           <v-icon
             v-if="selectedOption"
             :class="selectedOption.icon"
+            class="icon-default-color"
             size="20" />
-          <v-icon class="ps-2" size="12">fa-chevron-down</v-icon>
+          <v-icon class="ps-2 icon-default-color" size="12">fa-chevron-down</v-icon>
         </v-btn>
       </template>
       <v-list class="pa-0" dense>
