@@ -643,6 +643,39 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * The overdue cut-off is taken in the time zone of the user's profile,
+   * and in the server's only when the profile has none. Runs the real
+   * {@code getCurrentUserZone}, which the other tests stub. Mutant: the
+   * server's zone always used.
+   */
+  @Test
+  public void theOverdueCutOffUsesTheUsersProfileTimeZone() {// NOSONAR
+    TaskMcpTool realZoneTool = new TaskMcpTool(projectService,
+                                               statusService,
+                                               taskService,
+                                               commentService,
+                                               labelService,
+                                               spaceService,
+                                               translationService,
+                                               resourceBundleService,
+                                               identityManager,
+                                               profilePropertyService,
+                                               userAcl,
+                                               portalConfigService,
+                                               permanentLinkService,
+                                               favoriteService);
+    ZoneId profileZone = ZoneId.systemDefault().equals(ZoneId.of("Pacific/Kiritimati")) ? ZoneId.of("Pacific/Pago_Pago")
+                                                                                       : ZoneId.of("Pacific/Kiritimati");
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getUserTimeZone).thenReturn(TimeZone.getTimeZone(profileZone));
+      assertEquals(profileZone, realZoneTool.getCurrentUserZone());
+
+      mocked.when(McpToolUtils::getUserTimeZone).thenReturn(null);
+      assertEquals(ZoneId.systemDefault(), realZoneTool.getCurrentUserZone());
+    }
+  }
+
+  /**
    * A task is overdue from the day after its due date, in the user's time
    * zone: due yesterday is 1 day overdue, due today is not overdue, and a
    * due date late yesterday in UTC that is already today in Paris is not
