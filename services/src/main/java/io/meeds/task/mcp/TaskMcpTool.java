@@ -28,6 +28,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -38,6 +39,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.TimeZone;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -78,6 +80,7 @@ import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 import io.meeds.mcp.server.tool.model.UserModel;
+import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.model.PermanentLinkObject;
 import io.meeds.portal.permlink.service.PermanentLinkService;
 import io.meeds.social.space.plugin.SpaceAclPlugin;
@@ -199,30 +202,74 @@ public class TaskMcpTool implements McpToolPlugin {
                                       count);
   }
 
-  public TaskCollectionModel listAssignedTasks(Integer limit) {
-    List<TaskModel> taskModels = getAssignedTaskModels(getInteger(limit, DEFAULT_LIMIT));
-    long count = countAssignedTaskModels();
-    return new TaskCollectionModel(taskModels,
-                                   0,
-                                   getInteger(limit, DEFAULT_LIMIT),
-                                   count);
+  /**
+   * Lists the open tasks assigned to the current user, or of which they are
+   * a coworker; with {@code overdueOnly}, only those whose due date is
+   * before today in the user's time zone (EXO-91122). Each task past its
+   * due date carries its days overdue.
+   *
+   * @param limit the most tasks returned
+   * @param overdueOnly whether only the overdue tasks are listed
+   * @return the tasks, with their count
+   */
+  public TaskCollectionModel listAssignedTasks(Integer limit, Boolean overdueOnly) {
+    ZoneId zone = getCurrentUserZone();
+    int max = getInteger(limit, DEFAULT_LIMIT);
+    List<TaskModel> taskModels;
+    long count;
+    if (Boolean.TRUE.equals(overdueOnly)) {
+      TaskQuery taskQuery = new TaskQuery();
+      taskQuery.setAssigneeOrCoworker(Collections.singletonList(getCurrentUserName()));
+      setOverdueOnly(taskQuery, zone);
+      taskModels = toTaskModels(taskService.findLastUpdatedTasks(taskQuery, 0, max), zone);
+      count = countTasks(taskQuery);
+    } else {
+      taskModels = toTaskModels(taskService.getUncompletedTasks(getCurrentUserName(), max), zone);
+      count = countAssignedTaskModels();
+    }
+    return new TaskCollectionModel(taskModels, 0, max, count);
   }
 
-  public TaskCollectionModel listTasks(Long projectId,
+  /**
+   * Lists the tasks of a project, or, without one, every task the current
+   * user can access, personal tasks included; with {@code overdueOnly}, only
+   * the open tasks whose due date is before today in the user's time zone
+   * (EXO-91122). Each open task past its due date carries its days overdue.
+   * The count is the count of the tasks the same filters select.
+   *
+   * @param projectId the project, null for every accessible task
+   * @param hideCompletedTasks whether the completed tasks are left out
+   * @param includeChangeLog whether each task comes with its change log
+   * @param overdueOnly whether only the overdue tasks are listed
+   * @param offset the first task returned
+   * @param limit the most tasks returned
+   * @return the tasks, with their count
+   * @throws IllegalAccessException when the user can't view the project
+   * @throws ObjectNotFoundException when the project doesn't exist
+   */
+  public TaskCollectionModel listTasks(Long projectId, // NOSONAR the tool's parameters, each one its own
                                        Boolean hideCompletedTasks,
                                        Boolean includeChangeLog,
+                                       Boolean overdueOnly,
                                        Integer offset,
                                        Integer limit) throws IllegalAccessException, ObjectNotFoundException {
-    List<? extends TaskModel> taskModels = getTaskModels(projectId,
-                                                         offset,
-                                                         limit,
-                                                         hideCompletedTasks != null && hideCompletedTasks.booleanValue(),
-                                                         includeChangeLog != null && includeChangeLog.booleanValue());
-    long count = countTaskModels(projectId, false);
+    ZoneId zone = getCurrentUserZone();
+    TaskQuery taskQuery = getTaskQuery(projectId,
+                                       Boolean.TRUE.equals(hideCompletedTasks),
+                                       Boolean.TRUE.equals(overdueOnly),
+                                       zone);
+    List<TaskDto> tasks = taskService.findLastUpdatedTasks(taskQuery,
+                                                           getInteger(offset, DEFAULT_OFFSET),
+                                                           getInteger(limit, DEFAULT_LIMIT));
+    List<? extends TaskModel> taskModels = Boolean.TRUE.equals(includeChangeLog) ?
+                                                                                  tasks.stream()
+                                                                                       .map(this::toTaskWithChangeLogModel)
+                                                                                       .toList() :
+                                                                                  toTaskModels(tasks, zone);
     return new TaskCollectionModel(taskModels,
                                    getInteger(offset, DEFAULT_OFFSET),
                                    getInteger(limit, DEFAULT_LIMIT),
-                                   count);
+                                   countTasks(taskQuery));
   }
 
   public ProjectModel getProjectById(Long projectId) throws ObjectNotFoundException, IllegalAccessException {
@@ -938,65 +985,131 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
-  @SneakyThrows
-  private List<? extends TaskModel> getTaskModels(Long projectId,
-                                                  Integer offset,
-                                                  Integer limit,
-                                                  boolean uncompleteOnly,
-                                                  boolean includeChangeLog) throws IllegalAccessException,
-                                                                            ObjectNotFoundException {
-    List<TaskDto> tasks = getTasks(projectId, offset, limit, uncompleteOnly);
-    if (CollectionUtils.isEmpty(tasks)) {
-      return Collections.emptyList();
-    } else if (includeChangeLog) {
-      return tasks.stream()
-                  .map(this::toTaskWithChangeLogModel)
-                  .toList();
+  /**
+   * Builds the query of {@link #listTasks}: a project's tasks, or every task
+   * the user can access, completed ones left out on demand, and only the
+   * overdue ones on demand.
+   *
+   * @param projectId the project, null or 0 for every accessible task
+   * @param uncompleteOnly whether the completed tasks are left out
+   * @param overdueOnly whether only the overdue tasks are selected
+   * @param zone the user's time zone
+   * @return the query
+   * @throws IllegalAccessException when the user can't view the project
+   * @throws ObjectNotFoundException when the project doesn't exist
+   */
+  private TaskQuery getTaskQuery(Long projectId,
+                                 boolean uncompleteOnly,
+                                 boolean overdueOnly,
+                                 ZoneId zone) throws IllegalAccessException, ObjectNotFoundException {
+    Identity aclIdentity = getCurrentUserAclIdentity();
+    TaskQuery taskQuery = new TaskQuery();
+    if (projectId != null && projectId > 0) {
+      ProjectDto project;
+      try {
+        project = projectService.getProject(projectId);
+      } catch (EntityNotFoundException e) {
+        throw new ObjectNotFoundException(MSG_TASK_PROJECT_NOT_FOUND.formatted(projectId));
+      }
+      if (project == null || !project.canView(aclIdentity)) {
+        throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(projectId, getCurrentUserName()));
+      }
+      taskQuery.setProjectIds(Collections.singletonList(projectId));
     } else {
-      return tasks.stream()
-                  .map(this::toTaskModel)
-                  .toList();
+      taskQuery.setAccessible(aclIdentity);
     }
+    if (overdueOnly) {
+      setOverdueOnly(taskQuery, zone);
+    } else if (uncompleteOnly) {
+      taskQuery.setCompleted(false);
+    }
+    return taskQuery;
   }
 
+  /**
+   * @param projectId the project, null or 0 for every accessible task
+   * @param offset the first task returned
+   * @param limit the most tasks returned
+   * @param uncompleteOnly whether the completed tasks are left out
+   * @return the tasks
+   * @throws IllegalAccessException when the user can't view the project
+   * @throws ObjectNotFoundException when the project doesn't exist
+   */
   private List<TaskDto> getTasks(Long projectId,
                                  Integer offset,
                                  Integer limit,
-                                 boolean uncompleteOnly) throws IllegalAccessException,
-                                                         ObjectNotFoundException {
-    Identity aclIdentity = getCurrentUserAclIdentity();
-    List<TaskDto> tasks;
-    try {
-      if (projectId != null && projectId > 0) {
-        ProjectDto project = projectService.getProject(projectId);
-        if (project == null || !project.canView(aclIdentity)) {
-          throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(projectId,
-                                                                                     getCurrentUserName()));
-        } else {
-          TaskQuery taskQuery = new TaskQuery();
-          taskQuery.setProjectIds(Collections.singletonList(projectId));
-          if (uncompleteOnly) {
-            taskQuery.setCompleted(false);
-          }
-          tasks = taskService.findLastUpdatedTasks(taskQuery,
-                                                   getInteger(offset, DEFAULT_OFFSET),
-                                                   getInteger(limit, DEFAULT_LIMIT));
-        }
-      } else {
-        TaskQuery taskQuery = new TaskQuery();
-        taskQuery.setAccessible(aclIdentity);
-        if (uncompleteOnly) {
-          taskQuery.setCompleted(false);
-        }
-        tasks = taskService.findLastUpdatedTasks(taskQuery,
-                                                 getInteger(offset, DEFAULT_OFFSET),
-                                                 getInteger(limit, DEFAULT_LIMIT));
+                                 boolean uncompleteOnly) throws IllegalAccessException, ObjectNotFoundException {
+    return taskService.findLastUpdatedTasks(getTaskQuery(projectId, uncompleteOnly, false, null),
+                                            getInteger(offset, DEFAULT_OFFSET),
+                                            getInteger(limit, DEFAULT_LIMIT));
+  }
 
-      }
-    } catch (EntityNotFoundException e) {
-      throw new ObjectNotFoundException(MSG_TASK_PROJECT_NOT_FOUND.formatted(projectId));
+  /**
+   * Restricts a query to the overdue tasks: open, with a due date before the
+   * start of today in the user's time zone. A task due today is not overdue.
+   * The due date is the one the Tasks UI shows, never the end date.
+   *
+   * @param taskQuery the query to restrict
+   * @param zone the user's time zone
+   */
+  private void setOverdueOnly(TaskQuery taskQuery, ZoneId zone) {
+    taskQuery.setOverdueAt(Date.from(getToday(zone).atStartOfDay(zone).toInstant()));
+  }
+
+  /**
+   * @param taskQuery a query
+   * @return the count of the tasks it selects
+   */
+  @SneakyThrows
+  private long countTasks(TaskQuery taskQuery) {
+    return taskService.countTasks(taskQuery);
+  }
+
+  /**
+   * @param tasks tasks, possibly null
+   * @param zone the user's time zone
+   * @return their models, each overdue one with its days overdue
+   */
+  private List<TaskModel> toTaskModels(List<TaskDto> tasks, ZoneId zone) {
+    if (CollectionUtils.isEmpty(tasks)) {
+      return Collections.emptyList();
     }
-    return tasks;
+    LocalDate today = getToday(zone);
+    return tasks.stream().map(task -> toTaskModel(task, zone, today)).toList();
+  }
+
+  /**
+   * Tells how many days an open task is past its due date, in the user's
+   * time zone: 1 for a task due yesterday, none for a task due today.
+   *
+   * @param task a task
+   * @param zone the user's time zone
+   * @param today today in that zone
+   * @return the days overdue, null when the task isn't overdue
+   */
+  static Integer getDaysOverdue(TaskDto task, ZoneId zone, LocalDate today) {
+    if (task == null || task.isCompleted() || task.getDueDate() == null) {
+      return null;
+    }
+    LocalDate dueDay = task.getDueDate().toInstant().atZone(zone).toLocalDate();
+    long days = ChronoUnit.DAYS.between(dueDay, today);
+    return days > 0 ? Math.toIntExact(days) : null;
+  }
+
+  /**
+   * @return the current user's time zone, the server's when they have none
+   */
+  protected ZoneId getCurrentUserZone() {
+    TimeZone timeZone = McpToolUtils.getUserTimeZone();
+    return timeZone == null ? ZoneId.systemDefault() : timeZone.toZoneId();
+  }
+
+  /**
+   * @param zone a time zone
+   * @return today in that zone
+   */
+  protected LocalDate getToday(ZoneId zone) {
+    return LocalDate.now(zone);
   }
 
   private List<TaskCommentModel> getTaskCommentModels(TaskDto task, Integer offset, Integer limit) {
@@ -1015,45 +1128,20 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
-  private List<TaskModel> getAssignedTaskModels(Integer limit) {
-    List<TaskDto> tasks = taskService.getUncompletedTasks(getCurrentUserName(), getInteger(limit, DEFAULT_LIMIT));
-    if (CollectionUtils.isEmpty(tasks)) {
-      return Collections.emptyList();
-    } else {
-      return tasks.stream()
-                  .map(this::toTaskModel)
-                  .toList();
-    }
-  }
-
   private long countAssignedTaskModels() {
     String currentUserName = getCurrentUserName();
     return taskService.countUncompletedTasks(currentUserName);
   }
 
+  /**
+   * @param projectId the project, null or 0 for every accessible task
+   * @param uncompleteOnly whether the completed tasks are left out
+   * @return the count of the tasks {@link #getTaskQuery} selects
+   * @throws IllegalAccessException when the user can't view the project
+   */
   @SneakyThrows
   private long countTaskModels(Long projectId, boolean uncompleteOnly) throws IllegalAccessException {
-    if (projectId == null || projectId == 0) {
-      TaskQuery taskQuery = new TaskQuery();
-      taskQuery.setAccessible(getCurrentUserAclIdentity());
-      if (uncompleteOnly) {
-        taskQuery.setCompleted(false);
-      }
-      return taskService.countTasks(taskQuery);
-    } else {
-      ProjectDto project = projectService.getProject(projectId);
-      if (project == null || !project.canView(getCurrentUserAclIdentity())) {
-        throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(projectId,
-                                                                                   getCurrentUserName()));
-      } else {
-        TaskQuery taskQuery = new TaskQuery();
-        taskQuery.setProjectIds(Collections.singletonList(projectId));
-        if (uncompleteOnly) {
-          taskQuery.setCompleted(false);
-        }
-        return taskService.countTasks(taskQuery);
-      }
-    }
+    return countTasks(getTaskQuery(projectId, uncompleteOnly, false, null));
   }
 
   private int countTaskComments(long taskId) {
@@ -1145,7 +1233,22 @@ public class TaskMcpTool implements McpToolPlugin {
     return new TaskWithChangeLogModel(taskModel, taskLogs);
   }
 
+  /**
+   * @param task a task, possibly null
+   * @return its model, with its days overdue in the user's time zone
+   */
   private TaskModel toTaskModel(TaskDto task) {
+    ZoneId zone = getCurrentUserZone();
+    return toTaskModel(task, zone, getToday(zone));
+  }
+
+  /**
+   * @param task a task, possibly null
+   * @param zone the user's time zone
+   * @param today today in that zone
+   * @return its model, with its days overdue when it is overdue
+   */
+  private TaskModel toTaskModel(TaskDto task, ZoneId zone, LocalDate today) {
     if (task == null) {
       return null;
     }
@@ -1180,7 +1283,8 @@ public class TaskMcpTool implements McpToolPlugin {
                          project == null ? null : project.getName(),
                          getTaskStatus(status),
                          project == null ? null : getTaskLabels(task, projectId, aclIdentity),
-                         space == null ? null : space.getSpaceId());
+                         space == null ? null : space.getSpaceId(),
+                         getDaysOverdue(task, zone, today));
   }
 
   private Integer getTaskWorkLoad(TaskDto task) {
