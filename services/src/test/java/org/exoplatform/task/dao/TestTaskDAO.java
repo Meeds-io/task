@@ -329,10 +329,12 @@ public class TestTaskDAO extends AbstractTest {
 
   /**
    * The overdue listing is ordered by due date ascending, ties on the
-   * identifier, and a page keeps the most overdue tasks: of fifteen overdue
-   * tasks created in the opposite order, the first page of ten is
-   * the ten oldest due dates, and the next page the five others. Mutants:
-   * descending, or no order (last activity first).
+   * identifier, and a page keeps the most overdue tasks: of sixteen overdue
+   * tasks (two due the same day), created from the least overdue to the most
+   * overdue so that their identifiers run against their due dates, the first
+   * page of ten is the ten oldest due dates, and the next page the six
+   * others, the tie in identifier order. Mutants: descending due dates; no
+   * order, or the identifier or creation order instead of the due date.
    *
    * @throws Exception never
    */
@@ -340,15 +342,16 @@ public class TestTaskDAO extends AbstractTest {
   public void testFindOverdueTasksMostOverdueFirstAcrossPages() throws Exception {
     ZoneId zone = ZoneId.of("Europe/Paris");
     ZonedDateTime startOfToday = LocalDate.now(zone).atStartOfDay(zone);
-    for (int days = 15; days >= 1; days--) {
-      // the most overdue task is created first, so the last activity order puts it on the last page
+    // created first, so its identifier is the lowest: it comes before its twin
+    Task tie = newTaskInstance("late 1 bis", "", username);
+    tie.setDueDate(Date.from(startOfToday.minusDays(1).toInstant()));
+    tDAO.create(tie);
+    for (int days = 1; days <= 15; days++) {
+      // the least overdue task is created first: the identifier order is the opposite of the due date order
       Task task = newTaskInstance("late " + days, "", username);
       task.setDueDate(Date.from(startOfToday.minusDays(days).toInstant()));
       tDAO.create(task);
     }
-    Task tie = newTaskInstance("late 1 bis", "", username);
-    tie.setDueDate(Date.from(startOfToday.minusDays(1).toInstant()));
-    tDAO.create(tie);
 
     TaskQuery taskQuery = new TaskQuery();
     taskQuery.setAssigneeOrCoworker(Arrays.asList(username));
@@ -362,7 +365,7 @@ public class TestTaskDAO extends AbstractTest {
                                       "late 7", "late 6"),
                         firstPage);
     List<String> secondPage = Arrays.stream(list.load(10, 10)).map(Task::getTitle).toList();
-    Assert.assertEquals(Arrays.asList("late 5", "late 4", "late 3", "late 2", "late 1", "late 1 bis"), secondPage);
+    Assert.assertEquals(Arrays.asList("late 5", "late 4", "late 3", "late 2", "late 1 bis", "late 1"), secondPage);
   }
 
   @Test
