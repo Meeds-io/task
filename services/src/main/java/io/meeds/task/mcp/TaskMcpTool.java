@@ -221,7 +221,7 @@ public class TaskMcpTool implements McpToolPlugin {
       TaskQuery taskQuery = new TaskQuery();
       taskQuery.setAssigneeOrCoworker(Collections.singletonList(getCurrentUserName()));
       setOverdueOnly(taskQuery, zone);
-      taskModels = toTaskModels(taskService.findLastUpdatedTasks(taskQuery, 0, max), zone);
+      taskModels = toTaskModels(findOverdueTasks(taskQuery, 0, max), zone);
       count = countTasks(taskQuery);
     } else {
       taskModels = toTaskModels(taskService.getUncompletedTasks(getCurrentUserName(), max), zone);
@@ -254,16 +254,21 @@ public class TaskMcpTool implements McpToolPlugin {
                                        Integer offset,
                                        Integer limit) throws IllegalAccessException, ObjectNotFoundException {
     ZoneId zone = getCurrentUserZone();
+    LocalDate today = getToday(zone);
     TaskQuery taskQuery = getTaskQuery(projectId,
                                        Boolean.TRUE.equals(hideCompletedTasks),
                                        Boolean.TRUE.equals(overdueOnly),
                                        zone);
-    List<TaskDto> tasks = taskService.findLastUpdatedTasks(taskQuery,
-                                                           getInteger(offset, DEFAULT_OFFSET),
-                                                           getInteger(limit, DEFAULT_LIMIT));
+    List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ?
+                                                           findOverdueTasks(taskQuery,
+                                                                            getInteger(offset, DEFAULT_OFFSET),
+                                                                            getInteger(limit, DEFAULT_LIMIT)) :
+                                                           taskService.findLastUpdatedTasks(taskQuery,
+                                                                                            getInteger(offset, DEFAULT_OFFSET),
+                                                                                            getInteger(limit, DEFAULT_LIMIT));
     List<? extends TaskModel> taskModels = Boolean.TRUE.equals(includeChangeLog) ?
                                                                                   tasks.stream()
-                                                                                       .map(this::toTaskWithChangeLogModel)
+                                                                                       .map(t -> toTaskWithChangeLogModel(t, null, zone, today))
                                                                                        .toList() :
                                                                                   toTaskModels(tasks, zone);
     return new TaskCollectionModel(taskModels,
@@ -709,12 +714,13 @@ public class TaskMcpTool implements McpToolPlugin {
   public TaskCollectionModel listUnscheduledTasks(Long projectId,
                                                   Integer limit) throws IllegalAccessException, ObjectNotFoundException {
     int max = getInteger(limit, DEFAULT_LIMIT);
-    List<TaskModel> unscheduled = getTasks(projectId, 0, MAX_TO_LOAD, true).stream()
-                                                                           .filter(t -> t.getStartDate() == null
-                                                                               && t.getDueDate() == null)
-                                                                           .limit(max)
-                                                                           .map(this::toTaskModel)
-                                                                           .toList();
+    ZoneId zone = getCurrentUserZone();
+    List<TaskModel> unscheduled = toTaskModels(getTasks(projectId, 0, MAX_TO_LOAD, true).stream()
+                                                                                        .filter(t -> t.getStartDate() == null
+                                                                                            && t.getDueDate() == null)
+                                                                                        .limit(max)
+                                                                                        .toList(),
+                                               zone);
     return new TaskCollectionModel(unscheduled, 0, max, unscheduled.size());
   }
 
@@ -928,6 +934,8 @@ public class TaskMcpTool implements McpToolPlugin {
     } else {
       List<TaskWithChangeLogModel> updatedTasks = new ArrayList<>();
       List<TaskWithChangeLogModel> uncompletedTasks = new ArrayList<>();
+      ZoneId zone = getCurrentUserZone();
+      LocalDate today = getToday(zone);
 
       Instant sinceInstant = LocalDate.now()
                                       .minusDays(days)
@@ -941,7 +949,9 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                                            .filter(t -> Instant.ofEpochMilli(getLastUpdateDate(t).getTime())
                                                                                                                .isAfter(sinceInstant))
                                                                                            .map(t -> toTaskWithChangeLogModel(t,
-                                                                                                                              sinceInstant))
+                                                                                                                              sinceInstant,
+                                                                                                                              zone,
+                                                                                                                              today))
                                                                                            .toList();
         updatedTasks.addAll(taskModels);
         if (taskModels.size() < limit) {
@@ -958,7 +968,7 @@ public class TaskMcpTool implements McpToolPlugin {
         getTasks(projectId, offset, limit, true).stream()
                                                 .filter(t -> Instant.ofEpochMilli(getLastUpdateDate(t).getTime())
                                                                     .isBefore(sinceInstant))
-                                                .map(t -> toTaskWithChangeLogModel(t, sinceInstant))
+                                                .map(t -> toTaskWithChangeLogModel(t, sinceInstant, zone, today))
                                                 .forEach(uncompletedTasks::add);
         offset += limit;
       } while (offset < count);
@@ -1054,6 +1064,21 @@ public class TaskMcpTool implements McpToolPlugin {
    */
   private void setOverdueOnly(TaskQuery taskQuery, ZoneId zone) {
     taskQuery.setOverdueAt(Date.from(getToday(zone).atStartOfDay(zone).toInstant()));
+  }
+
+  /**
+   * Lists an overdue query's tasks, the most overdue first: by due date
+   * ascending, then by identifier so that two pages never overlap.
+   *
+   * @param taskQuery an overdue query
+   * @param offset the first task returned
+   * @param limit the most tasks returned
+   * @return the tasks of the page
+   */
+  @SneakyThrows
+  private List<TaskDto> findOverdueTasks(TaskQuery taskQuery, int offset, int limit) {
+    taskQuery.setOrderBy(List.of(new OrderBy.ASC("dueDate"), new OrderBy.ASC("id")));
+    return taskService.findTasks(taskQuery, offset, limit);
   }
 
   /**
@@ -1198,14 +1223,16 @@ public class TaskMcpTool implements McpToolPlugin {
                              status.getRank() == null ? 0 : status.getRank());
   }
 
+  /**
+   * @param task a task
+   * @param since only the change log entries after this instant, null for all
+   * @param zone the user's time zone
+   * @param today today in that zone
+   * @return the task model, with its change log and comments
+   */
   @SneakyThrows
-  private TaskWithChangeLogModel toTaskWithChangeLogModel(TaskDto task) {
-    return toTaskWithChangeLogModel(task, null);
-  }
-
-  @SneakyThrows
-  private TaskWithChangeLogModel toTaskWithChangeLogModel(TaskDto task, Instant since) {
-    TaskModel taskModel = toTaskModel(task);
+  private TaskWithChangeLogModel toTaskWithChangeLogModel(TaskDto task, Instant since, ZoneId zone, LocalDate today) {
+    TaskModel taskModel = toTaskModel(task, zone, today);
     List<TaskChangeLog> taskLogs = taskService.getTaskLogs(task.getId(), 0, MAX_TO_LOAD) // NOSONAR
                                               .stream()
                                               .filter(l -> since == null

@@ -327,6 +327,44 @@ public class TestTaskDAO extends AbstractTest {
     Assert.assertEquals(2, tDAO.findTasks(taskQuery).getSize());
   }
 
+  /**
+   * The overdue listing is ordered by due date ascending, ties on the
+   * identifier, and a page keeps the most overdue tasks: of fifteen overdue
+   * tasks created in the opposite order, the first page of ten is
+   * the ten oldest due dates, and the next page the five others. Mutants:
+   * descending, or no order (last activity first).
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testFindOverdueTasksMostOverdueFirstAcrossPages() throws Exception {
+    ZoneId zone = ZoneId.of("Europe/Paris");
+    ZonedDateTime startOfToday = LocalDate.now(zone).atStartOfDay(zone);
+    for (int days = 15; days >= 1; days--) {
+      // the most overdue task is created first, so the last activity order puts it on the last page
+      Task task = newTaskInstance("late " + days, "", username);
+      task.setDueDate(Date.from(startOfToday.minusDays(days).toInstant()));
+      tDAO.create(task);
+    }
+    Task tie = newTaskInstance("late 1 bis", "", username);
+    tie.setDueDate(Date.from(startOfToday.minusDays(1).toInstant()));
+    tDAO.create(tie);
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setAssigneeOrCoworker(Arrays.asList(username));
+    taskQuery.setOverdueAt(Date.from(startOfToday.toInstant()));
+    taskQuery.setOrderBy(Arrays.asList(new OrderBy.ASC("dueDate"), new OrderBy.ASC("id")));
+    ListAccess<Task> list = tDAO.findTasks(taskQuery);
+
+    Assert.assertEquals(16, list.getSize());
+    List<String> firstPage = Arrays.stream(list.load(0, 10)).map(Task::getTitle).toList();
+    Assert.assertEquals(Arrays.asList("late 15", "late 14", "late 13", "late 12", "late 11", "late 10", "late 9", "late 8",
+                                      "late 7", "late 6"),
+                        firstPage);
+    List<String> secondPage = Arrays.stream(list.load(10, 10)).map(Task::getTitle).toList();
+    Assert.assertEquals(Arrays.asList("late 5", "late 4", "late 3", "late 2", "late 1", "late 1 bis"), secondPage);
+  }
+
   @Test
   public void testFindLastUpdatedTasksBreaksTiesOnId() throws Exception {
     Calendar calendar = Calendar.getInstance();

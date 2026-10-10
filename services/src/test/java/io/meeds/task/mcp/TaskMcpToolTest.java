@@ -69,6 +69,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
@@ -707,7 +708,7 @@ public class TaskMcpToolTest {
     TaskDto task = mockTask();
     when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-09-28T00:00:00+02:00")));
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
-    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
+    when(taskService.findTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
     TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null));
@@ -715,6 +716,8 @@ public class TaskMcpToolTest {
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
     assertTrue("only the tasks the user can access", scopedToTheUser(query.getValue()));
+    assertMostOverdueFirst(query.getValue());
+    verify(taskService, never()).findLastUpdatedTasks(any(), anyInt(), anyInt());
     verify(taskService).countTasks(query.getValue());
     assertEquals(1L, result.getCount());
     assertEquals(Integer.valueOf(10), result.getTasks().get(0).getDaysOverdue());
@@ -748,16 +751,29 @@ public class TaskMcpToolTest {
     TaskDto task = mockTask();
     when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-07T00:00:00+02:00")));
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
-    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.singletonList(task));
+    when(taskService.findTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
     TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, true));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
+    assertMostOverdueFirst(query.getValue());
     verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
     assertEquals(1L, result.getCount());
     assertEquals(Integer.valueOf(1), result.getTasks().get(0).getDaysOverdue());
+  }
+
+  /**
+   * @param query an overdue query
+   */
+  private void assertMostOverdueFirst(TaskQuery query) {
+    List<OrderBy> orderBy = query.getOrderBy();
+    assertEquals(2, orderBy.size());
+    assertEquals("dueDate", orderBy.get(0).getFieldName());
+    assertTrue("oldest due date first", orderBy.get(0).isAscending());
+    assertEquals("id", orderBy.get(1).getFieldName());
+    assertTrue("ties broken on the identifier", orderBy.get(1).isAscending());
   }
 
   /**
