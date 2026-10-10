@@ -136,7 +136,7 @@
     {
       "name": "list_tasks",
       "title": "List Tasks",
-      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date; an overdue task carries days_overdue.",
+      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date, the most overdue first; an overdue task carries days_overdue. A count above the number of tasks returned means more pages: call again with offset set to the number of tasks already received.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -177,7 +177,7 @@
     {
       "name": "list_assigned_tasks",
       "title": "Get Self Assigned Tasks",
-      "description": "List uncompleted tasks assigned to the current user, or of which they are a coworker. With overdue_only, only those past their due date; an overdue task carries days_overdue.",
+      "description": "List uncompleted tasks assigned to the current user, or of which they are a coworker. With overdue_only, only those past their due date, the most overdue first; an overdue task carries days_overdue. A count above the number of tasks returned means more tasks: call again with a larger limit (this tool has no offset).",
       "input_schema": {
         "type": "object",
         "properties": {
