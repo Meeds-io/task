@@ -40,6 +40,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -782,6 +783,73 @@ public class TaskMcpToolTest {
     TaskDto task = mock(TaskDto.class);
     when(task.getDueDate()).thenReturn(Date.from(Instant.parse(dueDate)));
     return task;
+  }
+
+  /**
+   * Days overdue are whole calendar days in the user's zone, also across the
+   * Europe/Paris zone transitions of 2026-10-25 (a 25-hour day) and
+   * 2027-03-28 (a 23-hour day): for a due day and a "today" on each side of
+   * a transition, and a due date at the start, the end, and (in the overlap)
+   * both occurrences of 02:30 of its day, the result equals a day-by-day
+   * count. Mutant: a count of 24-hour periods between the instants.
+   */
+  @Test
+  public void daysOverdueAcrossTimeZoneTransitionsMatchADayByDayCount() {// NOSONAR
+    ZoneId paris = ZoneId.of("Europe/Paris");
+    for (LocalDate transition : List.of(LocalDate.of(2026, 10, 25), LocalDate.of(2027, 3, 28))) {
+      for (int dueOffset = -2; dueOffset <= 2; dueOffset++) {
+        for (int todayOffset = -2; todayOffset <= 3; todayOffset++) {
+          LocalDate dueDay = transition.plusDays(dueOffset);
+          LocalDate today = transition.plusDays(todayOffset);
+          List<Instant> dueInstants = new ArrayList<>();
+          dueInstants.add(dueDay.atStartOfDay(paris).toInstant());
+          dueInstants.add(dueDay.atTime(23, 59).atZone(paris).toInstant());
+          ZonedDateTime half = dueDay.atTime(2, 30).atZone(paris);
+          dueInstants.add(half.toInstant());
+          dueInstants.add(half.withLaterOffsetAtOverlap().toInstant());
+          for (Instant due : dueInstants) {
+            TaskDto task = mock(TaskDto.class);
+            when(task.getDueDate()).thenReturn(Date.from(due));
+            long expected = 0;
+            for (LocalDate day = dueDay; day.isBefore(today); day = day.plusDays(1)) {
+              expected++;
+            }
+            Integer expectedDays = expected > 0 ? Integer.valueOf((int) expected) : null;
+            assertEquals("due " + due + " today " + today, expectedDays, TaskMcpTool.getDaysOverdue(task, paris, today));
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * The overdue cut-off is the start of today in the user's zone, also when
+   * that zone skips midnight: in America/Sao_Paulo on 2018-11-04 the day
+   * starts at 01:00 local (03:00 UTC), and the cut-off is that instant, not
+   * midnight read as UTC or in the server's zone.
+   */
+  @Test
+  public void theOverdueCutOffIsTheStartOfTheDayWhenTheZoneSkipsMidnight() throws Exception {// NOSONAR
+    ZoneId saoPaulo = ZoneId.of("America/Sao_Paulo");
+    LocalDate skippedMidnight = LocalDate.of(2018, 11, 4);
+    TaskMcpTool skippingTool = new TestableTaskMcpTool() {
+      @Override
+      protected ZoneId getCurrentUserZone() {
+        return saoPaulo;
+      }
+
+      @Override
+      protected LocalDate getToday(ZoneId zone) {
+        return skippedMidnight;
+      }
+    };
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.emptyList());
+
+    skippingTool.listAssignedTasks(5, true);
+
+    assertEquals(Date.from(Instant.parse("2018-11-04T03:00:00Z")), findDueDateBefore(query.getValue()));
+    assertEquals(1, ZonedDateTime.ofInstant(findDueDateBefore(query.getValue()).toInstant(), saoPaulo).getHour());
   }
 
   @Test
