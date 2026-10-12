@@ -65,7 +65,7 @@
           @click="openSearch">
           <v-icon
             size="20"
-            :class="keyword && keyword.length && 'primary--text' || 'text-light-color'">
+            :class="keyword && keyword.length && 'primary--text'">
             fa-filter
           </v-icon>
         </v-btn>
@@ -78,7 +78,7 @@
           @click="openDrawer">
           <v-icon
             size="20"
-            :class="filterNumber > 0 && 'primary--text' || 'text-light-color'">
+            :class="filterNumber > 0 && 'primary--text'">
             fa-sliders-h
           </v-icon>
         </v-btn>
