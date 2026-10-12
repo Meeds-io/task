@@ -18,6 +18,15 @@
  */
 package org.exoplatform.task.dao;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
@@ -272,6 +281,91 @@ public class TestTaskDAO extends AbstractTest {
     Assert.assertEquals("commented task", tasks[0].getTitle());
     Assert.assertEquals("logged task", tasks[1].getTitle());
     Assert.assertEquals("untouched task", tasks[2].getTitle());
+  }
+
+  /**
+   * The overdue query (EXO-91122) runs through the engine: open tasks the
+   * user is assigned to or a coworker of, due strictly before the start of
+   * today in their time zone. A task due at that instant, a completed task,
+   * a task with no due date and another user's task are left out. Mutant:
+   * lte instead of lt.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testFindOverdueTasksBeforeTheStartOfTheUsersDay() throws Exception {
+    ZoneId zone = ZoneId.of("Europe/Paris");
+    ZonedDateTime startOfToday = LocalDate.now(zone).atStartOfDay(zone);
+    Task dueYesterday = newTaskInstance("due yesterday", "", username);
+    dueYesterday.setDueDate(Date.from(startOfToday.minusDays(1).toInstant()));
+    tDAO.create(dueYesterday);
+    Task dueToday = newTaskInstance("due today", "", username);
+    dueToday.setDueDate(Date.from(startOfToday.toInstant()));
+    tDAO.create(dueToday);
+    Task doneLate = newTaskInstance("done late", "", username);
+    doneLate.setDueDate(Date.from(startOfToday.minusDays(3).toInstant()));
+    doneLate.setCompleted(true);
+    tDAO.create(doneLate);
+    Task noDueDate = newTaskInstance("no due date", "", username);
+    tDAO.create(noDueDate);
+    Task coworkerLate = newTaskInstance("coworker late", "", "john");
+    coworkerLate.setCoworker(new HashSet<>(Arrays.asList(username)));
+    coworkerLate.setDueDate(Date.from(startOfToday.minusSeconds(1).toInstant()));
+    tDAO.create(coworkerLate);
+    Task someoneElsesLate = newTaskInstance("someone else's late", "", "john");
+    someoneElsesLate.setDueDate(Date.from(startOfToday.minusDays(2).toInstant()));
+    tDAO.create(someoneElsesLate);
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setAssigneeOrCoworker(Arrays.asList(username));
+    taskQuery.setOverdueAt(Date.from(startOfToday.toInstant()));
+    ListAccess<Task> list = tDAO.findLastUpdatedTasks(taskQuery);
+
+    Assert.assertEquals(2, list.getSize());
+    Set<String> titles = Arrays.stream(list.load(0, -1)).map(Task::getTitle).collect(Collectors.toSet());
+    Assert.assertEquals(new HashSet<>(Arrays.asList("due yesterday", "coworker late")), titles);
+    Assert.assertEquals(2, tDAO.findTasks(taskQuery).getSize());
+  }
+
+  /**
+   * The overdue listing is ordered by due date ascending, ties on the
+   * identifier, and a page keeps the most overdue tasks: of sixteen overdue
+   * tasks (two due the same day), created from the least overdue to the most
+   * overdue so that their identifiers run against their due dates, the first
+   * page of ten is the ten oldest due dates, and the next page the six
+   * others, the tie in identifier order. Mutants: descending due dates; no
+   * order, or the identifier or creation order instead of the due date.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testFindOverdueTasksMostOverdueFirstAcrossPages() throws Exception {
+    ZoneId zone = ZoneId.of("Europe/Paris");
+    ZonedDateTime startOfToday = LocalDate.now(zone).atStartOfDay(zone);
+    // created first, so its identifier is the lowest: it comes before its twin
+    Task tie = newTaskInstance("late 1 bis", "", username);
+    tie.setDueDate(Date.from(startOfToday.minusDays(1).toInstant()));
+    tDAO.create(tie);
+    for (int days = 1; days <= 15; days++) {
+      // the least overdue task is created first: the identifier order is the opposite of the due date order
+      Task task = newTaskInstance("late " + days, "", username);
+      task.setDueDate(Date.from(startOfToday.minusDays(days).toInstant()));
+      tDAO.create(task);
+    }
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setAssigneeOrCoworker(Arrays.asList(username));
+    taskQuery.setOverdueAt(Date.from(startOfToday.toInstant()));
+    taskQuery.setOrderBy(Arrays.asList(new OrderBy.ASC("dueDate"), new OrderBy.ASC("id")));
+    ListAccess<Task> list = tDAO.findTasks(taskQuery);
+
+    Assert.assertEquals(16, list.getSize());
+    List<String> firstPage = Arrays.stream(list.load(0, 10)).map(Task::getTitle).toList();
+    Assert.assertEquals(Arrays.asList("late 15", "late 14", "late 13", "late 12", "late 11", "late 10", "late 9", "late 8",
+                                      "late 7", "late 6"),
+                        firstPage);
+    List<String> secondPage = Arrays.stream(list.load(10, 10)).map(Task::getTitle).toList();
+    Assert.assertEquals(Arrays.asList("late 5", "late 4", "late 3", "late 2", "late 1 bis", "late 1"), secondPage);
   }
 
   @Test
