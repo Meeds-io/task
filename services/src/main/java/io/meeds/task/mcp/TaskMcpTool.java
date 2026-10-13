@@ -166,6 +166,24 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private final TaskSpaceScopeResolver  spaceScopeResolver;
 
+  /**
+   * @param projectService reads and lists the projects
+   * @param statusService reads and creates the statuses of a project
+   * @param taskService reads and creates the tasks
+   * @param commentService reads and writes the comments of a task
+   * @param labelService reads and writes the labels of a project
+   * @param spaceService reads the spaces
+   * @param translationService translates the labels given back to the model
+   * @param resourceBundleService reads the resource bundles
+   * @param identityManager reads the identities of the users
+   * @param profilePropertyService reads the profile properties of the users
+   * @param userAcl checks the permissions of the current user
+   * @param portalConfigService reads the portal configuration
+   * @param permanentLinkService builds the permanent links of the objects
+   * @param favoriteService reads and writes the favorites
+   * @param spaceScopeResolver tells the space of a project, for a run limited
+   *          to a space
+   */
   public TaskMcpTool(ProjectService projectService,
                      StatusService statusService,
                      TaskService taskService,
