@@ -128,6 +128,7 @@ public class TaskToolDefinitionSpaceScopeTest {
     assertEquals("space_id", scope.getSpaceArg());
     assertTrue(scope.isUseScopeWhenAbsent());
     assertEquals(List.of("offset", "limit"), allowed(tool));
+    assertTrue(tool.getDescription().contains("In a run limited to a space, only the projects managed through that space"));
     JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
     assertTrue(properties.has("space_id"));
     allowed(tool).forEach(argument -> assertTrue(argument, properties.has(argument)));

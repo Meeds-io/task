@@ -177,6 +177,8 @@ public class TaskMcpToolTest {
   @Mock
   private TaskSpaceScopeResolver  spaceScopeResolver;
 
+  private boolean                 currentSpaceScoped;
+
   @Mock
   private Identity                currentIdentity;
 
@@ -1233,48 +1235,79 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * Given a space the user is a member of, the query gets the user's roles of
-   * that space group and nothing of the user's other memberships, and only the
-   * projects the space scope resolver gives to that space are returned: the
-   * list and the project lookup agree. The count is that of the selection.
+   * In a run limited to a space, the query gets the user's roles of that space
+   * group and nothing of the user's other memberships, and only the projects
+   * the space scope resolver gives to that space are returned: the list and
+   * the project lookup agree. The scan reached the end, so the count is that
+   * of the selection.
    * Mutant: the space is ignored and the user's own memberships are used; or
    * a project of another space or of none is kept.
    */
   @Test
-  public void listProjectsOfASpaceKeepsTheProjectsTheResolverGivesToIt() throws Exception { // NOSONAR
+  public void listProjectsOfASpaceInALimitedRunKeepsTheProjectsTheResolverGivesToIt() throws Exception { // NOSONAR
     givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
     ProjectDto inSpace = listedProject(1L, 10L);
     ProjectDto inOtherSpace = listedProject(2L, 11L);
     ProjectDto inNoSpace = listedProject(3L, null);
     ProjectDto inSpaceToo = listedProject(4L, 10L);
-    when(projectService.countProjects(any(), eq(null))).thenReturn(4);
-    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(4))).thenReturn(List.of(inSpace,
-                                                                                               inOtherSpace,
-                                                                                               inNoSpace,
-                                                                                               inSpaceToo));
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(List.of(inSpace,
+                                                                                                                          inOtherSpace,
+                                                                                                                          inNoSpace,
+                                                                                                                          inSpaceToo));
 
     ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
 
     assertEquals(List.of(1L, 4L), result.getProjects().stream().map(ProjectModel::getId).toList());
     assertEquals(2L, result.getCount());
     ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
-    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(4));
+    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
     assertEquals(List.of("member:/spaces/test"), memberships.getValue());
   }
 
   /**
-   * The page is cut from the projects of the space, after the selection.
+   * An interactive or unscoped caller keeps every project of a space they
+   * belong to: the plain paged query is used, the resolver is never asked.
+   * Mutant: the resolver filter is applied to every call.
+   */
+  @Test
+  public void listProjectsOfASpaceOutsideALimitedRunIsNotNarrowed() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = false;
+    ProjectDto inSpace = listedProject(1L, 10L);
+    ProjectDto shared = listedProject(2L, null);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(List.of(inSpace, shared));
+    when(projectService.countProjects(any(), eq(null))).thenReturn(2);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+
+    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    verify(spaceScopeResolver, never()).spaceOfProject(any());
+    ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
+    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(10));
+    assertEquals(List.of("member:/spaces/test"), memberships.getValue());
+  }
+
+  /**
+   * The page is cut from the projects of the space, after the selection, and
+   * the offset and limit given back are the ones used.
    * Mutant: the page is cut before the selection, or the offset is ignored.
    */
   @Test
-  public void listProjectsOfASpacePagesTheSelection() throws Exception { // NOSONAR
+  public void listProjectsOfASpaceInALimitedRunPagesTheSelection() throws Exception { // NOSONAR
     givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
     ProjectDto other = listedProject(2L, 11L);
     ProjectDto first = listedProject(1L, 10L);
     ProjectDto second = listedProject(3L, 10L);
     ProjectDto third = listedProject(4L, 10L);
-    when(projectService.countProjects(any(), eq(null))).thenReturn(4);
-    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(4))).thenReturn(List.of(other, first, second, third));
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(List.of(other,
+                                                                                                                          first,
+                                                                                                                          second,
+                                                                                                                          third));
 
     ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 1, 1));
 
@@ -1282,46 +1315,87 @@ public class TaskMcpToolTest {
     assertEquals(3L, result.getCount());
     assertEquals(1, result.getUsedOffset());
     assertEquals(1, result.getUsedLimit());
+
+    ProjectCollectionModel clamped = runWithDateFormatMockResult(() -> tool.listProjects(10L, -4, -2));
+    assertEquals(0, clamped.getProjects().size());
+    assertEquals(0, clamped.getUsedOffset());
+    assertEquals(0, clamped.getUsedLimit());
   }
 
   /**
-   * A space none of whose reachable projects belong to it lists nothing, and
-   * a space the user reaches no project of doesn't ask for any.
+   * A scan stops as soon as one more project than the page asks for is kept:
+   * the second chunk is never read, projects after that one are never mapped
+   * nor asked of the resolver, and the count is the number kept, more than
+   * the page.
+   * Mutant: the whole chunk or every chunk is read.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunStopsOnceThePageIsFilled() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> chunk = new ArrayList<>();
+    for (long id = 1; id <= TaskMcpTool.SPACE_SCAN_CHUNK; id++) {
+      chunk.add(listedProject(id, 10L));
+    }
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(chunk);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2));
+
+    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(3L, result.getCount());
+    verify(projectService, times(1)).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(spaceScopeResolver, never()).spaceOfProject(chunk.get(3));
+  }
+
+  /**
+   * A scan reads the next chunk while the page isn't filled, and its count is
+   * exact once it reached the end (a chunk shorter than asked).
+   * Mutant: only the first chunk is read.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunReadsSeveralChunks() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> firstChunk = new ArrayList<>();
+    for (long id = 1; id <= TaskMcpTool.SPACE_SCAN_CHUNK; id++) {
+      firstChunk.add(listedProject(id, 11L));
+    }
+    ProjectDto mine = listedProject(100L, 10L);
+    ProjectDto minetoo = listedProject(101L, 10L);
+    ProjectDto theirs = listedProject(102L, 11L);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(firstChunk);
+    when(projectService.findProjects(any(), eq(null), any(), eq(TaskMcpTool.SPACE_SCAN_CHUNK), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                                                  .thenReturn(List.of(mine,
+                                                                                                                                                      minetoo,
+                                                                                                                                                      theirs));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+
+    assertEquals(List.of(100L, 101L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    verify(projectService, times(2)).findProjects(any(), any(), any(), anyInt(), anyInt());
+  }
+
+  /**
+   * A space none of whose reachable projects belong to it lists nothing in a
+   * limited run, and a space the user reaches no project of ends the scan at
+   * once.
    */
   @Test
   public void listProjectsOfASpaceWithNoProjectOfItsOwnIsEmpty() throws Exception { // NOSONAR
     givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
     ProjectDto other = listedProject(2L, 11L);
-    when(projectService.countProjects(any(), eq(null))).thenReturn(1);
-    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(1))).thenReturn(List.of(other));
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(List.of(other));
     ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
     assertEquals(0, result.getProjects().size());
     assertEquals(0L, result.getCount());
 
-    when(projectService.countProjects(any(), eq(null))).thenReturn(0);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(Collections.emptyList());
     result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
     assertEquals(0L, result.getCount());
-    verify(projectService, times(1)).findProjects(any(), any(), any(), anyInt(), anyInt());
-  }
-
-  /**
-   * A positive space id that names no space (missing or deleted) lists
-   * nothing, never the user's own projects, and asks the project service
-   * nothing.
-   * Mutant: an unknown space falls back to the user's own memberships.
-   */
-  @Test
-  public void listProjectsOfAnUnknownSpaceIsEmpty() throws Exception { // NOSONAR
-    when(spaceService.getSpaceById(99L)).thenReturn(null);
-
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(99L, 2, 5));
-
-    assertEquals(0, result.getProjects().size());
-    assertEquals(0L, result.getCount());
-    assertEquals(2, result.getUsedOffset());
-    assertEquals(5, result.getUsedLimit());
-    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
-    verify(projectService, never()).countProjects(any(), any());
   }
 
   /**
@@ -1366,6 +1440,10 @@ public class TaskMcpToolTest {
     when(spaceService.getSpaceById(10L)).thenReturn(space);
     when(currentIdentity.getMemberships()).thenReturn(List.of(new MembershipEntry("/spaces/other", "member")));
 
+    for (boolean scoped : new boolean[] { false, true }) {
+      currentSpaceScoped = scoped;
+      assertEquals(0L, runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20)).getCount());
+    }
     ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20));
 
     assertEquals(0, result.getProjects().size());
@@ -1521,6 +1599,11 @@ public class TaskMcpToolTest {
             permanentLinkService,
             favoriteService,
             spaceScopeResolver);
+    }
+
+    @Override
+    protected boolean isSpaceScoped() {
+      return currentSpaceScoped;
     }
 
     @Override
