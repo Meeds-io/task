@@ -4,7 +4,7 @@
     {
       "name": "list_projects",
       "title": "List Task Projects",
-      "description": "List task projects accessible to the current user, optionally filtered by space.",
+      "description": "List task projects accessible to the current user, optionally filtered by space. In a run limited to a space, only the projects managed through that space are listed.",
       "input_schema": {
         "type": "object",
         "properties": {
