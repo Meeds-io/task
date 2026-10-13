@@ -200,10 +200,11 @@ public class TaskMcpTool implements McpToolPlugin {
    * group for, and whose space is that space, as
    * {@link TaskSpaceScopeResolver#spaceOfProject(ProjectDto)} tells it, so
    * that the list never holds a project the space scope refuses to get. For a
-   * user who isn't a member of the space the list is empty.
+   * user who isn't a member of the space, and for a space id that names no
+   * space (missing or deleted), the list is empty.
    *
-   * @param spaceId the space whose projects are listed, null or unknown for
-   *          the projects of the current user
+   * @param spaceId the space whose projects are listed, null or not positive
+   *          for the projects of the current user
    * @param offset the first project returned
    * @param limit the most projects returned
    * @return the projects, with their count
@@ -211,11 +212,12 @@ public class TaskMcpTool implements McpToolPlugin {
   public ProjectCollectionModel listProjects(Long spaceId,
                                              Integer offset,
                                              Integer limit) {
-    Space space = spaceId != null && spaceId > 0 ? spaceService.getSpaceById(spaceId) : null;
+    boolean spaceGiven = spaceId != null && spaceId > 0;
+    Space space = spaceGiven ? spaceService.getSpaceById(spaceId) : null;
     List<String> memberships = getMemberships(space);
     int usedOffset = getInteger(offset, DEFAULT_OFFSET);
     int usedLimit = getInteger(limit, DEFAULT_LIMIT);
-    if (memberships.isEmpty()) {
+    if (memberships.isEmpty() || spaceGiven && space == null) {
       return new ProjectCollectionModel(Collections.emptyList(), usedOffset, usedLimit, 0);
     } else if (space != null) {
       return listSpaceProjects(space, memberships, usedOffset, usedLimit);
