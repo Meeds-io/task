@@ -1305,6 +1305,26 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * A positive space id that names no space (missing or deleted) lists
+   * nothing, never the user's own projects, and asks the project service
+   * nothing.
+   * Mutant: an unknown space falls back to the user's own memberships.
+   */
+  @Test
+  public void listProjectsOfAnUnknownSpaceIsEmpty() throws Exception { // NOSONAR
+    when(spaceService.getSpaceById(99L)).thenReturn(null);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(99L, 2, 5));
+
+    assertEquals(0, result.getProjects().size());
+    assertEquals(0L, result.getCount());
+    assertEquals(2, result.getUsedOffset());
+    assertEquals(5, result.getUsedLimit());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).countProjects(any(), any());
+  }
+
+  /**
    * Gives a space 10 whose group the user holds the member role of.
    */
   private void givenSpaceTheUserIsMemberOf() {
