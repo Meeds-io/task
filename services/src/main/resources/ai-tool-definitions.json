@@ -209,7 +209,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "task_id", "resolver": "task" }
     },
     {
       "name": "get_project_id_by_task_id",
@@ -247,7 +248,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["offset", "limit"] }
     },
     {
       "name": "create_project_in_space",
@@ -474,6 +476,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["status_id"] },
       "require_approval": true
     },
     {
@@ -585,6 +588,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task" },
       "require_approval": true
     },
     {
