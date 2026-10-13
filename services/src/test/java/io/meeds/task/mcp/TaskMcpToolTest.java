@@ -19,6 +19,7 @@
 package io.meeds.task.mcp;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -91,6 +92,7 @@ import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 
+import io.meeds.mcp.server.model.ActingIdentity;
 import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.service.PermanentLinkService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
@@ -1396,6 +1398,47 @@ public class TaskMcpToolTest {
                                                                                                       .thenReturn(Collections.emptyList());
     result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
     assertEquals(0L, result.getCount());
+  }
+
+  /**
+   * A call is limited to a space when its acting identity carries a space
+   * scope, and also when its identity can't be read: it is then never taken
+   * for an unlimited one. Runs the real {@code isSpaceScoped}, which the
+   * other tests stub.
+   * Mutant: an unreadable identity, a null one or the scope's presence is
+   * read the other way.
+   */
+  @Test
+  public void aCallIsLimitedToASpaceWhenItsIdentityCarriesAScopeOrCantBeRead() {// NOSONAR
+    TaskMcpTool realTool = new TaskMcpTool(projectService,
+                                           statusService,
+                                           taskService,
+                                           commentService,
+                                           labelService,
+                                           spaceService,
+                                           translationService,
+                                           resourceBundleService,
+                                           identityManager,
+                                           profilePropertyService,
+                                           userAcl,
+                                           portalConfigService,
+                                           permanentLinkService,
+                                           favoriteService,
+                                           spaceScopeResolver);
+    ActingIdentity limited = mock(ActingIdentity.class);
+    when(limited.spaceScope()).thenReturn(7L);
+    ActingIdentity unlimited = mock(ActingIdentity.class);
+    when(unlimited.spaceScope()).thenReturn(null);
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(limited);
+      assertTrue(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(unlimited);
+      assertFalse(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(null);
+      assertFalse(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenThrow(new IllegalStateException("refused"));
+      assertTrue(realTool.isSpaceScoped());
+    }
   }
 
   /**
