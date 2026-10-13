@@ -1283,6 +1283,27 @@ public class TaskMcpToolTest {
     assertEquals(OTHER_USER, created.getAllValues().get(2).getAssignee());
   }
 
+  /**
+   * A status id that isn't one of the project's statuses is refused and no
+   * task is created: the space scope relies on it to keep a creation inside
+   * the project.
+   * Mutant: the status is taken by id from anywhere.
+   */
+  @Test
+  public void createTaskInProjectRefusesAStatusOfAnotherProject() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    StatusDto own = mock(StatusDto.class);
+
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(own.getId()).thenReturn(3L);
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(Collections.singletonList(own));
+
+    assertThrows(IllegalStateException.class,
+                 () -> tool.createTaskInProject(PROJECT_ID, "Task", null, null, null, null, null, null, 99L));
+    verify(taskService, never()).createTask(any(TaskDto.class));
+  }
+
   @Test
   public void createTaskInProjectShouldUseDefaultStatusAndCreateTask() throws Exception {// NOSONAR
     ProjectDto project = mock(ProjectDto.class);

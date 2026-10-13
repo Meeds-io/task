@@ -331,6 +331,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["title", "description", "start_date", "due_date", "priority", "status_id"] },
       "require_approval": true
     },
     {
