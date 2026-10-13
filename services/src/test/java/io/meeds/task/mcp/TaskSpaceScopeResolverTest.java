@@ -115,6 +115,20 @@ public class TaskSpaceScopeResolverTest {
   }
 
   /**
+   * One space group next to a user manager, or next to a group outside the
+   * spaces, is no space: every manager must be a role of the one group.
+   * Mutant: entries that aren't space groups are ignored.
+   */
+  @Test
+  public void noSpaceWhenAManagerIsNotOfTheSpaceGroup() throws Exception {
+    givenTaskWithManagers("manager:/spaces/alpha", "john");
+    assertNull(resolver.spaceOf(String.valueOf(TASK_ID)));
+    givenTaskWithManagers("manager:/spaces/alpha", "manager:/platform/administrators");
+    assertNull(resolver.spaceOf(String.valueOf(TASK_ID)));
+    verify(spaceService, never()).getSpaceByGroupId(anyString());
+  }
+
+  /**
    * A project managed by users only is a personal project. Mutant: a user
    * manager is read as a group and gives a space.
    */
