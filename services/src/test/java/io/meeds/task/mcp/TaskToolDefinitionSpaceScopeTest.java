@@ -46,39 +46,83 @@ import tools.jackson.databind.json.JsonMapper;
  */
 public class TaskToolDefinitionSpaceScopeTest {
 
-  private static final Set<String> OBJECT_READS  = Set.of("get_task_by_id", "list_task_comments_by_id");
+  private static final Set<String> TASK_READS    = Set.of("get_task_by_id", "list_task_comments_by_id");
 
-  private static final Set<String> OBJECT_WRITES = Set.of("update_task_status", "complete_task");
+  private static final Set<String> TASK_WRITES   = Set.of("update_task_status", "complete_task");
+
+  private static final Set<String> DECLARED      = Set.of("list_projects",
+                                                          "get_project_by_id",
+                                                          "get_task_by_id",
+                                                          "list_task_comments_by_id",
+                                                          "update_task_status",
+                                                          "complete_task");
 
   private static final JsonMapper  MAPPER        = JsonMapper.builder().build();
 
   /**
-   * Exactly four task tools declare a space scope, each by the task they
-   * reach and the {@value TaskSpaceScopeResolver#NAME} resolver, well formed
-   * for what they are, a read or a write. A tool added, or one that stops
-   * declaring, fails here.
+   * Exactly six task tools declare a space scope, each well formed for what
+   * it is, a read or a write: the task tools by the task they reach and the
+   * {@value TaskSpaceScopeResolver#NAME} resolver, the project lookup by the
+   * project and the {@value ProjectSpaceScopeResolver#NAME} resolver, and the
+   * project list by its space. A tool added, or one that stops declaring,
+   * fails here, and every declared write keeps its approval.
    */
   @Test
   public void declaredToolsAreTheExpectedOnes() {
     Map<String, SimpleToolDefinition> declared = declaredTools();
 
-    assertEquals(Set.of("get_task_by_id", "list_task_comments_by_id", "update_task_status", "complete_task"), declared.keySet());
+    assertEquals(DECLARED, declared.keySet());
     declared.forEach((name, tool) -> {
-      boolean write = OBJECT_WRITES.contains(name);
+      boolean write = TASK_WRITES.contains(name);
       SpaceScopeDeclaration scope = tool.getSpaceScope();
       assertNotNull(name, tool.getAnnotations());
       assertEquals(name, !write, McpToolSpaceScopeService.isReadTool(tool));
       assertTrue(name, scope.isWellFormedFor(write));
-      assertTrue(name, scope.isObjectKind());
-      assertEquals(name, "task_id", scope.getObjectArg());
-      assertEquals(name, TaskSpaceScopeResolver.NAME, scope.getResolver());
       assertEquals(name, List.of(), scope.getFalseOnlyArgs() == null ? List.of() : scope.getFalseOnlyArgs());
+      if (write) {
+        assertTrue(name, tool.isRequireApproval());
+      }
     });
-    assertEquals(OBJECT_READS.size() + OBJECT_WRITES.size(), declared.size());
+    TASK_READS.forEach(name -> assertObjectKind(declared.get(name), "task_id", TaskSpaceScopeResolver.NAME));
+    TASK_WRITES.forEach(name -> assertObjectKind(declared.get(name), "task_id", TaskSpaceScopeResolver.NAME));
+    assertObjectKind(declared.get("get_project_by_id"), "project_id", ProjectSpaceScopeResolver.NAME);
   }
 
   /**
-   * The arguments a limited call may carry are schema properties: the
+   * The project list reads the call's space when it names none, takes its
+   * space only through {@code space_id}, and may carry its paging, nothing
+   * else.
+   * Mutant: {@code when_absent} dropped, so an absent space is refused; or
+   * the space argument renamed.
+   */
+  @Test
+  public void projectListUsesTheScopeSpaceWhenAbsent() {
+    SimpleToolDefinition tool = declaredTools().get("list_projects");
+    SpaceScopeDeclaration scope = tool.getSpaceScope();
+
+    assertTrue(scope.isSpaceKind());
+    assertEquals("space_id", scope.getSpaceArg());
+    assertTrue(scope.isUseScopeWhenAbsent());
+    assertEquals(List.of("offset", "limit"), allowed(tool));
+    JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
+    assertTrue(properties.has("space_id"));
+    allowed(tool).forEach(argument -> assertTrue(argument, properties.has(argument)));
+  }
+
+  /**
+   * The project lookup takes no argument beside the project, and the project
+   * is a schema property.
+   */
+  @Test
+  public void projectLookupTakesTheProjectOnly() {
+    SimpleToolDefinition tool = declaredTools().get("get_project_by_id");
+
+    assertEquals(List.of(), allowed(tool));
+    assertTrue(MAPPER.readTree(tool.getInputSchema()).path("properties").has("project_id"));
+  }
+
+  /**
+   * The arguments a limited task call may carry are schema properties: the
    * comments' paging, and the status of the status update. The only
    * reference-shaped one is that status, which {@code TaskMcpTool} accepts
    * only when it belongs to the project of the task, the one the resolver
@@ -92,12 +136,30 @@ public class TaskToolDefinitionSpaceScopeTest {
     assertEquals(List.of(), allowed(declared.get("complete_task")));
     assertEquals(List.of("offset", "limit"), allowed(declared.get("list_task_comments_by_id")));
     assertEquals(List.of("status_id"), allowed(declared.get("update_task_status")));
-    declared.forEach((name, tool) -> {
-      JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
-      allowed(tool).forEach(argument -> assertTrue(name + " takes " + argument, properties.has(argument)));
-      assertTrue(name, properties.has("task_id"));
-    });
+    TASK_READS.forEach(name -> assertTaskArgumentsAreProperties(declared.get(name)));
+    TASK_WRITES.forEach(name -> assertTaskArgumentsAreProperties(declared.get(name)));
     assertFalse(allowed(declared.get("get_task_by_id")).contains("status_id"));
+  }
+
+  /**
+   * @param tool a task tool declaring a space scope
+   */
+  private static void assertTaskArgumentsAreProperties(SimpleToolDefinition tool) {
+    JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
+    allowed(tool).forEach(argument -> assertTrue(tool.getName() + " takes " + argument, properties.has(argument)));
+    assertTrue(tool.getName(), properties.has("task_id"));
+  }
+
+  /**
+   * @param tool a tool declaring a space scope
+   * @param argument the argument that must hold the object id
+   * @param resolver the resolver that must tell the object's space
+   */
+  private static void assertObjectKind(SimpleToolDefinition tool, String argument, String resolver) {
+    SpaceScopeDeclaration scope = tool.getSpaceScope();
+    assertTrue(tool.getName(), scope.isObjectKind());
+    assertEquals(tool.getName(), argument, scope.getObjectArg());
+    assertEquals(tool.getName(), resolver, scope.getResolver());
   }
 
   /**
