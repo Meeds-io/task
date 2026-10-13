@@ -18,7 +18,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "space_arg": "space_id", "when_absent": "use_scope", "allowed_args": ["offset", "limit"] }
     },
     {
       "name": "get_project_by_id",
@@ -36,7 +37,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "project_id", "resolver": "project" }
     },
     {
       "name": "list_project_labels",
