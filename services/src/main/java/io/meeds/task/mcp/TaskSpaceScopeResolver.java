@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.social.core.space.model.Space;
@@ -47,6 +48,7 @@ import lombok.extern.slf4j.Slf4j;
  * considered. Read as the system, for the space scope decision only.
  */
 @Service("taskSpaceScopeResolver")
+@Profile("mcp-server")
 @Slf4j
 public class TaskSpaceScopeResolver implements SpaceScopeResolver {
 
@@ -103,7 +105,7 @@ public class TaskSpaceScopeResolver implements SpaceScopeResolver {
    *         else null: any manager that is a user, a group outside the
    *         spaces or a role of another group gives none
    */
-  private Long spaceOfProject(ProjectDto project) {
+  public Long spaceOfProject(ProjectDto project) {
     Set<String> groupIds = project.getManager() == null ? Set.of() :
                                                         project.getManager()
                                                                .stream()
