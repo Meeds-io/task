@@ -39,11 +39,12 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Tells which space a task belongs to, for the space scope of the task tools:
- * the space of its project, when the project's managers name exactly one
- * space group ({@code <role>:/spaces/<name>}). A personal task (no status or
- * no project), a project managed by users only, a project managed through
- * several spaces, a space that no longer exists and a missing task belong to
- * no space. Read as the system, for the space scope decision only.
+ * the space of its project, when every manager of the project is a role of
+ * one and the same space group ({@code <role>:/spaces/<name>}). A personal
+ * task (no status or no project), a project with any user manager, any group
+ * outside the spaces or a second space among its managers, a space that no
+ * longer exists and a missing task belong to no space. Participants are not
+ * considered. Read as the system, for the space scope decision only.
  */
 @Service("taskSpaceScopeResolver")
 @Slf4j
@@ -98,20 +99,24 @@ public class TaskSpaceScopeResolver implements SpaceScopeResolver {
 
   /**
    * @param project a task project
-   * @return the id of the space whose group its managers name, when they
-   *         name exactly one such group, else null
+   * @return the id of the space whose group all its managers are roles of,
+   *         else null: any manager that is a user, a group outside the
+   *         spaces or a role of another group gives none
    */
   private Long spaceOfProject(ProjectDto project) {
     Set<String> groupIds = project.getManager() == null ? Set.of() :
                                                         project.getManager()
                                                                .stream()
                                                                .map(TaskSpaceScopeResolver::groupIdOf)
-                                                               .filter(groupId -> groupId.startsWith(SPACES_PREFIX))
                                                                .collect(Collectors.toSet());
     if (groupIds.size() != 1) {
       return null;
     }
-    Space space = spaceService.getSpaceByGroupId(groupIds.iterator().next());
+    String groupId = groupIds.iterator().next();
+    if (!groupId.startsWith(SPACES_PREFIX)) {
+      return null;
+    }
+    Space space = spaceService.getSpaceByGroupId(groupId);
     return space != null && StringUtils.isNumeric(space.getId()) ? Long.valueOf(space.getId()) : null;
   }
 
