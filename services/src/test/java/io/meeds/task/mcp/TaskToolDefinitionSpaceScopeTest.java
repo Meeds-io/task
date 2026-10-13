@@ -52,6 +52,7 @@ public class TaskToolDefinitionSpaceScopeTest {
 
   private static final Set<String> DECLARED      = Set.of("list_projects",
                                                           "get_project_by_id",
+                                                          "create_task_in_project",
                                                           "get_task_by_id",
                                                           "list_task_comments_by_id",
                                                           "update_task_status",
@@ -60,7 +61,7 @@ public class TaskToolDefinitionSpaceScopeTest {
   private static final JsonMapper  MAPPER        = JsonMapper.builder().build();
 
   /**
-   * Exactly six task tools declare a space scope, each well formed for what
+   * Exactly seven task tools declare a space scope, each well formed for what
    * it is, a read or a write: the task tools by the task they reach and the
    * {@value TaskSpaceScopeResolver#NAME} resolver, the project lookup by the
    * project and the {@value ProjectSpaceScopeResolver#NAME} resolver, and the
@@ -73,7 +74,7 @@ public class TaskToolDefinitionSpaceScopeTest {
 
     assertEquals(DECLARED, declared.keySet());
     declared.forEach((name, tool) -> {
-      boolean write = TASK_WRITES.contains(name);
+      boolean write = TASK_WRITES.contains(name) || "create_task_in_project".equals(name);
       SpaceScopeDeclaration scope = tool.getSpaceScope();
       assertNotNull(name, tool.getAnnotations());
       assertEquals(name, !write, McpToolSpaceScopeService.isReadTool(tool));
@@ -86,6 +87,29 @@ public class TaskToolDefinitionSpaceScopeTest {
     TASK_READS.forEach(name -> assertObjectKind(declared.get(name), "task_id", TaskSpaceScopeResolver.NAME));
     TASK_WRITES.forEach(name -> assertObjectKind(declared.get(name), "task_id", TaskSpaceScopeResolver.NAME));
     assertObjectKind(declared.get("get_project_by_id"), "project_id", ProjectSpaceScopeResolver.NAME);
+    assertObjectKind(declared.get("create_task_in_project"), "project_id", ProjectSpaceScopeResolver.NAME);
+  }
+
+  /**
+   * A task is created in a project of the call's space only, with the
+   * arguments that stay inside it: its text, dates, priority and a status,
+   * which {@code TaskMcpTool} takes only from the project's own statuses.
+   * The assignee and the coworkers are arbitrary users, who could be outside
+   * the space, so they are not accepted.
+   * Mutant: the assignee or the coworkers are allowed, or the declaration is
+   * dropped.
+   */
+  @Test
+  public void taskCreationStaysInsideTheProject() {
+    SimpleToolDefinition tool = declaredTools().get("create_task_in_project");
+
+    assertTrue(tool.isRequireApproval());
+    assertEquals(List.of("title", "description", "start_date", "due_date", "priority", "status_id"), allowed(tool));
+    assertFalse(allowed(tool).contains("assignee"));
+    assertFalse(allowed(tool).contains("coworkers"));
+    JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
+    allowed(tool).forEach(argument -> assertTrue(argument, properties.has(argument)));
+    assertTrue(properties.has("project_id"));
   }
 
   /**
