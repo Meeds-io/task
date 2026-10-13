@@ -80,6 +80,7 @@ import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 import io.meeds.mcp.server.tool.model.UserModel;
+import io.meeds.mcp.server.model.ActingIdentity;
 import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.model.PermanentLinkObject;
 import io.meeds.portal.permlink.service.PermanentLinkService;
@@ -107,6 +108,9 @@ import lombok.SneakyThrows;
 @Service
 @Profile("mcp-server")
 public class TaskMcpTool implements McpToolPlugin {
+
+  /** How many projects a scan of the projects of a space reads at a time. */
+  static final int                      SPACE_SCAN_CHUNK                = 50;
 
   private static final int              MAX_TO_LOAD                     = 100;
 
@@ -195,13 +199,23 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Lists the task projects of the current user or, given a space, the
-   * projects of that space: those the current user holds a role of the space
-   * group for, and whose space is that space, as
-   * {@link TaskSpaceScopeResolver#spaceOfProject(ProjectDto)} tells it, so
-   * that the list never holds a project the space scope refuses to get. For a
+   * Lists the task projects of the current user or, given a space, those of
+   * that space the current user holds a role of the space group for. For a
    * user who isn't a member of the space, and for a space id that names no
    * space (missing or deleted), the list is empty.
+   * <p>
+   * In a run limited to a space (a space scope on the call), the list is
+   * narrowed to the projects the space scope accepts for that space, those
+   * {@link TaskSpaceScopeResolver#spaceOfProject(ProjectDto)} tells it
+   * for, so that the list never holds a project the space scope refuses to
+   * get. The selection is read in chunks of {@value #SPACE_SCAN_CHUNK}
+   * projects, in the order of the plain list, and stops as soon as one more
+   * project than the page asks for is kept: it reads at most the projects
+   * the user reaches, a chunk at a time, and no more than the page needs
+   * when the space has enough of them. The count is the number of projects of
+   * the space when the scan reached the end; when it stopped earlier, it is
+   * the number kept so far, which is more than the offset and the page, and
+   * means that more exist.
    *
    * @param spaceId the space whose projects are listed, null or not positive
    *          for the projects of the current user
@@ -219,8 +233,8 @@ public class TaskMcpTool implements McpToolPlugin {
     int usedLimit = getInteger(limit, DEFAULT_LIMIT);
     if (memberships.isEmpty() || spaceGiven && space == null) {
       return new ProjectCollectionModel(Collections.emptyList(), usedOffset, usedLimit, 0);
-    } else if (space != null) {
-      return listSpaceProjects(space, memberships, usedOffset, usedLimit);
+    } else if (space != null && isSpaceScoped()) {
+      return listSpaceProjects(space, memberships, Math.max(usedOffset, 0), Math.max(usedLimit, 0));
     }
     List<ProjectModel> projects = getProjectModels(memberships, offset, limit);
     long count = countProjects(memberships);
@@ -228,28 +242,51 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
+   * @return true when the current call is limited to a space; also true when
+   *         its identity can't be read, which a limited call must never be
+   *         taken for the opposite of
+   */
+  protected boolean isSpaceScoped() {
+    try {
+      ActingIdentity identity = McpToolUtils.getCurrentActingIdentity();
+      return identity != null && identity.spaceScope() != null;
+    } catch (IllegalStateException e) {
+      return true;
+    }
+  }
+
+  /**
    * @param space an existing space
    * @param memberships the roles of the space group the current user holds
-   * @param offset the first project returned
-   * @param limit the most projects returned
+   * @param offset the first project returned, not negative
+   * @param limit the most projects returned, not negative
    * @return the projects of that space among those the memberships reach,
-   *         paged after the selection, with the count of the selection
+   *         with the count described on
+   *         {@link #listProjects(Long, Integer, Integer)}
    */
   private ProjectCollectionModel listSpaceProjects(Space space, List<String> memberships, int offset, int limit) {
-    int reached = (int) Math.max(countProjects(memberships), 0);
-    List<ProjectDto> projects = reached == 0 ? Collections.emptyList() :
-                                               projectService.findProjects(memberships,
-                                                                           null,
-                                                                           new OrderBy.DESC("lastModifiedDate"),
-                                                                           0,
-                                                                           reached);
-    List<ProjectDto> ofSpace = projects == null ? Collections.emptyList() :
-                                                  projects.stream()
-                                                          .filter(project -> isProjectOfSpace(project, space))
-                                                          .toList();
+    int wanted = offset + limit + 1;
+    List<ProjectDto> ofSpace = new ArrayList<>();
+    int from = 0;
+    boolean finished = false;
+    while (!finished && ofSpace.size() < wanted) {
+      List<ProjectDto> chunk = projectService.findProjects(memberships,
+                                                           null,
+                                                           new OrderBy.DESC("lastModifiedDate"),
+                                                           from,
+                                                           SPACE_SCAN_CHUNK);
+      int read = chunk == null ? 0 : chunk.size();
+      finished = read < SPACE_SCAN_CHUNK;
+      from += read;
+      for (int i = 0; i < read && ofSpace.size() < wanted; i++) {
+        if (isProjectOfSpace(chunk.get(i), space)) {
+          ofSpace.add(chunk.get(i));
+        }
+      }
+    }
     List<ProjectModel> page = ofSpace.stream()
-                                     .skip(Math.max(offset, 0))
-                                     .limit(Math.max(limit, 0))
+                                     .skip(offset)
+                                     .limit(limit)
                                      .map(this::toProjectModel)
                                      .toList();
     return new ProjectCollectionModel(page, offset, limit, ofSpace.size());
