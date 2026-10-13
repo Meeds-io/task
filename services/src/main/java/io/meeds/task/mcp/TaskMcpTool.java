@@ -160,6 +160,8 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private final FavoriteService         favoriteService;
 
+  private final TaskSpaceScopeResolver  spaceScopeResolver;
+
   public TaskMcpTool(ProjectService projectService,
                      StatusService statusService,
                      TaskService taskService,
@@ -173,8 +175,10 @@ public class TaskMcpTool implements McpToolPlugin {
                      UserACL userAcl,
                      UserPortalConfigService portalConfigService,
                      PermanentLinkService permanentLinkService,
-                     FavoriteService favoriteService) {
+                     FavoriteService favoriteService,
+                     TaskSpaceScopeResolver spaceScopeResolver) {
     this.favoriteService = favoriteService;
+    this.spaceScopeResolver = spaceScopeResolver;
     this.projectService = projectService;
     this.statusService = statusService;
     this.taskService = taskService;
@@ -191,9 +195,12 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Lists the task projects of the current user or, given a space, those
-   * shared with that space's group, which the current user can reach only as
-   * a member of that space: for anyone else the list is empty.
+   * Lists the task projects of the current user or, given a space, the
+   * projects of that space: those the current user holds a role of the space
+   * group for, and whose space is that space, as
+   * {@link TaskSpaceScopeResolver#spaceOfProject(ProjectDto)} tells it, so
+   * that the list never holds a project the space scope refuses to get. For a
+   * user who isn't a member of the space the list is empty.
    *
    * @param spaceId the space whose projects are listed, null or unknown for
    *          the projects of the current user
@@ -204,19 +211,56 @@ public class TaskMcpTool implements McpToolPlugin {
   public ProjectCollectionModel listProjects(Long spaceId,
                                              Integer offset,
                                              Integer limit) {
-    List<String> memberships = getMemberships(spaceId);
+    Space space = spaceId != null && spaceId > 0 ? spaceService.getSpaceById(spaceId) : null;
+    List<String> memberships = getMemberships(space);
+    int usedOffset = getInteger(offset, DEFAULT_OFFSET);
+    int usedLimit = getInteger(limit, DEFAULT_LIMIT);
     if (memberships.isEmpty()) {
-      return new ProjectCollectionModel(Collections.emptyList(),
-                                        getInteger(offset, DEFAULT_OFFSET),
-                                        getInteger(limit, DEFAULT_LIMIT),
-                                        0);
+      return new ProjectCollectionModel(Collections.emptyList(), usedOffset, usedLimit, 0);
+    } else if (space != null) {
+      return listSpaceProjects(space, memberships, usedOffset, usedLimit);
     }
     List<ProjectModel> projects = getProjectModels(memberships, offset, limit);
     long count = countProjects(memberships);
-    return new ProjectCollectionModel(projects,
-                                      getInteger(offset, DEFAULT_OFFSET),
-                                      getInteger(limit, DEFAULT_LIMIT),
-                                      count);
+    return new ProjectCollectionModel(projects, usedOffset, usedLimit, count);
+  }
+
+  /**
+   * @param space an existing space
+   * @param memberships the roles of the space group the current user holds
+   * @param offset the first project returned
+   * @param limit the most projects returned
+   * @return the projects of that space among those the memberships reach,
+   *         paged after the selection, with the count of the selection
+   */
+  private ProjectCollectionModel listSpaceProjects(Space space, List<String> memberships, int offset, int limit) {
+    int reached = (int) Math.max(countProjects(memberships), 0);
+    List<ProjectDto> projects = reached == 0 ? Collections.emptyList() :
+                                               projectService.findProjects(memberships,
+                                                                           null,
+                                                                           new OrderBy.DESC("lastModifiedDate"),
+                                                                           0,
+                                                                           reached);
+    List<ProjectDto> ofSpace = projects == null ? Collections.emptyList() :
+                                                  projects.stream()
+                                                          .filter(project -> isProjectOfSpace(project, space))
+                                                          .toList();
+    List<ProjectModel> page = ofSpace.stream()
+                                     .skip(Math.max(offset, 0))
+                                     .limit(Math.max(limit, 0))
+                                     .map(this::toProjectModel)
+                                     .toList();
+    return new ProjectCollectionModel(page, offset, limit, ofSpace.size());
+  }
+
+  /**
+   * @param project a task project
+   * @param space a space
+   * @return true when the space scope would tell that space for the project
+   */
+  private boolean isProjectOfSpace(ProjectDto project, Space space) {
+    Long projectSpaceId = spaceScopeResolver.spaceOfProject(project);
+    return projectSpaceId != null && String.valueOf(projectSpaceId).equals(space.getId());
   }
 
   /**
@@ -1464,14 +1508,13 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * @param spaceId a space id, or null
+   * @param space an existing space, or null
    * @return the memberships whose projects are listed: those of the current
-   *         user, or, for an existing space, those of its group the current
-   *         user holds (none when the user isn't a member, which never means
-   *         "every project" to the query)
+   *         user, or, for a space, those of its group the current user holds
+   *         (none when the user isn't a member, which never means "every
+   *         project" to the query)
    */
-  private List<String> getMemberships(Long spaceId) {
-    Space space = spaceId != null && spaceId > 0 ? spaceService.getSpaceById(spaceId) : null;
+  private List<String> getMemberships(Space space) {
     List<String> userMemberships = UserUtil.getMemberships(getCurrentUserAclIdentity());
     if (space == null) {
       return userMemberships;
