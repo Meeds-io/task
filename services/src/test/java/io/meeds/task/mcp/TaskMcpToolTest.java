@@ -66,6 +66,7 @@ import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.model.Space;
@@ -1203,6 +1204,52 @@ public class TaskMcpToolTest {
     assertEquals(10, result.getUsedLimit());
     assertEquals(1L, result.getCount());
     verify(projectService).countProjects(any(), eq(null));
+  }
+
+  /**
+   * Given a space the user is a member of, only the projects shared with that
+   * space's group are listed: the query gets the user's roles of that group
+   * and nothing of the user's other memberships.
+   * Mutant: the space is ignored and the user's own memberships are used.
+   */
+  @Test
+  public void listProjectsOfASpaceTheUserIsMemberOfUsesThatSpaceGroupOnly() throws Exception { // NOSONAR
+    Space space = mock(Space.class);
+    when(space.getGroupId()).thenReturn("/spaces/test");
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(currentIdentity.getMemberships()).thenReturn(List.of(new MembershipEntry("/spaces/test", "member"),
+                                                              new MembershipEntry("/spaces/other", "manager")));
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    when(projectService.countProjects(any(), eq(null))).thenReturn(0);
+
+    runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+
+    ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
+    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(10));
+    assertEquals(List.of("member:/spaces/test"), memberships.getValue());
+  }
+
+  /**
+   * Given a space the user isn't a member of, the list is empty and the
+   * project service is not asked: an empty list of memberships would select
+   * every project.
+   * Mutant: the space memberships aren't intersected with the user's.
+   */
+  @Test
+  public void listProjectsOfASpaceTheUserIsNotMemberOfIsEmpty() throws Exception { // NOSONAR
+    Space space = mock(Space.class);
+    when(space.getGroupId()).thenReturn("/spaces/test");
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(currentIdentity.getMemberships()).thenReturn(List.of(new MembershipEntry("/spaces/other", "member")));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20));
+
+    assertEquals(0, result.getProjects().size());
+    assertEquals(0L, result.getCount());
+    assertEquals(5, result.getUsedOffset());
+    assertEquals(20, result.getUsedLimit());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).countProjects(any(), any());
   }
 
   @Test
