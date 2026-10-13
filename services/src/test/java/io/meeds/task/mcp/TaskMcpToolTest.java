@@ -175,6 +175,9 @@ public class TaskMcpToolTest {
   private FavoriteService         favoriteService;
 
   @Mock
+  private TaskSpaceScopeResolver  spaceScopeResolver;
+
+  @Mock
   private Identity                currentIdentity;
 
   private TaskMcpTool             tool;
@@ -667,7 +670,8 @@ public class TaskMcpToolTest {
                                                userAcl,
                                                portalConfigService,
                                                permanentLinkService,
-                                               favoriteService);
+                                               favoriteService,
+                                               spaceScopeResolver);
     ZoneId profileZone = ZoneId.systemDefault().equals(ZoneId.of("Pacific/Kiritimati")) ? ZoneId.of("Pacific/Pago_Pago")
                                                                                        : ZoneId.of("Pacific/Kiritimati");
     try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
@@ -1229,26 +1233,104 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * Given a space the user is a member of, only the projects shared with that
-   * space's group are listed: the query gets the user's roles of that group
-   * and nothing of the user's other memberships.
-   * Mutant: the space is ignored and the user's own memberships are used.
+   * Given a space the user is a member of, the query gets the user's roles of
+   * that space group and nothing of the user's other memberships, and only the
+   * projects the space scope resolver gives to that space are returned: the
+   * list and the project lookup agree. The count is that of the selection.
+   * Mutant: the space is ignored and the user's own memberships are used; or
+   * a project of another space or of none is kept.
    */
   @Test
-  public void listProjectsOfASpaceTheUserIsMemberOfUsesThatSpaceGroupOnly() throws Exception { // NOSONAR
+  public void listProjectsOfASpaceKeepsTheProjectsTheResolverGivesToIt() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    ProjectDto inSpace = listedProject(1L, 10L);
+    ProjectDto inOtherSpace = listedProject(2L, 11L);
+    ProjectDto inNoSpace = listedProject(3L, null);
+    ProjectDto inSpaceToo = listedProject(4L, 10L);
+    when(projectService.countProjects(any(), eq(null))).thenReturn(4);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(4))).thenReturn(List.of(inSpace,
+                                                                                               inOtherSpace,
+                                                                                               inNoSpace,
+                                                                                               inSpaceToo));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+
+    assertEquals(List.of(1L, 4L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
+    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(4));
+    assertEquals(List.of("member:/spaces/test"), memberships.getValue());
+  }
+
+  /**
+   * The page is cut from the projects of the space, after the selection.
+   * Mutant: the page is cut before the selection, or the offset is ignored.
+   */
+  @Test
+  public void listProjectsOfASpacePagesTheSelection() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    ProjectDto other = listedProject(2L, 11L);
+    ProjectDto first = listedProject(1L, 10L);
+    ProjectDto second = listedProject(3L, 10L);
+    ProjectDto third = listedProject(4L, 10L);
+    when(projectService.countProjects(any(), eq(null))).thenReturn(4);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(4))).thenReturn(List.of(other, first, second, third));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 1, 1));
+
+    assertEquals(List.of(3L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(3L, result.getCount());
+    assertEquals(1, result.getUsedOffset());
+    assertEquals(1, result.getUsedLimit());
+  }
+
+  /**
+   * A space none of whose reachable projects belong to it lists nothing, and
+   * a space the user reaches no project of doesn't ask for any.
+   */
+  @Test
+  public void listProjectsOfASpaceWithNoProjectOfItsOwnIsEmpty() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    ProjectDto other = listedProject(2L, 11L);
+    when(projectService.countProjects(any(), eq(null))).thenReturn(1);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(1))).thenReturn(List.of(other));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+    assertEquals(0, result.getProjects().size());
+    assertEquals(0L, result.getCount());
+
+    when(projectService.countProjects(any(), eq(null))).thenReturn(0);
+    result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+    assertEquals(0L, result.getCount());
+    verify(projectService, times(1)).findProjects(any(), any(), any(), anyInt(), anyInt());
+  }
+
+  /**
+   * Gives a space 10 whose group the user holds the member role of.
+   */
+  private void givenSpaceTheUserIsMemberOf() {
     Space space = mock(Space.class);
-    when(space.getGroupId()).thenReturn("/spaces/test");
+    lenient().when(space.getGroupId()).thenReturn("/spaces/test");
+    lenient().when(space.getId()).thenReturn("10");
     when(spaceService.getSpaceById(10L)).thenReturn(space);
     when(currentIdentity.getMemberships()).thenReturn(List.of(new MembershipEntry("/spaces/test", "member"),
                                                               new MembershipEntry("/spaces/other", "manager")));
-    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
-    when(projectService.countProjects(any(), eq(null))).thenReturn(0);
+  }
 
-    runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
-
-    ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
-    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(10));
-    assertEquals(List.of("member:/spaces/test"), memberships.getValue());
+  /**
+   * @param id a project id
+   * @param spaceId the space the resolver gives the project, or null
+   * @return a project the tool can render
+   */
+  private ProjectDto listedProject(long id, Long spaceId) throws Exception {
+    ProjectDto project = mock(ProjectDto.class);
+    lenient().when(project.getId()).thenReturn(id);
+    lenient().when(project.getName()).thenReturn(PROJECT_NAME);
+    lenient().when(project.getDescription()).thenReturn("");
+    lenient().when(project.getManager()).thenReturn(Collections.emptySet());
+    lenient().when(statusService.getStatuses(id)).thenReturn(Collections.emptyList());
+    lenient().when(labelService.findLabelsByProject(id, currentIdentity, 0, 100)).thenReturn(Collections.emptyList());
+    lenient().when(spaceScopeResolver.spaceOfProject(project)).thenReturn(spaceId);
+    return project;
   }
 
   /**
@@ -1417,7 +1499,8 @@ public class TaskMcpToolTest {
             userAcl,
             portalConfigService,
             permanentLinkService,
-            favoriteService);
+            favoriteService,
+            spaceScopeResolver);
     }
 
     @Override
