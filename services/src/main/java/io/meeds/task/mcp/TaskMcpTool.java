@@ -190,10 +190,27 @@ public class TaskMcpTool implements McpToolPlugin {
     this.permanentLinkService = permanentLinkService;
   }
 
+  /**
+   * Lists the task projects of the current user or, given a space, those
+   * shared with that space's group, which the current user can reach only as
+   * a member of that space: for anyone else the list is empty.
+   *
+   * @param spaceId the space whose projects are listed, null or unknown for
+   *          the projects of the current user
+   * @param offset the first project returned
+   * @param limit the most projects returned
+   * @return the projects, with their count
+   */
   public ProjectCollectionModel listProjects(Long spaceId,
                                              Integer offset,
                                              Integer limit) {
     List<String> memberships = getMemberships(spaceId);
+    if (memberships.isEmpty()) {
+      return new ProjectCollectionModel(Collections.emptyList(),
+                                        getInteger(offset, DEFAULT_OFFSET),
+                                        getInteger(limit, DEFAULT_LIMIT),
+                                        0);
+    }
     List<ProjectModel> projects = getProjectModels(memberships, offset, limit);
     long count = countProjects(memberships);
     return new ProjectCollectionModel(projects,
@@ -1446,15 +1463,23 @@ public class TaskMcpTool implements McpToolPlugin {
                                 getUserModel(comment.getAuthor()));
   }
 
+  /**
+   * @param spaceId a space id, or null
+   * @return the memberships whose projects are listed: those of the current
+   *         user, or, for an existing space, those of its group the current
+   *         user holds (none when the user isn't a member, which never means
+   *         "every project" to the query)
+   */
   private List<String> getMemberships(Long spaceId) {
     Space space = spaceId != null && spaceId > 0 ? spaceService.getSpaceById(spaceId) : null;
-    List<String> memberships;
+    List<String> userMemberships = UserUtil.getMemberships(getCurrentUserAclIdentity());
     if (space == null) {
-      memberships = UserUtil.getMemberships(getCurrentUserAclIdentity());
-    } else {
-      memberships = UserUtil.getSpaceMemberships(space.getGroupId());
+      return userMemberships;
     }
-    return memberships;
+    return UserUtil.getSpaceMemberships(space.getGroupId())
+                   .stream()
+                   .filter(userMemberships::contains)
+                   .toList();
   }
 
   private UserModel getUserModel(String username) {
