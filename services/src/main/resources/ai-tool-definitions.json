@@ -140,7 +140,7 @@
     {
       "name": "list_tasks",
       "title": "List Tasks",
-      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date, the most overdue first; an overdue task carries days_overdue. count is the total: while the tasks received so far are fewer than count, call again with offset set to that number.",
+      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date, the most overdue first; an overdue task carries days_overdue. count is the total: while the tasks received so far are fewer than count, call again with offset set to that number. In a run limited to a space, project_id is required and must be a project of that space, as list_projects returns them; to find a task by its title, list the tasks of each of those projects.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -157,7 +157,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["hide_completed_tasks", "include_change_log", "overdue_only", "offset", "limit"] }
     },
     {
       "name": "list_project_activity_since",
