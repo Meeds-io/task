@@ -722,7 +722,7 @@ public class TaskMcpToolTest {
     when(taskService.findTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null, null));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -744,7 +744,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(4);
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null);
 
     assertNull(findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -884,7 +884,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(0);
 
-    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null);
 
     assertEquals(0, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
@@ -1508,12 +1508,60 @@ public class TaskMcpToolTest {
                                                                 .thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null, null));
 
     assertEquals(1, result.getTasks().size());
     assertEquals(1L, result.getCount());
     verify(projectService, atLeastOnce()).getProject(PROJECT_ID);
     verify(taskService).findLastUpdatedTasks(any(), eq(0), eq(10));
+  }
+
+  /**
+   * A title narrows the tasks of the project: the query keeps the project
+   * condition and adds, beside it in the same conjunction, a title match on
+   * the trimmed, lower-cased title, which the store compares with the
+   * lower-cased task title. The count runs on that same query.
+   * Mutants: the title not passed to the query, passed with its case, or
+   * joined to the project by a disjunction.
+   */
+  @Test
+  public void listTasksNarrowsTheProjectByTitle() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(PROJECT_ID, false, false, null, null, null, "  Live Check 2 ");
+
+    List<Condition> conjunction = conjunction(query.getValue());
+    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
+    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.LIKE, "title", "%live check 2%")));
+    verify(taskService).countTasks(query.getValue());
+  }
+
+  /**
+   * Without a project, a title narrows the tasks the user can access: the
+   * accessibility disjunction and the title match are both members of the
+   * query's conjunction, so the title never widens what is listed. A blank
+   * title adds no condition.
+   * Mutants: the title added as an alternative to the accessibility, or a
+   * blank title matching every title.
+   */
+  @Test
+  public void listTasksNarrowsTheAccessibleTasksByTitle() throws Exception { // NOSONAR
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(null, false, false, null, null, null, "Live");
+    tool.listTasks(null, false, false, null, null, null, "  ");
+
+    List<Condition> withTitle = conjunction(query.getAllValues().get(0));
+    assertTrue(withTitle.stream()
+                        .anyMatch(c -> c instanceof AggregateCondition aggregate && AggregateCondition.OR.equals(aggregate.getType())));
+    assertTrue(withTitle.stream().anyMatch(c -> isSingle(c, SingleCondition.LIKE, "title", "%live%")));
+    List<Condition> blank = conjunction(query.getAllValues().get(1));
+    assertTrue(blank.stream().noneMatch(c -> c instanceof SingleCondition<?> single && SingleCondition.LIKE.equals(single.getType())));
   }
 
   @Test(expected = IllegalAccessException.class)
@@ -1523,14 +1571,14 @@ public class TaskMcpToolTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(false);
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null);
   }
 
   @Test(expected = ObjectNotFoundException.class)
   public void listTasksWithProjectWhenProjectServiceThrowsEntityNotFoundShouldThrowObjectNotFound() throws Exception { // NOSONAR
     when(projectService.getProject(PROJECT_ID)).thenThrow(new EntityNotFoundException(PROJECT_ID, ProjectDto.class));
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null);
   }
 
   @Test
@@ -1714,6 +1762,30 @@ public class TaskMcpToolTest {
       }
     }
     return false;
+  }
+
+  /**
+   * @param query a task query
+   * @return the members of its root conjunction
+   */
+  private static List<Condition> conjunction(TaskQuery query) {
+    AggregateCondition root = (AggregateCondition) query.getCondition();
+    assertEquals(AggregateCondition.AND, root.getType());
+    return root.getConditions();
+  }
+
+  /**
+   * @param condition a condition
+   * @param type the expected type
+   * @param field the expected field
+   * @param value the expected value
+   * @return whether it is a single condition of that type, field and value
+   */
+  private static boolean isSingle(Condition condition, String type, String field, Object value) {
+    return condition instanceof SingleCondition<?> single
+           && type.equals(single.getType())
+           && field.equals(single.getField())
+           && value.equals(single.getValue());
   }
 
   /**
