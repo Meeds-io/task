@@ -183,6 +183,50 @@ public class TestTaskDAO extends AbstractTest {
     Assert.assertEquals(1, ListUtil.load(tasks, 0, -1).length);
   }  
 
+  /**
+   * The title match the MCP task list builds: {@code TaskQuery#setTitle}
+   * compares the lower-cased task title with the value as given, so a
+   * lower-cased value matches whatever the title's case, a value with upper
+   * case matches nothing, and, beside a project condition, it only selects
+   * the tasks of that project.
+   */
+  @Test
+  public void testFindTaskByTitleWithinAProject() throws Exception {
+    Project alpha = new Project();
+    alpha.setName("Alpha");
+    alpha = daoHandler.getProjectHandler().create(alpha);
+    Project beta = new Project();
+    beta.setName("Beta");
+    beta = daoHandler.getProjectHandler().create(beta);
+    Status alphaStatus = newStatusInstance("To do", 1);
+    alphaStatus.setProject(alpha);
+    daoHandler.getStatusHandler().create(alphaStatus);
+    Status betaStatus = newStatusInstance("To do", 1);
+    betaStatus.setProject(beta);
+    daoHandler.getStatusHandler().create(betaStatus);
+    Task inAlpha = newTaskInstance("Live check 2", "", null);
+    inAlpha.setStatus(alphaStatus);
+    tDAO.create(inAlpha);
+    Task otherInAlpha = newTaskInstance("Release notes", "", null);
+    otherInAlpha.setStatus(alphaStatus);
+    tDAO.create(otherInAlpha);
+    Task inBeta = newTaskInstance("Live check 2", "", null);
+    inBeta.setStatus(betaStatus);
+    tDAO.create(inBeta);
+
+    TaskQuery query = new TaskQuery();
+    query.setProjectIds(Arrays.asList(alpha.getId()));
+    query.setTitle("live check");
+    Task[] found = ListUtil.load(tDAO.findTasks(query), 0, -1);
+    assertEquals(1, found.length);
+    assertEquals(inAlpha.getId(), found[0].getId());
+
+    query = new TaskQuery();
+    query.setProjectIds(Arrays.asList(alpha.getId()));
+    query.setTitle("Live check");
+    assertEquals(0, tDAO.findTasks(query).getSize());
+  }
+
   @Test
   public void testFindTaskOrderByDueDate() throws Exception {
     Calendar calendar = Calendar.getInstance();

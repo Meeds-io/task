@@ -208,7 +208,7 @@ public class TaskToolDefinitionSpaceScopeTest {
     SimpleToolDefinition tool = declaredTools().get("list_tasks");
 
     assertTrue(McpToolSpaceScopeService.isReadTool(tool));
-    assertEquals(List.of("hide_completed_tasks", "include_change_log", "overdue_only", "offset", "limit"), allowed(tool));
+    assertEquals(List.of("hide_completed_tasks", "include_change_log", "overdue_only", "offset", "limit", "title"), allowed(tool));
     JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
     assertTrue(properties.has("project_id"));
     allowed(tool).forEach(argument -> assertTrue(argument, properties.has(argument)));
@@ -219,11 +219,12 @@ public class TaskToolDefinitionSpaceScopeTest {
    * Through the real space scope check and the real
    * {@value ProjectSpaceScopeResolver#NAME} resolver, a run limited to space
    * 12 lists the tasks of a project managed through space 12, with its
-   * filters and paging; it can't list those of a project of space 13, of a
+   * filters, paging and title; it can't list those of a project of space 13, of a
    * project that doesn't exist, of a project id that isn't one (zero or
    * negative, which {@code TaskMcpTool#listTasks} would read as "every
    * accessible task"), or with no project at all; and an argument the
    * declaration doesn't accept is refused even beside a project of the space.
+   * A title alone, with no project, is refused like any call without one.
    * Mutants: the declaration dropped, its resolver renamed, its object
    * argument changed, or an argument added to the accepted ones.
    *
@@ -257,6 +258,8 @@ public class TaskToolDefinitionSpaceScopeTest {
     String inSpace = "{\"project_id\":7,\"hide_completed_tasks\":true,\"overdue_only\":false,"
         + "\"include_change_log\":false,\"offset\":0,\"limit\":20}";
     assertEquals(inSpace, service.enforce("list_tasks", tool, inSpace, read));
+    String byTitle = "{\"project_id\":7,\"title\":\"Live check 2\"}";
+    assertEquals(byTitle, service.enforce("list_tasks", tool, byTitle, read));
     String inSpaceAsString = "{\"project_id\":\"7\"}";
     assertEquals(inSpaceAsString, service.enforce("list_tasks", tool, inSpaceAsString, read));
     for (String outside : List.of("{\"project_id\":8}",
@@ -266,6 +269,8 @@ public class TaskToolDefinitionSpaceScopeTest {
                                   "{\"project_id\":\"07\"}",
                                   "{\"project_id\":null}",
                                   "{\"hide_completed_tasks\":true}",
+                                  "{\"title\":\"Live check 2\"}",
+                                  "{\"project_id\":8,\"title\":\"Live check 2\"}",
                                   "{}")) {
       assertThrows(outside, SpaceScopeRefusedException.class, () -> service.enforce("list_tasks", tool, outside, read));
     }
