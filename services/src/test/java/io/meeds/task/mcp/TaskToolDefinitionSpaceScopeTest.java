@@ -48,23 +48,28 @@ public class TaskToolDefinitionSpaceScopeTest {
 
   private static final Set<String> TASK_READS    = Set.of("get_task_by_id", "list_task_comments_by_id");
 
-  private static final Set<String> TASK_WRITES   = Set.of("update_task_status", "complete_task");
+  private static final Set<String> TASK_WRITES   = Set.of("update_task_status",
+                                                          "update_task_description",
+                                                          "complete_task");
 
   private static final Set<String> DECLARED      = Set.of("list_projects",
                                                           "get_project_by_id",
+                                                          "list_project_statuses",
                                                           "create_task_in_project",
                                                           "get_task_by_id",
                                                           "list_task_comments_by_id",
                                                           "update_task_status",
+                                                          "update_task_description",
                                                           "complete_task");
 
   private static final JsonMapper  MAPPER        = JsonMapper.builder().build();
 
   /**
-   * Exactly seven task tools declare a space scope, each well formed for what
+   * Exactly nine task tools declare a space scope, each well formed for what
    * it is, a read or a write: the task tools by the task they reach and the
-   * {@value TaskSpaceScopeResolver#NAME} resolver, the project lookup by the
-   * project and the {@value ProjectSpaceScopeResolver#NAME} resolver, and the
+   * {@value TaskSpaceScopeResolver#NAME} resolver, the project lookup and the
+   * project's statuses by the project and the
+   * {@value ProjectSpaceScopeResolver#NAME} resolver, and the
    * project list by its space. A tool added, or one that stops declaring,
    * fails here, and every declared write keeps its approval.
    */
@@ -87,6 +92,7 @@ public class TaskToolDefinitionSpaceScopeTest {
     TASK_READS.forEach(name -> assertObjectKind(declared.get(name), "task_id", TaskSpaceScopeResolver.NAME));
     TASK_WRITES.forEach(name -> assertObjectKind(declared.get(name), "task_id", TaskSpaceScopeResolver.NAME));
     assertObjectKind(declared.get("get_project_by_id"), "project_id", ProjectSpaceScopeResolver.NAME);
+    assertObjectKind(declared.get("list_project_statuses"), "project_id", ProjectSpaceScopeResolver.NAME);
     assertObjectKind(declared.get("create_task_in_project"), "project_id", ProjectSpaceScopeResolver.NAME);
   }
 
@@ -135,20 +141,23 @@ public class TaskToolDefinitionSpaceScopeTest {
   }
 
   /**
-   * The project lookup takes no argument beside the project, and the project
-   * is a schema property.
+   * The project lookup and the project's statuses take no argument beside the
+   * project, and the project is a schema property.
    */
   @Test
   public void projectLookupTakesTheProjectOnly() {
-    SimpleToolDefinition tool = declaredTools().get("get_project_by_id");
+    for (String name : List.of("get_project_by_id", "list_project_statuses")) {
+      SimpleToolDefinition tool = declaredTools().get(name);
 
-    assertEquals(List.of(), allowed(tool));
-    assertTrue(MAPPER.readTree(tool.getInputSchema()).path("properties").has("project_id"));
+      assertEquals(name, List.of(), allowed(tool));
+      assertTrue(name, MAPPER.readTree(tool.getInputSchema()).path("properties").has("project_id"));
+    }
   }
 
   /**
    * The arguments a limited task call may carry are schema properties: the
-   * comments' paging, and the status of the status update. The only
+   * comments' paging, the status of the status update, and the new text of
+   * the description update. The only
    * reference-shaped one is that status, which {@code TaskMcpTool} accepts
    * only when it belongs to the project of the task, the one the resolver
    * reads the space of.
@@ -161,6 +170,7 @@ public class TaskToolDefinitionSpaceScopeTest {
     assertEquals(List.of(), allowed(declared.get("complete_task")));
     assertEquals(List.of("offset", "limit"), allowed(declared.get("list_task_comments_by_id")));
     assertEquals(List.of("status_id"), allowed(declared.get("update_task_status")));
+    assertEquals(List.of("description"), allowed(declared.get("update_task_description")));
     TASK_READS.forEach(name -> assertTaskArgumentsAreProperties(declared.get(name)));
     TASK_WRITES.forEach(name -> assertTaskArgumentsAreProperties(declared.get(name)));
     assertFalse(allowed(declared.get("get_task_by_id")).contains("status_id"));
