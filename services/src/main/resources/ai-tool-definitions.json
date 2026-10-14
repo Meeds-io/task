@@ -74,7 +74,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "project_id", "resolver": "project" }
     },
     {
       "name": "create_project_label",
@@ -455,6 +456,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["description"] },
       "require_approval": true
     },
     {
