@@ -353,7 +353,10 @@ public class TaskMcpTool implements McpToolPlugin {
    * user can access, personal tasks included; with {@code overdueOnly}, only
    * the open tasks whose due date is before today in the user's time zone
    * (EXO-91122). Each open task past its due date carries its days overdue.
-   * The count is the count of the tasks the same filters select.
+   * With {@code title}, only the tasks whose title contains it, ignoring
+   * case, among those the other filters select: the title narrows the
+   * project, or the accessible tasks, and never widens them. The count is the
+   * count of the tasks the same filters select.
    *
    * @param projectId the project, null for every accessible task
    * @param hideCompletedTasks whether the completed tasks are left out
@@ -361,6 +364,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param overdueOnly whether only the overdue tasks are listed
    * @param offset the first task returned
    * @param limit the most tasks returned
+   * @param title a part of the title of the tasks listed, blank for any
    * @return the tasks, with their count
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
@@ -370,13 +374,18 @@ public class TaskMcpTool implements McpToolPlugin {
                                        Boolean includeChangeLog,
                                        Boolean overdueOnly,
                                        Integer offset,
-                                       Integer limit) throws IllegalAccessException, ObjectNotFoundException {
+                                       Integer limit,
+                                       String title) throws IllegalAccessException, ObjectNotFoundException {
     ZoneId zone = getCurrentUserZone();
     LocalDate today = getToday(zone);
     TaskQuery taskQuery = getTaskQuery(projectId,
                                        Boolean.TRUE.equals(hideCompletedTasks),
                                        Boolean.TRUE.equals(overdueOnly),
                                        zone);
+    if (StringUtils.isNotBlank(title)) {
+      // TaskQuery#setTitle compares the lower-cased title with the value as given
+      taskQuery.setTitle(title.trim().toLowerCase(Locale.ROOT));
+    }
     List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ?
                                                            findOverdueTasks(taskQuery,
                                                                             getInteger(offset, DEFAULT_OFFSET),
