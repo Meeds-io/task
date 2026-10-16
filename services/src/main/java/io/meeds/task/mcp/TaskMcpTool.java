@@ -30,6 +30,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -40,6 +41,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.function.Supplier;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -120,6 +122,9 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private static final String           MSG_NOT_SCOPE_SPACE_MEMBER      =
                                                               "User '%s' isn't a member of the space this call is limited to";
+
+  private static final String           MSG_SCOPE_UNREADABLE            =
+                                                              "The space this call is limited to can't be read, so it can't name a user";
 
   private static final String           MSG_TASK_NOT_ACCESSIBLE         =
                                                                 "Task with identifier '%s' is not accessible for user '%s'";
@@ -273,30 +278,42 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Checks a person named by a call limited to a space, as an assignee, a
-   * coworker or a mention, is a member of that space. The space scope reads
-   * the space of the task only; a people argument is checked here, since a project's participants may include
-   * people outside its space, and the task's access rule alone would let a
-   * call limited to the space reach them. A call that isn't limited is not
-   * checked; one whose identity can't be read is refused.
+   * Checks the people a call limited to a space names, as an assignee, a
+   * coworker or the mentions of a comment, are members of that space. The
+   * space scope reads the space of the task only; people are checked here,
+   * since a project's participants may include people outside its space, and
+   * the task's access rule alone would let a call limited to the space reach
+   * them. The scope is read once, the people only for a limited call, and the
+   * space only when they name someone. A call that isn't limited is not checked;
+   * one whose identity can't be read is refused when it names anyone.
    *
-   * @param username the person's login
-   * @throws IllegalAccessException when the call is limited to a space the
-   *           person isn't a member of, or its identity can't be read
+   * @param people the logins the call names, read only when it is limited
+   * @throws IllegalAccessException when the call is limited to a space one of
+   *           them isn't a member of, or its identity can't be read and it
+   *           names someone
    */
-  private void checkScopeSpaceMember(String username) throws IllegalAccessException {
+  private void checkScopeSpaceMembers(Supplier<Collection<String>> people) throws IllegalAccessException {
     Long spaceId;
     try {
       spaceId = getScopeSpaceId();
     } catch (IllegalStateException e) {
-      throw new IllegalAccessException(MSG_NOT_SCOPE_SPACE_MEMBER.formatted(username));
+      if (people.get().isEmpty()) {
+        return;
+      }
+      throw new IllegalAccessException(MSG_SCOPE_UNREADABLE);
     }
     if (spaceId == null) {
       return;
     }
+    Collection<String> usernames = people.get();
+    if (usernames.isEmpty()) {
+      return;
+    }
     Space space = spaceService.getSpaceById(spaceId);
-    if (space == null || !spaceService.isMember(space, username)) {
-      throw new IllegalAccessException(MSG_NOT_SCOPE_SPACE_MEMBER.formatted(username));
+    for (String username : usernames) {
+      if (space == null || !spaceService.isMember(space, username)) {
+        throw new IllegalAccessException(MSG_NOT_SCOPE_SPACE_MEMBER.formatted(username));
+      }
     }
   }
 
@@ -646,9 +663,7 @@ public class TaskMcpTool implements McpToolPlugin {
       throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId,
                                                                          getCurrentUserName()));
     }
-    for (String mentioned : MentionUtils.getMentionedUsernames(text)) {
-      checkScopeSpaceMember(mentioned);
-    }
+    checkScopeSpaceMembers(() -> MentionUtils.getMentionedUsernames(text));
     CommentDto taskComment = commentService.addComment(task, getCurrentUserName(), text);
     return toTaskCommentModel(taskComment, taskId, getUrl(task));
   }
@@ -712,7 +727,8 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), username)) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
     }
-    checkScopeSpaceMember(username);
+    String person = username;
+    checkScopeSpaceMembers(() -> List.of(person));
     task.setAssignee(username);
     task = taskService.updateTask(task);
     return toTaskModel(task);
@@ -747,7 +763,8 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), username)) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
     }
-    checkScopeSpaceMember(username);
+    String person = username;
+    checkScopeSpaceMembers(() -> List.of(person));
     if (CollectionUtils.isEmpty(task.getCoworker())) {
       task.setCoworker(Collections.singleton(username));
     } else {
