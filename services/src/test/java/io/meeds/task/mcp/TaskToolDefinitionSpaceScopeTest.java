@@ -74,7 +74,9 @@ public class TaskToolDefinitionSpaceScopeTest {
                                                           "update_task_title",
                                                           "set_task_dates",
                                                           "set_task_priority",
-                                                          "reopen_task");
+                                                          "reopen_task",
+                                                          "add_project_label_to_task",
+                                                          "remove_project_label_from_task");
 
   private static final Set<String> DECLARED      = Set.of("list_projects",
                                                           "get_project_by_id",
@@ -90,12 +92,14 @@ public class TaskToolDefinitionSpaceScopeTest {
                                                           "update_task_title",
                                                           "set_task_dates",
                                                           "set_task_priority",
-                                                          "reopen_task");
+                                                          "reopen_task",
+                                                          "add_project_label_to_task",
+                                                          "remove_project_label_from_task");
 
   private static final JsonMapper  MAPPER        = JsonMapper.builder().build();
 
   /**
-   * Exactly fifteen task tools declare a space scope, each well formed for what
+   * Exactly seventeen task tools declare a space scope, each well formed for what
    * it is, a read or a write: the task tools by the task they reach and the
    * {@value TaskSpaceScopeResolver#NAME} resolver, the project lookup, the
    * project's tasks and the project's statuses by the project and the
@@ -189,10 +193,10 @@ public class TaskToolDefinitionSpaceScopeTest {
    * The arguments a limited task call may carry are schema properties: the
    * comments' paging, the status of the status update, the new text of the
    * description update, a comment's text, a new title, the start and due
-   * dates and the priority; reopening a task takes nothing else. The only
-   * reference-shaped one is that status, which {@code TaskMcpTool} accepts
-   * only when it belongs to the project of the task, the one the resolver
-   * reads the space of.
+   * dates, the priority and a label; reopening a task takes nothing else.
+   * The only reference-shaped ones are that status and that label, which
+   * {@code TaskMcpTool} accepts only when they belong to the project of the
+   * task, the one the resolver reads the space of.
    */
   @Test
   public void acceptedArgumentsAreTheExpectedSchemaProperties() {
@@ -208,6 +212,8 @@ public class TaskToolDefinitionSpaceScopeTest {
     assertEquals(List.of("start_date", "due_date"), allowed(declared.get("set_task_dates")));
     assertEquals(List.of("priority"), allowed(declared.get("set_task_priority")));
     assertEquals(List.of(), allowed(declared.get("reopen_task")));
+    assertEquals(List.of("label_id"), allowed(declared.get("add_project_label_to_task")));
+    assertEquals(List.of("label_id"), allowed(declared.get("remove_project_label_from_task")));
     TASK_READS.forEach(name -> assertTaskArgumentsAreProperties(declared.get(name)));
     TASK_WRITES.forEach(name -> assertTaskArgumentsAreProperties(declared.get(name)));
     assertFalse(allowed(declared.get("get_task_by_id")).contains("status_id"));
@@ -343,7 +349,9 @@ public class TaskToolDefinitionSpaceScopeTest {
                                            "update_task_title", ",\"title\":\"Renewals\"",
                                            "set_task_dates", ",\"start_date\":\"2026-10-20\",\"due_date\":\"2026-10-23\"",
                                            "set_task_priority", ",\"priority\":\"HIGH\"",
-                                           "reopen_task", "");
+                                           "reopen_task", "",
+                                           "add_project_label_to_task", ",\"label_id\":99",
+                                           "remove_project_label_from_task", ",\"label_id\":99");
 
     arguments.forEach((name, rest) -> {
       SimpleToolDefinition tool = declared.get(name);
