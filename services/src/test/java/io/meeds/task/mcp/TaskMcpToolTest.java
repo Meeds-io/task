@@ -1489,9 +1489,12 @@ public class TaskMcpToolTest {
   /**
    * In a call limited to a space, a comment that mentions a user who isn't a
    * member of that space is refused, since each mention is notified; one
-   * that mentions members only, or no one, is added. A call that isn't
-   * limited may mention anyone, as before.
-   * Mutants: the mention check removed, or applied to the first mention only.
+   * that mentions members only, or no one, is added, the space being loaded
+   * once per comment, not per mention. A call that isn't limited may mention
+   * anyone, as before. When the call's identity can't be read, a comment that
+   * mentions someone is refused, and one that mentions no one is added.
+   * Mutants: the mention check removed, applied to the first mention only,
+   * or refusing a comment without mentions when the identity can't be read.
    *
    * @throws Exception never
    */
@@ -1524,6 +1527,12 @@ public class TaskMcpToolTest {
     currentScopeSpaceId = null;
     runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mentionsAnOutsider));
     verify(commentService).addComment(task, USER, mentionsAnOutsider);
+    verify(spaceService, times(2)).getSpaceById(12L);
+
+    scopeUnreadable = true;
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskComment(TASK_ID, mentionsAMember));
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, COMMENT));
+    verify(commentService, times(2)).addComment(task, USER, COMMENT);
   }
 
   @Test
