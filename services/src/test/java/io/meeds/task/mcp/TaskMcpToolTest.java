@@ -181,6 +181,10 @@ public class TaskMcpToolTest {
 
   private boolean                 currentSpaceScoped;
 
+  private Long                    currentScopeSpaceId;
+
+  private boolean                 scopeUnreadable;
+
   @Mock
   private Identity                currentIdentity;
 
@@ -260,6 +264,57 @@ public class TaskMcpToolTest {
 
     verify(task).setAssignee("john");
     verify(taskService).updateTask(task);
+  }
+
+  /**
+   * In a call limited to a space, a task is assigned to, or gets as a
+   * coworker, a member of that space only: a person who can access the task
+   * through the project's participants but isn't a member is refused, and so
+   * is anyone when the call's identity can't be read. A call that isn't
+   * limited keeps the task's access rule alone.
+   * Mutants: the membership check removed, applied to one tool only, run on
+   * an unlimited call, or an unreadable identity taken as unlimited.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void peopleOfACallLimitedToASpaceAreMembersOfIt() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    Identity johnIdentity = mock(Identity.class);
+    Space space = mock(Space.class);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
+    lenient().when(taskService.updateTask(task)).thenReturn(task);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+
+    currentScopeSpaceId = 12L;
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, never()).updateTask(any());
+
+    currentScopeSpaceId = 13L;
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+
+    currentScopeSpaceId = null;
+    scopeUnreadable = true;
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, never()).updateTask(any());
+
+    scopeUnreadable = false;
+    currentScopeSpaceId = 12L;
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, times(2)).updateTask(task);
+
+    currentScopeSpaceId = null;
+    lenient().when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    verify(taskService, times(3)).updateTask(task);
   }
 
   @Test
@@ -1490,6 +1545,46 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * The space a call is limited to is the one its acting identity carries,
+   * none for an identity without a scope or no identity, and an identity that
+   * can't be read fails the read rather than passing for an unlimited call.
+   * Runs the real {@code getScopeSpaceId}, which the other tests stub.
+   * Mutants: the scope not read, or the read failure swallowed.
+   */
+  @Test
+  public void theScopeSpaceIsTheOneTheActingIdentityCarries() {// NOSONAR
+    TaskMcpTool realTool = new TaskMcpTool(projectService,
+                                           statusService,
+                                           taskService,
+                                           commentService,
+                                           labelService,
+                                           spaceService,
+                                           translationService,
+                                           resourceBundleService,
+                                           identityManager,
+                                           profilePropertyService,
+                                           userAcl,
+                                           portalConfigService,
+                                           permanentLinkService,
+                                           favoriteService,
+                                           spaceScopeResolver);
+    ActingIdentity limited = mock(ActingIdentity.class);
+    when(limited.spaceScope()).thenReturn(7L);
+    ActingIdentity unlimited = mock(ActingIdentity.class);
+    when(unlimited.spaceScope()).thenReturn(null);
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(limited);
+      assertEquals(Long.valueOf(7L), realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(unlimited);
+      assertNull(realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(null);
+      assertNull(realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenThrow(new IllegalStateException("refused"));
+      assertThrows(IllegalStateException.class, realTool::getScopeSpaceId);
+    }
+  }
+
+  /**
    * Gives a space 10 whose group the user holds the member role of.
    */
   private void givenSpaceTheUserIsMemberOf() {
@@ -1755,6 +1850,14 @@ public class TaskMcpToolTest {
     @Override
     protected boolean isSpaceScoped() {
       return currentSpaceScoped;
+    }
+
+    @Override
+    protected Long getScopeSpaceId() {
+      if (scopeUnreadable) {
+        throw new IllegalStateException("No acting identity");
+      }
+      return currentScopeSpaceId;
     }
 
     @Override
