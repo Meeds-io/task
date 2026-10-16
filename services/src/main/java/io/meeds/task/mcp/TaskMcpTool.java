@@ -721,6 +721,17 @@ public class TaskMcpTool implements McpToolPlugin {
     return new ProjectLabel(label.getId(), label.getName());
   }
 
+  /**
+   * Adds one of the labels of the task's project to the task.
+   *
+   * @param taskId the task, which the current user can access
+   * @param labelId a label of the task's project; for a task in no project,
+   *          any existing label
+   * @throws IllegalAccessException when the current user can't access the
+   *           task
+   * @throws ObjectNotFoundException when the task doesn't exist, or the label
+   *           doesn't exist or belongs to another project than the task's
+   */
   @SneakyThrows
   public void addProjectLabelToTask(Long taskId, Long labelId) throws IllegalAccessException, ObjectNotFoundException {
     TaskDto task = getTask(taskId);
@@ -729,14 +740,21 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
       throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
     }
-    LabelDto label = labelService.getLabel(labelId);
-    if (label == null) {
-      throwMissingLabel(labelId,
-                        getProjectId(task));
-    }
+    checkTaskLabel(task, labelId);
     labelService.addTaskToLabel(task, labelId);
   }
 
+  /**
+   * Removes one of the labels of the task's project from the task.
+   *
+   * @param taskId the task, which the current user can access
+   * @param labelId a label of the task's project; for a task in no project,
+   *          any existing label
+   * @throws IllegalAccessException when the current user can't access the
+   *           task
+   * @throws ObjectNotFoundException when the task doesn't exist, or the label
+   *           doesn't exist or belongs to another project than the task's
+   */
   @SneakyThrows
   public void removeProjectLabelFromTask(Long taskId, Long labelId) throws IllegalAccessException, ObjectNotFoundException {
     TaskDto task = getTask(taskId);
@@ -745,11 +763,7 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
       throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
     }
-    LabelDto label = labelService.getLabel(labelId);
-    if (label == null) {
-      throwMissingLabel(labelId,
-                        getProjectId(task));
-    }
+    checkTaskLabel(task, labelId);
     labelService.removeTaskFromLabel(task, labelId);
   }
 
@@ -1689,6 +1703,27 @@ public class TaskMcpTool implements McpToolPlugin {
       return task.getStatus()
                  .getProject()
                  .getId();
+    }
+  }
+
+  /**
+   * Checks a label can be put on or taken off a task: it exists and, when the
+   * task is in a project, it is one of that project's labels. The label is
+   * the only argument of a label change beside the task, so in a call limited
+   * to the space of the task's project it can't reach a label of another
+   * project, of another space.
+   *
+   * @param task the task
+   * @param labelId the label
+   * @throws ObjectNotFoundException when the label doesn't exist or belongs
+   *           to another project than the task's, with the project's labels
+   */
+  private void checkTaskLabel(TaskDto task, Long labelId) throws ObjectNotFoundException {
+    long projectId = getProjectId(task);
+    LabelDto label = labelService.getLabel(labelId);
+    if (label == null
+        || (projectId > 0 && (label.getProject() == null || label.getProject().getId() != projectId))) {
+      throwMissingLabel(labelId, projectId);
     }
   }
 
