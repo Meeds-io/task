@@ -21,7 +21,7 @@
         v-if="showTabs"
         v-model="tab"
         slider-size="4"
-        class="tasksMenuParent application-background-color application-border application-border-radius-top">
+        class="tasksMenuParent application-background-color application-background-image application-border application-border-radius-top">
         <v-tab href="#tab-2" @click="getMyProjects()">
           {{ $t('label.projects') }}
         </v-tab>
@@ -32,7 +32,7 @@
       <v-tabs-items
         v-model="tab"
         :class="showTabs && 'application-border-radius-bottom' || 'application-border-radius'"
-        class="application-background-color application-border">
+        class="application-background-color application-background-image application-border">
         <v-tab-item value="tab-1">
           <tasks-dashboard />
         </v-tab-item>
