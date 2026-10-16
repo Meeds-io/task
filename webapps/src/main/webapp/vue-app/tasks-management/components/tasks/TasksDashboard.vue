@@ -496,15 +496,20 @@ export default {
           this.groupBy = localStorageSavedFilter.groupBy;
           this.orderBy = localStorageSavedFilter.orderBy;
         } else {
-          this.getFilterProject().then(() => {
-            const jsonToSave = {
-              groupBy: this.groupBy,
-              orderBy: this.orderBy,
-              projectId: 'None',
-              tabView: 'list',
-              showCompletedTasks: false,
-            };
-            localStorage.setItem('filterStorageNone+list', JSON.stringify(jsonToSave));
+          this.getFilterProject().then(filterRead => {
+            if (primaryFilter !== this.primaryFilter) {
+              return;
+            }
+            if (filterRead) {
+              const jsonToSave = {
+                groupBy: this.groupBy,
+                orderBy: this.orderBy,
+                projectId: 'None',
+                tabView: 'list',
+                showCompletedTasks: false,
+              };
+              localStorage.setItem('filterStorageNone+list', JSON.stringify(jsonToSave));
+            }
             this.filterTasks.projectId=-2;
             this.searchTasks();
           });
@@ -581,17 +586,22 @@ export default {
         uiIconMiniArrowRight.style.display = 'none';}
     },
     getFilterProject(){
+      const primaryFilter = this.primaryFilter;
       return this.$projectService.getFilterSettings('None','list').then((resp) =>{
-        if (resp && resp.value){
-          const StorageSaveFilter = resp.value;
-          if (StorageSaveFilter.split('"')[11] === 'None') {
-            this.groupBy = StorageSaveFilter.split('"')[3];
-            this.orderBy = StorageSaveFilter.split('"')[7];
-          }
-        } else {
-          this.groupBy = 'none';
-          this.orderBy = '';
+        if (primaryFilter !== this.primaryFilter) {
+          return false;
         }
+        this.groupBy = resp && resp.groupBy || 'none';
+        this.orderBy = resp && resp.orderBy || '';
+        return !!resp;
+      }).catch(e => {
+        console.error('Error reading the tasks filter', e);
+        if (primaryFilter !== this.primaryFilter) {
+          return false;
+        }
+        this.groupBy = 'none';
+        this.orderBy = '';
+        return false;
       });
     },
     updateTasksList() {
