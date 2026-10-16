@@ -596,11 +596,10 @@ export default {
         return !!resp;
       }).catch(e => {
         console.error('Error reading the tasks filter', e);
-        if (primaryFilter !== this.primaryFilter) {
-          return false;
+        if (primaryFilter === this.primaryFilter) {
+          this.groupBy = 'none';
+          this.orderBy = '';
         }
-        this.groupBy = 'none';
-        this.orderBy = '';
         return false;
       });
     },

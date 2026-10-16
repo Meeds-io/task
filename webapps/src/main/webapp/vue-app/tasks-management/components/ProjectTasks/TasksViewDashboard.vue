@@ -625,11 +625,10 @@ export default {
         return !!resp;
       }).catch(e => {
         console.error('Error reading the tasks filter', e);
-        if (ProjectId !== this.project.id || currentTab !== this.taskViewTabName) {
-          return false;
+        if (ProjectId === this.project.id && currentTab === this.taskViewTabName) {
+          this.tasksFilter.groupBy = 'none';
+          this.tasksFilter.orderBy = '';
         }
-        this.tasksFilter.groupBy = 'none';
-        this.tasksFilter.orderBy = '';
         return false;
       });
     },
