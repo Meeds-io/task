@@ -412,14 +412,18 @@ export default {
             // request, else a reload shows the filter as set while listing every task.
             favorite: !!projectFilter.favorite,
           };
+          this.showCompletedTasks = this.tasksFilter.showCompletedTasks;
           return this.getFilter(this.tasksFilter, ProjectId);
         }
       } else {
-        this.getFilterProject(ProjectId, currentTab).then(() => {
+        this.getFilterProject(ProjectId, currentTab).then(filterRead => {
+          if (ProjectId !== this.project.id || currentTab !== this.taskViewTabName) {
+            return;
+          }
           this.tasksFilter = {
             query: query,
-            groupBy: '',
-            orderBy: '',
+            groupBy: this.tasksFilter.groupBy,
+            orderBy: this.tasksFilter.orderBy,
             offset: 0,
             limit: 0,
             showCompletedTasks: false,
@@ -429,15 +433,18 @@ export default {
           if (this.tasksFilter.groupBy === 'completed') {
             this.tasksFilter.showCompletedTasks = true;
           }
-          const jsonToSave = {
-            groupBy: this.tasksFilter.groupBy,
-            orderBy: this.tasksFilter.orderBy,
-            projectId: ProjectId,
-            tabView: (this.taskViewTabName !== '' ? this.taskViewTabName : 'list'),
-            showCompletedTasks: this.showCompletedTasks,
-            favorite: false,
-          };
-          localStorage.setItem(`filterStorage${ProjectId}+${jsonToSave.tabView}`, JSON.stringify(jsonToSave));
+          this.showCompletedTasks = this.tasksFilter.showCompletedTasks;
+          if (filterRead) {
+            const jsonToSave = {
+              groupBy: this.tasksFilter.groupBy,
+              orderBy: this.tasksFilter.orderBy,
+              projectId: ProjectId,
+              tabView: currentTab,
+              showCompletedTasks: this.tasksFilter.showCompletedTasks,
+              favorite: false,
+            };
+            localStorage.setItem(`filterStorage${ProjectId}+${currentTab}`, JSON.stringify(jsonToSave));
+          }
           return this.getFilter(this.tasksFilter, ProjectId);
         });
       }
@@ -610,16 +617,19 @@ export default {
     },
     getFilterProject(ProjectId, currentTab) {
       return this.$projectService.getFilterSettings(ProjectId, currentTab).then((resp) => {
-        if (resp && resp.value) {
-          const StorageSaveFilter = resp.value;
-          if (StorageSaveFilter.split('"')[10].split('}')[0].split(':')[1].split(',')[0] === ProjectId.toString()) {
-            this.tasksFilter.groupBy = StorageSaveFilter.split('"')[3].trim();
-            this.tasksFilter.orderBy = StorageSaveFilter.split('"')[7].trim();
-          }
-        } else {
+        if (ProjectId !== this.project.id || currentTab !== this.taskViewTabName) {
+          return false;
+        }
+        this.tasksFilter.groupBy = resp && resp.groupBy || 'none';
+        this.tasksFilter.orderBy = resp && resp.orderBy || '';
+        return !!resp;
+      }).catch(e => {
+        console.error('Error reading the tasks filter', e);
+        if (ProjectId === this.project.id && currentTab === this.taskViewTabName) {
           this.tasksFilter.groupBy = 'none';
           this.tasksFilter.orderBy = '';
         }
+        return false;
       });
     },
     openTaskDrawer() {

@@ -479,6 +479,9 @@ export default {
             localStorage.setItem('filterStorageNone+list', JSON.stringify(value));
           }
         }
+      }).catch(e => {
+        console.error('Error saving the tasks filter', e);
+        this.$root.$emit('show-alert', {type: 'error', message: this.$t('alert.error')});
       });
     },
     statusFilterLabel(item) {
