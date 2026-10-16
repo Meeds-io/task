@@ -279,7 +279,8 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Checks the people a call limited to a space names, as an assignee, a
-   * coworker or the mentions of a comment, are members of that space. The
+   * coworker or the mentions of a comment, are members or super managers of
+   * that space, the people the platform's space rules count in. The
    * space scope reads the space of the task only; people are checked here,
    * since a project's participants may include people outside its space, and
    * the task's access rule alone would let a call limited to the space reach
@@ -289,8 +290,8 @@ public class TaskMcpTool implements McpToolPlugin {
    *
    * @param people the logins the call names, read only when it is limited
    * @throws IllegalAccessException when the call is limited to a space one of
-   *           them isn't a member of, or its identity can't be read and it
-   *           names someone
+   *           them is neither a member nor a super manager of, or its identity
+   *           can't be read and it names someone
    */
   private void checkScopeSpaceMembers(Supplier<Collection<String>> people) throws IllegalAccessException {
     Long spaceId;
@@ -311,7 +312,7 @@ public class TaskMcpTool implements McpToolPlugin {
     }
     Space space = spaceService.getSpaceById(spaceId);
     for (String username : usernames) {
-      if (space == null || !spaceService.isMember(space, username)) {
+      if (space == null || !(spaceService.isMember(space, username) || spaceService.isSuperManager(space, username))) {
         throw new IllegalAccessException(MSG_NOT_SCOPE_SPACE_MEMBER.formatted(username));
       }
     }
@@ -644,7 +645,7 @@ public class TaskMcpTool implements McpToolPlugin {
   /**
    * Comments on a task the current user can access. Every user the text
    * mentions is notified, so in a call limited to a space each one must be a
-   * member of that space.
+   * member or a super manager of that space.
    *
    * @param taskId the task
    * @param text the comment, which may mention users
@@ -652,7 +653,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * @throws ObjectNotFoundException when the task doesn't exist
    * @throws IllegalAccessException when the current user can't access the
    *           task, or, in a call limited to a space, the text mentions a user
-   *           who isn't a member of it
+   *           who is neither a member nor a super manager of it
    */
   @SneakyThrows
   public TaskCommentModel addTaskComment(long taskId, String text) throws ObjectNotFoundException, IllegalAccessException {
@@ -700,7 +701,7 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Assigns a task to a user who can access it; in a call limited to a space,
-   * the user must also be a member of that space.
+   * the user must also be a member or a super manager of that space.
    *
    * @param taskId the task, which the current user can access
    * @param username the assignee's login, with or without a leading {@code @}
@@ -708,7 +709,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * @throws ObjectNotFoundException when the task or the user doesn't exist
    * @throws IllegalAccessException when the current user or the assignee
    *           can't access the task, or, in a call limited to a space, the
-   *           assignee isn't a member of it
+   *           assignee is neither a member nor a super manager of it
    */
   public TaskModel assignTask(long taskId, String username) throws ObjectNotFoundException, IllegalAccessException {
     if (StringUtils.isBlank(username)) {
@@ -736,7 +737,7 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Adds a coworker who can access the task; in a call limited to a space,
-   * the coworker must also be a member of that space.
+   * the coworker must also be a member or a super manager of that space.
    *
    * @param taskId the task, which the current user can access
    * @param username the coworker's login, with or without a leading {@code @}
@@ -744,7 +745,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * @throws ObjectNotFoundException when the task or the user doesn't exist
    * @throws IllegalAccessException when the current user or the coworker
    *           can't access the task, or, in a call limited to a space, the
-   *           coworker isn't a member of it
+   *           coworker is neither a member nor a super manager of it
    */
   public TaskModel addTaskCoworker(long taskId, String username) throws ObjectNotFoundException, IllegalAccessException {
     if (StringUtils.isBlank(username)) {
