@@ -530,6 +530,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["username"] },
       "require_approval": true
     },
     {
@@ -553,6 +554,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["username"] },
       "require_approval": true
     },
     {
