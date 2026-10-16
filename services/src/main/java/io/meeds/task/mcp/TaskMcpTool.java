@@ -58,6 +58,7 @@ import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.social.core.utils.MentionUtils;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.OrderBy;
@@ -272,9 +273,9 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Checks a person named by a call limited to a space is a member of that
-   * space. The space scope reads the space of the task only; a people
-   * argument is checked here, since a project's participants may include
+   * Checks a person named by a call limited to a space, as an assignee, a
+   * coworker or a mention, is a member of that space. The space scope reads
+   * the space of the task only; a people argument is checked here, since a project's participants may include
    * people outside its space, and the task's access rule alone would let a
    * call limited to the space reach them. A call that isn't limited is not
    * checked; one whose identity can't be read is refused.
@@ -623,6 +624,19 @@ public class TaskMcpTool implements McpToolPlugin {
     return toTaskModel(task);
   }
 
+  /**
+   * Comments on a task the current user can access. Every user the text
+   * mentions is notified, so in a call limited to a space each one must be a
+   * member of that space.
+   *
+   * @param taskId the task
+   * @param text the comment, which may mention users
+   * @return the comment
+   * @throws ObjectNotFoundException when the task doesn't exist
+   * @throws IllegalAccessException when the current user can't access the
+   *           task, or, in a call limited to a space, the text mentions a user
+   *           who isn't a member of it
+   */
   @SneakyThrows
   public TaskCommentModel addTaskComment(long taskId, String text) throws ObjectNotFoundException, IllegalAccessException {
     TaskDto task = getTask(taskId);
@@ -631,6 +645,9 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
       throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId,
                                                                          getCurrentUserName()));
+    }
+    for (String mentioned : MentionUtils.getMentionedUsernames(text)) {
+      checkScopeSpaceMember(mentioned);
     }
     CommentDto taskComment = commentService.addComment(task, getCurrentUserName(), text);
     return toTaskCommentModel(taskComment, taskId, getUrl(task));
