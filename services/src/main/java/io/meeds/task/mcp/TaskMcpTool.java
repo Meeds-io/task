@@ -117,6 +117,9 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           MSG_TASK_NOT_EDITABLE           =
                                                               "Task with identifier '%s' is not editable for user '%s'";
 
+  private static final String           MSG_NOT_SCOPE_SPACE_MEMBER      =
+                                                              "User '%s' isn't a member of the space this call is limited to";
+
   private static final String           MSG_TASK_NOT_ACCESSIBLE         =
                                                                 "Task with identifier '%s' is not accessible for user '%s'";
 
@@ -257,6 +260,43 @@ public class TaskMcpTool implements McpToolPlugin {
     List<ProjectModel> projects = getProjectModels(memberships, offset, limit);
     long count = countProjects(memberships);
     return new ProjectCollectionModel(projects, usedOffset, usedLimit, count);
+  }
+
+  /**
+   * @return the space the current call is limited to, null when it isn't
+   * @throws IllegalStateException when the call's identity can't be read
+   */
+  protected Long getScopeSpaceId() {
+    ActingIdentity identity = McpToolUtils.getCurrentActingIdentity();
+    return identity == null ? null : identity.spaceScope();
+  }
+
+  /**
+   * Checks a person named by a call limited to a space is a member of that
+   * space. The space scope reads the space of the task only; a people
+   * argument is checked here, since a project's participants may include
+   * people outside its space, and the task's access rule alone would let a
+   * call limited to the space reach them. A call that isn't limited is not
+   * checked; one whose identity can't be read is refused.
+   *
+   * @param username the person's login
+   * @throws IllegalAccessException when the call is limited to a space the
+   *           person isn't a member of, or its identity can't be read
+   */
+  private void checkScopeSpaceMember(String username) throws IllegalAccessException {
+    Long spaceId;
+    try {
+      spaceId = getScopeSpaceId();
+    } catch (IllegalStateException e) {
+      throw new IllegalAccessException(MSG_NOT_SCOPE_SPACE_MEMBER.formatted(username));
+    }
+    if (spaceId == null) {
+      return;
+    }
+    Space space = spaceService.getSpaceById(spaceId);
+    if (space == null || !spaceService.isMember(space, username)) {
+      throw new IllegalAccessException(MSG_NOT_SCOPE_SPACE_MEMBER.formatted(username));
+    }
   }
 
   /**
@@ -626,6 +666,18 @@ public class TaskMcpTool implements McpToolPlugin {
     return assignTask(taskId, getCurrentUserName());
   }
 
+  /**
+   * Assigns a task to a user who can access it; in a call limited to a space,
+   * the user must also be a member of that space.
+   *
+   * @param taskId the task, which the current user can access
+   * @param username the assignee's login, with or without a leading {@code @}
+   * @return the updated task
+   * @throws ObjectNotFoundException when the task or the user doesn't exist
+   * @throws IllegalAccessException when the current user or the assignee
+   *           can't access the task, or, in a call limited to a space, the
+   *           assignee isn't a member of it
+   */
   public TaskModel assignTask(long taskId, String username) throws ObjectNotFoundException, IllegalAccessException {
     if (StringUtils.isBlank(username)) {
       throw new IllegalArgumentException("Parameter 'username' is mandatory");
@@ -643,11 +695,24 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), username)) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
     }
+    checkScopeSpaceMember(username);
     task.setAssignee(username);
     task = taskService.updateTask(task);
     return toTaskModel(task);
   }
 
+  /**
+   * Adds a coworker who can access the task; in a call limited to a space,
+   * the coworker must also be a member of that space.
+   *
+   * @param taskId the task, which the current user can access
+   * @param username the coworker's login, with or without a leading {@code @}
+   * @return the updated task
+   * @throws ObjectNotFoundException when the task or the user doesn't exist
+   * @throws IllegalAccessException when the current user or the coworker
+   *           can't access the task, or, in a call limited to a space, the
+   *           coworker isn't a member of it
+   */
   public TaskModel addTaskCoworker(long taskId, String username) throws ObjectNotFoundException, IllegalAccessException {
     if (StringUtils.isBlank(username)) {
       throw new IllegalArgumentException("Parameter 'username' is mandatory");
@@ -665,6 +730,7 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), username)) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
     }
+    checkScopeSpaceMember(username);
     if (CollectionUtils.isEmpty(task.getCoworker())) {
       task.setCoworker(Collections.singleton(username));
     } else {
