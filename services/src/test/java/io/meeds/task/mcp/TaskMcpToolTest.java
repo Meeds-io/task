@@ -380,6 +380,54 @@ public class TaskMcpToolTest {
     tool.addProjectLabelToTask(TASK_ID, 99L);
   }
 
+  /**
+   * A label of the task's project is put on and taken off the task.
+   * Mutant: the project comparison inverted.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void labelOfTheTaskProjectIsPutOnAndTakenOffTheTask() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    LabelDto label = projectLabel(PROJECT_ID);
+    when(labelService.getLabel(99L)).thenReturn(label);
+
+    tool.addProjectLabelToTask(TASK_ID, 99L);
+    tool.removeProjectLabelFromTask(TASK_ID, 99L);
+
+    verify(labelService).addTaskToLabel(task, 99L);
+    verify(labelService).removeTaskFromLabel(task, 99L);
+  }
+
+  /**
+   * A label of another project, or a label in no project, is neither put on
+   * nor taken off a task of a project: in a call limited to the space of the
+   * task's project, the label is the only argument beside the task, and it
+   * must not reach a project of another space.
+   * Mutants: the check removed, or applied to the add or the remove only.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void labelOfAnotherProjectIsRefusedOnATaskOfAProject() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    LabelDto otherProjectLabel = projectLabel(PROJECT_ID + 1);
+    LabelDto noProjectLabel = mock(LabelDto.class);
+    when(labelService.getLabel(98L)).thenReturn(otherProjectLabel);
+    when(labelService.getLabel(97L)).thenReturn(noProjectLabel);
+
+    for (long labelId : new long[] { 98L, 97L }) {
+      assertThrows(ObjectNotFoundException.class, () -> tool.addProjectLabelToTask(TASK_ID, labelId));
+      assertThrows(ObjectNotFoundException.class, () -> tool.removeProjectLabelFromTask(TASK_ID, labelId));
+    }
+    verify(labelService, never()).addTaskToLabel(any(), anyLong());
+    verify(labelService, never()).removeTaskFromLabel(any(), anyLong());
+  }
+
   @Test
   public void listTaskLabelsShouldReturnAssignedLabels() throws Exception {// NOSONAR
     TaskDto task = mock(TaskDto.class);
@@ -1131,7 +1179,7 @@ public class TaskMcpToolTest {
   @Test
   public void removeProjectLabelFromTaskShouldDelegateToLabelService() throws Exception {// NOSONAR
     TaskDto task = mockTaskWithProject();
-    LabelDto label = mock(LabelDto.class);
+    LabelDto label = projectLabel(PROJECT_ID);
 
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
@@ -1601,6 +1649,18 @@ public class TaskMcpToolTest {
 
     assertEquals(1, result.getLastUpdatedTasks().size());
     assertEquals(1, result.getOtherUncompletedTasks().size());
+  }
+
+  /**
+   * @param projectId a project id
+   * @return a label of that project
+   */
+  private LabelDto projectLabel(long projectId) {
+    LabelDto label = mock(LabelDto.class);
+    ProjectDto project = mock(ProjectDto.class);
+    lenient().when(project.getId()).thenReturn(projectId);
+    lenient().when(label.getProject()).thenReturn(project);
+    return label;
   }
 
   @SneakyThrows
