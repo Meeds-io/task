@@ -115,6 +115,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["label_id"] },
       "require_approval": true
     },
     {
@@ -135,6 +136,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["label_id"] },
       "require_approval": true
     },
     {
