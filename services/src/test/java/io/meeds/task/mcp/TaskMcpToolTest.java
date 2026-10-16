@@ -1209,6 +1209,46 @@ public class TaskMcpToolTest {
     verify(commentService).addComment(task, USER, COMMENT);
   }
 
+  /**
+   * In a call limited to a space, a comment that mentions a user who isn't a
+   * member of that space is refused, since each mention is notified; one
+   * that mentions members only, or no one, is added. A call that isn't
+   * limited may mention anyone, as before.
+   * Mutants: the mention check removed, or applied to the first mention only.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCommentOfACallLimitedToASpaceMentionsItsMembersOnly() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    CommentDto comment = mock(CommentDto.class);
+    Space space = mock(Space.class);
+    String mentionsAMember = "Please check @mary";
+    String mentionsAnOutsider = "Please check @mary and @" + OTHER_USER;
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(commentService.addComment(eq(task), eq(USER), anyString())).thenReturn(comment);
+    when(comment.getId()).thenReturn(22L);
+    when(comment.getComment()).thenReturn(COMMENT);
+    when(comment.getCreatedTime()).thenReturn(new Date());
+    when(comment.getAuthor()).thenReturn(USER);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+    when(spaceService.isMember(space, "mary")).thenReturn(true);
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+
+    currentScopeSpaceId = 12L;
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskComment(TASK_ID, mentionsAnOutsider));
+    verify(commentService, never()).addComment(any(), any(), any());
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mentionsAMember));
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, COMMENT));
+    verify(commentService).addComment(task, USER, mentionsAMember);
+    verify(commentService).addComment(task, USER, COMMENT);
+
+    currentScopeSpaceId = null;
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mentionsAnOutsider));
+    verify(commentService).addComment(task, USER, mentionsAnOutsider);
+  }
+
   @Test
   public void listTaskCommentsByIdShouldReturnFlattenedComments() throws Exception {// NOSONAR
     TaskDto task = mockTask();
