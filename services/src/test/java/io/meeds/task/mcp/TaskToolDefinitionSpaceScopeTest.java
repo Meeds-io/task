@@ -318,11 +318,12 @@ public class TaskToolDefinitionSpaceScopeTest {
   /**
    * Through the real space scope check and the real
    * {@value TaskSpaceScopeResolver#NAME} resolver, an approved proposal of a
-   * run limited to space 12 comments on, renames, dates, prioritises and
-   * reopens a task of a project managed through space 12, with the arguments
-   * each tool accepts; the same call on a task of a project of space 13, on a
+   * run limited to space 12 comments on, renames, dates, prioritises,
+   * reopens, labels, unlabels, assigns a task of a project managed through
+   * space 12, or adds a coworker to it, with the arguments each tool accepts; the same call on a task of a project of space 13, on a
    * personal task or on a task that doesn't exist is refused, and so is any
-   * argument a declaration doesn't accept, such as an assignee. A write the
+   * argument a declaration doesn't accept, such as a username, or an assignee
+   * for the tools that take a username. A write the
    * run makes itself, not as an approved proposal, is refused too.
    * Mutants: a declaration dropped, its resolver renamed, its object argument
    * changed, or an argument added to the accepted ones.
@@ -365,6 +366,7 @@ public class TaskToolDefinitionSpaceScopeTest {
 
     arguments.forEach((name, rest) -> {
       SimpleToolDefinition tool = declared.get(name);
+      String unaccepted = rest.contains("username") ? "\"assignee\":\"mary\"" : "\"username\":\"mary\"";
       String inSpace = "{\"task_id\":5" + rest + "}";
       assertEquals(name, inSpace, service.enforce(name, tool, inSpace, proposal));
       assertThrows(name, SpaceScopeRefusedException.class, () -> service.enforce(name, tool, inSpace, run));
@@ -372,7 +374,7 @@ public class TaskToolDefinitionSpaceScopeTest {
                                     "{\"task_id\":4" + rest + "}",
                                     "{\"task_id\":9" + rest + "}",
                                     "{\"task_id\":0" + rest + "}",
-                                    "{\"task_id\":5" + rest + ",\"username\":\"mary\"}",
+                                    "{\"task_id\":5" + rest + "," + unaccepted + "}",
                                     "{\"task_id\":5" + rest + ",\"project_id\":7}")) {
         assertThrows(name + " " + outside,
                      SpaceScopeRefusedException.class,
