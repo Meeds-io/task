@@ -409,6 +409,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["text"] },
       "require_approval": true
     },
     {
@@ -433,6 +434,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["title"] },
       "require_approval": true
     },
     {
@@ -576,6 +578,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["start_date", "due_date"] },
       "require_approval": true
     },
     {
@@ -615,6 +618,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task" },
       "require_approval": true
     },
     {
@@ -639,6 +643,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["priority"] },
       "require_approval": true
     },
     {
