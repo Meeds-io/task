@@ -317,6 +317,45 @@ public class TaskMcpToolTest {
     verify(taskService, times(3)).updateTask(task);
   }
 
+  /**
+   * In a call limited to a space, a super manager of that space counts as one
+   * of its people, as for the platform's space rules: the task is assigned to
+   * them, they are added as a coworker and a comment may mention them,
+   * though they aren't a member.
+   * Mutant: the super-manager clause removed.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aSuperManagerOfTheScopeSpaceCountsAsOneOfItsPeople() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    Identity johnIdentity = mock(Identity.class);
+    Space space = mock(Space.class);
+    CommentDto comment = mock(CommentDto.class);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+    when(spaceService.isSuperManager(space, OTHER_USER)).thenReturn(true);
+    String mention = "Please check @" + OTHER_USER;
+    when(commentService.addComment(task, USER, mention)).thenReturn(comment);
+    when(comment.getId()).thenReturn(22L);
+    when(comment.getComment()).thenReturn(mention);
+    when(comment.getCreatedTime()).thenReturn(new Date());
+    when(comment.getAuthor()).thenReturn(USER);
+
+    currentScopeSpaceId = 12L;
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mention));
+
+    verify(taskService, times(2)).updateTask(task);
+    verify(commentService).addComment(task, USER, mention);
+  }
+
   @Test
   public void assignTaskToMeShouldAssignCurrentUser() throws Exception {// NOSONAR
     TaskDto task = mockTask();
