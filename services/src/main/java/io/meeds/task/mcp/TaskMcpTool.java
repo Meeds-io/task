@@ -80,6 +80,7 @@ import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 import io.meeds.mcp.server.tool.model.UserModel;
+import io.meeds.mcp.server.model.ActingIdentity;
 import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.model.PermanentLinkObject;
 import io.meeds.portal.permlink.service.PermanentLinkService;
@@ -107,6 +108,9 @@ import lombok.SneakyThrows;
 @Service
 @Profile("mcp-server")
 public class TaskMcpTool implements McpToolPlugin {
+
+  /** How many projects a scan of the projects of a space reads at a time. */
+  static final int                      SPACE_SCAN_CHUNK                = 50;
 
   private static final int              MAX_TO_LOAD                     = 100;
 
@@ -160,6 +164,26 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private final FavoriteService         favoriteService;
 
+  private final TaskSpaceScopeResolver  spaceScopeResolver;
+
+  /**
+   * @param projectService reads and lists the projects
+   * @param statusService reads and creates the statuses of a project
+   * @param taskService reads and creates the tasks
+   * @param commentService reads and writes the comments of a task
+   * @param labelService reads and writes the labels of a project
+   * @param spaceService reads the spaces
+   * @param translationService translates the labels given back to the model
+   * @param resourceBundleService reads the resource bundles
+   * @param identityManager reads the identities of the users
+   * @param profilePropertyService reads the profile properties of the users
+   * @param userAcl checks the permissions of the current user
+   * @param portalConfigService reads the portal configuration
+   * @param permanentLinkService builds the permanent links of the objects
+   * @param favoriteService reads and writes the favorites
+   * @param spaceScopeResolver tells the space of a project, for a run limited
+   *          to a space
+   */
   public TaskMcpTool(ProjectService projectService,
                      StatusService statusService,
                      TaskService taskService,
@@ -173,8 +197,10 @@ public class TaskMcpTool implements McpToolPlugin {
                      UserACL userAcl,
                      UserPortalConfigService portalConfigService,
                      PermanentLinkService permanentLinkService,
-                     FavoriteService favoriteService) {
+                     FavoriteService favoriteService,
+                     TaskSpaceScopeResolver spaceScopeResolver) {
     this.favoriteService = favoriteService;
+    this.spaceScopeResolver = spaceScopeResolver;
     this.projectService = projectService;
     this.statusService = statusService;
     this.taskService = taskService;
@@ -190,16 +216,108 @@ public class TaskMcpTool implements McpToolPlugin {
     this.permanentLinkService = permanentLinkService;
   }
 
+  /**
+   * Lists the task projects of the current user or, given a space, those of
+   * that space the current user holds a role of the space group for. For a
+   * user who isn't a member of the space, and for a space id that names no
+   * space (missing or deleted), the list is empty.
+   * <p>
+   * In a run limited to a space (a space scope on the call), the list is
+   * narrowed to the projects the space scope accepts for that space, those
+   * {@link TaskSpaceScopeResolver#spaceOfProject(ProjectDto)} tells it
+   * for, so that the list never holds a project the space scope refuses to
+   * get. The selection is read in chunks of {@value #SPACE_SCAN_CHUNK}
+   * projects, in the order of the plain list, and stops as soon as one more
+   * project than the page asks for is kept: it reads at most the projects
+   * the user reaches, a chunk at a time, and no more than the page needs
+   * when the space has enough of them. The count is the number of projects of
+   * the space when the scan reached the end; when it stopped earlier, it is
+   * the number kept so far, which is more than the offset and the page, and
+   * means that more exist.
+   *
+   * @param spaceId the space whose projects are listed, null or not positive
+   *          for the projects of the current user
+   * @param offset the first project returned
+   * @param limit the most projects returned
+   * @return the projects, with their count
+   */
   public ProjectCollectionModel listProjects(Long spaceId,
                                              Integer offset,
                                              Integer limit) {
-    List<String> memberships = getMemberships(spaceId);
+    boolean spaceGiven = spaceId != null && spaceId > 0;
+    Space space = spaceGiven ? spaceService.getSpaceById(spaceId) : null;
+    List<String> memberships = getMemberships(space);
+    int usedOffset = getInteger(offset, DEFAULT_OFFSET);
+    int usedLimit = getInteger(limit, DEFAULT_LIMIT);
+    if (memberships.isEmpty() || spaceGiven && space == null) {
+      return new ProjectCollectionModel(Collections.emptyList(), usedOffset, usedLimit, 0);
+    } else if (space != null && isSpaceScoped()) {
+      return listSpaceProjects(space, memberships, Math.max(usedOffset, 0), Math.max(usedLimit, 0));
+    }
     List<ProjectModel> projects = getProjectModels(memberships, offset, limit);
     long count = countProjects(memberships);
-    return new ProjectCollectionModel(projects,
-                                      getInteger(offset, DEFAULT_OFFSET),
-                                      getInteger(limit, DEFAULT_LIMIT),
-                                      count);
+    return new ProjectCollectionModel(projects, usedOffset, usedLimit, count);
+  }
+
+  /**
+   * @return true when the current call is limited to a space; also true when
+   *         its identity can't be read, which a limited call must never be
+   *         taken for the opposite of
+   */
+  protected boolean isSpaceScoped() {
+    try {
+      ActingIdentity identity = McpToolUtils.getCurrentActingIdentity();
+      return identity != null && identity.spaceScope() != null;
+    } catch (IllegalStateException e) {
+      return true;
+    }
+  }
+
+  /**
+   * @param space an existing space
+   * @param memberships the roles of the space group the current user holds
+   * @param offset the first project returned, not negative
+   * @param limit the most projects returned, not negative
+   * @return the projects of that space among those the memberships reach,
+   *         with the count described on
+   *         {@link #listProjects(Long, Integer, Integer)}
+   */
+  private ProjectCollectionModel listSpaceProjects(Space space, List<String> memberships, int offset, int limit) {
+    int wanted = offset + limit + 1;
+    List<ProjectDto> ofSpace = new ArrayList<>();
+    int from = 0;
+    boolean finished = false;
+    while (!finished && ofSpace.size() < wanted) {
+      List<ProjectDto> chunk = projectService.findProjects(memberships,
+                                                           null,
+                                                           new OrderBy.DESC("lastModifiedDate"),
+                                                           from,
+                                                           SPACE_SCAN_CHUNK);
+      int read = chunk == null ? 0 : chunk.size();
+      finished = read < SPACE_SCAN_CHUNK;
+      from += read;
+      for (int i = 0; i < read && ofSpace.size() < wanted; i++) {
+        if (isProjectOfSpace(chunk.get(i), space)) {
+          ofSpace.add(chunk.get(i));
+        }
+      }
+    }
+    List<ProjectModel> page = ofSpace.stream()
+                                     .skip(offset)
+                                     .limit(limit)
+                                     .map(this::toProjectModel)
+                                     .toList();
+    return new ProjectCollectionModel(page, offset, limit, ofSpace.size());
+  }
+
+  /**
+   * @param project a task project
+   * @param space a space
+   * @return true when the space scope would tell that space for the project
+   */
+  private boolean isProjectOfSpace(ProjectDto project, Space space) {
+    Long projectSpaceId = spaceScopeResolver.spaceOfProject(project);
+    return projectSpaceId != null && String.valueOf(projectSpaceId).equals(space.getId());
   }
 
   /**
@@ -235,7 +353,10 @@ public class TaskMcpTool implements McpToolPlugin {
    * user can access, personal tasks included; with {@code overdueOnly}, only
    * the open tasks whose due date is before today in the user's time zone
    * (EXO-91122). Each open task past its due date carries its days overdue.
-   * The count is the count of the tasks the same filters select.
+   * With {@code title}, only the tasks whose title contains it, ignoring
+   * case, among those the other filters select: the title narrows the
+   * project, or the accessible tasks, and never widens them. The count is the
+   * count of the tasks the same filters select.
    *
    * @param projectId the project, null for every accessible task
    * @param hideCompletedTasks whether the completed tasks are left out
@@ -243,6 +364,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param overdueOnly whether only the overdue tasks are listed
    * @param offset the first task returned
    * @param limit the most tasks returned
+   * @param title a part of the title of the tasks listed, blank for any
    * @return the tasks, with their count
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
@@ -252,13 +374,18 @@ public class TaskMcpTool implements McpToolPlugin {
                                        Boolean includeChangeLog,
                                        Boolean overdueOnly,
                                        Integer offset,
-                                       Integer limit) throws IllegalAccessException, ObjectNotFoundException {
+                                       Integer limit,
+                                       String title) throws IllegalAccessException, ObjectNotFoundException {
     ZoneId zone = getCurrentUserZone();
     LocalDate today = getToday(zone);
     TaskQuery taskQuery = getTaskQuery(projectId,
                                        Boolean.TRUE.equals(hideCompletedTasks),
                                        Boolean.TRUE.equals(overdueOnly),
                                        zone);
+    if (StringUtils.isNotBlank(title)) {
+      // TaskQuery#setTitle compares the lower-cased title with the value as given
+      taskQuery.setTitle(title.trim().toLowerCase(Locale.ROOT));
+    }
     List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ?
                                                            findOverdueTasks(taskQuery,
                                                                             getInteger(offset, DEFAULT_OFFSET),
@@ -1446,15 +1573,22 @@ public class TaskMcpTool implements McpToolPlugin {
                                 getUserModel(comment.getAuthor()));
   }
 
-  private List<String> getMemberships(Long spaceId) {
-    Space space = spaceId != null && spaceId > 0 ? spaceService.getSpaceById(spaceId) : null;
-    List<String> memberships;
+  /**
+   * @param space an existing space, or null
+   * @return the memberships whose projects are listed: those of the current
+   *         user, or, for a space, those of its group the current user holds
+   *         (none when the user isn't a member, which never means "every
+   *         project" to the query)
+   */
+  private List<String> getMemberships(Space space) {
+    List<String> userMemberships = UserUtil.getMemberships(getCurrentUserAclIdentity());
     if (space == null) {
-      memberships = UserUtil.getMemberships(getCurrentUserAclIdentity());
-    } else {
-      memberships = UserUtil.getSpaceMemberships(space.getGroupId());
+      return userMemberships;
     }
-    return memberships;
+    return UserUtil.getSpaceMemberships(space.getGroupId())
+                   .stream()
+                   .filter(userMemberships::contains)
+                   .toList();
   }
 
   private UserModel getUserModel(String username) {

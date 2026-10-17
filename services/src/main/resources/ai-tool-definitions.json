@@ -4,7 +4,7 @@
     {
       "name": "list_projects",
       "title": "List Task Projects",
-      "description": "List task projects accessible to the current user, optionally filtered by space.",
+      "description": "List task projects accessible to the current user, optionally filtered by space. In a run limited to a space, only the projects managed through that space are listed.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -18,7 +18,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "space_arg": "space_id", "when_absent": "use_scope", "allowed_args": ["offset", "limit"] }
     },
     {
       "name": "get_project_by_id",
@@ -36,7 +37,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "project_id", "resolver": "project" }
     },
     {
       "name": "list_project_labels",
@@ -72,7 +74,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "project_id", "resolver": "project" }
     },
     {
       "name": "create_project_label",
@@ -137,7 +140,7 @@
     {
       "name": "list_tasks",
       "title": "List Tasks",
-      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date, the most overdue first; an overdue task carries days_overdue. count is the total: while the tasks received so far are fewer than count, call again with offset set to that number.",
+      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date, the most overdue first; an overdue task carries days_overdue. With title, only the tasks whose title contains it, ignoring case. count is the total: while the tasks received so far are fewer than count, call again with offset set to that number. In a run limited to a space, project_id is required and must be a project of that space, as list_projects returns them; to find a task by its title, list the tasks of each of those projects with title.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -146,7 +149,8 @@
           "include_change_log": { "type": "boolean" },
           "overdue_only": { "type": "boolean", "description": "Only the open tasks whose due date is before today, in the user's time zone; a task due today is not overdue." },
           "offset": { "type": "integer" },
-          "limit": { "type": "integer" }
+          "limit": { "type": "integer" },
+          "title": { "type": "string", "description": "A part of the task title, matched ignoring case." }
         }
       },
       "annotations": {
@@ -154,7 +158,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["hide_completed_tasks", "include_change_log", "overdue_only", "offset", "limit", "title"] }
     },
     {
       "name": "list_project_activity_since",
@@ -209,7 +214,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "task_id", "resolver": "task" }
     },
     {
       "name": "get_project_id_by_task_id",
@@ -247,7 +253,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["offset", "limit"] }
     },
     {
       "name": "create_project_in_space",
@@ -327,6 +334,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["title", "description", "start_date", "due_date", "priority", "status_id"] },
       "require_approval": true
     },
     {
@@ -450,6 +458,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["description"] },
       "require_approval": true
     },
     {
@@ -474,6 +483,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["status_id"] },
       "require_approval": true
     },
     {
@@ -585,6 +595,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "task_id", "resolver": "task" },
       "require_approval": true
     },
     {
