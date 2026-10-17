@@ -41,8 +41,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
+import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
+import org.exoplatform.task.service.TaskService;
 
 import io.meeds.mcp.server.constant.Origin;
 import io.meeds.mcp.server.model.ActingIdentity;
@@ -66,7 +69,16 @@ public class TaskToolDefinitionSpaceScopeTest {
 
   private static final Set<String> TASK_WRITES   = Set.of("update_task_status",
                                                           "update_task_description",
-                                                          "complete_task");
+                                                          "complete_task",
+                                                          "add_task_comment",
+                                                          "update_task_title",
+                                                          "set_task_dates",
+                                                          "set_task_priority",
+                                                          "reopen_task",
+                                                          "add_project_label_to_task",
+                                                          "remove_project_label_from_task",
+                                                          "assign_task",
+                                                          "add_task_coworker");
 
   private static final Set<String> DECLARED      = Set.of("list_projects",
                                                           "get_project_by_id",
@@ -77,12 +89,21 @@ public class TaskToolDefinitionSpaceScopeTest {
                                                           "list_task_comments_by_id",
                                                           "update_task_status",
                                                           "update_task_description",
-                                                          "complete_task");
+                                                          "complete_task",
+                                                          "add_task_comment",
+                                                          "update_task_title",
+                                                          "set_task_dates",
+                                                          "set_task_priority",
+                                                          "reopen_task",
+                                                          "add_project_label_to_task",
+                                                          "remove_project_label_from_task",
+                                                          "assign_task",
+                                                          "add_task_coworker");
 
   private static final JsonMapper  MAPPER        = JsonMapper.builder().build();
 
   /**
-   * Exactly ten task tools declare a space scope, each well formed for what
+   * Exactly nineteen task tools declare a space scope, each well formed for what
    * it is, a read or a write: the task tools by the task they reach and the
    * {@value TaskSpaceScopeResolver#NAME} resolver, the project lookup, the
    * project's tasks and the project's statuses by the project and the
@@ -174,11 +195,14 @@ public class TaskToolDefinitionSpaceScopeTest {
 
   /**
    * The arguments a limited task call may carry are schema properties: the
-   * comments' paging, the status of the status update, and the new text of
-   * the description update. The only
-   * reference-shaped one is that status, which {@code TaskMcpTool} accepts
-   * only when it belongs to the project of the task, the one the resolver
-   * reads the space of.
+   * comments' paging, the status of the status update, the new text of the
+   * description update, a comment's text, a new title, the start and due
+   * dates, the priority, a label and a person; reopening a task takes nothing
+   * else. The only reference-shaped ones are that status and that label,
+   * which {@code TaskMcpTool} accepts only when they belong to the project of
+   * the task, the one the resolver reads the space of; the person, the
+   * assignee or a coworker, it accepts in a limited call only when they are
+   * a member of the call's space.
    */
   @Test
   public void acceptedArgumentsAreTheExpectedSchemaProperties() {
@@ -189,6 +213,15 @@ public class TaskToolDefinitionSpaceScopeTest {
     assertEquals(List.of("offset", "limit"), allowed(declared.get("list_task_comments_by_id")));
     assertEquals(List.of("status_id"), allowed(declared.get("update_task_status")));
     assertEquals(List.of("description"), allowed(declared.get("update_task_description")));
+    assertEquals(List.of("text"), allowed(declared.get("add_task_comment")));
+    assertEquals(List.of("title"), allowed(declared.get("update_task_title")));
+    assertEquals(List.of("start_date", "due_date"), allowed(declared.get("set_task_dates")));
+    assertEquals(List.of("priority"), allowed(declared.get("set_task_priority")));
+    assertEquals(List.of(), allowed(declared.get("reopen_task")));
+    assertEquals(List.of("label_id"), allowed(declared.get("add_project_label_to_task")));
+    assertEquals(List.of("label_id"), allowed(declared.get("remove_project_label_from_task")));
+    assertEquals(List.of("username"), allowed(declared.get("assign_task")));
+    assertEquals(List.of("username"), allowed(declared.get("add_task_coworker")));
     TASK_READS.forEach(name -> assertTaskArgumentsAreProperties(declared.get(name)));
     TASK_WRITES.forEach(name -> assertTaskArgumentsAreProperties(declared.get(name)));
     assertFalse(allowed(declared.get("get_task_by_id")).contains("status_id"));
@@ -280,6 +313,90 @@ public class TaskToolDefinitionSpaceScopeTest {
                                    "{\"project_id\":7,\"project_id\":8}")) {
       assertThrows(excluded, SpaceScopeRefusedException.class, () -> service.enforce("list_tasks", tool, excluded, read));
     }
+  }
+
+  /**
+   * Through the real space scope check and the real
+   * {@value TaskSpaceScopeResolver#NAME} resolver, an approved proposal of a
+   * run limited to space 12 comments on, renames, dates, prioritises,
+   * reopens, labels, unlabels, assigns a task of a project managed through
+   * space 12, or adds a coworker to it, with the arguments each tool accepts; the same call on a task of a project of space 13, on a
+   * personal task or on a task that doesn't exist is refused, and so is any
+   * argument a declaration doesn't accept, such as a username, or an assignee
+   * for the tools that take a username. A write the
+   * run makes itself, not as an approved proposal, is refused too.
+   * Mutants: a declaration dropped, its resolver renamed, its object argument
+   * changed, or an argument added to the accepted ones.
+   *
+   * @throws EntityNotFoundException never, the task service is a mock
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void taskWritesAreEnforcedUnderASpaceScope() throws EntityNotFoundException {
+    TaskService taskService = mock(TaskService.class);
+    SpaceService spaceService = mock(SpaceService.class);
+    TaskSpaceScopeResolver taskResolver = new TaskSpaceScopeResolver();
+    ReflectionTestUtils.setField(taskResolver, "taskService", taskService);
+    ReflectionTestUtils.setField(taskResolver, "spaceService", spaceService);
+    Space alpha = mock(Space.class);
+    when(alpha.getId()).thenReturn("12");
+    Space beta = mock(Space.class);
+    when(beta.getId()).thenReturn("13");
+    when(spaceService.getSpaceByGroupId("/spaces/alpha")).thenReturn(alpha);
+    when(spaceService.getSpaceByGroupId("/spaces/beta")).thenReturn(beta);
+    when(taskService.getTask(5L)).thenReturn(task(5L, project(7L, "manager:/spaces/alpha")));
+    when(taskService.getTask(6L)).thenReturn(task(6L, project(8L, "manager:/spaces/beta")));
+    when(taskService.getTask(4L)).thenReturn(task(4L, null));
+    when(taskService.getTask(9L)).thenThrow(new EntityNotFoundException(9L, TaskDto.class));
+    ObjectProvider<SpaceScopeResolver> provider = mock(ObjectProvider.class);
+    when(provider.orderedStream()).thenAnswer(invocation -> Stream.of(taskResolver));
+    McpToolSpaceScopeService service = new McpToolSpaceScopeService(provider);
+    ActingIdentity proposal = ActingIdentity.agent("support-desk", "SUPPORT_DESK", Origin.PROPOSAL, 12L);
+    ActingIdentity run = ActingIdentity.agent("support-desk", "SUPPORT_DESK", Origin.MENTION, 12L);
+    Map<String, SimpleToolDefinition> declared = declaredTools();
+    Map<String, String> arguments = Map.of("add_task_comment", ",\"text\":\"reminder\"",
+                                           "update_task_title", ",\"title\":\"Renewals\"",
+                                           "set_task_dates", ",\"start_date\":\"2026-10-20\",\"due_date\":\"2026-10-23\"",
+                                           "set_task_priority", ",\"priority\":\"HIGH\"",
+                                           "reopen_task", "",
+                                           "add_project_label_to_task", ",\"label_id\":99",
+                                           "remove_project_label_from_task", ",\"label_id\":99",
+                                           "assign_task", ",\"username\":\"john\"",
+                                           "add_task_coworker", ",\"username\":\"john\"");
+
+    arguments.forEach((name, rest) -> {
+      SimpleToolDefinition tool = declared.get(name);
+      String unaccepted = rest.contains("username") ? "\"assignee\":\"mary\"" : "\"username\":\"mary\"";
+      String inSpace = "{\"task_id\":5" + rest + "}";
+      assertEquals(name, inSpace, service.enforce(name, tool, inSpace, proposal));
+      assertThrows(name, SpaceScopeRefusedException.class, () -> service.enforce(name, tool, inSpace, run));
+      for (String outside : List.of("{\"task_id\":6" + rest + "}",
+                                    "{\"task_id\":4" + rest + "}",
+                                    "{\"task_id\":9" + rest + "}",
+                                    "{\"task_id\":0" + rest + "}",
+                                    "{\"task_id\":5" + rest + "," + unaccepted + "}",
+                                    "{\"task_id\":5" + rest + ",\"project_id\":7}")) {
+        assertThrows(name + " " + outside,
+                     SpaceScopeRefusedException.class,
+                     () -> service.enforce(name, tool, outside, proposal));
+      }
+    });
+  }
+
+  /**
+   * @param id a task id
+   * @param project the task's project, null for a personal task
+   * @return a task with that id, in a status of that project
+   */
+  private static TaskDto task(long id, ProjectDto project) {
+    TaskDto task = new TaskDto();
+    task.setId(id);
+    if (project != null) {
+      StatusDto status = new StatusDto();
+      status.setProject(project);
+      task.setStatus(status);
+    }
+    return task;
   }
 
   /**
