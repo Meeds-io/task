@@ -154,6 +154,7 @@ export default {
   data () {
     return {
       primaryFilter: 'ALL',
+      filterReadGeneration: 0,
       tasks: [],
       keyword: null,
       initialized: false,
@@ -320,6 +321,7 @@ export default {
       }
     },
     resetFilterTaskDashboard(){
+      this.filterReadGeneration++;
       this.groupBy='';
       this.orderBy='';
       this.filterActive=false;
@@ -333,6 +335,7 @@ export default {
     },
 
     filterTaskQuery(e, filterGroupSort, filterLabels) {
+      this.filterReadGeneration++;
       this.showCompletedTasks = e.showCompletedTasks;
       this.groupBy = filterGroupSort.groupBy;
       this.orderBy = filterGroupSort.orderBy;
@@ -496,11 +499,13 @@ export default {
           this.groupBy = localStorageSavedFilter.groupBy;
           this.orderBy = localStorageSavedFilter.orderBy;
         } else {
-          this.getFilterProject().then(filterRead => {
-            if (primaryFilter !== this.primaryFilter) {
+          const filterRead = this.getFilterProject();
+          const generation = this.filterReadGeneration;
+          filterRead.then(filterStored => {
+            if (generation !== this.filterReadGeneration || primaryFilter !== this.primaryFilter) {
               return;
             }
-            if (filterRead) {
+            if (filterStored) {
               const jsonToSave = {
                 groupBy: this.groupBy,
                 orderBy: this.orderBy,
@@ -587,8 +592,9 @@ export default {
     },
     getFilterProject(){
       const primaryFilter = this.primaryFilter;
+      const generation = ++this.filterReadGeneration;
       return this.$projectService.getFilterSettings('None','list').then((resp) =>{
-        if (primaryFilter !== this.primaryFilter) {
+        if (generation !== this.filterReadGeneration || primaryFilter !== this.primaryFilter) {
           return false;
         }
         this.groupBy = resp && resp.groupBy || 'none';
@@ -596,7 +602,7 @@ export default {
         return !!resp;
       }).catch(e => {
         console.error('Error reading the tasks filter', e);
-        if (primaryFilter === this.primaryFilter) {
+        if (generation === this.filterReadGeneration && primaryFilter === this.primaryFilter) {
           this.groupBy = 'none';
           this.orderBy = '';
         }

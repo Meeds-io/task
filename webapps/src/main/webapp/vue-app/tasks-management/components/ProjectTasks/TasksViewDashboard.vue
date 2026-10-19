@@ -220,6 +220,7 @@ export default {
       keyword: null,
       loadingTasks: false,
       tasksFilter: {},
+      filterReadGeneration: 0,
       taskViewTabName: 'board',
       deleteConfirmMessage: null,
       statusList: [],
@@ -416,8 +417,12 @@ export default {
           return this.getFilter(this.tasksFilter, ProjectId);
         }
       } else {
-        this.getFilterProject(ProjectId, currentTab).then(filterRead => {
-          if (ProjectId !== this.project.id || currentTab !== this.taskViewTabName) {
+        const filterRead = this.getFilterProject(ProjectId, currentTab);
+        const generation = this.filterReadGeneration;
+        filterRead.then(filterStored => {
+          if (generation !== this.filterReadGeneration
+              || ProjectId !== this.project.id
+              || currentTab !== this.taskViewTabName) {
             return;
           }
           this.tasksFilter = {
@@ -434,7 +439,7 @@ export default {
             this.tasksFilter.showCompletedTasks = true;
           }
           this.showCompletedTasks = this.tasksFilter.showCompletedTasks;
-          if (filterRead) {
+          if (filterStored) {
             const jsonToSave = {
               groupBy: this.tasksFilter.groupBy,
               orderBy: this.tasksFilter.orderBy,
@@ -454,6 +459,7 @@ export default {
       this.filterByStatus=false;
     },
     filterTaskDashboard(e) {
+      this.filterReadGeneration++;
       this.searchedLabels = e.filterLabels.labels;  
       localStorage.setItem('searchedLabels', this.searchedLabels);
       this.loadingTasks = true;
@@ -616,8 +622,11 @@ export default {
       
     },
     getFilterProject(ProjectId, currentTab) {
+      const generation = ++this.filterReadGeneration;
       return this.$projectService.getFilterSettings(ProjectId, currentTab).then((resp) => {
-        if (ProjectId !== this.project.id || currentTab !== this.taskViewTabName) {
+        if (generation !== this.filterReadGeneration
+            || ProjectId !== this.project.id
+            || currentTab !== this.taskViewTabName) {
           return false;
         }
         this.tasksFilter.groupBy = resp && resp.groupBy || 'none';
@@ -625,7 +634,9 @@ export default {
         return !!resp;
       }).catch(e => {
         console.error('Error reading the tasks filter', e);
-        if (ProjectId === this.project.id && currentTab === this.taskViewTabName) {
+        if (generation === this.filterReadGeneration
+            && ProjectId === this.project.id
+            && currentTab === this.taskViewTabName) {
           this.tasksFilter.groupBy = 'none';
           this.tasksFilter.orderBy = '';
         }
