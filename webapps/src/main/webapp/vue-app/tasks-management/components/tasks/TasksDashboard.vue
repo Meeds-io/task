@@ -154,6 +154,7 @@ export default {
   data () {
     return {
       primaryFilter: 'ALL',
+      filterReadGeneration: 0,
       tasks: [],
       keyword: null,
       initialized: false,
@@ -320,6 +321,7 @@ export default {
       }
     },
     resetFilterTaskDashboard(){
+      this.filterReadGeneration++;
       this.groupBy='';
       this.orderBy='';
       this.filterActive=false;
@@ -333,6 +335,7 @@ export default {
     },
 
     filterTaskQuery(e, filterGroupSort, filterLabels) {
+      this.filterReadGeneration++;
       this.showCompletedTasks = e.showCompletedTasks;
       this.groupBy = filterGroupSort.groupBy;
       this.orderBy = filterGroupSort.orderBy;
@@ -496,15 +499,22 @@ export default {
           this.groupBy = localStorageSavedFilter.groupBy;
           this.orderBy = localStorageSavedFilter.orderBy;
         } else {
-          this.getFilterProject().then(() => {
-            const jsonToSave = {
-              groupBy: this.groupBy,
-              orderBy: this.orderBy,
-              projectId: 'None',
-              tabView: 'list',
-              showCompletedTasks: false,
-            };
-            localStorage.setItem('filterStorageNone+list', JSON.stringify(jsonToSave));
+          const filterRead = this.getFilterProject();
+          const generation = this.filterReadGeneration;
+          filterRead.then(filterStored => {
+            if (generation !== this.filterReadGeneration || primaryFilter !== this.primaryFilter) {
+              return;
+            }
+            if (filterStored) {
+              const jsonToSave = {
+                groupBy: this.groupBy,
+                orderBy: this.orderBy,
+                projectId: 'None',
+                tabView: 'list',
+                showCompletedTasks: false,
+              };
+              localStorage.setItem('filterStorageNone+list', JSON.stringify(jsonToSave));
+            }
             this.filterTasks.projectId=-2;
             this.searchTasks();
           });
@@ -581,17 +591,22 @@ export default {
         uiIconMiniArrowRight.style.display = 'none';}
     },
     getFilterProject(){
+      const primaryFilter = this.primaryFilter;
+      const generation = ++this.filterReadGeneration;
       return this.$projectService.getFilterSettings('None','list').then((resp) =>{
-        if (resp && resp.value){
-          const StorageSaveFilter = resp.value;
-          if (StorageSaveFilter.split('"')[11] === 'None') {
-            this.groupBy = StorageSaveFilter.split('"')[3];
-            this.orderBy = StorageSaveFilter.split('"')[7];
-          }
-        } else {
+        if (generation !== this.filterReadGeneration || primaryFilter !== this.primaryFilter) {
+          return false;
+        }
+        this.groupBy = resp && resp.groupBy || 'none';
+        this.orderBy = resp && resp.orderBy || '';
+        return !!resp;
+      }).catch(e => {
+        console.error('Error reading the tasks filter', e);
+        if (generation === this.filterReadGeneration && primaryFilter === this.primaryFilter) {
           this.groupBy = 'none';
           this.orderBy = '';
         }
+        return false;
       });
     },
     updateTasksList() {

@@ -114,26 +114,31 @@ export function updateProjectColor(project, color) {
 }
 
 export function saveFilterSettings(valueOfFilter) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/settings/USER,${eXo.env.portal.userName}/APPLICATION,task-${valueOfFilter.projectId}-${valueOfFilter.tabView}/filterTask`, {
+  return fetch('/task-management/rest/filter/settings', {
     method: 'PUT',
     credentials: 'include',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({'value': JSON.stringify(valueOfFilter)}),
+    body: JSON.stringify({
+      projectId: Number(valueOfFilter.projectId) || 0,
+      tabView: valueOfFilter.tabView || 'list',
+      groupBy: valueOfFilter.groupBy || '',
+      orderBy: valueOfFilter.orderBy || '',
+    }),
   }).then((resp) => {
     if (resp && resp.ok) {
       return resp;
     } else {
       throw new Error('Error setting filter  settings');
     }
-  }).then(resp => {
-    return resp;
   });
 }
 export function getFilterSettings(ProjectId,currentTabView) {
-  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/settings/USER,${eXo.env.portal.userName}/APPLICATION,task-${ProjectId}-${currentTabView}/filterTask`, {
+  const projectId = Number(ProjectId) || 0;
+  const tabView = currentTabView || 'list';
+  return fetch(`/task-management/rest/filter/settings?projectId=${projectId}&tabView=${tabView}`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -143,12 +148,10 @@ export function getFilterSettings(ProjectId,currentTabView) {
   }).then((resp) => {
     if (resp && resp.ok) {
       return resp.json();
-    } else if (resp && resp.status === 404) {
+    } else if (resp && (resp.status === 403 || resp.status === 404)) {
       return null;
     } else {
       throw new Error('Error getting filter settings');
     }
-  }).then(resp => {
-    return resp;
   });
 }
