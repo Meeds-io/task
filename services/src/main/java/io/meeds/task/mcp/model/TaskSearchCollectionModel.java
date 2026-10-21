@@ -40,7 +40,9 @@ public class TaskSearchCollectionModel {
   private int                         usedLimit;
 
   /**
-   * Whether more tasks match than the ones returned: the limit was reached.
+   * Whether more tasks may match than the ones returned: either the limit
+   * was reached, or the search read its whole window of hits, so that matches
+   * ranked below it were never read.
    */
   @JsonProperty("has_more")
   private boolean                     hasMore;
