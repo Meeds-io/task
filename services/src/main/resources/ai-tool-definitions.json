@@ -980,7 +980,7 @@
     {
       "name": "search_tasks",
       "title": "Search Tasks",
-      "description": "Search the tasks the user can view by words of their title or description, ignoring case and accents: every word must be found. With project_id, only the tasks of that project. Call it to find a task or a card by its name, before listing a whole project. The open tasks come first, the most relevant first; the completed ones only with include_completed, after the open ones. Each task comes with its task_id, title, link, project, status (its column on the board) and labels; call get_task_by_id for its details. has_more says more tasks matched than limit.",
+      "description": "Search the tasks the user can view by words of their title or description, ignoring case and accents: every word must be found. With project_id, only the tasks of that project. Call it to find a task or a card by its name, before listing a whole project. The open tasks come first, the most relevant first; the completed ones only with include_completed, after the open ones. Each task comes with its task_id, title, link, project, status (its column on the board) and labels; call get_task_by_id for its details. has_more says more tasks may match than were returned: call again with a higher limit, or with project_id.",
       "input_schema": {
         "type": "object",
         "properties": {
