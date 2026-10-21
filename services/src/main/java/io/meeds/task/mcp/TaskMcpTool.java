@@ -158,6 +158,11 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private static final String           MSG_TASK_PROJECT_NOT_FOUND      = "Task project with identifier '%s' is not found";
 
+  private static final List<String>     USER_TARGET_ACTIONS             = List.of("assign",
+                                                                                  "unassign",
+                                                                                  "assignCoworker",
+                                                                                  "unassignCoworker");
+
   private static final int              ISO_DATE_LENGTH                 = "2026-10-14".length();
 
   private static final Pattern          ISO_OFFSET_SUFFIX               = Pattern.compile("(Z|[+-]\\d{2}:?\\d{2})$");
@@ -1925,11 +1930,17 @@ public class TaskMcpTool implements McpToolPlugin {
     return name;
   }
 
+  /**
+   * @param changeLog a change log entry
+   * @return its model; its target is a user for an assignment entry only,
+   *         the other entries naming a status or a project there, never a
+   *         user
+   */
   private TaskChangeLog getTaskChangeLog(ChangeLogEntry changeLog) {
     return new TaskChangeLog(changeLog.getActionName(),
                              getActionLabel(changeLog.getActionName()),
                              getUserModel(changeLog.getAuthor()),
-                             getUserModel(changeLog.getTarget()),
+                             USER_TARGET_ACTIONS.contains(changeLog.getActionName()) ? getUserModel(changeLog.getTarget()) : null,
                              formatDate(changeLog.getCreatedTime()));
   }
 
