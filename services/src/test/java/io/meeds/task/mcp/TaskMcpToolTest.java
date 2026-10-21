@@ -1182,6 +1182,39 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * The change log listed resolves a target as a user for an assignment
+   * entry only: a creation or a status entry names a status there, which is
+   * never looked up as a user. Mutant: every target looked up.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void onlyAnAssignmentEntryHasAUserTarget() throws Exception { // NOSONAR
+    TaskDto task = mockTask();
+    when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(List.of(log(3, "assign", OTHER_USER, "2026-10-06T10:00:00Z"),
+                                                                                      log(2, "edit_status", "Done", "2026-10-05T10:00:00Z"),
+                                                                                      log(1, "created", "ToDo", "2026-10-04T10:00:00Z")));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+
+    runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null));
+
+    verify(identityManager).getOrCreateUserIdentity(OTHER_USER);
+    verify(identityManager, never()).getOrCreateUserIdentity("ToDo");
+    verify(identityManager, never()).getOrCreateUserIdentity("Done");
+  }
+
+  /**
+   * A date is the start of that day in the user's time zone also on a day
+   * whose midnight the zone skips: in America/Sao_Paulo on 2018-11-04 the
+   * day starts at 01:00 local, 03:00 UTC. Mutant: midnight read as UTC.
+   */
+  @Test
+  public void aSinceDateStartsWhenTheDayStartsInTheUsersZone() { // NOSONAR
+    assertEquals(Date.from(Instant.parse("2018-11-04T03:00:00Z")),
+                 tool.parseSince("2018-11-04", "changed_since", ZoneId.of("America/Sao_Paulo")));
+  }
+
+  /**
    * overdue_only lists open tasks and completed_since completed ones: asked
    * together, on either tool, the call is refused instead of answering
    * nothing. Mutant: the check dropped.
