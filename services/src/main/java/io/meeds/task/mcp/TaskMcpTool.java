@@ -73,6 +73,7 @@ import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
@@ -101,6 +102,8 @@ import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentModel;
 import io.meeds.task.mcp.model.TaskModel;
+import io.meeds.task.mcp.model.TaskSearchCollectionModel;
+import io.meeds.task.mcp.model.TaskSearchResultModel;
 import io.meeds.task.mcp.model.TaskWithChangeLogModel;
 import io.meeds.task.plugin.ProjectPermanentLinkPlugin;
 import io.meeds.task.plugin.TaskAclPlugin;
@@ -461,6 +464,61 @@ public class TaskMcpTool implements McpToolPlugin {
                                    getInteger(offset, DEFAULT_OFFSET),
                                    getInteger(limit, DEFAULT_LIMIT),
                                    countTasks(taskQuery));
+  }
+
+  /**
+   * Searches the tasks the current user can view by a text in their title or
+   * description, ignoring case and accents, through the same index and the
+   * same permissions as the search of the Tasks application: the user and
+   * their memberships. With a project, only the tasks of that project, which
+   * the user must be able to view. The open tasks come first, in the order of
+   * relevance; the completed ones are left out unless asked for, and then come
+   * after every open one. Each hit is checked again against the task's own
+   * view permission, so a task the index still lists for a user who lost
+   * access to it is never returned. The search reads the 100 most relevant
+   * hits at most.
+   *
+   * @param query the text searched, words all present in the title or the
+   *          description
+   * @param projectId the project, null for every task the user can view
+   * @param includeCompleted whether the completed tasks are returned, after
+   *          the open ones
+   * @param limit the most tasks returned
+   * @return the tasks found, and whether more matched than the limit
+   * @throws IllegalAccessException when the user can't view the project
+   * @throws ObjectNotFoundException when the project doesn't exist
+   */
+  public TaskSearchCollectionModel searchTasks(String query,
+                                               Long projectId,
+                                               Boolean includeCompleted,
+                                               Integer limit) throws IllegalAccessException, ObjectNotFoundException {
+    if (StringUtils.isBlank(query)) {
+      throw new IllegalArgumentException("A text to search is mandatory");
+    }
+    if (projectId != null) {
+      getViewableProject(projectId);
+    }
+    int max = Math.clamp(getInteger(limit, DEFAULT_LIMIT), 1, MAX_TO_LOAD);
+    Identity aclIdentity = getCurrentUserAclIdentity();
+    TaskSearchFilter filter = new TaskSearchFilter(aclIdentity.getUserId(),
+                                                   StringUtils.stripAccents(query.trim()),
+                                                   UserUtil.getMemberships(aclIdentity),
+                                                   null,
+                                                   null,
+                                                   0,
+                                                   MAX_TO_LOAD);
+    if (projectId != null) {
+      filter.setProjectIds(Collections.singletonList(projectId));
+    }
+    List<TaskDto> hits = taskService.findTasks(filter);
+    List<TaskDto> found = new ArrayList<>();
+    collectSearchHits(hits, projectId, false, found, max + 1);
+    if (Boolean.TRUE.equals(includeCompleted)) {
+      collectSearchHits(hits, projectId, true, found, max + 1);
+    }
+    boolean hasMore = found.size() > max;
+    List<TaskSearchResultModel> results = found.stream().limit(max).map(this::toTaskSearchResultModel).toList();
+    return new TaskSearchCollectionModel(results, max, hasMore);
   }
 
   public ProjectModel getProjectById(Long projectId) throws ObjectNotFoundException, IllegalAccessException {
@@ -1294,6 +1352,59 @@ public class TaskMcpTool implements McpToolPlugin {
     return taskService.findLastUpdatedTasks(getTaskQuery(projectId, uncompleteOnly, false, null),
                                             getInteger(offset, DEFAULT_OFFSET),
                                             getInteger(limit, DEFAULT_LIMIT));
+  }
+
+  /**
+   * Adds to the tasks found the search hits of one completion state, in their
+   * order of relevance, that belong to the project searched, when there is
+   * one, and that the current user can view, until there are enough.
+   *
+   * @param hits the search hits, the most relevant first
+   * @param projectId the project searched, null for any
+   * @param completed the completion state of the hits added
+   * @param found the tasks found so far, completed by this call
+   * @param enough how many tasks found are enough
+   */
+  private void collectSearchHits(List<TaskDto> hits, Long projectId, boolean completed, List<TaskDto> found, int enough) {
+    String username = getCurrentUserName();
+    for (TaskDto task : hits) {
+      if (found.size() >= enough) {
+        return;
+      }
+      if (task.isCompleted() == completed
+          && (projectId == null || projectId.equals(getProjectIdOrNull(task)))
+          && userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(task.getId()), username)) {
+        found.add(task);
+      }
+    }
+  }
+
+  /**
+   * @param task a task
+   * @return the identifier of its project, null for a personal task
+   */
+  private Long getProjectIdOrNull(TaskDto task) {
+    StatusDto status = task.getStatus();
+    return status == null || status.getProject() == null ? null : status.getProject().getId();
+  }
+
+  /**
+   * @param task a task found by a search
+   * @return what tells it apart on its board: its title, link, completion,
+   *         project, status and labels
+   */
+  private TaskSearchResultModel toTaskSearchResultModel(TaskDto task) {
+    StatusDto status = task.getStatus();
+    ProjectDto project = status == null ? null : status.getProject();
+    Long projectId = project == null ? null : project.getId();
+    return new TaskSearchResultModel(task.getId(),
+                                     task.getTitle(),
+                                     getUrl(task),
+                                     task.isCompleted(),
+                                     projectId,
+                                     project == null ? null : project.getName(),
+                                     getTaskStatus(status),
+                                     project == null ? null : getTaskLabels(task, projectId, getCurrentUserAclIdentity()));
   }
 
   /**
