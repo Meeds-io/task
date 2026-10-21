@@ -241,7 +241,17 @@ public class TaskToolDefinitionSpaceScopeTest {
     SimpleToolDefinition tool = declaredTools().get("list_tasks");
 
     assertTrue(McpToolSpaceScopeService.isReadTool(tool));
-    assertEquals(List.of("hide_completed_tasks", "include_change_log", "overdue_only", "offset", "limit", "title"), allowed(tool));
+    assertEquals(List.of("hide_completed_tasks",
+                         "include_change_log",
+                         "overdue_only",
+                         "offset",
+                         "limit",
+                         "title",
+                         "changed_since",
+                         "completed_since",
+                         "assignee",
+                         "status_id"),
+                 allowed(tool));
     JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
     assertTrue(properties.has("project_id"));
     allowed(tool).forEach(argument -> assertTrue(argument, properties.has(argument)));

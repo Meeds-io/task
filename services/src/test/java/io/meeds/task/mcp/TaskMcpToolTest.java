@@ -77,9 +77,11 @@ import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
+import org.exoplatform.task.dao.condition.LoggedSince;
 import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
@@ -99,6 +101,8 @@ import org.exoplatform.social.metadata.favorite.FavoriteService;
 import io.meeds.social.space.plugin.SpaceAclPlugin;
 import io.meeds.social.translation.service.TranslationService;
 import io.meeds.task.mcp.model.ProjectActivityModel;
+import io.meeds.task.mcp.model.TaskChange;
+import io.meeds.task.mcp.model.TaskWithChangesModel;
 import io.meeds.task.mcp.model.ProjectCollectionModel;
 import io.meeds.task.mcp.model.ProjectLabel;
 import io.meeds.task.mcp.model.ProjectModel;
@@ -864,7 +868,7 @@ public class TaskMcpToolTest {
     when(taskService.findTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null, null, null, null, null, null));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -886,7 +890,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(4);
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null);
 
     assertNull(findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -907,7 +911,7 @@ public class TaskMcpToolTest {
     when(taskService.findTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, true));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, true, null, null));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
@@ -915,6 +919,268 @@ public class TaskMcpToolTest {
     verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
     assertEquals(1L, result.getCount());
     assertEquals(Integer.valueOf(1), result.getTasks().get(0).getDaysOverdue());
+  }
+
+  /**
+   * changed_since on list_tasks of a project narrows the project's tasks to
+   * those with a status, project, due date, assignee or completion change
+   * at or after the start of that day in the user's time zone, completed
+   * tasks included, counted by the same query; each task carries its
+   * changes, old and new status. Mutants: the change condition dropped,
+   * built with another action list or the date read in UTC; the completed
+   * tasks left out; the plain models returned.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksChangedSinceListsTheTasksThatMovedWithTheirOldAndNewStatus() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(List.of(log(2, "edit_status", "InProgress", "2026-10-06T10:00:00Z"),
+                                                                                      log(1, "edit_status", "ToDo", "2026-09-20T10:00:00Z")));
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID,
+                                                                                  true,
+                                                                                  false,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  "2026-10-01",
+                                                                                  null,
+                                                                                  null,
+                                                                                  null));
+
+    List<Condition> conjunction = conjunction(query.getValue());
+    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
+    LoggedSince loggedSince = findLoggedSince(query.getValue());
+    assertEquals(TaskQuery.CHANGE_ACTIONS, loggedSince.actionNames());
+    assertEquals(List.of("edit_status", "edit_project", "remove_project", "edit_duedate", "assign", "unassign", "mark_done"),
+                 loggedSince.actionNames());
+    assertEquals(Date.from(Instant.parse("2026-09-30T22:00:00Z")), loggedSince.since());
+    assertTrue("hide_completed_tasks keeps the completed tasks out", selectsOpenTasksOnly(query.getValue()));
+    verify(taskService).countTasks(query.getValue());
+    assertEquals(1L, result.getCount());
+    TaskWithChangesModel model = (TaskWithChangesModel) result.getTasks().get(0);
+    assertEquals(1, model.getChanges().size());
+    TaskChange change = model.getChanges().get(0);
+    assertEquals(TaskChange.FIELD_STATUS, change.getField());
+    assertEquals("ToDo", change.getOldValue());
+    assertEquals("InProgress", change.getNewValue());
+    assertNull("asked for no change log", model.getChangeLogs());
+  }
+
+  /**
+   * completed_since selects the completed tasks with a completion entry at
+   * or after the date, whatever hide_completed_tasks says, which would
+   * otherwise select the open tasks only and so nothing. Mutants: the
+   * completed condition dropped; hide_completed_tasks applied too.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksCompletedSinceSelectsTheTasksCompletedSinceThatDate() throws Exception { // NOSONAR
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(null, true, false, null, null, null, null, null, "2026-10-05T08:00:00Z", null, null);
+
+    LoggedSince loggedSince = findLoggedSince(query.getValue());
+    assertEquals(List.of("mark_done"), loggedSince.actionNames());
+    assertEquals(Date.from(Instant.parse("2026-10-05T08:00:00Z")), loggedSince.since());
+    assertTrue(conjunction(query.getValue()).stream()
+                                            .anyMatch(c -> c instanceof SingleCondition<?> single
+                                                           && SingleCondition.IS_TRUE.equals(single.getType())
+                                                           && "completed".equals(single.getField())));
+    assertFalse(selectsOpenTasksOnly(query.getValue()));
+    assertTrue("only the tasks the user can access", scopedToTheUser(query.getValue()));
+  }
+
+  /**
+   * assignee and status_id narrow the accessible tasks: both are members of
+   * the query's conjunction, beside the accessibility; a blank assignee
+   * adds no condition. Mutants: either filter dropped, the assignee
+   * untrimmed, a blank assignee matching nobody.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksNarrowsByAssigneeAndStatus() throws Exception { // NOSONAR
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(null, false, false, null, null, null, null, null, null, " john ", 8L);
+    tool.listTasks(null, false, false, null, null, null, null, null, null, " ", null);
+
+    List<Condition> filtered = conjunction(query.getAllValues().get(0));
+    assertTrue(filtered.stream()
+                       .anyMatch(c -> c instanceof AggregateCondition aggregate && AggregateCondition.OR.equals(aggregate.getType())));
+    assertTrue(filtered.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "assignee", List.of(OTHER_USER))));
+    assertTrue(filtered.stream().anyMatch(c -> isSingle(c, SingleCondition.EQ, "status.id", 8L)));
+    List<Condition> unfiltered = conjunction(query.getAllValues().get(1));
+    assertTrue(unfiltered.stream()
+                         .noneMatch(c -> c instanceof SingleCondition<?> single
+                                         && ("assignee".equals(single.getField()) || "status.id".equals(single.getField()))));
+  }
+
+  /**
+   * changed_since on list_assigned_tasks queries the tasks the user is
+   * assigned to or a coworker of with a change since the date, completed
+   * ones included, the last updated first, counted by the same query, each
+   * with its changes. Mutant: the plain uncompleted list.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listAssignedTasksChangedSinceQueriesTheChangedTasks() throws Exception { // NOSONAR
+    TaskDto task = mockTask();
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(5))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, null, "2026-10-01", null));
+
+    assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
+    assertEquals(TaskQuery.CHANGE_ACTIONS, findLoggedSince(query.getValue()).actionNames());
+    assertFalse(selectsOpenTasksOnly(query.getValue()));
+    verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
+    verify(taskService).countTasks(query.getValue());
+    assertEquals(1L, result.getCount());
+    assertTrue(result.getTasks().get(0) instanceof TaskWithChangesModel);
+  }
+
+  /**
+   * The changes of a task are its status, project, assignee, due date and
+   * completion entries at or after the date, oldest first, whatever order
+   * the log comes in. A change's old value is the new value of the previous
+   * change of the same field, also when that one is before the date, and
+   * none on a first move; a project move forgets the status. Only the
+   * latest due date change carries the due date. Completion entries
+   * alternate back from the current completion. An entry exactly at the
+   * date counts; a title change is no change. Mutants: the old value taken
+   * from the listed changes only; the date excluded; the completion read
+   * forward from the first entry; every due date change carrying the
+   * current due date.
+   */
+  @Test
+  public void taskChangesTellTheOldAndNewValueOfEachChangeSinceTheDate() { // NOSONAR
+    TaskDto task = mock(TaskDto.class);
+    when(task.isCompleted()).thenReturn(false);
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-20T00:00:00Z")));
+    List<ChangeLogEntry> logs = List.of(log(11, "mark_done", "", "2026-10-07T12:00:00Z"),
+                                        log(10, "edit_title", "", "2026-10-07T11:00:00Z"),
+                                        log(9, "edit_duedate", "", "2026-10-07T10:00:00Z"),
+                                        log(8, "mark_done", "", "2026-10-06T12:00:00Z"),
+                                        log(7, "edit_duedate", "", "2026-10-06T10:00:00Z"),
+                                        log(6, "unassign", "mary", "2026-10-05T12:00:00Z"),
+                                        log(5, "assign", "mary", "2026-10-05T10:00:00Z"),
+                                        log(4, "edit_status", "Done", "2026-10-04T12:00:00Z"),
+                                        log(3, "edit_project", "Beta", "2026-10-04T10:00:00Z"),
+                                        log(2, "edit_status", "InProgress", "2026-10-01T00:00:00Z"),
+                                        log(1, "assign", OTHER_USER, "2026-09-20T10:00:00Z"),
+                                        log(0, "edit_status", "ToDo", "2026-09-20T09:00:00Z"));
+
+    List<TaskChange> changes;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(() -> McpToolUtils.formatDate(any(Long.class)))
+            .thenAnswer(invocation -> Instant.ofEpochMilli(invocation.<Long> getArgument(0)).toString());
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> invocation.<Date> getArgument(0).toInstant().toString());
+      changes = tool.getTaskChanges(task, logs, Date.from(Instant.parse("2026-10-01T00:00:00Z")));
+    }
+
+    List<String> rendered = changes.stream()
+                                   .map(c -> c.getField() + ":" + c.getOldValue() + ">" + c.getNewValue() + "@" + c.getDate())
+                                   .toList();
+    assertEquals(List.of("status:ToDo>InProgress@2026-10-01T00:00:00Z",
+                         "project:null>Beta@2026-10-04T10:00:00Z",
+                         "status:null>Done@2026-10-04T12:00:00Z",
+                         "assignee:john>mary@2026-10-05T10:00:00Z",
+                         "assignee:mary>null@2026-10-05T12:00:00Z",
+                         "due_date:null>null@2026-10-06T10:00:00Z",
+                         "completed:false>true@2026-10-06T12:00:00Z",
+                         "due_date:null>2026-10-20T00:00:00Z@2026-10-07T10:00:00Z",
+                         "completed:true>false@2026-10-07T12:00:00Z"),
+                 rendered);
+  }
+
+  /**
+   * A task's first move leaves its first status unrecorded: the change
+   * names its new status only.
+   */
+  @Test
+  public void aFirstMoveHasNoOldStatus() { // NOSONAR
+    TaskDto task = mock(TaskDto.class);
+    List<TaskChange> changes;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      changes = tool.getTaskChanges(task,
+                                    List.of(log(1, "edit_status", "InProgress", "2026-10-06T10:00:00Z")),
+                                    Date.from(Instant.parse("2026-10-01T00:00:00Z")));
+    }
+    assertEquals(1, changes.size());
+    assertNull(changes.get(0).getOldValue());
+    assertEquals("InProgress", changes.get(0).getNewValue());
+  }
+
+  /**
+   * A date is the start of that day in the user's time zone, a date and
+   * time with an offset is that instant, and one without is read in the
+   * user's time zone; anything else is refused with a message naming the
+   * argument and the expected forms. Mutants: a date read in UTC, an offset
+   * ignored.
+   */
+  @Test
+  public void sinceArgumentsAreDatesInTheUsersZone() { // NOSONAR
+    assertNull(tool.parseSince("  ", "changed_since", USER_ZONE));
+    assertEquals(Date.from(Instant.parse("2026-10-13T22:00:00Z")), tool.parseSince(" 2026-10-14 ", "changed_since", USER_ZONE));
+    assertEquals(Date.from(Instant.parse("2026-10-14T07:00:00Z")),
+                 tool.parseSince("2026-10-14T09:00:00+02:00", "changed_since", USER_ZONE));
+    assertEquals(Date.from(Instant.parse("2026-10-14T09:00:00Z")), tool.parseSince("2026-10-14T09:00:00Z", "changed_since", USER_ZONE));
+    assertEquals(Date.from(Instant.parse("2026-10-14T07:00:00Z")), tool.parseSince("2026-10-14T09:00", "changed_since", USER_ZONE));
+    IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                                                  () -> tool.parseSince("last week", "completed_since", USER_ZONE));
+    assertTrue(error.getMessage(), error.getMessage().startsWith("completed_since must be a date such as 2026-10-14"));
+  }
+
+  /**
+   * @param id the entry identifier
+   * @param actionName its action
+   * @param target its target
+   * @param date its ISO 8601 instant
+   * @return a change log entry by the test user
+   */
+  private static ChangeLogEntry log(long id, String actionName, String target, String date) {
+    ChangeLogEntry entry = new ChangeLogEntry();
+    entry.setId(id);
+    entry.setAuthor(USER);
+    entry.setActionName(actionName);
+    entry.setTarget(target);
+    entry.setCreatedTime(Instant.parse(date).toEpochMilli());
+    return entry;
+  }
+
+  /**
+   * @param query a task query
+   * @return the value of its change log condition, failing when it has none
+   */
+  private static LoggedSince findLoggedSince(TaskQuery query) {
+    List<Condition> conditions = new ArrayList<>();
+    conditions.add(query.getCondition());
+    for (int i = 0; i < conditions.size(); i++) {
+      Condition condition = conditions.get(i);
+      if (condition instanceof AggregateCondition aggregate) {
+        conditions.addAll(aggregate.getConditions());
+      } else if (condition instanceof SingleCondition<?> single && SingleCondition.LOGGED_SINCE.equals(single.getType())) {
+        return (LoggedSince) single.getValue();
+      }
+    }
+    fail("No change log condition in the query");
+    return null;
   }
 
   /**
@@ -1000,7 +1266,7 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.emptyList());
 
-    skippingTool.listAssignedTasks(5, true);
+    skippingTool.listAssignedTasks(5, true, null, null);
 
     assertEquals(Date.from(Instant.parse("2018-11-04T03:00:00Z")), findDueDateBefore(query.getValue()));
     assertEquals(1, ZonedDateTime.ofInstant(findDueDateBefore(query.getValue()).toInstant(), saoPaulo).getHour());
@@ -1013,7 +1279,7 @@ public class TaskMcpToolTest {
     when(taskService.getUncompletedTasks(USER, 5)).thenReturn(Collections.singletonList(task));
     when(taskService.countUncompletedTasks(USER)).thenReturn(1L);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, null, null, null));
 
     assertEquals(1, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
@@ -1026,7 +1292,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(0);
 
-    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null);
 
     assertEquals(0, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
@@ -1764,7 +2030,7 @@ public class TaskMcpToolTest {
                                                                 .thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null, null, null, null, null, null));
 
     assertEquals(1, result.getTasks().size());
     assertEquals(1L, result.getCount());
@@ -1788,7 +2054,7 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(PROJECT_ID, false, false, null, null, null, "  Live Check 2 ");
+    tool.listTasks(PROJECT_ID, false, false, null, null, null, "  Live Check 2 ", null, null, null, null);
 
     List<Condition> conjunction = conjunction(query.getValue());
     assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
@@ -1809,8 +2075,8 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(null, false, false, null, null, null, "Live");
-    tool.listTasks(null, false, false, null, null, null, "  ");
+    tool.listTasks(null, false, false, null, null, null, "Live", null, null, null, null);
+    tool.listTasks(null, false, false, null, null, null, "  ", null, null, null, null);
 
     List<Condition> withTitle = conjunction(query.getAllValues().get(0));
     assertTrue(withTitle.stream()
@@ -1827,14 +2093,14 @@ public class TaskMcpToolTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(false);
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null);
   }
 
   @Test(expected = ObjectNotFoundException.class)
   public void listTasksWithProjectWhenProjectServiceThrowsEntityNotFoundShouldThrowObjectNotFound() throws Exception { // NOSONAR
     when(projectService.getProject(PROJECT_ID)).thenThrow(new EntityNotFoundException(PROJECT_ID, ProjectDto.class));
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null);
   }
 
   @Test
