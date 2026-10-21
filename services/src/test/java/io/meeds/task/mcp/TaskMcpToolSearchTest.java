@@ -241,9 +241,9 @@ public class TaskMcpToolSearchTest {
   }
 
   /**
-   * The search is the Tasks application's: the user, the text without its
-   * accents (the index folds accents on the tasks it indexes, not on the text
-   * searched), the user and their memberships as permissions, the project
+   * The search is the Tasks application's: the user, the words of the text
+   * without their accents (the index folds accents on the tasks it indexes,
+   * not on the text searched), the user and their memberships as permissions, the project
    * searched, and the 100 most relevant hits.
    *
    * @throws Exception never, the project lookup declares it
@@ -257,7 +257,7 @@ public class TaskMcpToolSearchTest {
     ArgumentCaptor<TaskSearchFilter> filter = ArgumentCaptor.forClass(TaskSearchFilter.class);
     verify(taskService).findTasks(filter.capture());
     assertEquals(USER, filter.getValue().getUserId());
-    assertEquals("Grand Dax", filter.getValue().getTerm());
+    assertEquals("grand dax", filter.getValue().getTerm());
     assertTrue(filter.getValue().getPermissions().contains(USER));
     assertTrue(filter.getValue().getPermissions().contains("member:/spaces/sales"));
     assertEquals(List.of(PROJECT_ID), filter.getValue().getProjectIds());
@@ -266,6 +266,45 @@ public class TaskMcpToolSearchTest {
     assertTrue(result.getTasks().isEmpty());
     assertEquals(10, result.getUsedLimit());
     assertFalse(result.isHasMore());
+  }
+
+  /**
+   * The words reach the index as words only: no field query, escape, range,
+   * wildcard or operator of the query syntax, and a text holding no word is
+   * refused like a blank one.
+   */
+  @Test
+  public void theTextReachesTheIndexAsWordsOnly() {
+    assertEquals("grand dax x and y or not z", TaskMcpTool.toSearchWords(" Grand:Dax \\ <x> AND y=OR NOT* z~ "));
+    assertEquals("etude cafe 2026", TaskMcpTool.toSearchWords("Étude (café) \"2026\""));
+    assertEquals("", TaskMcpTool.toSearchWords(" :*\\ "));
+    assertEquals("", TaskMcpTool.toSearchWords(null));
+    assertThrows(IllegalArgumentException.class, () -> tool.searchTasks(" :*? ", null, null, null));
+    verify(taskService, never()).findTasks(any(TaskSearchFilter.class));
+  }
+
+  /**
+   * A search that read the whole window of 100 hits says more may match, even
+   * when the filters kept fewer tasks than the limit: matches ranked below
+   * the window were never read.
+   *
+   * @throws Exception never, the project lookup declares it
+   */
+  @Test
+  public void aFullWindowOfHitsSaysMoreMayMatch() throws Exception {// NOSONAR
+    List<TaskDto> hits = new ArrayList<>();
+    for (long id = 1; id <= 99; id++) {
+      hits.add(task(id, "Grand Dax done " + id, true, project));
+    }
+    hits.add(task(100L, "Grand Dax", false, project));
+    when(taskService.findTasks(any(TaskSearchFilter.class))).thenReturn(hits);
+
+    TaskSearchCollectionModel result = tool.searchTasks("Grand Dax", PROJECT_ID, null, null);
+    assertEquals(List.of(100L), ids(result));
+    assertTrue(result.isHasMore());
+
+    when(taskService.findTasks(any(TaskSearchFilter.class))).thenReturn(hits.subList(1, 100));
+    assertFalse(tool.searchTasks("Grand Dax", PROJECT_ID, null, null).isHasMore());
   }
 
   /**
