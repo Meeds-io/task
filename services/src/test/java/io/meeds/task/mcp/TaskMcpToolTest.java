@@ -1150,6 +1150,38 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * With a date and include_change_log, the changes are read from the whole
+   * change log while the change log returned holds the newest hundred
+   * entries, as without a date. Mutant: the whole log returned.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void theChangeLogListedWithADateHoldsTheNewestHundredEntries() throws Exception { // NOSONAR
+    TaskDto task = mockTask();
+    List<ChangeLogEntry> logs = new ArrayList<>();
+    for (int i = 120; i > 0; i--) {
+      logs.add(log(i, "edit_title", "", Instant.parse("2026-10-01T00:00:00Z").plusSeconds(i).toString()));
+    }
+    when(taskService.getTaskLogs(TASK_ID, 0, -1)).thenReturn(logs);
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null,
+                                                                                  false,
+                                                                                  true,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  "2026-09-01",
+                                                                                  null,
+                                                                                  null,
+                                                                                  null));
+
+    assertEquals(100, ((TaskWithChangesModel) result.getTasks().get(0)).getChangeLogs().size());
+  }
+
+  /**
    * overdue_only lists open tasks and completed_since completed ones: asked
    * together, on either tool, the call is refused instead of answering
    * nothing. Mutant: the check dropped.
