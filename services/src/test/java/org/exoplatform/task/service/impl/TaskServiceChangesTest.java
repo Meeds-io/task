@@ -21,9 +21,11 @@ package org.exoplatform.task.service.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -43,10 +45,10 @@ import org.exoplatform.task.dao.condition.Condition;
 import org.exoplatform.task.dao.condition.LoggedSince;
 import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.dto.ChangeLogEntry;
-import org.exoplatform.task.dto.TaskChangeFilter;
-import org.exoplatform.task.dto.TaskChanges;
+import org.exoplatform.task.model.TaskChangeFilter;
+import org.exoplatform.task.model.TaskChanges;
 import org.exoplatform.task.dto.TaskDto;
-import org.exoplatform.task.dto.TaskFieldChange;
+import org.exoplatform.task.model.TaskFieldChange;
 import org.exoplatform.task.storage.TaskStorage;
 
 /**
@@ -191,6 +193,21 @@ public class TaskServiceChangesTest {
     assertEquals(120L, withLog.getChangeLog().get(0).getId());
     assertNull(withoutLog.getChangeLog());
     verify(taskStorage, org.mockito.Mockito.times(2)).getTaskLogs(TASK_ID, 0, -1);
+  }
+
+  /**
+   * The date of the changes is required: a null one is refused as a bad
+   * argument, before the change log is read. Mutant: the check dropped,
+   * which fails with a null pointer instead.
+   */
+  @Test
+  public void theChangesNeedADate() {
+    TaskDto task = mock(TaskDto.class);
+
+    IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> taskService.getTaskChanges(task, null, false));
+
+    assertEquals("task.changes.noDate", error.getMessage());
+    verifyNoInteractions(taskStorage);
   }
 
   /**
