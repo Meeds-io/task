@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.exoplatform.task.dto.TaskFieldChange;
+
 import io.meeds.mcp.server.tool.model.UserModel;
 
 import lombok.AllArgsConstructor;
@@ -40,19 +42,19 @@ import lombok.NoArgsConstructor;
 public class TaskChange {
 
   /** The status of a task: its column in its project. */
-  public static final String FIELD_STATUS    = "status";
+  public static final String FIELD_STATUS    = TaskFieldChange.FIELD_STATUS;
 
   /** The project of a task, when it moved to another or out of any. */
-  public static final String FIELD_PROJECT   = "project";
+  public static final String FIELD_PROJECT   = TaskFieldChange.FIELD_PROJECT;
 
   /** The due date of a task. */
-  public static final String FIELD_DUE_DATE  = "due_date";
+  public static final String FIELD_DUE_DATE  = TaskFieldChange.FIELD_DUE_DATE;
 
   /** The assignee of a task, a username. */
-  public static final String FIELD_ASSIGNEE  = "assignee";
+  public static final String FIELD_ASSIGNEE  = TaskFieldChange.FIELD_ASSIGNEE;
 
   /** Whether a task is completed, {@code true} or {@code false}. */
-  public static final String FIELD_COMPLETED = "completed";
+  public static final String FIELD_COMPLETED = TaskFieldChange.FIELD_COMPLETED;
 
   /** The field that changed, one of the {@code FIELD_*} names. */
   private String             field;
