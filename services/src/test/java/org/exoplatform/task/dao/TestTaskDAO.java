@@ -18,9 +18,11 @@
  */
 package org.exoplatform.task.dao;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
@@ -410,6 +412,135 @@ public class TestTaskDAO extends AbstractTest {
                         firstPage);
     List<String> secondPage = Arrays.stream(list.load(10, 10)).map(Task::getTitle).toList();
     Assert.assertEquals(Arrays.asList("late 5", "late 4", "late 3", "late 2", "late 1 bis", "late 1"), secondPage);
+  }
+
+  /**
+   * changed_since selects the tasks with a status, due date, assignee or
+   * completion entry in their change log at or after the date, and only
+   * when one entry meets both: a task whose status changed before the date
+   * and whose title changed after it is left out. An entry exactly at the
+   * date counts. The count runs the same subquery. Mutants: the date
+   * compared on another entry than the action (two joins), the date
+   * excluded or the comparison inverted, the action list ignored.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testFindTasksChangedSince() throws Exception {
+    Date since = Date.from(Instant.now().minus(7, ChronoUnit.DAYS));
+    Task moved = createTaskWithLog("moved", "edit_status", new Date());
+    Task rescheduled = createTaskWithLog("rescheduled", "edit_duedate", since);
+    Task completed = createTaskWithLog("completed", "mark_done", new Date());
+    Task reassigned = createTaskWithLog("reassigned", "unassign", new Date());
+    Task movedLongAgo = createTaskWithLog("moved long ago", "edit_status", Date.from(since.toInstant().minusSeconds(1)));
+    addLog(movedLongAgo, "edit_title", new Date());
+    createTaskWithLog("renamed", "edit_title", new Date());
+    tDAO.create(newTaskInstance("untouched", "", username));
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setAssignee(Arrays.asList(username));
+    taskQuery.setChangedSince(since);
+    ListAccess<Task> list = tDAO.findTasks(taskQuery);
+
+    Set<String> titles = Arrays.stream(list.load(0, -1)).map(Task::getTitle).collect(Collectors.toSet());
+    Assert.assertEquals(new HashSet<>(Arrays.asList(moved.getTitle(),
+                                                    rescheduled.getTitle(),
+                                                    completed.getTitle(),
+                                                    reassigned.getTitle())),
+                        titles);
+    Assert.assertEquals(4, list.getSize());
+    Assert.assertEquals(4, tDAO.findLastUpdatedTasks(taskQuery).getSize());
+  }
+
+  /**
+   * completed_since selects the completed tasks whose completion entry is at
+   * or after the date: not a task completed before it, nor a task reopened
+   * after it, whose entry has the same action. Mutants: the completed
+   * condition dropped; the date ignored.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testFindTasksCompletedSince() throws Exception {
+    Date since = Date.from(Instant.now().minus(7, ChronoUnit.DAYS));
+    Task completedThisWeek = newTaskInstance("completed this week", "", username);
+    completedThisWeek.setCompleted(true);
+    tDAO.create(completedThisWeek);
+    addLog(completedThisWeek, "mark_done", new Date());
+    Task completedLongAgo = newTaskInstance("completed long ago", "", username);
+    completedLongAgo.setCompleted(true);
+    tDAO.create(completedLongAgo);
+    addLog(completedLongAgo, "mark_done", Date.from(since.toInstant().minus(3, ChronoUnit.DAYS)));
+    addLog(completedLongAgo, "edit_status", new Date());
+    createTaskWithLog("reopened this week", "mark_done", new Date());
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setAssignee(Arrays.asList(username));
+    taskQuery.setCompletedSince(since);
+    ListAccess<Task> list = tDAO.findTasks(taskQuery);
+
+    Assert.assertEquals(1, list.getSize());
+    Assert.assertEquals("completed this week", list.load(0, -1)[0].getTitle());
+  }
+
+  /**
+   * The status filter selects the tasks of that column only, among the
+   * tasks of the project. Mutant: the status condition dropped.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testFindTasksByStatusId() throws Exception {
+    Project project = new Project();
+    project.setName("Board");
+    project = daoHandler.getProjectHandler().create(project);
+    Status todo = newStatusInstance("To do", 1);
+    todo.setProject(project);
+    daoHandler.getStatusHandler().create(todo);
+    Status done = newStatusInstance("Done", 2);
+    done.setProject(project);
+    daoHandler.getStatusHandler().create(done);
+    Task inTodo = newTaskInstance("in to do", "", null);
+    inTodo.setStatus(todo);
+    tDAO.create(inTodo);
+    Task inDone = newTaskInstance("in done", "", null);
+    inDone.setStatus(done);
+    tDAO.create(inDone);
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setProjectIds(Arrays.asList(project.getId()));
+    taskQuery.setStatusId(done.getId());
+    Task[] found = ListUtil.load(tDAO.findTasks(taskQuery), 0, -1);
+
+    Assert.assertEquals(1, found.length);
+    Assert.assertEquals("in done", found[0].getTitle());
+  }
+
+  /**
+   * @param title the task title
+   * @param actionName the action of its change log entry
+   * @param createdTime the date of the entry
+   * @return the open task assigned to the test user, with that entry
+   */
+  private Task createTaskWithLog(String title, String actionName, Date createdTime) {
+    Task task = newTaskInstance(title, "", username);
+    tDAO.create(task);
+    addLog(task, actionName, createdTime);
+    return task;
+  }
+
+  /**
+   * @param task a task
+   * @param actionName the action of the change log entry added to it
+   * @param createdTime the date of the entry
+   */
+  private void addLog(Task task, String actionName, Date createdTime) {
+    ChangeLog log = new ChangeLog();
+    log.setTask(task);
+    log.setAuthor(username);
+    log.setActionName(actionName);
+    log.setCreatedTime(createdTime);
+    daoHandler.getTaskLogHandler().create(log);
   }
 
   @Test

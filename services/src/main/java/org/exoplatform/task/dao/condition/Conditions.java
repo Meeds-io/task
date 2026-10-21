@@ -20,6 +20,7 @@ package org.exoplatform.task.dao.condition;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 public class Conditions {
@@ -33,6 +34,7 @@ public class Conditions {
   public static String TASK_CREATOR = "createdBy";
   public static String TASK_STATUS = "status";
   public static String TASK_STATUS_NAME = "status.name";
+  public static final String TASK_STATUS_ID = "status.id";
   public static String TASK_DUEDATE = "dueDate";
   public static String TASK_PROJECT = "status.project.id";
   public static String TASK_LABEL_USERNAME = "labels.label.username";
@@ -43,6 +45,7 @@ public class Conditions {
   public static String TASK_MANAGER = "status.project.manager";
   public static String TASK_PARTICIPATOR = "status.project.participator";
   public static String TASK_MENTIONED_USERS = "mentionedUsers";
+  public static final String TASK_LOGS = "logs";
 
   public static final String MANAGER = "manager";
   public static final String PARTICIPATOR = "participator";
@@ -87,6 +90,19 @@ public class Conditions {
   }
   public static <T> SingleCondition<T> isFalse(String fieldName) {
     return new SingleCondition<T>(SingleCondition.IS_FALSE, fieldName, null);
+  }
+
+  /**
+   * Selects the tasks with a change log entry of one of the given actions at
+   * or after the given date, the same entry meeting both.
+   *
+   * @param actionNames the change log action names, such as
+   *          {@code edit_status}
+   * @param since the earliest date of the entry, included
+   * @return the condition
+   */
+  public static SingleCondition<LoggedSince> loggedSince(List<String> actionNames, Date since) {
+    return new SingleCondition<>(SingleCondition.LOGGED_SINCE, TASK_LOGS, new LoggedSince(actionNames, since));
   }
 
   public static AggregateCondition and(Condition... cond) {
