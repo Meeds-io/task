@@ -926,9 +926,9 @@ public class TaskMcpToolTest {
    * those with a status, project, due date, assignee or completion change
    * at or after the start of that day in the user's time zone, completed
    * tasks included, counted by the same query; each task carries its
-   * changes, old and new status. Mutants: the change condition dropped,
-   * built with another action list or the date read in UTC; the completed
-   * tasks left out; the plain models returned.
+   * changes, old and new status; with hide_completed_tasks, only the open
+   * ones. Mutants: the change condition dropped, built with another action
+   * list or the date read in UTC; the plain models returned.
    *
    * @throws Exception never
    */
@@ -958,11 +958,7 @@ public class TaskMcpToolTest {
 
     List<Condition> conjunction = conjunction(query.getValue());
     assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
-    LoggedSince loggedSince = findLoggedSince(query.getValue());
-    assertEquals(TaskQuery.CHANGE_ACTIONS, loggedSince.actionNames());
-    assertEquals(List.of("edit_status", "edit_project", "remove_project", "edit_duedate", "assign", "unassign", "mark_done"),
-                 loggedSince.actionNames());
-    assertEquals(Date.from(Instant.parse("2026-09-30T22:00:00Z")), loggedSince.since());
+    assertChangedSince(query.getValue(), Date.from(Instant.parse("2026-09-30T22:00:00Z")));
     assertTrue("hide_completed_tasks keeps the completed tasks out", selectsOpenTasksOnly(query.getValue()));
     verify(taskService).countTasks(query.getValue());
     assertEquals(1L, result.getCount());
@@ -1046,7 +1042,7 @@ public class TaskMcpToolTest {
     TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, null, "2026-10-01", null));
 
     assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
-    assertEquals(TaskQuery.CHANGE_ACTIONS, findLoggedSince(query.getValue()).actionNames());
+    assertChangedSince(query.getValue(), Date.from(Instant.parse("2026-09-30T22:00:00Z")));
     assertFalse(selectsOpenTasksOnly(query.getValue()));
     verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
     verify(taskService).countTasks(query.getValue());
@@ -1072,6 +1068,7 @@ public class TaskMcpToolTest {
     TaskDto task = mock(TaskDto.class);
     lenient().when(task.isCompleted()).thenReturn(false);
     when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-20T00:00:00Z")));
+    when(task.getCreatedTime()).thenReturn(Date.from(Instant.parse("2026-09-20T08:00:00Z")));
     List<ChangeLogEntry> logs = List.of(log(11, "mark_done", "", "2026-10-07T12:00:00Z"),
                                         log(10, "edit_title", "", "2026-10-07T11:00:00Z"),
                                         log(9, "edit_duedate", "", "2026-10-07T10:00:00Z"),
@@ -1130,6 +1127,42 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * A task created since the date has no assignee change: its creation logs
+   * its assignment, which is no change, and the task query leaves it out as
+   * well; its status change is kept, from the status before it. Mutant: the
+   * creation date ignored.
+   */
+  @Test
+  public void aTaskCreatedSinceTheDateHasNoAssigneeChange() { // NOSONAR
+    TaskDto task = mock(TaskDto.class);
+    when(task.getCreatedTime()).thenReturn(Date.from(Instant.parse("2026-10-03T08:00:00Z")));
+    List<TaskChange> changes;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      changes = tool.getTaskChanges(task,
+                                    List.of(log(4, "edit_status", "Done", "2026-10-06T10:00:00Z"),
+                                            log(3, "assign", "mary", "2026-10-04T10:00:00Z"),
+                                            log(2, "edit_status", "ToDo", "2026-10-03T08:00:01Z"),
+                                            log(1, "assign", OTHER_USER, "2026-10-03T08:00:00Z")),
+                                    Date.from(Instant.parse("2026-10-01T00:00:00Z")));
+    }
+    assertEquals(List.of("status:null>ToDo", "status:ToDo>Done"),
+                 changes.stream().map(c -> c.getField() + ":" + c.getOldValue() + ">" + c.getNewValue()).toList());
+  }
+
+  /**
+   * overdue_only lists open tasks and completed_since completed ones: asked
+   * together, on either tool, the call is refused instead of answering
+   * nothing. Mutant: the check dropped.
+   */
+  @Test
+  public void overdueOnlyAndCompletedSinceAreRefusedTogether() throws Exception { // NOSONAR
+    assertThrows(IllegalArgumentException.class,
+                 () -> tool.listTasks(null, null, false, true, null, null, null, null, "2026-10-01", null, null));
+    assertThrows(IllegalArgumentException.class, () -> tool.listAssignedTasks(5, true, null, "2026-10-01"));
+    verify(taskService, never()).findTasks(any(), anyInt(), anyInt());
+  }
+
+  /**
    * A task's first move leaves its first status unrecorded: the change
    * names its new status only.
    */
@@ -1182,6 +1215,37 @@ public class TaskMcpToolTest {
     entry.setTarget(target);
     entry.setCreatedTime(Instant.parse(date).toEpochMilli());
     return entry;
+  }
+
+  /**
+   * Asserts the changed_since condition of a query: a status, project, due
+   * date or completion entry at or after the date, or an assignee entry at
+   * or after it on a task created before it. Mutants it kills: another
+   * action list; the creation date condition dropped, inverted or on
+   * another date; the two branches joined by a conjunction.
+   *
+   * @param query a task query
+   * @param since the expected date
+   */
+  private static void assertChangedSince(TaskQuery query, Date since) {
+    AggregateCondition changed = conjunction(query).stream()
+                                                   .filter(c -> c instanceof AggregateCondition aggregate
+                                                                && AggregateCondition.OR.equals(aggregate.getType())
+                                                                && aggregate.getConditions()
+                                                                            .stream()
+                                                                            .anyMatch(m -> m instanceof SingleCondition<?> single
+                                                                                           && SingleCondition.LOGGED_SINCE.equals(single.getType())))
+                                                   .map(AggregateCondition.class::cast)
+                                                   .findFirst()
+                                                   .orElseThrow();
+    assertEquals(2, changed.getConditions().size());
+    SingleCondition<?> others = (SingleCondition<?>) changed.getConditions().get(0);
+    assertEquals(new LoggedSince(List.of("edit_status", "edit_project", "remove_project", "edit_duedate", "mark_done"), since),
+                 others.getValue());
+    AggregateCondition assignee = (AggregateCondition) changed.getConditions().get(1);
+    assertEquals(AggregateCondition.AND, assignee.getType());
+    assertEquals(new LoggedSince(List.of("assign", "unassign"), since), ((SingleCondition<?>) assignee.getConditions().get(0)).getValue());
+    assertTrue(isSingle(assignee.getConditions().get(1), SingleCondition.LT, "createdTime", since));
   }
 
   /**
