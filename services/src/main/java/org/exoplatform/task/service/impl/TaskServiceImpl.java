@@ -63,6 +63,9 @@ import static org.exoplatform.task.util.TaskUtil.*;
 @Singleton
 public class TaskServiceImpl implements TaskService {
 
+    /** The most change log entries a task's changes come with (EXO-91902). */
+    private static final int CHANGE_LOG_LIMIT = 100;
+
     private static final Log LOG = ExoLogger.getExoLogger(TaskServiceImpl.class);
 
 
@@ -201,6 +204,136 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public List<ChangeLogEntry> getTaskLogs(long taskId, int offset, int limit) throws Exception {
         return taskStorage.getTaskLogs(taskId,  offset,  limit);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void addChangeFilter(TaskQuery query, TaskChangeFilter filter) {
+        if (filter == null) {
+            return;
+        }
+        if (filter.isHideCompleted() && filter.getCompletedSince() == null) {
+            query.setCompleted(false);
+        }
+        query.setChangedSince(filter.getChangedSince());
+        query.setCompletedSince(filter.getCompletedSince());
+        if (StringUtils.isNotBlank(filter.getAssignee())) {
+            query.setAssignee(Collections.singletonList(filter.getAssignee().trim()));
+        }
+        query.setStatusId(filter.getStatusId());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public TaskQuery getAssignedTasksQuery(String username, TaskChangeFilter filter) {
+        TaskQuery query = new TaskQuery();
+        query.setAssigneeOrCoworker(Collections.singletonList(username));
+        addChangeFilter(query, filter);
+        return query;
+    }
+
+    /**
+     * {@inheritDoc} The whole change log is read: the task may have been
+     * selected on an entry the newest ones do not hold, and an old value is
+     * the new value of an earlier entry.
+     */
+    @Override
+    public TaskChanges getTaskChanges(TaskDto task, Date since, boolean includeChangeLog) throws Exception {
+        List<ChangeLogEntry> logs = getTaskLogs(task.getId(), 0, -1);
+        List<ChangeLogEntry> changeLog = includeChangeLog ? logs.subList(0, Math.min(logs.size(), CHANGE_LOG_LIMIT)) : null;
+        return new TaskChanges(getTaskChanges(task, logs, since), changeLog);
+    }
+
+    /**
+     * Tells the status, project, due date, assignee and completion changes of
+     * a task at or after a date, oldest first, from its change log. The log
+     * records the new status, project and assignee of each change, so the old
+     * value is the new value of the previous change of the same field. The
+     * creation entry records the status the task was created in, so a first
+     * move tells the status it left; a creation entry logged before that has
+     * none, and neither does a move after a project change, whose new status
+     * is not logged: the old value is then none. The log records no due date:
+     * the latest due date change carries the current due date, the earlier
+     * ones none. A completion entry is logged on each completion and each
+     * reopening, so the latest one carries the current completion and the
+     * earlier ones alternate. An assignee change of a task created at or after
+     * the date is left out, as {@link TaskQuery#setChangedSince(Date)} leaves
+     * it out: a task created with an assignee logs that assignment at its
+     * creation.
+     *
+     * @param task the task
+     * @param logs its change log entries, in any order
+     * @param since the earliest date of the changes, included
+     * @return the changes
+     */
+    List<TaskFieldChange> getTaskChanges(TaskDto task, List<ChangeLogEntry> logs, Date since) {
+        if (logs == null || logs.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<ChangeLogEntry> chronological = logs.stream()
+                                                 .sorted(Comparator.comparingLong(ChangeLogEntry::getCreatedTime)
+                                                                   .thenComparingLong(ChangeLogEntry::getId))
+                                                 .toList();
+        long completions = chronological.stream().filter(l -> TaskQuery.COMPLETION_ACTION.equals(l.getActionName())).count();
+        ChangeLogEntry lastDueDateChange = chronological.stream()
+                                                        .filter(l -> TaskQuery.DUE_DATE_CHANGE_ACTION.equals(l.getActionName()))
+                                                        .reduce((first, second) -> second)
+                                                        .orElse(null);
+        List<TaskFieldChange> changes = new ArrayList<>();
+        String status = null;
+        String project = null;
+        String assignee = null;
+        long completionsLeft = completions;
+        boolean createdBefore = task.getCreatedTime() != null && task.getCreatedTime().before(since);
+        for (ChangeLogEntry log : chronological) {
+            String action = log.getActionName();
+            boolean listed = log.getCreatedTime() >= since.getTime();
+            String target = StringUtils.trimToNull(log.getTarget());
+            String field = null;
+            String oldValue = null;
+            String newValue = null;
+            Date newDate = null;
+            if ("created".equals(action)) {
+                // the status a task is created in, logged since EXO-91902; none before
+                status = target;
+            } else if ("edit_status".equals(action)) {
+                field = TaskFieldChange.FIELD_STATUS;
+                oldValue = status;
+                newValue = target;
+                status = target;
+            } else if ("edit_project".equals(action) || "remove_project".equals(action)) {
+                field = TaskFieldChange.FIELD_PROJECT;
+                oldValue = project;
+                newValue = "edit_project".equals(action) ? target : null;
+                project = newValue;
+                status = null;
+            } else if (("assign".equals(action) || "unassign".equals(action)) && !createdBefore) {
+                assignee = "assign".equals(action) ? target : null;
+            } else if ("assign".equals(action) || "unassign".equals(action)) {
+                field = TaskFieldChange.FIELD_ASSIGNEE;
+                oldValue = "assign".equals(action) ? assignee : target;
+                newValue = "assign".equals(action) ? target : null;
+                assignee = newValue;
+            } else if (TaskQuery.DUE_DATE_CHANGE_ACTION.equals(action)) {
+                field = TaskFieldChange.FIELD_DUE_DATE;
+                newDate = log == lastDueDateChange ? task.getDueDate() : null;
+            } else if (TaskQuery.COMPLETION_ACTION.equals(action)) {
+                completionsLeft--;
+                // the latest entry is the current completion, and each earlier one its opposite
+                boolean completed = task.isCompleted() == (completionsLeft % 2 == 0);
+                field = TaskFieldChange.FIELD_COMPLETED;
+                oldValue = String.valueOf(!completed);
+                newValue = String.valueOf(completed);
+            }
+            if (field != null && listed) {
+                changes.add(new TaskFieldChange(field, oldValue, newValue, newDate, log.getCreatedTime(), log.getAuthor()));
+            }
+        }
+        return changes;
     }
 
 

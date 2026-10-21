@@ -35,7 +35,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -76,7 +75,10 @@ import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
+import org.exoplatform.task.dto.TaskChangeFilter;
+import org.exoplatform.task.dto.TaskChanges;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.dto.TaskFieldChange;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.service.CommentService;
@@ -157,11 +159,6 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                       "Task project with identifier '%s' is not editable by the user '%s'";
 
   private static final String           MSG_TASK_PROJECT_NOT_FOUND      = "Task project with identifier '%s' is not found";
-
-  private static final List<String>     USER_TARGET_ACTIONS             = List.of("assign",
-                                                                                  "unassign",
-                                                                                  "assignCoworker",
-                                                                                  "unassignCoworker");
 
   private static final int              ISO_DATE_LENGTH                 = "2026-10-14".length();
 
@@ -443,13 +440,15 @@ public class TaskMcpTool implements McpToolPlugin {
     List<? extends TaskModel> taskModels;
     long count;
     if (Boolean.TRUE.equals(overdueOnly) || since != null) {
-      TaskQuery taskQuery = new TaskQuery();
-      taskQuery.setAssigneeOrCoworker(Collections.singletonList(getCurrentUserName()));
+      TaskQuery taskQuery = taskService.getAssignedTasksQuery(getCurrentUserName(),
+                                                              new TaskChangeFilter(changedSinceDate,
+                                                                                   completedSinceDate,
+                                                                                   null,
+                                                                                   null,
+                                                                                   false));
       if (Boolean.TRUE.equals(overdueOnly)) {
         setOverdueOnly(taskQuery, zone);
       }
-      taskQuery.setChangedSince(changedSinceDate);
-      taskQuery.setCompletedSince(completedSinceDate);
       List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ? findOverdueTasks(taskQuery, 0, max) :
                                                              taskService.findLastUpdatedTasks(taskQuery, 0, max);
       taskModels = since == null ? toTaskModels(tasks, zone) : toTaskWithChangesModels(tasks, since, false, zone);
@@ -513,20 +512,17 @@ public class TaskMcpTool implements McpToolPlugin {
     Date changedSinceDate = parseSince(changedSince, ARG_CHANGED_SINCE, zone);
     Date completedSinceDate = parseSince(completedSince, ARG_COMPLETED_SINCE, zone);
     checkNotOverdueAndCompleted(overdueOnly, completedSinceDate);
-    TaskQuery taskQuery = getTaskQuery(projectId,
-                                       Boolean.TRUE.equals(hideCompletedTasks) && completedSinceDate == null,
-                                       Boolean.TRUE.equals(overdueOnly),
-                                       zone);
+    TaskQuery taskQuery = getTaskQuery(projectId, false, Boolean.TRUE.equals(overdueOnly), zone);
     if (StringUtils.isNotBlank(title)) {
       // TaskQuery#setTitle compares the lower-cased title with the value as given
       taskQuery.setTitle(title.trim().toLowerCase(Locale.ROOT));
     }
-    taskQuery.setChangedSince(changedSinceDate);
-    taskQuery.setCompletedSince(completedSinceDate);
-    if (StringUtils.isNotBlank(assignee)) {
-      taskQuery.setAssignee(Collections.singletonList(assignee.trim()));
-    }
-    taskQuery.setStatusId(statusId);
+    taskService.addChangeFilter(taskQuery,
+                                new TaskChangeFilter(changedSinceDate,
+                                                     completedSinceDate,
+                                                     assignee,
+                                                     statusId,
+                                                     Boolean.TRUE.equals(hideCompletedTasks)));
     List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ?
                                                            findOverdueTasks(taskQuery,
                                                                             getInteger(offset, DEFAULT_OFFSET),
@@ -1685,8 +1681,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param includeChangeLog whether the task also comes with its change log
    * @param zone the user's time zone
    * @param today today in that zone
-   * @return its model, with its changes since that date and, on demand, its
-   *         whole change log
+   * @return its model, with its changes since that date, as the task service
+   *         rebuilds them, and, on demand, its newest change log entries
    */
   @SneakyThrows
   private TaskWithChangesModel toTaskWithChangesModel(TaskDto task,
@@ -1694,97 +1690,25 @@ public class TaskMcpTool implements McpToolPlugin {
                                                       boolean includeChangeLog,
                                                       ZoneId zone,
                                                       LocalDate today) {
-    // every entry: the task was selected on an entry the newest ones may not hold
-    List<ChangeLogEntry> logs = taskService.getTaskLogs(task.getId(), 0, -1); // NOSONAR
-    return new TaskWithChangesModel(toTaskModel(task, zone, today),
-                                    includeChangeLog ? getChangeLogs(task, logs.subList(0, Math.min(logs.size(), MAX_TO_LOAD)), null) : null,
-                                    getTaskChanges(task, logs, since));
+    TaskChanges taskChanges = taskService.getTaskChanges(task, since, includeChangeLog);
+    List<TaskChangeLog> changeLog = taskChanges.getChangeLog() == null ? null : getChangeLogs(task, taskChanges.getChangeLog(), null);
+    List<TaskChange> changes = CollectionUtils.emptyIfNull(taskChanges.getChanges()).stream().map(this::toTaskChange).toList();
+    return new TaskWithChangesModel(toTaskModel(task, zone, today), changeLog, changes);
   }
 
   /**
-   * Tells the status, project, due date, assignee and completion changes of
-   * a task at or after a date, oldest first, from its change log. The log
-   * records the new status, project and assignee of each change, so the old
-   * value is the new value of the previous change of the same field. The
-   * creation entry records the status the task was created in, so a first
-   * move tells the status it left; a creation entry logged before that has
-   * none, and neither does a move after a project change, whose new status
-   * is not logged: the old value is then none. The log records no due date: the latest due
-   * date change carries the current due date, the earlier ones none. A
-   * completion entry is logged on each completion and each reopening, so
-   * the latest one carries the current completion and the earlier ones
-   * alternate. An assignee change of a task created at or after the date is
-   * left out, as {@link TaskQuery#setChangedSince(Date)} leaves it out: a
-   * task created with an assignee logs that assignment at its creation.
-   *
-   * @param task the task
-   * @param logs its change log entries, in any order
-   * @param since the earliest date of the changes, included
-   * @return the changes
+   * @param change a change the task service rebuilt
+   * @return its model: a status in the user's language for a default status,
+   *         a date in the user's time zone, the author as a user
    */
-  List<TaskChange> getTaskChanges(TaskDto task, List<ChangeLogEntry> logs, Date since) {
-    if (CollectionUtils.isEmpty(logs)) {
-      return Collections.emptyList();
-    }
-    List<ChangeLogEntry> chronological = logs.stream()
-                                             .sorted(Comparator.comparingLong(ChangeLogEntry::getCreatedTime)
-                                                               .thenComparingLong(ChangeLogEntry::getId))
-                                             .toList();
-    long completions = chronological.stream().filter(l -> TaskQuery.COMPLETION_ACTION.equals(l.getActionName())).count();
-    ChangeLogEntry lastDueDateChange = chronological.stream()
-                                                    .filter(l -> TaskQuery.DUE_DATE_CHANGE_ACTION.equals(l.getActionName()))
-                                                    .reduce((first, second) -> second)
-                                                    .orElse(null);
-    List<TaskChange> changes = new ArrayList<>();
-    String status = null;
-    String project = null;
-    String assignee = null;
-    long completionsLeft = completions;
-    boolean createdBefore = task.getCreatedTime() != null && task.getCreatedTime().before(since);
-    for (ChangeLogEntry log : chronological) {
-      String action = log.getActionName();
-      boolean listed = log.getCreatedTime() >= since.getTime();
-      String target = StringUtils.trimToNull(log.getTarget());
-      String field = null;
-      String oldValue = null;
-      String newValue = null;
-      if ("created".equals(action)) {
-        // the status a task is created in, logged since EXO-91902; none before
-        status = target;
-      } else if ("edit_status".equals(action)) {
-        field = TaskChange.FIELD_STATUS;
-        oldValue = getStatusLabel(status);
-        newValue = getStatusLabel(target);
-        status = target;
-      } else if ("edit_project".equals(action) || "remove_project".equals(action)) {
-        field = TaskChange.FIELD_PROJECT;
-        oldValue = project;
-        newValue = "edit_project".equals(action) ? target : null;
-        project = newValue;
-        status = null;
-      } else if (("assign".equals(action) || "unassign".equals(action)) && !createdBefore) {
-        assignee = "assign".equals(action) ? target : null;
-      } else if ("assign".equals(action) || "unassign".equals(action)) {
-        field = TaskChange.FIELD_ASSIGNEE;
-        oldValue = "assign".equals(action) ? assignee : target;
-        newValue = "assign".equals(action) ? target : null;
-        assignee = newValue;
-      } else if (TaskQuery.DUE_DATE_CHANGE_ACTION.equals(action)) {
-        field = TaskChange.FIELD_DUE_DATE;
-        newValue = log == lastDueDateChange ? formatDate(task.getDueDate()) : null;
-      } else if (TaskQuery.COMPLETION_ACTION.equals(action)) {
-        completionsLeft--;
-        // the latest entry is the current completion, and each earlier one its opposite
-        boolean completed = task.isCompleted() == (completionsLeft % 2 == 0);
-        field = TaskChange.FIELD_COMPLETED;
-        oldValue = String.valueOf(!completed);
-        newValue = String.valueOf(completed);
-      }
-      if (field != null && listed) {
-        changes.add(new TaskChange(field, oldValue, newValue, formatDate(log.getCreatedTime()), getUserModel(log.getAuthor())));
-      }
-    }
-    return changes;
+  TaskChange toTaskChange(TaskFieldChange change) {
+    boolean status = TaskFieldChange.FIELD_STATUS.equals(change.getField());
+    String newValue = TaskFieldChange.FIELD_DUE_DATE.equals(change.getField()) ? formatDate(change.getNewDate()) : change.getNewValue();
+    return new TaskChange(change.getField(),
+                          status ? getStatusLabel(change.getOldValue()) : change.getOldValue(),
+                          status ? getStatusLabel(newValue) : newValue,
+                          formatDate(change.getCreatedTime()),
+                          getUserModel(change.getAuthor()));
   }
 
   /**
@@ -1940,7 +1864,7 @@ public class TaskMcpTool implements McpToolPlugin {
     return new TaskChangeLog(changeLog.getActionName(),
                              getActionLabel(changeLog.getActionName()),
                              getUserModel(changeLog.getAuthor()),
-                             USER_TARGET_ACTIONS.contains(changeLog.getActionName()) ? getUserModel(changeLog.getTarget()) : null,
+                             TaskService.USER_TARGET_ACTIONS.contains(changeLog.getActionName()) ? getUserModel(changeLog.getTarget()) : null,
                              formatDate(changeLog.getCreatedTime()));
   }
 
