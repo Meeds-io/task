@@ -73,6 +73,7 @@ import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
@@ -101,6 +102,8 @@ import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentModel;
 import io.meeds.task.mcp.model.TaskModel;
+import io.meeds.task.mcp.model.TaskSearchCollectionModel;
+import io.meeds.task.mcp.model.TaskSearchResultModel;
 import io.meeds.task.mcp.model.TaskWithChangeLogModel;
 import io.meeds.task.plugin.ProjectPermanentLinkPlugin;
 import io.meeds.task.plugin.TaskAclPlugin;
@@ -130,6 +133,9 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                 "Task with identifier '%s' is not accessible for user '%s'";
 
   private static final String           MSG_TASK_NOT_FOUND              = "Task with identifier '%s' is not found";
+
+  private static final String           MSG_SEARCH_NO_WORD              =
+                                                           "A text with a word to search is mandatory: numbers are not searched, a task id goes to get_task_by_id";
 
   private static final String           MSG_LABEL_NOT_FOUND             =
                                                             "Label with identifier '%s' is not found. Available project labels are:%n```json%n%s%n```";
@@ -461,6 +467,50 @@ public class TaskMcpTool implements McpToolPlugin {
                                    getInteger(offset, DEFAULT_OFFSET),
                                    getInteger(limit, DEFAULT_LIMIT),
                                    countTasks(taskQuery));
+  }
+
+  /**
+   * Searches the tasks the current user can view by a text in their title or
+   * description, ignoring case and accents: the tool's adapter of
+   * {@link TaskService#searchTasks(String, Long, boolean, int, Identity)},
+   * which holds the rules. It reads the tool's arguments, turns the service's
+   * refusals into the tool's messages and maps the tasks found to what tells
+   * them apart on their board.
+   *
+   * @param query the text searched: every word in the title, or every word in
+   *          the description; the index does not search numbers, so the text
+   *          must hold a word with letters
+   * @param projectId the project, null for every task the user can view
+   * @param includeCompleted whether the completed tasks are returned, after
+   *          the open ones
+   * @param limit the most tasks returned
+   * @return the tasks found, and whether more may match than were returned
+   * @throws IllegalAccessException when the user can't view the project
+   * @throws ObjectNotFoundException when the project doesn't exist
+   */
+  public TaskSearchCollectionModel searchTasks(String query,
+                                               Long projectId,
+                                               Boolean includeCompleted,
+                                               Integer limit) throws IllegalAccessException, ObjectNotFoundException {
+    TaskTextSearchResult result;
+    try {
+      result = taskService.searchTasks(query,
+                                       projectId,
+                                       Boolean.TRUE.equals(includeCompleted),
+                                       getInteger(limit, DEFAULT_LIMIT),
+                                       getCurrentUserAclIdentity());
+    } catch (IllegalArgumentException e) {
+      if (TaskService.TEXT_SEARCH_NO_WORD.equals(e.getMessage())) {
+        throw new IllegalArgumentException(MSG_SEARCH_NO_WORD);
+      }
+      throw e;
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(MSG_TASK_PROJECT_NOT_FOUND.formatted(projectId));
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(projectId, getCurrentUserName()));
+    }
+    List<TaskSearchResultModel> results = result.getTasks().stream().map(this::toTaskSearchResultModel).toList();
+    return new TaskSearchCollectionModel(results, result.getLimit(), result.isHasMore());
   }
 
   public ProjectModel getProjectById(Long projectId) throws ObjectNotFoundException, IllegalAccessException {
@@ -1294,6 +1344,25 @@ public class TaskMcpTool implements McpToolPlugin {
     return taskService.findLastUpdatedTasks(getTaskQuery(projectId, uncompleteOnly, false, null),
                                             getInteger(offset, DEFAULT_OFFSET),
                                             getInteger(limit, DEFAULT_LIMIT));
+  }
+
+  /**
+   * @param task a task found by a search
+   * @return what tells it apart on its board: its title, link, completion,
+   *         project, status and labels
+   */
+  private TaskSearchResultModel toTaskSearchResultModel(TaskDto task) {
+    StatusDto status = task.getStatus();
+    ProjectDto project = status == null ? null : status.getProject();
+    Long projectId = project == null ? null : project.getId();
+    return new TaskSearchResultModel(task.getId(),
+                                     task.getTitle(),
+                                     getUrl(task),
+                                     task.isCompleted(),
+                                     projectId,
+                                     project == null ? null : project.getName(),
+                                     getTaskStatus(status),
+                                     project == null ? null : getTaskLabels(task, projectId, getCurrentUserAclIdentity()));
   }
 
   /**

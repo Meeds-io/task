@@ -19,11 +19,17 @@
 package org.exoplatform.task.storage.search;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import org.mockito.ArgumentCaptor;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -38,10 +44,15 @@ import org.exoplatform.task.model.TaskSearchFilter;
 
 import io.meeds.task.search.TaskSearchConnector;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
 @RunWith(MockitoJUnitRunner.class)
 public class TaskSearchConnectorTest {
 
   private static final String    ES_INDEX = "task_alias";
+
+  private static final JsonMapper MAPPER   = JsonMapper.builder().build();
 
   @Mock
   private ElasticSearchingClient client;
@@ -105,6 +116,84 @@ public class TaskSearchConnectorTest {
 
     long count = taskSearchConnector.count(filter);
     assertEquals(42, count);
+  }
+
+  /**
+   * A filter naming projects adds a terms clause on the projects to the
+   * search and to the count, next to the term and the permissions, and the
+   * request stays valid JSON. Checked against Elasticsearch 9.4.5 by hand
+   * (EXO-91903): on an index with the task mapping and settings, a terms
+   * query on the dynamically mapped projectId matches the documents of that
+   * project only; no Elasticsearch runs in this suite.
+   *
+   */
+  @Test
+  public void testSearchAndCountByProject() {
+    TaskSearchFilter filter = new TaskSearchFilter("user1", "Grand Dax", List.of("user1", "member:/spaces/sales"), null, null, 0, 100);
+    filter.setProjectIds(List.of(8319L));
+    when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"hits\":{\"hits\":[]}}");
+    when(client.countRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"count\":0}");
+
+    taskSearchConnector.search(filter);
+    taskSearchConnector.count(filter);
+
+    ArgumentCaptor<String> search = ArgumentCaptor.forClass(String.class);
+    verify(client).sendRequest(search.capture(), eq(ES_INDEX));
+    ArgumentCaptor<String> count = ArgumentCaptor.forClass(String.class);
+    verify(client).countRequest(count.capture(), eq(ES_INDEX));
+    for (String request : List.of(search.getValue(), count.getValue())) {
+      JsonNode must = must(request);
+      assertEquals(3, must.size());
+      assertEquals(List.of("8319"), terms(must, "projectId"));
+      assertEquals(List.of("user1", "member:/spaces/sales"), terms(must, "permissions"));
+      assertTrue(must.get(0).has("query_string"));
+    }
+  }
+
+  /**
+   * A filter naming no project adds no project clause.
+   *
+   */
+  @Test
+  public void testSearchWithoutProject() {
+    TaskSearchFilter filter = new TaskSearchFilter("user1", "Grand Dax", List.of("user1"), null, null, 0, 100);
+    when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"hits\":{\"hits\":[]}}");
+
+    taskSearchConnector.search(filter);
+
+    ArgumentCaptor<String> search = ArgumentCaptor.forClass(String.class);
+    verify(client).sendRequest(search.capture(), eq(ES_INDEX));
+    JsonNode must = must(search.getValue());
+    assertEquals(2, must.size());
+    assertFalse(search.getValue().contains("projectId"));
+  }
+
+  /**
+   * Reads a request with a strict parser: a trailing comma, which
+   * Elasticsearch refuses, fails here too.
+   *
+   * @param request a search or count request
+   * @return the clauses its boolean query must match
+   */
+  private static JsonNode must(String request) {
+    return MAPPER.readTree(request).path("query").path("bool").path("must");
+  }
+
+  /**
+   * @param must the clauses of a boolean query
+   * @param field a field
+   * @return the values of the terms clause on that field, null for none
+   */
+  private static List<String> terms(JsonNode must, String field) {
+    for (JsonNode clause : must) {
+      JsonNode values = clause.path("terms").get(field);
+      if (values != null) {
+        List<String> result = new ArrayList<>();
+        values.forEach(value -> result.add(value.asString()));
+        return result;
+      }
+    }
+    return null;
   }
 
 }
