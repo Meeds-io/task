@@ -18,14 +18,12 @@
  */
 package org.exoplatform.task.model;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
 public class TaskSearchFilter {
 
@@ -42,5 +40,37 @@ public class TaskSearchFilter {
   private int          offset;
 
   private int          limit;
+
+  /**
+   * The projects the tasks found belong to, none for any project.
+   */
+  private List<Long>   projectIds;
+
+  /**
+   * A filter on any project.
+   *
+   * @param userId the user who searches
+   * @param term the text searched in the title and the description
+   * @param permissions the user and memberships whose tasks are searched
+   * @param sortField the field to sort by, blank for the relevance
+   * @param sortDirection the sort direction
+   * @param offset the first task returned
+   * @param limit the most tasks returned
+   */
+  public TaskSearchFilter(String userId, // NOSONAR the filter's fields, each one its own
+                          String term,
+                          List<String> permissions,
+                          String sortField,
+                          String sortDirection,
+                          int offset,
+                          int limit) {
+    this.userId = userId;
+    this.term = term;
+    this.permissions = permissions;
+    this.sortField = sortField;
+    this.sortDirection = sortDirection;
+    this.offset = offset;
+    this.limit = limit;
+  }
 
 }
