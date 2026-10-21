@@ -63,7 +63,7 @@ public class TaskLoggingListener extends Listener<TaskService, TaskPayload> {
     TaskDto newTask = data.after();
 
     if (oldTask == null && newTask != null) {
-      service.addTaskLog(newTask.getId(), username, "created", "");
+      service.addTaskLog(newTask.getId(), username, "created", getStatusName(newTask));
       notifyAssignee(null, newTask, username);
       notifyCoworker(null, newTask, username);
     }
@@ -132,6 +132,19 @@ public class TaskLoggingListener extends Listener<TaskService, TaskPayload> {
       ctx.append(NotificationUtils.ACTION_NAME, "edit_status");
       dispatch(ctx,TaskEditionPlugin.ID);
     }
+  }
+
+  /**
+   * The target of a task's creation entry: the status it is created in, so
+   * that its first move tells the status it left (EXO-91902). The task
+   * changes drawer shows no target for a creation entry, and an entry
+   * logged before has none.
+   *
+   * @param task the created task
+   * @return its status name, empty for a task created in no status
+   */
+  private String getStatusName(TaskDto task) {
+    return task.getStatus() == null || task.getStatus().getName() == null ? "" : task.getStatus().getName();
   }
 
   private boolean isDateDiff(Date dateBefore, Date dateAfter) {

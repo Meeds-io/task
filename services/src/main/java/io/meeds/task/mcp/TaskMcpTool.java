@@ -1700,9 +1700,11 @@ public class TaskMcpTool implements McpToolPlugin {
    * Tells the status, project, due date, assignee and completion changes of
    * a task at or after a date, oldest first, from its change log. The log
    * records the new status, project and assignee of each change, so the old
-   * value is the new value of the previous change of the same field, and
-   * none when the log holds no earlier one: a task's first move leaves its
-   * first status unrecorded. The log records no due date: the latest due
+   * value is the new value of the previous change of the same field. The
+   * creation entry records the status the task was created in, so a first
+   * move tells the status it left; a creation entry logged before that has
+   * none, and neither does a move after a project change, whose new status
+   * is not logged: the old value is then none. The log records no due date: the latest due
    * date change carries the current due date, the earlier ones none. A
    * completion entry is logged on each completion and each reopening, so
    * the latest one carries the current completion and the earlier ones
@@ -1741,7 +1743,10 @@ public class TaskMcpTool implements McpToolPlugin {
       String field = null;
       String oldValue = null;
       String newValue = null;
-      if ("edit_status".equals(action)) {
+      if ("created".equals(action)) {
+        // the status a task is created in, logged since EXO-91902; none before
+        status = target;
+      } else if ("edit_status".equals(action)) {
         field = TaskChange.FIELD_STATUS;
         oldValue = getStatusLabel(status);
         newValue = getStatusLabel(target);
