@@ -22,7 +22,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.exoplatform.task.dto.TaskFieldChange;
+import org.exoplatform.task.model.TaskFieldChange;
 
 import io.meeds.mcp.server.tool.model.UserModel;
 
