@@ -1692,7 +1692,7 @@ public class TaskMcpTool implements McpToolPlugin {
     // every entry: the task was selected on an entry the newest ones may not hold
     List<ChangeLogEntry> logs = taskService.getTaskLogs(task.getId(), 0, -1); // NOSONAR
     return new TaskWithChangesModel(toTaskModel(task, zone, today),
-                                    includeChangeLog ? getChangeLogs(task, logs, null) : null,
+                                    includeChangeLog ? getChangeLogs(task, logs.subList(0, Math.min(logs.size(), MAX_TO_LOAD)), null) : null,
                                     getTaskChanges(task, logs, since));
   }
 
