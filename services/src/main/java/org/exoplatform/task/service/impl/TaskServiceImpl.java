@@ -631,14 +631,6 @@ public class TaskServiceImpl implements TaskService {
     }
 
     /**
-     * Checks that a project exists and that a user can view it.
-     *
-     * @param projectId the project
-     * @param identity the user
-     * @throws ObjectNotFoundException when the project doesn't exist
-     * @throws IllegalAccessException when the user can't view the project
-     */
-    /**
      * Tells the status, project, due date, assignee and completion changes of
      * a task at or after a date, oldest first, from its change log. The log
      * records the new status, project and assignee of each change, so the old
@@ -726,6 +718,14 @@ public class TaskServiceImpl implements TaskService {
         return changes;
     }
 
+    /**
+     * Checks that a project exists and that a user can view it.
+     *
+     * @param projectId the project
+     * @param identity the user
+     * @throws ObjectNotFoundException when the project doesn't exist
+     * @throws IllegalAccessException when the user can't view the project
+     */
     private void checkCanViewProject(long projectId, Identity identity) throws ObjectNotFoundException, IllegalAccessException {
       ProjectDto project;
       try {
