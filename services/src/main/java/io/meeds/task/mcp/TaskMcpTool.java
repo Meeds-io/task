@@ -73,7 +73,7 @@ import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
-import org.exoplatform.task.model.TaskSearchFilter;
+import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
@@ -133,6 +133,9 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                 "Task with identifier '%s' is not accessible for user '%s'";
 
   private static final String           MSG_TASK_NOT_FOUND              = "Task with identifier '%s' is not found";
+
+  private static final String           MSG_SEARCH_NO_WORD              =
+                                                           "A text with a word to search is mandatory: numbers are not searched, a task id goes to get_task_by_id";
 
   private static final String           MSG_LABEL_NOT_FOUND             =
                                                             "Label with identifier '%s' is not found. Available project labels are:%n```json%n%s%n```";
@@ -468,16 +471,11 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Searches the tasks the current user can view by a text in their title or
-   * description, ignoring case and accents, through the same index and the
-   * same permissions as the search of the Tasks application: the user and
-   * their memberships. With a project, only the tasks of that project, which
-   * the user must be able to view. The open tasks come first, in the order of
-   * relevance; the completed ones are left out unless asked for, and then come
-   * after every open one. Each hit is checked again against the task's own
-   * view permission, so a task the index still lists for a user who lost
-   * access to it is never returned. The search reads the 100 most relevant
-   * hits at most: when it reads that many, more tasks may match than it could
-   * return, which the result says as it says that the limit was reached.
+   * description, ignoring case and accents: the tool's adapter of
+   * {@link TaskService#searchTasks(String, Long, boolean, int, Identity)},
+   * which holds the rules. It reads the tool's arguments, turns the service's
+   * refusals into the tool's messages and maps the tasks found to what tells
+   * them apart on their board.
    *
    * @param query the text searched: every word in the title, or every word in
    *          the description; the index does not search numbers, so the text
@@ -494,35 +492,25 @@ public class TaskMcpTool implements McpToolPlugin {
                                                Long projectId,
                                                Boolean includeCompleted,
                                                Integer limit) throws IllegalAccessException, ObjectNotFoundException {
-    String words = toSearchWords(query);
-    if (!words.matches(".*\\p{L}.*")) {
-      throw new IllegalArgumentException("A text with a word to search is mandatory: numbers are not searched, a task id goes to get_task_by_id");
+    TaskTextSearchResult result;
+    try {
+      result = taskService.searchTasks(query,
+                                       projectId,
+                                       Boolean.TRUE.equals(includeCompleted),
+                                       getInteger(limit, DEFAULT_LIMIT),
+                                       getCurrentUserAclIdentity());
+    } catch (IllegalArgumentException e) {
+      if (TaskService.TEXT_SEARCH_NO_WORD.equals(e.getMessage())) {
+        throw new IllegalArgumentException(MSG_SEARCH_NO_WORD);
+      }
+      throw e;
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(MSG_TASK_PROJECT_NOT_FOUND.formatted(projectId));
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(projectId, getCurrentUserName()));
     }
-    if (projectId != null) {
-      getViewableProject(projectId);
-    }
-    int max = Math.clamp(getInteger(limit, DEFAULT_LIMIT), 1, MAX_TO_LOAD);
-    Identity aclIdentity = getCurrentUserAclIdentity();
-    TaskSearchFilter filter = new TaskSearchFilter(aclIdentity.getUserId(),
-                                                   words,
-                                                   UserUtil.getMemberships(aclIdentity),
-                                                   null,
-                                                   null,
-                                                   0,
-                                                   MAX_TO_LOAD);
-    if (projectId != null) {
-      filter.setProjectIds(Collections.singletonList(projectId));
-    }
-    List<TaskDto> hits = taskService.findTasks(filter);
-    List<TaskDto> found = new ArrayList<>();
-    collectSearchHits(hits, projectId, false, found, max + 1);
-    if (Boolean.TRUE.equals(includeCompleted)) {
-      collectSearchHits(hits, projectId, true, found, max + 1);
-    }
-    // a full window may hide matches ranked below it, whatever the filters kept
-    boolean hasMore = found.size() > max || hits.size() >= MAX_TO_LOAD;
-    List<TaskSearchResultModel> results = found.stream().limit(max).map(this::toTaskSearchResultModel).toList();
-    return new TaskSearchCollectionModel(results, max, hasMore);
+    List<TaskSearchResultModel> results = result.getTasks().stream().map(this::toTaskSearchResultModel).toList();
+    return new TaskSearchCollectionModel(results, result.getLimit(), result.isHasMore());
   }
 
   public ProjectModel getProjectById(Long projectId) throws ObjectNotFoundException, IllegalAccessException {
@@ -1356,61 +1344,6 @@ public class TaskMcpTool implements McpToolPlugin {
     return taskService.findLastUpdatedTasks(getTaskQuery(projectId, uncompleteOnly, false, null),
                                             getInteger(offset, DEFAULT_OFFSET),
                                             getInteger(limit, DEFAULT_LIMIT));
-  }
-
-  /**
-   * Turns a text into the words the task index is searched with: without
-   * accents, which the index folds on the tasks it indexes but not on the
-   * text searched; lower-cased, so that AND, OR and NOT are words, never the
-   * operators of the query syntax; and with every character that is neither a
-   * letter nor a digit turned into a space, so that no field query, escape,
-   * range or wildcard reaches the index.
-   *
-   * @param text the text asked for, possibly null
-   * @return its words separated by one space, empty when it holds none
-   */
-  static String toSearchWords(String text) {
-    if (text == null) {
-      return "";
-    }
-    return StringUtils.stripAccents(text)
-                      .toLowerCase(Locale.ROOT)
-                      .replaceAll("[^\\p{L}\\p{N}]+", " ")
-                      .trim();
-  }
-
-  /**
-   * Adds to the tasks found the search hits of one completion state, in their
-   * order of relevance, that belong to the project searched, when there is
-   * one, and that the current user can view, until there are enough.
-   *
-   * @param hits the search hits, the most relevant first
-   * @param projectId the project searched, null for any
-   * @param completed the completion state of the hits added
-   * @param found the tasks found so far, completed by this call
-   * @param enough how many tasks found are enough
-   */
-  private void collectSearchHits(List<TaskDto> hits, Long projectId, boolean completed, List<TaskDto> found, int enough) {
-    String username = getCurrentUserName();
-    for (TaskDto task : hits) {
-      if (found.size() >= enough) {
-        return;
-      }
-      if (task.isCompleted() == completed
-          && (projectId == null || projectId.equals(getProjectIdOrNull(task)))
-          && userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(task.getId()), username)) {
-        found.add(task);
-      }
-    }
-  }
-
-  /**
-   * @param task a task
-   * @return the identifier of its project, null for a personal task
-   */
-  private Long getProjectIdOrNull(TaskDto task) {
-    StatusDto status = task.getStatus();
-    return status == null || status.getProject() == null ? null : status.getProject().getId();
   }
 
   /**
