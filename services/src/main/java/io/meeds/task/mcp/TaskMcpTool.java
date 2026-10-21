@@ -172,6 +172,10 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private static final String           ARG_COMPLETED_SINCE             = "completed_since";
 
+  private static final String           MSG_OVERDUE_COMPLETED           =
+                                                              "overdue_only lists open tasks and completed_since completed ones: "
+                                                                  + "pass one of them, not both";
+
   private static final String           MSG_INVALID_SINCE               =
                                                           "%s must be a date such as 2026-10-14, or a date and time such as "
                                                               + "2026-10-14T09:00:00+02:00, not '%s'";
@@ -418,7 +422,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * tasks whose status, due date, assignee or completion changed since that
    * date, and with {@code completedSince} only those completed since that
    * date, completed tasks included, each with its changes since that date
-   * (EXO-91902).
+   * (EXO-91902). Asking both the overdue tasks and the tasks completed since
+   * a date is refused.
    *
    * @param limit the most tasks returned
    * @param overdueOnly whether only the overdue tasks are listed
@@ -435,6 +440,7 @@ public class TaskMcpTool implements McpToolPlugin {
     Date changedSinceDate = parseSince(changedSince, ARG_CHANGED_SINCE, zone);
     Date completedSinceDate = parseSince(completedSince, ARG_COMPLETED_SINCE, zone);
     Date since = changedSinceDate == null ? completedSinceDate : changedSinceDate;
+    checkNotOverdueAndCompleted(overdueOnly, completedSinceDate);
     List<? extends TaskModel> taskModels;
     long count;
     if (Boolean.TRUE.equals(overdueOnly) || since != null) {
@@ -470,7 +476,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * {@code hideCompletedTasks} says; with {@code assignee}, only the tasks
    * assigned to that user; with {@code statusId}, only the tasks in that
    * status (EXO-91902). A task listed with {@code changedSince} or
-   * {@code completedSince} carries its changes since that date. The count is
+   * {@code completedSince} carries its changes since that date. Asking both
+   * the overdue tasks, which are open, and the tasks completed since a date
+   * is refused. The count is
    * the count of the tasks the same filters select.
    *
    * @param projectId the project, null for every accessible task
@@ -487,6 +495,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * @return the tasks, with their count
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
+   * @throws IllegalArgumentException when a date is no date, or when both
+   *           {@code overdueOnly} and {@code completedSince} are given
    */
   public TaskCollectionModel listTasks(Long projectId, // NOSONAR the tool's parameters, each one its own
                                        Boolean hideCompletedTasks,
@@ -503,6 +513,7 @@ public class TaskMcpTool implements McpToolPlugin {
     LocalDate today = getToday(zone);
     Date changedSinceDate = parseSince(changedSince, ARG_CHANGED_SINCE, zone);
     Date completedSinceDate = parseSince(completedSince, ARG_COMPLETED_SINCE, zone);
+    checkNotOverdueAndCompleted(overdueOnly, completedSinceDate);
     TaskQuery taskQuery = getTaskQuery(projectId,
                                        Boolean.TRUE.equals(hideCompletedTasks) && completedSinceDate == null,
                                        Boolean.TRUE.equals(overdueOnly),
@@ -1779,7 +1790,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                       boolean includeChangeLog,
                                                       ZoneId zone,
                                                       LocalDate today) {
-    List<ChangeLogEntry> logs = taskService.getTaskLogs(task.getId(), 0, MAX_TO_LOAD); // NOSONAR
+    // every entry: the task was selected on an entry the newest ones may not hold
+    List<ChangeLogEntry> logs = taskService.getTaskLogs(task.getId(), 0, -1); // NOSONAR
     return new TaskWithChangesModel(toTaskModel(task, zone, today),
                                     includeChangeLog ? getChangeLogs(task, logs, null) : null,
                                     getTaskChanges(task, logs, since));
@@ -1795,7 +1807,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * date change carries the current due date, the earlier ones none. A
    * completion entry is logged on each completion and each reopening, so
    * the latest one carries the current completion and the earlier ones
-   * alternate.
+   * alternate. An assignee change of a task created at or after the date is
+   * left out, as {@link TaskQuery#setChangedSince(Date)} leaves it out: a
+   * task created with an assignee logs that assignment at its creation.
    *
    * @param task the task
    * @param logs its change log entries, in any order
@@ -1820,6 +1834,7 @@ public class TaskMcpTool implements McpToolPlugin {
     String project = null;
     String assignee = null;
     long completionsLeft = completions;
+    boolean createdBefore = task.getCreatedTime() != null && task.getCreatedTime().before(since);
     for (ChangeLogEntry log : chronological) {
       String action = log.getActionName();
       boolean listed = log.getCreatedTime() >= since.getTime();
@@ -1838,6 +1853,8 @@ public class TaskMcpTool implements McpToolPlugin {
         newValue = "edit_project".equals(action) ? target : null;
         project = newValue;
         status = null;
+      } else if (("assign".equals(action) || "unassign".equals(action)) && !createdBefore) {
+        assignee = "assign".equals(action) ? target : null;
       } else if ("assign".equals(action) || "unassign".equals(action)) {
         field = TaskChange.FIELD_ASSIGNEE;
         oldValue = "assign".equals(action) ? assignee : target;
@@ -1859,6 +1876,20 @@ public class TaskMcpTool implements McpToolPlugin {
       }
     }
     return changes;
+  }
+
+  /**
+   * Refuses to list the overdue tasks, which are open, among the tasks
+   * completed since a date: the two filters together select nothing.
+   *
+   * @param overdueOnly whether only the overdue tasks are asked for
+   * @param completedSince the completed_since date, null when not given
+   * @throws IllegalArgumentException when both are given
+   */
+  private void checkNotOverdueAndCompleted(Boolean overdueOnly, Date completedSince) {
+    if (Boolean.TRUE.equals(overdueOnly) && completedSince != null) {
+      throw new IllegalArgumentException(MSG_OVERDUE_COMPLETED);
+    }
   }
 
   /**
@@ -1959,6 +1990,10 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
+  /**
+   * @param status a status, possibly null
+   * @return its model, its name translated for a default status
+   */
   private ProjectStatus getTaskStatus(StatusDto status) {
     if (status == null) {
       return null;
