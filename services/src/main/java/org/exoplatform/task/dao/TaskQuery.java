@@ -28,10 +28,42 @@ import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.util.UserUtil;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.exoplatform.task.dao.condition.Conditions.*;
 
 public class TaskQuery extends Query implements Cloneable {
+
+  /**
+   * The change log actions of a status change: a move to another column, to
+   * another project, or out of any project.
+   */
+  public static final List<String> STATUS_CHANGE_ACTIONS   = List.of("edit_status", "edit_project", "remove_project");
+
+  /** The change log action of a due date change. */
+  public static final String       DUE_DATE_CHANGE_ACTION  = "edit_duedate";
+
+  /** The change log actions of an assignee change. */
+  public static final List<String> ASSIGNEE_CHANGE_ACTIONS = List.of("assign", "unassign");
+
+  /**
+   * The change log action of a completion change, logged when a task is
+   * completed and when it is reopened.
+   */
+  public static final String       COMPLETION_ACTION       = "mark_done";
+
+  /**
+   * The change log actions {@link #setChangedSince(Date)} looks for: a
+   * status, due date, assignee or completion change; an assignee change only
+   * on a task created before the date.
+   */
+  public static final List<String> CHANGE_ACTIONS          = Stream.of(STATUS_CHANGE_ACTIONS,
+                                                                       List.of(DUE_DATE_CHANGE_ACTION),
+                                                                       ASSIGNEE_CHANGE_ACTIONS,
+                                                                       List.of(COMPLETION_ACTION))
+                                                                   .flatMap(List::stream)
+                                                                   .toList();
+
   //TODO: how to remove these two field
   private List<Long> projectIds = null;
   private List<String> assignee = null;
@@ -215,6 +247,50 @@ public class TaskQuery extends Query implements Cloneable {
     if (startOfToday != null) {
       setCompleted(false);
       add(lt(TASK_DUEDATE, startOfToday));
+    }
+  }
+
+  /**
+   * Selects the tasks whose status, due date, assignee or completion changed
+   * at or after the given date, as their change log records it (EXO-91902).
+   * An assignee change counts only on a task created before the date: a task
+   * created with an assignee logs that assignment at its creation, which is
+   * no change.
+   *
+   * @param since the earliest date of the change, included; null for no
+   *          condition
+   */
+  public void setChangedSince(Date since) {
+    if (since != null) {
+      List<String> otherActions = CHANGE_ACTIONS.stream().filter(action -> !ASSIGNEE_CHANGE_ACTIONS.contains(action)).toList();
+      add(Conditions.or(loggedSince(otherActions, since),
+                        and(loggedSince(ASSIGNEE_CHANGE_ACTIONS, since), lt(TASK_CREATED_TIME, since))));
+    }
+  }
+
+  /**
+   * Selects the completed tasks that were completed at or after the given
+   * date, as their change log records it (EXO-91902).
+   *
+   * @param since the earliest date of the completion, included; null for no
+   *          condition
+   */
+  public void setCompletedSince(Date since) {
+    if (since != null) {
+      setCompleted(true);
+      add(loggedSince(List.of(COMPLETION_ACTION), since));
+    }
+  }
+
+  /**
+   * Selects the tasks in the given status, a column of a project
+   * (EXO-91902).
+   *
+   * @param statusId the status identifier; null for no condition
+   */
+  public void setStatusId(Long statusId) {
+    if (statusId != null) {
+      add(eq(TASK_STATUS_ID, statusId));
     }
   }
 
