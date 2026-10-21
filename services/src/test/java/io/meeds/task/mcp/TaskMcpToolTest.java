@@ -1070,7 +1070,7 @@ public class TaskMcpToolTest {
   @Test
   public void taskChangesTellTheOldAndNewValueOfEachChangeSinceTheDate() { // NOSONAR
     TaskDto task = mock(TaskDto.class);
-    when(task.isCompleted()).thenReturn(false);
+    lenient().when(task.isCompleted()).thenReturn(false);
     when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-20T00:00:00Z")));
     List<ChangeLogEntry> logs = List.of(log(11, "mark_done", "", "2026-10-07T12:00:00Z"),
                                         log(10, "edit_title", "", "2026-10-07T11:00:00Z"),
@@ -1107,6 +1107,26 @@ public class TaskMcpToolTest {
                          "due_date:null>2026-10-20T00:00:00Z@2026-10-07T10:00:00Z",
                          "completed:true>false@2026-10-07T12:00:00Z"),
                  rendered);
+  }
+
+  /**
+   * The latest completion entry carries the current completion, also when
+   * the entries read hold an even count for a completed task, as when the
+   * oldest entries are beyond those loaded: the earlier entry is then a
+   * reopening. Mutant: the completion read forward from the first entry.
+   */
+  @Test
+  public void theLatestCompletionEntryCarriesTheCurrentCompletion() { // NOSONAR
+    TaskDto task = mock(TaskDto.class);
+    lenient().when(task.isCompleted()).thenReturn(true);
+    List<TaskChange> changes;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      changes = tool.getTaskChanges(task,
+                                    List.of(log(2, "mark_done", "", "2026-10-07T10:00:00Z"),
+                                            log(1, "mark_done", "", "2026-10-06T10:00:00Z")),
+                                    Date.from(Instant.parse("2026-10-01T00:00:00Z")));
+    }
+    assertEquals(List.of("false", "true"), changes.stream().map(TaskChange::getNewValue).toList());
   }
 
   /**
