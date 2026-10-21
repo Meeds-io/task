@@ -54,7 +54,8 @@ public class TaskQuery extends Query implements Cloneable {
 
   /**
    * The change log actions {@link #setChangedSince(Date)} looks for: a
-   * status, due date, assignee or completion change.
+   * status, due date, assignee or completion change; an assignee change only
+   * on a task created before the date.
    */
   public static final List<String> CHANGE_ACTIONS          = Stream.of(STATUS_CHANGE_ACTIONS,
                                                                        List.of(DUE_DATE_CHANGE_ACTION),
@@ -252,13 +253,18 @@ public class TaskQuery extends Query implements Cloneable {
   /**
    * Selects the tasks whose status, due date, assignee or completion changed
    * at or after the given date, as their change log records it (EXO-91902).
+   * An assignee change counts only on a task created before the date: a task
+   * created with an assignee logs that assignment at its creation, which is
+   * no change.
    *
    * @param since the earliest date of the change, included; null for no
    *          condition
    */
   public void setChangedSince(Date since) {
     if (since != null) {
-      add(loggedSince(CHANGE_ACTIONS, since));
+      List<String> otherActions = CHANGE_ACTIONS.stream().filter(action -> !ASSIGNEE_CHANGE_ACTIONS.contains(action)).toList();
+      add(Conditions.or(loggedSince(otherActions, since),
+                        and(loggedSince(ASSIGNEE_CHANGE_ACTIONS, since), lt(TASK_CREATED_TIME, since))));
     }
   }
 
