@@ -419,9 +419,13 @@ public class TestTaskDAO extends AbstractTest {
    * completion entry in their change log at or after the date, and only
    * when one entry meets both: a task whose status changed before the date
    * and whose title changed after it is left out. An entry exactly at the
-   * date counts. The count runs the same subquery. Mutants: the date
+   * date counts. An assignee change counts on a task created before the
+   * date, not on a task created since, whose creation logs its assignment.
+   * The count runs the same subquery, and the listing the tool reads, by
+   * last activity, loads the same tasks within a project. Mutants: the date
    * compared on another entry than the action (two joins), the date
-   * excluded or the comparison inverted, the action list ignored.
+   * excluded or the comparison inverted, the action list ignored, the
+   * creation date ignored or inverted for an assignee change.
    *
    * @throws Exception never
    */
@@ -431,7 +435,11 @@ public class TestTaskDAO extends AbstractTest {
     Task moved = createTaskWithLog("moved", "edit_status", new Date());
     Task rescheduled = createTaskWithLog("rescheduled", "edit_duedate", since);
     Task completed = createTaskWithLog("completed", "mark_done", new Date());
-    Task reassigned = createTaskWithLog("reassigned", "unassign", new Date());
+    Task reassigned = newTaskInstance("reassigned", "", username);
+    reassigned.setCreatedTime(Date.from(since.toInstant().minus(10, ChronoUnit.DAYS)));
+    tDAO.create(reassigned);
+    addLog(reassigned, "unassign", new Date());
+    createTaskWithLog("created with an assignee", "assign", new Date());
     Task movedLongAgo = createTaskWithLog("moved long ago", "edit_status", Date.from(since.toInstant().minusSeconds(1)));
     addLog(movedLongAgo, "edit_title", new Date());
     createTaskWithLog("renamed", "edit_title", new Date());
@@ -450,6 +458,58 @@ public class TestTaskDAO extends AbstractTest {
                         titles);
     Assert.assertEquals(4, list.getSize());
     Assert.assertEquals(4, tDAO.findLastUpdatedTasks(taskQuery).getSize());
+    Set<String> lastUpdated = Arrays.stream(tDAO.findLastUpdatedTasks(taskQuery).load(0, -1))
+                                    .map(Task::getTitle)
+                                    .collect(Collectors.toSet());
+    Assert.assertEquals(titles, lastUpdated);
+  }
+
+  /**
+   * The acceptance call: changed_since on a project's tasks, through the
+   * listing by last activity the tool reads, loads the project's tasks that
+   * moved and not those of another project, nor the project's task that did
+   * not move. Mutant: the change condition dropped.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testFindLastUpdatedTasksOfAProjectChangedSince() throws Exception {
+    Date since = Date.from(Instant.now().minus(7, ChronoUnit.DAYS));
+    Project project = new Project();
+    project.setName("Moving");
+    project = daoHandler.getProjectHandler().create(project);
+    Project other = new Project();
+    other.setName("Other");
+    other = daoHandler.getProjectHandler().create(other);
+    Status todo = newStatusInstance("To do", 1);
+    todo.setProject(project);
+    daoHandler.getStatusHandler().create(todo);
+    Status otherTodo = newStatusInstance("To do", 1);
+    otherTodo.setProject(other);
+    daoHandler.getStatusHandler().create(otherTodo);
+    for (String title : Arrays.asList("moved", "completed", "still")) {
+      Task task = newTaskInstance(title, "", null);
+      task.setStatus(todo);
+      tDAO.create(task);
+      if ("moved".equals(title)) {
+        addLog(task, "edit_status", new Date());
+      } else if ("completed".equals(title)) {
+        addLog(task, "mark_done", new Date());
+      }
+    }
+    Task elsewhere = newTaskInstance("moved elsewhere", "", null);
+    elsewhere.setStatus(otherTodo);
+    tDAO.create(elsewhere);
+    addLog(elsewhere, "edit_status", new Date());
+
+    TaskQuery taskQuery = new TaskQuery();
+    taskQuery.setProjectIds(Arrays.asList(project.getId()));
+    taskQuery.setChangedSince(since);
+    Task[] found = tDAO.findLastUpdatedTasks(taskQuery).load(0, -1);
+
+    Assert.assertEquals(new HashSet<>(Arrays.asList("moved", "completed")),
+                        Arrays.stream(found).map(Task::getTitle).collect(Collectors.toSet()));
+    Assert.assertEquals(2, found.length);
   }
 
   /**
