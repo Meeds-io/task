@@ -30,6 +30,7 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskSearchFilter;
+import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.util.TaskUtil;
 
 import java.util.List;
@@ -38,6 +39,13 @@ import java.util.TimeZone;
 
 
 public interface TaskService {
+
+    /** The most hits a text search reads, the most relevant first. */
+    int    TEXT_SEARCH_WINDOW  = 100;
+
+    /** The code of the refusal of a text search holding no word with letters. */
+    String TEXT_SEARCH_NO_WORD = "task.search.noWord";
+
 
     /**
      * Create a new task.
@@ -210,6 +218,42 @@ public interface TaskService {
      * @return a list of task IDs
      */
     public List<TaskDto> findTasks(TaskSearchFilter taskFilter);
+
+    /**
+     * Searches the tasks a user can view by a text in their title or
+     * description, ignoring case and accents, through the same index and the
+     * same permissions as {@link #findTasks(TaskSearchFilter)}: the user and
+     * their memberships. The text is reduced to its words, lower-cased letters
+     * and digits without accents, and must hold a word with letters, since the
+     * index does not search numbers. With a project, only the tasks of that
+     * project, which the user must be able to view. The open tasks come first,
+     * in the order of relevance; the completed ones are left out unless asked
+     * for, and then come after every open one. Each hit is checked again
+     * against the task's own view permission and, with a project, against the
+     * task's project, so a task the index still lists for a user who lost
+     * access to it is never returned. The search reads the
+     * {@value #TEXT_SEARCH_WINDOW} most relevant hits at most.
+     *
+     * @param text the text searched: every word in the title, or every word in
+     *          the description
+     * @param projectId the project, null for every task the user can view
+     * @param includeCompleted whether the completed tasks are returned, after
+     *          the open ones
+     * @param limit the most tasks returned, bounded between 1 and
+     *          {@value #TEXT_SEARCH_WINDOW}
+     * @param identity the user who searches
+     * @return the tasks found, the limit used, and whether more may match
+     * @throws ObjectNotFoundException when the project doesn't exist
+     * @throws IllegalAccessException when the user can't view the project
+     * @throws IllegalArgumentException with the code
+     *           {@value #TEXT_SEARCH_NO_WORD} when the text holds no word with
+     *           letters
+     */
+    TaskTextSearchResult searchTasks(String text,
+                                     Long projectId,
+                                     boolean includeCompleted,
+                                     int limit,
+                                     Identity identity) throws ObjectNotFoundException, IllegalAccessException;
 
     /**
      * Find tasks switch last update date computed from Task Logs and Task
