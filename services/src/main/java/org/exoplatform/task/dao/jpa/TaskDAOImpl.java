@@ -35,6 +35,7 @@ import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.utils.ListAccess;
@@ -43,7 +44,9 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.TaskHandler;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dao.condition.LoggedSince;
 import org.exoplatform.task.dao.condition.SingleCondition;
+import org.exoplatform.task.domain.ChangeLog;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 
@@ -301,6 +304,35 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
       log.error("Error when fetching task " + id + " with coworkers", e);
       return null;
     }
+  }
+
+  /**
+   * Builds a {@link SingleCondition#LOGGED_SINCE} condition as an
+   * {@code EXISTS} subquery on the task's change log, so that one entry
+   * matches both the action and the date; any other condition as
+   * {@link CommonJPADAO} does.
+   *
+   * @param condition the condition
+   * @param root the task root
+   * @param cb the criteria builder
+   * @param query the query the condition belongs to, the select or the count
+   * @return the predicate
+   */
+  @Override
+  protected <T> Predicate buildSingleCondition(SingleCondition<T> condition,
+                                               Root<Task> root,
+                                               CriteriaBuilder cb,
+                                               CriteriaQuery query) {
+    if (SingleCondition.LOGGED_SINCE.equals(condition.getType()) && condition.getValue() instanceof LoggedSince loggedSince) {
+      Subquery<Long> logs = query.subquery(Long.class);
+      Root<ChangeLog> log = logs.from(ChangeLog.class);
+      logs.select(log.get("id"));
+      logs.where(cb.equal(log.get("task"), root),
+                 log.get("actionName").in(loggedSince.actionNames()),
+                 cb.greaterThanOrEqualTo(log.<Date> get("createdTime"), loggedSince.since()));
+      return cb.exists(logs);
+    }
+    return super.buildSingleCondition(condition, root, cb, query);
   }
 
   protected Path buildPath(SingleCondition condition, Root<Task> root) {
