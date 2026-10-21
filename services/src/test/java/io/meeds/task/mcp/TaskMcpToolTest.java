@@ -25,12 +25,14 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -86,13 +88,16 @@ import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
+import org.exoplatform.task.dto.TaskChanges;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.dto.TaskFieldChange;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
+import org.exoplatform.task.service.impl.TaskServiceImpl;
 
 import io.meeds.mcp.server.model.ActingIdentity;
 import io.meeds.mcp.server.util.McpToolUtils;
@@ -102,6 +107,7 @@ import io.meeds.social.space.plugin.SpaceAclPlugin;
 import io.meeds.social.translation.service.TranslationService;
 import io.meeds.task.mcp.model.ProjectActivityModel;
 import io.meeds.task.mcp.model.TaskChange;
+import io.meeds.task.mcp.model.TaskChangeLog;
 import io.meeds.task.mcp.model.TaskWithChangesModel;
 import io.meeds.task.mcp.model.ProjectCollectionModel;
 import io.meeds.task.mcp.model.ProjectLabel;
@@ -206,6 +212,17 @@ public class TaskMcpToolTest {
     };
     lenient().when(resourceBundleService.getResourceBundle(anyString(), any(Locale.class))).thenReturn(emptyBundle);
     lenient().when(permanentLinkService.getLink(any())).thenReturn("/task-link");
+
+    // the query building is the task service's: the real one narrows the
+    // query the tool builds
+    TaskServiceImpl queryBuilder = new TaskServiceImpl(null, null, null);
+    lenient().doAnswer(invocation -> {
+      queryBuilder.addChangeFilter(invocation.getArgument(0), invocation.getArgument(1));
+      return null;
+    }).when(taskService).addChangeFilter(any(), any());
+    lenient().when(taskService.getAssignedTasksQuery(anyString(), any()))
+             .thenAnswer(invocation -> queryBuilder.getAssignedTasksQuery(invocation.getArgument(0), invocation.getArgument(1)));
+    lenient().when(taskService.getTaskChanges(any(), any(), anyBoolean())).thenReturn(new TaskChanges(List.of(), null));
 
     tool = new TestableTaskMcpTool();
   }
@@ -926,9 +943,9 @@ public class TaskMcpToolTest {
    * those with a status, project, due date, assignee or completion change
    * at or after the start of that day in the user's time zone, completed
    * tasks included, counted by the same query; each task carries its
-   * changes, old and new status; with hide_completed_tasks, only the open
-   * ones. Mutants: the change condition dropped, built with another action
-   * list or the date read in UTC; the plain models returned.
+   * changes as the task service rebuilds them since that same date; with
+   * hide_completed_tasks, only the open ones. Mutants: the filter not
+   * passed, or with the date read in UTC; the plain models returned.
    *
    * @throws Exception never
    */
@@ -938,8 +955,15 @@ public class TaskMcpToolTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(true);
     TaskDto task = mockTaskWithProject();
-    when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(List.of(log(2, "edit_status", "InProgress", "2026-10-06T10:00:00Z"),
-                                                                                      log(1, "edit_status", "ToDo", "2026-09-20T10:00:00Z")));
+    ArgumentCaptor<Date> since = ArgumentCaptor.forClass(Date.class);
+    when(taskService.getTaskChanges(eq(task), since.capture(), eq(false)))
+        .thenReturn(new TaskChanges(List.of(new TaskFieldChange(TaskFieldChange.FIELD_STATUS,
+                                                                 "ToDo",
+                                                                 "InProgress",
+                                                                 null,
+                                                                 Instant.parse("2026-10-06T10:00:00Z").toEpochMilli(),
+                                                                 USER)),
+                                    null));
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(List.of(task));
     when(taskService.countTasks(any())).thenReturn(1);
@@ -959,6 +983,7 @@ public class TaskMcpToolTest {
     List<Condition> conjunction = conjunction(query.getValue());
     assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
     assertChangedSince(query.getValue(), Date.from(Instant.parse("2026-09-30T22:00:00Z")));
+    assertEquals(Date.from(Instant.parse("2026-09-30T22:00:00Z")), since.getValue());
     assertTrue("hide_completed_tasks keeps the completed tasks out", selectsOpenTasksOnly(query.getValue()));
     verify(taskService).countTasks(query.getValue());
     assertEquals(1L, result.getCount());
@@ -1051,137 +1076,6 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * The changes of a task are its status, project, assignee, due date and
-   * completion entries at or after the date, oldest first, whatever order
-   * the log comes in. A change's old value is the new value of the previous
-   * change of the same field, also when that one is before the date, and
-   * none on a first move; a project move forgets the status. Only the
-   * latest due date change carries the due date. Completion entries
-   * alternate back from the current completion. An entry exactly at the
-   * date counts; a title change is no change. Mutants: the old value taken
-   * from the listed changes only; the date excluded; the completion read
-   * forward from the first entry; every due date change carrying the
-   * current due date.
-   */
-  @Test
-  public void taskChangesTellTheOldAndNewValueOfEachChangeSinceTheDate() { // NOSONAR
-    TaskDto task = mock(TaskDto.class);
-    lenient().when(task.isCompleted()).thenReturn(false);
-    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-20T00:00:00Z")));
-    when(task.getCreatedTime()).thenReturn(Date.from(Instant.parse("2026-09-20T08:00:00Z")));
-    List<ChangeLogEntry> logs = List.of(log(11, "mark_done", "", "2026-10-07T12:00:00Z"),
-                                        log(10, "edit_title", "", "2026-10-07T11:00:00Z"),
-                                        log(9, "edit_duedate", "", "2026-10-07T10:00:00Z"),
-                                        log(8, "mark_done", "", "2026-10-06T12:00:00Z"),
-                                        log(7, "edit_duedate", "", "2026-10-06T10:00:00Z"),
-                                        log(6, "unassign", "mary", "2026-10-05T12:00:00Z"),
-                                        log(5, "assign", "mary", "2026-10-05T10:00:00Z"),
-                                        log(4, "edit_status", "Done", "2026-10-04T12:00:00Z"),
-                                        log(3, "edit_project", "Beta", "2026-10-04T10:00:00Z"),
-                                        log(2, "edit_status", "InProgress", "2026-10-01T00:00:00Z"),
-                                        log(1, "assign", OTHER_USER, "2026-09-20T10:00:00Z"),
-                                        log(0, "edit_status", "ToDo", "2026-09-20T09:00:00Z"));
-
-    List<TaskChange> changes;
-    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
-      mocked.when(() -> McpToolUtils.formatDate(any(Long.class)))
-            .thenAnswer(invocation -> Instant.ofEpochMilli(invocation.<Long> getArgument(0)).toString());
-      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
-            .thenAnswer(invocation -> invocation.<Date> getArgument(0).toInstant().toString());
-      changes = tool.getTaskChanges(task, logs, Date.from(Instant.parse("2026-10-01T00:00:00Z")));
-    }
-
-    List<String> rendered = changes.stream()
-                                   .map(c -> c.getField() + ":" + c.getOldValue() + ">" + c.getNewValue() + "@" + c.getDate())
-                                   .toList();
-    assertEquals(List.of("status:ToDo>InProgress@2026-10-01T00:00:00Z",
-                         "project:null>Beta@2026-10-04T10:00:00Z",
-                         "status:null>Done@2026-10-04T12:00:00Z",
-                         "assignee:john>mary@2026-10-05T10:00:00Z",
-                         "assignee:mary>null@2026-10-05T12:00:00Z",
-                         "due_date:null>null@2026-10-06T10:00:00Z",
-                         "completed:false>true@2026-10-06T12:00:00Z",
-                         "due_date:null>2026-10-20T00:00:00Z@2026-10-07T10:00:00Z",
-                         "completed:true>false@2026-10-07T12:00:00Z"),
-                 rendered);
-  }
-
-  /**
-   * The latest completion entry carries the current completion, also when
-   * the entries read hold an even count for a completed task, as when the
-   * oldest entries are beyond those loaded: the earlier entry is then a
-   * reopening. Mutant: the completion read forward from the first entry.
-   */
-  @Test
-  public void theLatestCompletionEntryCarriesTheCurrentCompletion() { // NOSONAR
-    TaskDto task = mock(TaskDto.class);
-    lenient().when(task.isCompleted()).thenReturn(true);
-    List<TaskChange> changes;
-    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
-      changes = tool.getTaskChanges(task,
-                                    List.of(log(2, "mark_done", "", "2026-10-07T10:00:00Z"),
-                                            log(1, "mark_done", "", "2026-10-06T10:00:00Z")),
-                                    Date.from(Instant.parse("2026-10-01T00:00:00Z")));
-    }
-    assertEquals(List.of("false", "true"), changes.stream().map(TaskChange::getNewValue).toList());
-  }
-
-  /**
-   * A task created since the date has no assignee change: its creation logs
-   * its assignment, which is no change, and the task query leaves it out as
-   * well; its status change is kept, from the status before it. Mutant: the
-   * creation date ignored.
-   */
-  @Test
-  public void aTaskCreatedSinceTheDateHasNoAssigneeChange() { // NOSONAR
-    TaskDto task = mock(TaskDto.class);
-    when(task.getCreatedTime()).thenReturn(Date.from(Instant.parse("2026-10-03T08:00:00Z")));
-    List<TaskChange> changes;
-    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
-      changes = tool.getTaskChanges(task,
-                                    List.of(log(4, "edit_status", "Done", "2026-10-06T10:00:00Z"),
-                                            log(3, "assign", "mary", "2026-10-04T10:00:00Z"),
-                                            log(2, "edit_status", "ToDo", "2026-10-03T08:00:01Z"),
-                                            log(1, "assign", OTHER_USER, "2026-10-03T08:00:00Z")),
-                                    Date.from(Instant.parse("2026-10-01T00:00:00Z")));
-    }
-    assertEquals(List.of("status:null>ToDo", "status:ToDo>Done"),
-                 changes.stream().map(c -> c.getField() + ":" + c.getOldValue() + ">" + c.getNewValue()).toList());
-  }
-
-  /**
-   * With a date and include_change_log, the changes are read from the whole
-   * change log while the change log returned holds the newest hundred
-   * entries, as without a date. Mutant: the whole log returned.
-   *
-   * @throws Exception never
-   */
-  @Test
-  public void theChangeLogListedWithADateHoldsTheNewestHundredEntries() throws Exception { // NOSONAR
-    TaskDto task = mockTask();
-    List<ChangeLogEntry> logs = new ArrayList<>();
-    for (int i = 120; i > 0; i--) {
-      logs.add(log(i, "edit_title", "", Instant.parse("2026-10-01T00:00:00Z").plusSeconds(i).toString()));
-    }
-    when(taskService.getTaskLogs(TASK_ID, 0, -1)).thenReturn(logs);
-    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
-
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null,
-                                                                                  false,
-                                                                                  true,
-                                                                                  null,
-                                                                                  null,
-                                                                                  null,
-                                                                                  null,
-                                                                                  "2026-09-01",
-                                                                                  null,
-                                                                                  null,
-                                                                                  null));
-
-    assertEquals(100, ((TaskWithChangesModel) result.getTasks().get(0)).getChangeLogs().size());
-  }
-
-  /**
    * The change log listed resolves a target as a user for an assignment
    * entry only: a creation or a status entry names a status there, which is
    * never looked up as a user. Mutant: every target looked up.
@@ -1215,6 +1109,75 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * A change the task service rebuilt is mapped for the user: a default
+   * status in the user's language, a due date and the change's date in the
+   * user's format, its author as a user. Mutants: the status label skipped;
+   * the due date read from the value instead of the date.
+   */
+  @Test
+  public void aChangeIsMappedForTheUser() { // NOSONAR
+    ResourceBundle bundle = new ListResourceBundle() {
+      @Override
+      protected Object[][] getContents() {
+        return new Object[][] { { "tasks.status.ToDo", "To do" }, { "tasks.status.InProgress", "In progress" } };
+      }
+    };
+    when(resourceBundleService.getResourceBundle(anyString(), any(Locale.class))).thenReturn(bundle);
+    Date due = Date.from(Instant.parse("2026-10-20T00:00:00Z"));
+
+    TaskChange status;
+    TaskChange dueDate;
+    TaskChange project;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(() -> McpToolUtils.formatDate(any(Long.class)))
+            .thenAnswer(invocation -> Instant.ofEpochMilli(invocation.<Long> getArgument(0)).toString());
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> invocation.<Date> getArgument(0).toInstant().toString());
+      status = tool.toTaskChange(new TaskFieldChange(TaskFieldChange.FIELD_STATUS, "ToDo", "InProgress", null, 0L, USER));
+      dueDate = tool.toTaskChange(new TaskFieldChange(TaskFieldChange.FIELD_DUE_DATE, null, null, due, 1000L, USER));
+      project = tool.toTaskChange(new TaskFieldChange(TaskFieldChange.FIELD_PROJECT, null, "ToDo", null, 0L, USER));
+    }
+
+    assertEquals("To do", status.getOldValue());
+    assertEquals("In progress", status.getNewValue());
+    assertEquals("1970-01-01T00:00:00Z", status.getDate());
+    assertEquals("2026-10-20T00:00:00Z", dueDate.getNewValue());
+    assertEquals("1970-01-01T00:00:01Z", dueDate.getDate());
+    assertEquals("a project name is never a status label", "ToDo", project.getNewValue());
+  }
+
+  /**
+   * With a date and include_change_log, the change log returned is the one
+   * the task service returns, mapped; without include_change_log, none.
+   * Mutant: the change log not passed to the model.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void theChangeLogListedWithADateIsTheServicesOne() throws Exception { // NOSONAR
+    TaskDto task = mockTask();
+    ChangeLogEntry entry = log(1, "edit_title", "", "2026-10-02T00:00:00Z");
+    when(taskService.getTaskChanges(eq(task), any(), eq(true))).thenReturn(new TaskChanges(List.of(), List.of(entry)));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null,
+                                                                                  false,
+                                                                                  true,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  "2026-09-01",
+                                                                                  null,
+                                                                                  null,
+                                                                                  null));
+
+    List<TaskChangeLog> changeLogs = ((TaskWithChangesModel) result.getTasks().get(0)).getChangeLogs();
+    assertEquals(1, changeLogs.size());
+    assertEquals("edit_title", changeLogs.get(0).getActionId());
+  }
+
+  /**
    * overdue_only lists open tasks and completed_since completed ones: asked
    * together, on either tool, the call is refused instead of answering
    * nothing. Mutant: the check dropped.
@@ -1225,51 +1188,6 @@ public class TaskMcpToolTest {
                  () -> tool.listTasks(null, null, false, true, null, null, null, null, "2026-10-01", null, null));
     assertThrows(IllegalArgumentException.class, () -> tool.listAssignedTasks(5, true, null, "2026-10-01"));
     verify(taskService, never()).findTasks(any(), anyInt(), anyInt());
-  }
-
-  /**
-   * The creation entry records the status a task is created in: its first
-   * move tells the status it left. A creation entry logged before, with no
-   * target, leaves it unrecorded. Mutant: the creation entry ignored.
-   */
-  @Test
-  public void aFirstMoveTellsTheStatusTheTaskWasCreatedIn() { // NOSONAR
-    TaskDto task = mock(TaskDto.class);
-    List<TaskChange> recorded;
-    List<TaskChange> older;
-    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
-      recorded = tool.getTaskChanges(task,
-                                     List.of(log(2, "edit_status", "InProgress", "2026-10-06T10:00:00Z"),
-                                             log(1, "created", "ToDo", "2026-09-20T10:00:00Z")),
-                                     Date.from(Instant.parse("2026-10-01T00:00:00Z")));
-      older = tool.getTaskChanges(task,
-                                  List.of(log(2, "edit_status", "InProgress", "2026-10-06T10:00:00Z"),
-                                          log(1, "created", "", "2026-09-20T10:00:00Z")),
-                                  Date.from(Instant.parse("2026-10-01T00:00:00Z")));
-    }
-    assertEquals(1, recorded.size());
-    assertEquals("ToDo", recorded.get(0).getOldValue());
-    assertEquals("InProgress", recorded.get(0).getNewValue());
-    assertEquals(1, older.size());
-    assertNull(older.get(0).getOldValue());
-  }
-
-  /**
-   * A task's first move leaves its first status unrecorded: the change
-   * names its new status only.
-   */
-  @Test
-  public void aFirstMoveHasNoOldStatus() { // NOSONAR
-    TaskDto task = mock(TaskDto.class);
-    List<TaskChange> changes;
-    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
-      changes = tool.getTaskChanges(task,
-                                    List.of(log(1, "edit_status", "InProgress", "2026-10-06T10:00:00Z")),
-                                    Date.from(Instant.parse("2026-10-01T00:00:00Z")));
-    }
-    assertEquals(1, changes.size());
-    assertNull(changes.get(0).getOldValue());
-    assertEquals("InProgress", changes.get(0).getNewValue());
   }
 
   /**
