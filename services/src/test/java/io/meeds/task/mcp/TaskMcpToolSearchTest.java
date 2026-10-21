@@ -270,8 +270,8 @@ public class TaskMcpToolSearchTest {
 
   /**
    * The words reach the index as words only: no field query, escape, range,
-   * wildcard or operator of the query syntax, and a text holding no word is
-   * refused like a blank one.
+   * wildcard or operator of the query syntax, and a text holding no word with
+   * letters is refused like a blank one.
    */
   @Test
   public void theTextReachesTheIndexAsWordsOnly() {
@@ -280,6 +280,9 @@ public class TaskMcpToolSearchTest {
     assertEquals("", TaskMcpTool.toSearchWords(" :*\\ "));
     assertEquals("", TaskMcpTool.toSearchWords(null));
     assertThrows(IllegalArgumentException.class, () -> tool.searchTasks(" :*? ", null, null, null));
+    // the index's search analyzer keeps letters only: a number alone would
+    // silently find nothing
+    assertThrows(IllegalArgumentException.class, () -> tool.searchTasks("2026", null, null, null));
     verify(taskService, never()).findTasks(any(TaskSearchFilter.class));
   }
 

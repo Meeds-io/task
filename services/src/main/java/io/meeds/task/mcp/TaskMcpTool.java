@@ -479,8 +479,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * hits at most: when it reads that many, more tasks may match than it could
    * return, which the result says as it says that the limit was reached.
    *
-   * @param query the text searched, words all present in the title or the
-   *          description
+   * @param query the text searched: every word in the title, or every word in
+   *          the description; the index does not search numbers, so the text
+   *          must hold a word with letters
    * @param projectId the project, null for every task the user can view
    * @param includeCompleted whether the completed tasks are returned, after
    *          the open ones
@@ -494,8 +495,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                Boolean includeCompleted,
                                                Integer limit) throws IllegalAccessException, ObjectNotFoundException {
     String words = toSearchWords(query);
-    if (words.isEmpty()) {
-      throw new IllegalArgumentException("A text to search is mandatory");
+    if (!words.matches(".*\\p{L}.*")) {
+      throw new IllegalArgumentException("A text with a word to search is mandatory: numbers are not searched, a task id goes to get_task_by_id");
     }
     if (projectId != null) {
       getViewableProject(projectId);
