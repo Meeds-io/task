@@ -26,12 +26,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 import org.mockito.ArgumentCaptor;
 
 import org.junit.Before;
@@ -47,10 +44,15 @@ import org.exoplatform.task.model.TaskSearchFilter;
 
 import io.meeds.task.search.TaskSearchConnector;
 
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
 @RunWith(MockitoJUnitRunner.class)
 public class TaskSearchConnectorTest {
 
   private static final String    ES_INDEX = "task_alias";
+
+  private static final JsonMapper MAPPER   = JsonMapper.builder().build();
 
   @Mock
   private ElasticSearchingClient client;
@@ -124,10 +126,9 @@ public class TaskSearchConnectorTest {
    * query on the dynamically mapped projectId matches the documents of that
    * project only; no Elasticsearch runs in this suite.
    *
-   * @throws Exception when a request is not valid JSON
    */
   @Test
-  public void testSearchAndCountByProject() throws Exception {
+  public void testSearchAndCountByProject() {
     TaskSearchFilter filter = new TaskSearchFilter("user1", "Grand Dax", List.of("user1", "member:/spaces/sales"), null, null, 0, 100);
     filter.setProjectIds(List.of(8319L));
     when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"hits\":{\"hits\":[]}}");
@@ -141,21 +142,20 @@ public class TaskSearchConnectorTest {
     ArgumentCaptor<String> count = ArgumentCaptor.forClass(String.class);
     verify(client).countRequest(count.capture(), eq(ES_INDEX));
     for (String request : List.of(search.getValue(), count.getValue())) {
-      JSONArray must = must(request);
+      JsonNode must = must(request);
       assertEquals(3, must.size());
       assertEquals(List.of("8319"), terms(must, "projectId"));
       assertEquals(List.of("user1", "member:/spaces/sales"), terms(must, "permissions"));
-      assertTrue(((JSONObject) must.get(0)).containsKey("query_string"));
+      assertTrue(must.get(0).has("query_string"));
     }
   }
 
   /**
    * A filter naming no project adds no project clause.
    *
-   * @throws Exception when the request is not valid JSON
    */
   @Test
-  public void testSearchWithoutProject() throws Exception {
+  public void testSearchWithoutProject() {
     TaskSearchFilter filter = new TaskSearchFilter("user1", "Grand Dax", List.of("user1"), null, null, 0, 100);
     when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"hits\":{\"hits\":[]}}");
 
@@ -163,20 +163,20 @@ public class TaskSearchConnectorTest {
 
     ArgumentCaptor<String> search = ArgumentCaptor.forClass(String.class);
     verify(client).sendRequest(search.capture(), eq(ES_INDEX));
-    JSONArray must = must(search.getValue());
+    JsonNode must = must(search.getValue());
     assertEquals(2, must.size());
     assertFalse(search.getValue().contains("projectId"));
   }
 
   /**
+   * Reads a request with a strict parser: a trailing comma, which
+   * Elasticsearch refuses, fails here too.
+   *
    * @param request a search or count request
    * @return the clauses its boolean query must match
-   * @throws Exception when the request is not valid JSON
    */
-  @SuppressWarnings("rawtypes")
-  private static JSONArray must(String request) throws Exception {
-    Map json = (Map) new JSONParser().parse(request);
-    return (JSONArray) ((Map) ((Map) json.get("query")).get("bool")).get("must");
+  private static JsonNode must(String request) {
+    return MAPPER.readTree(request).path("query").path("bool").path("must");
   }
 
   /**
@@ -184,12 +184,13 @@ public class TaskSearchConnectorTest {
    * @param field a field
    * @return the values of the terms clause on that field, null for none
    */
-  @SuppressWarnings("rawtypes")
-  private static Object terms(JSONArray must, String field) {
-    for (Object clause : must) {
-      Map terms = (Map) ((Map) clause).get("terms");
-      if (terms != null && terms.containsKey(field)) {
-        return terms.get(field);
+  private static List<String> terms(JsonNode must, String field) {
+    for (JsonNode clause : must) {
+      JsonNode values = clause.path("terms").get(field);
+      if (values != null) {
+        List<String> result = new ArrayList<>();
+        values.forEach(value -> result.add(value.asString()));
+        return result;
       }
     }
     return null;
