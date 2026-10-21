@@ -1195,6 +1195,33 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * The creation entry records the status a task is created in: its first
+   * move tells the status it left. A creation entry logged before, with no
+   * target, leaves it unrecorded. Mutant: the creation entry ignored.
+   */
+  @Test
+  public void aFirstMoveTellsTheStatusTheTaskWasCreatedIn() { // NOSONAR
+    TaskDto task = mock(TaskDto.class);
+    List<TaskChange> recorded;
+    List<TaskChange> older;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      recorded = tool.getTaskChanges(task,
+                                     List.of(log(2, "edit_status", "InProgress", "2026-10-06T10:00:00Z"),
+                                             log(1, "created", "ToDo", "2026-09-20T10:00:00Z")),
+                                     Date.from(Instant.parse("2026-10-01T00:00:00Z")));
+      older = tool.getTaskChanges(task,
+                                  List.of(log(2, "edit_status", "InProgress", "2026-10-06T10:00:00Z"),
+                                          log(1, "created", "", "2026-09-20T10:00:00Z")),
+                                  Date.from(Instant.parse("2026-10-01T00:00:00Z")));
+    }
+    assertEquals(1, recorded.size());
+    assertEquals("ToDo", recorded.get(0).getOldValue());
+    assertEquals("InProgress", recorded.get(0).getNewValue());
+    assertEquals(1, older.size());
+    assertNull(older.get(0).getOldValue());
+  }
+
+  /**
    * A task's first move leaves its first status unrecorded: the change
    * names its new status only.
    */
