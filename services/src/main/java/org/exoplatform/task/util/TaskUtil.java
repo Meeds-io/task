@@ -22,6 +22,8 @@ import java.text.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.portal.localization.LocaleContextInfoUtils;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.resources.LocaleContextInfo;
@@ -693,6 +695,27 @@ public final class TaskUtil {
     String userId = identity.getUserId();
 
     return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService,task);
+  }
+
+  /**
+   * Turns a text into the words the task index is searched with: without
+   * accents, which the index folds on the tasks it indexes but not on the
+   * text searched; lower-cased, so that AND, OR and NOT are words, never the
+   * operators of the query syntax; and with every character that is neither a
+   * letter nor a digit turned into a space, so that no field query, escape,
+   * range or wildcard reaches the index.
+   *
+   * @param text the text asked for, possibly null
+   * @return its words separated by one space, empty when it holds none
+   */
+  public static String toSearchWords(String text) {
+    if (text == null) {
+      return "";
+    }
+    return StringUtils.stripAccents(text)
+                      .toLowerCase(Locale.ROOT)
+                      .replaceAll("[^\\p{L}\\p{N}]+", " ")
+                      .trim();
   }
 
   public static boolean hasViewPermission(TaskService taskService, TaskDto task, Identity identity) {
