@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class TaskSearchConnector {
 
@@ -48,6 +50,7 @@ public class TaskSearchConnector {
           "bool": {
             "must": [
               @term_query@
+              @project_query@
               @permission_query@
             ]
           }
@@ -76,12 +79,28 @@ public class TaskSearchConnector {
       }
       """;
 
+  /**
+   * The projects of the tasks found. A task document carries its project
+   * identifier as a string in {@code projectId}, a field the index maps
+   * dynamically (as text with a keyword sub-field): a number stays one token,
+   * so a terms query on the field itself matches it whether the field is
+   * mapped as text or as a keyword.
+   */
+  private static final String    PROJECTS_QUERY                = """
+      {
+        "terms": {
+          "projectId": [@projectIds@]
+        }
+      },
+      """;
+
   private static final String    COUNT_QUERY                   = """
       {
         "query": {
           "bool": {
             "must": [
               @term_query@
+              @project_query@
               @permission_query@
             ]
           }
@@ -118,6 +137,10 @@ public class TaskSearchConnector {
 
   private static final String    PERMISSIONS_REPLACEMENT       = "@permissions@";
 
+  private static final String    PROJECTS_QUERY_REPLACEMENT    = "@project_query@";
+
+  private static final String    PROJECTS_REPLACEMENT          = "@projectIds@";
+
   private static final String    SORT_REPLACEMENT              = "@sortQuery@";
 
   private ElasticSearchingClient client;
@@ -144,6 +167,15 @@ public class TaskSearchConnector {
     return buildCount(jsonResponse);
   }
 
+  /**
+   * Builds the search or count request of a filter: its term in the title and
+   * the description, its projects when it names some, and the permissions
+   * that bound what the user can find.
+   *
+   * @param queryBase the search or the count template
+   * @param filter the filter
+   * @return the request
+   */
   private String buildSearchQuery(String queryBase, TaskSearchFilter filter) {
     String query = queryBase.replace(OFFSET_REPLACEMENT, String.valueOf(filter.getOffset()))
                             .replace(LIMIT_REPLACEMENT, String.valueOf(Math.max(filter.getLimit(), 10)));
@@ -153,6 +185,18 @@ public class TaskSearchConnector {
       query = query.replace(TERM_QUERY_REPLACEMENT, SEARCH_QUERY_TERM.replace(TERM_REPLACEMENT, escapeJson(filter.getTerm())));
     } else {
       query = query.replace(TERM_QUERY_REPLACEMENT, "");
+    }
+
+    // Projects filter
+    if (CollectionUtils.isNotEmpty(filter.getProjectIds())) {
+      String projectIds = filter.getProjectIds()
+                                .stream()
+                                .filter(Objects::nonNull)
+                                .map(projectId -> "\"" + projectId + "\"")
+                                .collect(Collectors.joining(","));
+      query = query.replace(PROJECTS_QUERY_REPLACEMENT, PROJECTS_QUERY.replace(PROJECTS_REPLACEMENT, projectIds));
+    } else {
+      query = query.replace(PROJECTS_QUERY_REPLACEMENT, "");
     }
 
     // Permissions filter
