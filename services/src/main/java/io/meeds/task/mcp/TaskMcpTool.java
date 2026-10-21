@@ -476,7 +476,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * after every open one. Each hit is checked again against the task's own
    * view permission, so a task the index still lists for a user who lost
    * access to it is never returned. The search reads the 100 most relevant
-   * hits at most.
+   * hits at most: when it reads that many, more tasks may match than it could
+   * return, which the result says as it says that the limit was reached.
    *
    * @param query the text searched, words all present in the title or the
    *          description
@@ -484,7 +485,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param includeCompleted whether the completed tasks are returned, after
    *          the open ones
    * @param limit the most tasks returned
-   * @return the tasks found, and whether more matched than the limit
+   * @return the tasks found, and whether more may match than were returned
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
    */
@@ -492,7 +493,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                Long projectId,
                                                Boolean includeCompleted,
                                                Integer limit) throws IllegalAccessException, ObjectNotFoundException {
-    if (StringUtils.isBlank(query)) {
+    String words = toSearchWords(query);
+    if (words.isEmpty()) {
       throw new IllegalArgumentException("A text to search is mandatory");
     }
     if (projectId != null) {
@@ -501,7 +503,7 @@ public class TaskMcpTool implements McpToolPlugin {
     int max = Math.clamp(getInteger(limit, DEFAULT_LIMIT), 1, MAX_TO_LOAD);
     Identity aclIdentity = getCurrentUserAclIdentity();
     TaskSearchFilter filter = new TaskSearchFilter(aclIdentity.getUserId(),
-                                                   StringUtils.stripAccents(query.trim()),
+                                                   words,
                                                    UserUtil.getMemberships(aclIdentity),
                                                    null,
                                                    null,
@@ -516,7 +518,8 @@ public class TaskMcpTool implements McpToolPlugin {
     if (Boolean.TRUE.equals(includeCompleted)) {
       collectSearchHits(hits, projectId, true, found, max + 1);
     }
-    boolean hasMore = found.size() > max;
+    // a full window may hide matches ranked below it, whatever the filters kept
+    boolean hasMore = found.size() > max || hits.size() >= MAX_TO_LOAD;
     List<TaskSearchResultModel> results = found.stream().limit(max).map(this::toTaskSearchResultModel).toList();
     return new TaskSearchCollectionModel(results, max, hasMore);
   }
@@ -1352,6 +1355,27 @@ public class TaskMcpTool implements McpToolPlugin {
     return taskService.findLastUpdatedTasks(getTaskQuery(projectId, uncompleteOnly, false, null),
                                             getInteger(offset, DEFAULT_OFFSET),
                                             getInteger(limit, DEFAULT_LIMIT));
+  }
+
+  /**
+   * Turns a text into the words the task index is searched with: without
+   * accents, which the index folds on the tasks it indexes but not on the
+   * text searched; lower-cased, so that AND, OR and NOT are words, never the
+   * operators of the query syntax; and with every character that is neither a
+   * letter nor a digit turned into a space, so that no field query, escape,
+   * range or wildcard reaches the index.
+   *
+   * @param text the text asked for, possibly null
+   * @return its words separated by one space, empty when it holds none
+   */
+  static String toSearchWords(String text) {
+    if (text == null) {
+      return "";
+    }
+    return StringUtils.stripAccents(text)
+                      .toLowerCase(Locale.ROOT)
+                      .replaceAll("[^\\p{L}\\p{N}]+", " ")
+                      .trim();
   }
 
   /**
