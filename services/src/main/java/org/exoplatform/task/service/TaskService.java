@@ -26,8 +26,8 @@ import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
-import org.exoplatform.task.dto.TaskChangeFilter;
-import org.exoplatform.task.dto.TaskChanges;
+import org.exoplatform.task.model.TaskChangeFilter;
+import org.exoplatform.task.model.TaskChanges;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -48,6 +48,13 @@ public interface TaskService {
 
     /** The code of the refusal of a text search holding no word with letters. */
     String TEXT_SEARCH_NO_WORD = "task.search.noWord";
+
+    /**
+     * The change log actions whose target is a user, an assignee or a
+     * coworker; the other actions name a status, a project or nothing there
+     * (EXO-91902).
+     */
+    List<String> USER_TARGET_ACTIONS = List.of("assign", "unassign", "assignCoworker", "unassignCoworker");
 
 
     /**
@@ -151,13 +158,6 @@ public interface TaskService {
     List<ChangeLogEntry> getTaskLogs(long taskId, int offset, int limit) throws Exception;
 
     /**
-     * The change log actions whose target is a user, an assignee or a
-     * coworker; the other actions name a status, a project or nothing there
-     * (EXO-91902).
-     */
-    List<String> USER_TARGET_ACTIONS = List.of("assign", "unassign", "assignCoworker", "unassignCoworker");
-
-    /**
      * Narrows a task query with the conditions of a change filter
      * (EXO-91902): the tasks whose status, project, due date, assignee or
      * completion changed since a date, an assignee change counting only on a
@@ -187,9 +187,10 @@ public interface TaskService {
      * it. On demand, also its newest change log entries, at most a hundred.
      *
      * @param task the task
-     * @param since the earliest date of the changes, included
+     * @param since the earliest date of the changes, included; required
      * @param includeChangeLog whether its newest change log entries come too
      * @return its changes
+     * @throws IllegalArgumentException when since is null
      * @throws Exception when its change log can't be read
      */
     TaskChanges getTaskChanges(TaskDto task, Date since, boolean includeChangeLog) throws Exception;
