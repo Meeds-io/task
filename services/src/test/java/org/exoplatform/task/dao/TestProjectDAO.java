@@ -119,5 +119,39 @@ public class TestProjectDAO extends AbstractTest {
     projects = pDAO.findAllByMembershipsAndKeyword(Arrays.asList("root"), "keTING", null);
     Assert.assertEquals(1, projects.getSize());
   }
+
+  /**
+   * A project matches the name words when its name holds every one of them,
+   * each ignoring case and anywhere in the name; a project holding only some
+   * of them, even as part of another word, does not match.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testFindProjectsHoldingAllNameWords() throws Exception {
+    Set<String> manager = new HashSet<>();
+    manager.add("root");
+    Project board = pDAO.create(new Project("Seed Big Board 50", null, null, manager, null));
+    pDAO.create(new Project("Seed Delta Onboarding 04", null, null, manager, null));
+    Project orion = pDAO.create(new Project("Seed Orion 36", null, null, manager, null));
+
+    Assert.assertEquals(List.of(board.getId()), findIdsByNameWords("Seed Big Board 50"));
+    Assert.assertEquals(List.of(board.getId()), findIdsByNameWords("big  board 50"));
+    Assert.assertEquals(List.of(orion.getId()), findIdsByNameWords("orion"));
+  }
+
+  /**
+   * @param words words of a project name
+   * @return the ids of the projects of the root membership whose name holds
+   *         all of them
+   * @throws Exception never
+   */
+  private List<Long> findIdsByNameWords(String words) throws Exception {
+    ProjectQuery query = new ProjectQuery();
+    query.setMembership(Arrays.asList("root"));
+    query.setNameWords(words);
+    ListAccess<Project> projects = pDAO.findProjects(query);
+    return Arrays.stream(projects.load(0, 10)).map(Project::getId).toList();
+  }
 }
 
