@@ -24,16 +24,33 @@ import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.dao.CommentHandler;
 import org.exoplatform.task.domain.Comment;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.TypedQuery;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements CommentHandler {
+
+  /**
+   * For each of the given tasks that has comments, its latest comment, a reply
+   * or not, with the number of its comments: two comments created at the same
+   * time each give a row.
+   */
+  private static final String COMMENTS_SUMMARIES_QUERY =
+                                                       "SELECT new org.exoplatform.task.dto.CommentsSummaryDto(c.task.id,"
+                                                           + " (SELECT count(c2) FROM TaskComment c2 WHERE c2.task.id = c.task.id),"
+                                                           + " c.createdTime, c.author, c.id)"
+                                                           + " FROM TaskComment c WHERE c.task.id IN (:taskIds)"
+                                                           + " AND c.createdTime = (SELECT max(c3.createdTime) FROM TaskComment c3"
+                                                           + " WHERE c3.task.id = c.task.id)";
 
   @Override
   public void delete(Comment entity) {
@@ -107,6 +124,28 @@ public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements Comme
     } catch (NoResultException e) {
       return 0;
     }
+  }
+
+  /**
+   * Runs {@link #COMMENTS_SUMMARIES_QUERY} and keeps, for a task whose latest
+   * comments share their creation time, the one created last.
+   *
+   * @param taskIds the tasks
+   * @return the summaries of those that have comments, by task id
+   */
+  @Override
+  public Map<Long, CommentsSummaryDto> getCommentsSummaries(Collection<Long> taskIds) {
+    if (CollectionUtils.isEmpty(taskIds)) {
+      return Collections.emptyMap();
+    }
+    TypedQuery<CommentsSummaryDto> query = getEntityManager().createQuery(COMMENTS_SUMMARIES_QUERY, CommentsSummaryDto.class);
+    query.setParameter("taskIds", taskIds);
+    Map<Long, CommentsSummaryDto> summaries = new LinkedHashMap<>();
+    query.getResultList()
+         .forEach(summary -> summaries.merge(summary.getTaskId(),
+                                             summary,
+                                             (first, second) -> first.getLastCommentId() >= second.getLastCommentId() ? first : second));
+    return summaries;
   }
 
 }

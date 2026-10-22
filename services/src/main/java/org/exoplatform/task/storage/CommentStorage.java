@@ -18,9 +18,12 @@
  */
 package org.exoplatform.task.storage;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 
@@ -61,5 +64,15 @@ public interface CommentStorage {
    * @return null if no comments else last created comment on task
    */
   CommentDto getLastComment(long taskId);
+
+  /**
+   * Summarizes the comments of several tasks in one query.
+   *
+   * @param taskIds the tasks
+   * @return for each of them that has comments, the number of its comments,
+   *         replies included, and its latest comment's date and author; the
+   *         tasks without comments are absent
+   */
+  Map<Long, CommentsSummaryDto> getCommentsSummaries(Collection<Long> taskIds);
 
 }
