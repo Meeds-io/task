@@ -113,6 +113,7 @@ import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentModel;
 import io.meeds.task.mcp.model.TaskListItemModel;
+import io.meeds.task.mcp.util.TaskDescriptionText;
 import io.meeds.task.mcp.model.TaskModel;
 import io.meeds.task.mcp.model.TaskSearchCollectionModel;
 import io.meeds.task.mcp.model.TaskSearchResultModel;
@@ -614,20 +615,25 @@ public class TaskMcpTool implements McpToolPlugin {
    * (EXO-91902). Asking both the overdue tasks and the tasks completed since
    * a date is refused. Without any of these filters, the open tasks, the most
    * recently active first. Each task comes as a list item, without its
-   * description or coworkers, which {@link #getTaskById(Long)} returns.
+   * description or coworkers, which {@link #getTaskById(Long)} returns; with
+   * {@code includeDescription}, with its description as cut plain text.
    *
    * @param offset the first task returned
    * @param limit the most tasks returned, {@value #MAX_LIMIT} at most
    * @param overdueOnly whether only the overdue tasks are listed
    * @param changedSince a date or date-time, blank for no condition
    * @param completedSince a date or date-time, blank for no condition
+   * @param includeDescription whether each task carries its description as
+   *          plain text, cut at {@value TaskDescriptionText#MAX_LENGTH}
+   *          characters
    * @return the tasks, with their count and whether more remain
    */
   public TaskCollectionModel listAssignedTasks(Integer offset,
                                                Integer limit,
                                                Boolean overdueOnly,
                                                String changedSince,
-                                               String completedSince) {
+                                               String completedSince,
+                                               Boolean includeDescription) {
     ZoneId zone = getCurrentUserZone();
     int usedOffset = getOffset(offset);
     int usedLimit = getLimit(limit);
@@ -649,7 +655,7 @@ public class TaskMcpTool implements McpToolPlugin {
     } else {
       tasks = taskService.findLastUpdatedTasks(taskQuery, usedOffset, usedLimit);
     }
-    return toTaskCollection(toTaskListItems(tasks, since, zone), usedOffset, usedLimit, countTasks(taskQuery));
+    return toTaskCollection(toTaskListItems(tasks, since, zone, Boolean.TRUE.equals(includeDescription)), usedOffset, usedLimit, countTasks(taskQuery));
   }
 
   /**
@@ -672,8 +678,10 @@ public class TaskMcpTool implements McpToolPlugin {
    * the count of the tasks the same filters select.
    * <p>
    * Each task comes as a list item, without its description or coworkers,
-   * which {@link #getTaskById(Long)} returns; with {@code includeChangeLog},
-   * each comes in full, with its change log.
+   * which {@link #getTaskById(Long)} returns; with {@code includeDescription},
+   * with its description as plain text, cut at
+   * {@value TaskDescriptionText#MAX_LENGTH} characters; with
+   * {@code includeChangeLog}, each comes in full, with its change log.
    *
    * @param projectId the project, null for every accessible task
    * @param hideCompletedTasks whether the completed tasks are left out
@@ -687,6 +695,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param completedSince a date or date-time, blank for no condition
    * @param assignee the username of the assignee, blank for any
    * @param statusId the status of the tasks listed, null for any
+   * @param includeDescription whether each list item carries its description
+   *          as cut plain text
    * @return the tasks, with their count and whether more remain
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
@@ -703,7 +713,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                        String changedSince,
                                        String completedSince,
                                        String assignee,
-                                       Long statusId) throws IllegalAccessException, ObjectNotFoundException {
+                                       Long statusId,
+                                       Boolean includeDescription) throws IllegalAccessException, ObjectNotFoundException {
     ZoneId zone = getCurrentUserZone();
     LocalDate today = getToday(zone);
     Date changedSinceDate = parseSince(changedSince, ARG_CHANGED_SINCE, zone);
@@ -727,7 +738,7 @@ public class TaskMcpTool implements McpToolPlugin {
     Date since = changedSinceDate == null ? completedSinceDate : changedSinceDate;
     List<?> taskModels;
     if (!Boolean.TRUE.equals(includeChangeLog)) {
-      taskModels = toTaskListItems(tasks, since, zone);
+      taskModels = toTaskListItems(tasks, since, zone, Boolean.TRUE.equals(includeDescription));
     } else if (since != null) {
       taskModels = toTaskWithChangesModels(tasks, since, true, zone);
     } else {
@@ -1283,19 +1294,23 @@ public class TaskMcpTool implements McpToolPlugin {
   /**
    * Lists the open tasks of a project that have neither a start nor a due
    * date, among its {@value #MAX_TO_LOAD} most recently active open tasks.
-   * Each task comes as a list item. The tool takes no offset: {@code has_more}
+   * Each task comes as a list item, with its description as cut plain text
+   * with {@code includeDescription}. The tool takes no offset: {@code has_more}
    * says more unscheduled tasks were found than the limit let through, and
    * no {@code next_offset} is given.
    *
    * @param projectId the project
    * @param limit the most tasks returned, {@value #MAX_LIMIT} at most
+   * @param includeDescription whether each task carries its description as
+   *          cut plain text
    * @return the tasks, with the count of those returned and whether more
    *         were found
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
    */
   public TaskCollectionModel listUnscheduledTasks(Long projectId,
-                                                  Integer limit) throws IllegalAccessException, ObjectNotFoundException {
+                                                  Integer limit,
+                                                  Boolean includeDescription) throws IllegalAccessException, ObjectNotFoundException {
     int max = getLimit(limit);
     ZoneId zone = getCurrentUserZone();
     List<TaskDto> unscheduled = getTasks(projectId, 0, MAX_TO_LOAD, true).stream()
@@ -1304,7 +1319,10 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                         .limit(max + 1L)
                                                                         .toList();
     boolean hasMore = unscheduled.size() > max;
-    List<TaskListItemModel> page = toTaskListItems(hasMore ? unscheduled.subList(0, max) : unscheduled, null, zone);
+    List<TaskListItemModel> page = toTaskListItems(hasMore ? unscheduled.subList(0, max) : unscheduled,
+                                                    null,
+                                                    zone,
+                                                    Boolean.TRUE.equals(includeDescription));
     return new TaskCollectionModel(page, 0, max, page.size(), hasMore, null);
   }
 
@@ -1723,16 +1741,28 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param since the date a listing with {@code changed_since} or
    *          {@code completed_since} lists the changes from, null otherwise
    * @param zone the user's time zone
+   * @param includeDescription whether each item carries its description as
+   *          cut plain text
    * @return their list items, each overdue one with its days overdue, each
    *         with its changes since that date when one is given
    */
-  private List<TaskListItemModel> toTaskListItems(List<TaskDto> tasks, Date since, ZoneId zone) {
+  private List<TaskListItemModel> toTaskListItems(List<TaskDto> tasks,
+                                                  Date since,
+                                                  ZoneId zone,
+                                                  boolean includeDescription) {
     if (CollectionUtils.isEmpty(tasks)) {
       return Collections.emptyList();
     }
     LocalDate today = getToday(zone);
     Identity aclIdentity = getCurrentUserAclIdentity();
-    return tasks.stream().map(task -> toTaskListItem(task, since, zone, today, aclIdentity)).toList();
+    return tasks.stream().map(task -> {
+      TaskListItemModel item = toTaskListItem(task, since, zone, today, aclIdentity);
+      if (includeDescription) {
+        // the stored HTML read as text, without the rendering that resolves links and mentions
+        item.setPlainTextDescription(TaskDescriptionText.toPlainText(task.getDescription()));
+      }
+      return item;
+    }).toList();
   }
 
   /**
