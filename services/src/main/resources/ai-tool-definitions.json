@@ -157,7 +157,8 @@
           "changed_since": { "type": "string", "description": "Only the tasks whose status, project, due date, assignee or completion changed at or after this date. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." },
           "completed_since": { "type": "string", "description": "Only the tasks completed at or after this date, whatever hide_completed_tasks says; not together with overdue_only. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." },
           "assignee": { "type": "string", "description": "Only the tasks assigned to this user, by username." },
-          "status_id": { "type": "integer", "description": "Only the tasks in this status, a status_id of list_project_statuses." }
+          "status_id": { "type": "integer", "description": "Only the tasks in this status, a status_id of list_project_statuses." },
+          "include_description": { "type": "boolean", "description": "true: each item carries its description as plain text, cut at 500 characters (description_truncated when cut)." }
         }
       },
       "annotations": {
@@ -166,7 +167,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["hide_completed_tasks", "include_change_log", "overdue_only", "offset", "limit", "title", "changed_since", "completed_since", "assignee", "status_id"] }
+      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["hide_completed_tasks", "include_change_log", "overdue_only", "offset", "limit", "title", "changed_since", "completed_since", "assignee", "status_id", "include_description"] }
     },
     {
       "name": "list_project_activity_since",
@@ -198,7 +199,8 @@
           "limit": { "type": "integer", "description": "Default 10, max 100." },
           "overdue_only": { "type": "boolean", "description": "Only the tasks whose due date is before today, in the user's time zone; a task due today is not overdue." },
           "changed_since": { "type": "string", "description": "Only the tasks whose status, project, due date, assignee or completion changed at or after this date. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." },
-          "completed_since": { "type": "string", "description": "Only the tasks completed at or after this date. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." }
+          "completed_since": { "type": "string", "description": "Only the tasks completed at or after this date. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." },
+          "include_description": { "type": "boolean", "description": "true: each item carries its description as plain text, cut at 500 characters (description_truncated when cut)." }
         }
       },
       "annotations": {
@@ -666,7 +668,8 @@
         "type": "object",
         "properties": {
           "project_id": { "type": "integer" },
-          "limit": { "type": "integer", "description": "Default 10, max 100." }
+          "limit": { "type": "integer", "description": "Default 10, max 100." },
+          "include_description": { "type": "boolean", "description": "true: each item carries its description as plain text, cut at 500 characters (description_truncated when cut)." }
         },
         "required": ["project_id"]
       },
