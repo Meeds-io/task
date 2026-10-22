@@ -134,9 +134,11 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * The most items a list tool returns at a time, whatever limit it is given:
-   * the bound search_tasks has, {@link TaskService#TEXT_SEARCH_WINDOW}.
+   * the "max 100" the tool definitions state, kept apart from the search
+   * window of {@link TaskService} so that retuning one never changes the
+   * other.
    */
-  static final int                      MAX_LIMIT                       = TaskService.TEXT_SEARCH_WINDOW;
+  private static final int              MAX_LIMIT                       = 100;
 
   private static final int              MAX_TO_LOAD                     = 100;
 
@@ -288,7 +290,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * <p>
    * With {@code name}, only the projects whose name holds all its words,
    * each one ignoring case, among those the other arguments select; when
-   * none of them does, those whose name holds any one of its words. Each
+   * none of them does and {@code name} holds more than one word, those whose
+   * name holds any one of its words. Each
    * project comes as a list item, without its description, statuses or
    * labels, which {@link #getProjectById(Long)} returns.
    *
@@ -315,14 +318,47 @@ public class TaskMcpTool implements McpToolPlugin {
       return listSpaceProjects(space, memberships, keyword, usedOffset, usedLimit);
     }
     ProjectQuery allWords = getAllWordsQuery(memberships, keyword);
-    int allWordsCount = allWords == null ? 0 : projectService.countProjects(allWords);
-    if (allWordsCount > 0) {
-      List<ProjectListItemModel> projects = toProjectListItems(projectService.findProjects(allWords, usedOffset, usedLimit));
-      return toProjectCollection(projects, usedOffset, usedLimit, allWordsCount);
+    if (allWords != null) {
+      int allWordsCount = projectService.countProjects(allWords);
+      if (allWordsCount > 0) {
+        List<ProjectListItemModel> projects = toProjectListItems(projectService.findProjects(allWords, usedOffset, usedLimit));
+        return toProjectCollection(projects, usedOffset, usedLimit, allWordsCount);
+      } else if (!hasSeveralWords(keyword)) {
+        return toProjectCollection(Collections.emptyList(), usedOffset, usedLimit, 0);
+      }
     }
     List<ProjectListItemModel> projects = getProjectListItems(memberships, keyword, usedOffset, usedLimit);
-    long count = projectService.countProjects(memberships, keyword);
+    long count = projectService.countProjects(getAnyWordQuery(memberships, keyword));
     return toProjectCollection(projects, usedOffset, usedLimit, count);
+  }
+
+  /**
+   * Builds the query of the projects the memberships reach whose name holds
+   * any one word of the keyword, the most recently modified first: the
+   * selection {@link ProjectService#findProjects(List, String, OrderBy, int, int)}
+   * lists with that order, so that its count, distinct like the list, counts
+   * each project once whatever the number of its managers and participants.
+   *
+   * @param memberships the memberships whose projects are counted
+   * @param keyword words of the name of the projects, null for any
+   * @return the query
+   */
+  private ProjectQuery getAnyWordQuery(List<String> memberships, String keyword) {
+    ProjectQuery query = new ProjectQuery();
+    query.setMembership(memberships);
+    query.setKeyword(keyword);
+    query.setOrderBy(List.of(new OrderBy.DESC("lastModifiedDate")));
+    return query;
+  }
+
+  /**
+   * @param keyword words of the name of the projects, not null
+   * @return true when the keyword holds more than one word, so that the
+   *         projects holding any one of them may be more than those holding
+   *         all of them
+   */
+  private static boolean hasSeveralWords(String keyword) {
+    return StringUtils.split(keyword, ' ').length > 1;
   }
 
   /**
@@ -471,8 +507,9 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Lists the projects of the space whose name holds every word of the
-   * keyword; when the space has none, those whose name holds any one of its
-   * words. Each selection is read by {@link #scanSpaceProjects}.
+   * keyword; when the space has none and the keyword holds more than one
+   * word, those whose name holds any one of its words. Each selection is read
+   * by {@link #scanSpaceProjects}.
    *
    * @param space an existing space
    * @param memberships the roles of the space group the current user holds
@@ -489,11 +526,12 @@ public class TaskMcpTool implements McpToolPlugin {
                                                    int offset,
                                                    int limit) {
     ProjectQuery allWords = getAllWordsQuery(memberships, keyword);
-    if (allWords != null && projectService.countProjects(allWords) > 0) {
-      List<ProjectDto> ofSpace = scanSpaceProjects(space,
-                                                   (from, size) -> projectService.findProjects(allWords, from, size),
-                                                   offset + limit + 1);
-      if (!ofSpace.isEmpty()) {
+    if (allWords != null) {
+      List<ProjectDto> ofSpace = Collections.emptyList();
+      if (projectService.countProjects(allWords) > 0) {
+        ofSpace = scanSpaceProjects(space, (from, size) -> projectService.findProjects(allWords, from, size), offset + limit + 1);
+      }
+      if (!ofSpace.isEmpty() || !hasSeveralWords(keyword)) {
         return toSpaceProjectCollection(ofSpace, offset, limit);
       }
     }
