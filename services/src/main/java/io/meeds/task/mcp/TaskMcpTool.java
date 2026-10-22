@@ -1737,8 +1737,8 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Maps a task to its list item: what tells it apart on its board, as a
-   * search result, with its assignee, due date, priority and comments count.
-   * It reads neither the description, nor the coworkers, nor the last update
+   * search result, with its assignee, due date, creation date, priority and
+   * comments count. It reads neither the description, nor the coworkers, nor the last update
    * date that the full model holds.
    *
    * @param task a task
@@ -1769,6 +1769,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                  project == null ? null : getTaskLabels(task, projectId, aclIdentity),
                                  getTaskAssignee(task.getAssignee()),
                                  formatDate(task.getDueDate()),
+                                 formatDate(task.getCreatedTime()),
                                  getDaysOverdue(task, zone, today),
                                  task.getPriority(),
                                  commentService.countComments(task.getId()),

@@ -20,6 +20,7 @@ package io.meeds.task.mcp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -2111,10 +2112,11 @@ public class TaskMcpToolTest {
   /**
    * list_tasks returns compact items: the task's identifier, title, link,
    * completion, project, status, labels, assignee as a username and a display
-   * name, due date, days overdue, priority and comments count; no
-   * description, no coworkers, and no user profile read for the coworkers.
-   * With include_change_log, the full task. Mutants: the full model listed;
-   * the coworkers looked up; the assignee's display name not read.
+   * name, due date, creation date (the full task's), days overdue, priority
+   * and comments count; no description, no coworkers, and no user profile
+   * read for the coworkers. With include_change_log, the full task. Mutants:
+   * the full model listed; the coworkers looked up; the assignee's display
+   * name not read; the creation date dropped.
    *
    * @throws Exception never
    */
@@ -2162,6 +2164,7 @@ public class TaskMcpToolTest {
                         "status",
                         "assignee",
                         "due_date",
+                        "created_date",
                         "days_overdue",
                         "priority",
                         "comments_count"),
@@ -2174,6 +2177,44 @@ public class TaskMcpToolTest {
     assertTrue(fullTask instanceof TaskWithChangeLogModel);
     assertEquals("A long description", fullTask.getDescription().replaceAll("<[^>]+>", "").trim());
     assertEquals(1, fullTask.getCoworkers().size());
+    assertNotNull(item.getCreatedDate());
+    assertEquals("the same creation date as the full task", fullTask.getCreatedDate(), item.getCreatedDate());
+  }
+
+  /**
+   * A compact item of list_tasks and of list_assigned_tasks carries the
+   * task's creation date, the one the full task carries, not its due date, so
+   * that the tasks created since a date are found. Mutants: the creation date
+   * dropped; the due date given instead.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCompactItemCarriesTheCreationDateOfTheFullTask() throws Exception { // NOSONAR
+    Date createdTime = Date.from(Instant.parse("2026-10-12T08:30:00Z"));
+    TaskDto task = mockTaskWithProject(TASK_ID, createdTime);
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-30T10:00:00Z")));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getUserTimeZone).thenReturn(TimeZone.getTimeZone("UTC"));
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> ((Date) invocation.getArgument(0)).toInstant().toString());
+
+      TaskListItemModel item = (TaskListItemModel) tool.listTasks(null, false, false, null, null, null, null, null, null, null, null)
+                                                       .getTasks()
+                                                       .get(0);
+      TaskModel fullTask = (TaskModel) tool.listTasks(null, false, true, null, null, null, null, null, null, null, null)
+                                           .getTasks()
+                                           .get(0);
+      TaskListItemModel assigned = (TaskListItemModel) tool.listAssignedTasks(null, null, null, null, null).getTasks().get(0);
+
+      assertEquals("2026-10-12T08:30:00Z", item.getCreatedDate());
+      assertEquals(fullTask.getCreatedDate(), item.getCreatedDate());
+      assertEquals("2026-10-12T08:30:00Z", assigned.getCreatedDate());
+      assertEquals("2026-10-12T08:30:00Z", JSON.readTree(JSON.writeValueAsString(item)).path("created_date").asText());
+    }
   }
 
   /**
