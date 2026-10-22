@@ -22,13 +22,16 @@ import static org.exoplatform.task.util.TaskUtil.TASK_COMMENT_CREATED;
 import static org.exoplatform.task.util.TaskUtil.TASK_COMMENT_DELETED;
 import static org.exoplatform.task.util.TaskUtil.broadcastEvent;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.utils.MentionUtils;
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.CommentService;
@@ -124,6 +127,18 @@ public class CommentServiceImpl implements CommentService {
       }
       commentStorage.removeComment(commentId);
       broadcastEvent(listenerService, TASK_COMMENT_DELETED, comment.getTask(), comment);
+    }
+
+    /**
+     * Summarizes the comments of several tasks in two queries, whatever their
+     * number.
+     *
+     * @param taskIds the tasks
+     * @return the summaries of those that have comments, by task id
+     */
+    @Override
+    public Map<Long, CommentsSummaryDto> getCommentsSummaries(Collection<Long> taskIds) {
+      return commentStorage.getCommentsSummaries(taskIds);
     }
 
 }

@@ -29,6 +29,7 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.storage.CommentStorage;
@@ -153,6 +154,18 @@ public class CommentStorageImpl implements CommentStorage {
             return comments.stream().map((Comment comment) -> StorageUtil.commentToDto(comment, projectStorage)).collect(Collectors.toList());
         }
         return new ArrayList<CommentDto>();
+    }
+
+    /**
+     * Summarizes the comments of several tasks in two queries, whatever their
+     * number.
+     *
+     * @param taskIds the tasks
+     * @return the summaries of those that have comments, by task id
+     */
+    @Override
+    public Map<Long, CommentsSummaryDto> getCommentsSummaries(Collection<Long> taskIds) {
+      return daoHandler.getCommentHandler().getCommentsSummaries(taskIds);
     }
 
 }
