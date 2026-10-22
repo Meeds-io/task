@@ -31,6 +31,7 @@ import jakarta.persistence.TypedQuery;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,17 +41,20 @@ import java.util.Set;
 public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements CommentHandler {
 
   /**
-   * For each of the given tasks that has comments, its latest comment, a reply
-   * or not, with the number of its comments: two comments created at the same
-   * time each give a row.
+   * For each of the given tasks that has comments, the number of its
+   * comments, replies included, and the creation time of its latest one: one
+   * grouped scan, with no subquery run per row.
    */
-  private static final String COMMENTS_SUMMARIES_QUERY =
-                                                       "SELECT new org.exoplatform.task.dto.CommentsSummaryDto(c.task.id,"
-                                                           + " (SELECT count(c2) FROM TaskComment c2 WHERE c2.task.id = c.task.id),"
-                                                           + " c.createdTime, c.author, c.id)"
-                                                           + " FROM TaskComment c WHERE c.task.id IN (:taskIds)"
-                                                           + " AND c.createdTime = (SELECT max(c3.createdTime) FROM TaskComment c3"
-                                                           + " WHERE c3.task.id = c.task.id)";
+  private static final String COMMENTS_COUNTS_QUERY = "SELECT c.task.id, count(c), max(c.createdTime) FROM TaskComment c"
+      + " WHERE c.task.id IN (:taskIds) GROUP BY c.task.id";
+
+  /**
+   * The comments of the given tasks created at one of the given times: the
+   * latest comment of each task, with the comments of another task created
+   * at the same time as one of them, which the caller leaves out.
+   */
+  private static final String LATEST_COMMENTS_QUERY = "SELECT c.task.id, c.createdTime, c.author, c.id FROM TaskComment c"
+      + " WHERE c.task.id IN (:taskIds) AND c.createdTime IN (:createdTimes)";
 
   @Override
   public void delete(Comment entity) {
@@ -127,8 +131,9 @@ public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements Comme
   }
 
   /**
-   * Runs {@link #COMMENTS_SUMMARIES_QUERY} and keeps, for a task whose latest
-   * comments share their creation time, the one created last.
+   * Runs {@link #COMMENTS_COUNTS_QUERY}, then {@link #LATEST_COMMENTS_QUERY}
+   * for the authors of the latest comments, keeping for each task the comment
+   * created at its latest time, the one created last when several were.
    *
    * @param taskIds the tasks
    * @return the summaries of those that have comments, by task id
@@ -138,13 +143,29 @@ public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements Comme
     if (CollectionUtils.isEmpty(taskIds)) {
       return Collections.emptyMap();
     }
-    TypedQuery<CommentsSummaryDto> query = getEntityManager().createQuery(COMMENTS_SUMMARIES_QUERY, CommentsSummaryDto.class);
-    query.setParameter("taskIds", taskIds);
+    TypedQuery<Object[]> countsQuery = getEntityManager().createQuery(COMMENTS_COUNTS_QUERY, Object[].class);
+    countsQuery.setParameter("taskIds", taskIds);
     Map<Long, CommentsSummaryDto> summaries = new LinkedHashMap<>();
-    query.getResultList()
-         .forEach(summary -> summaries.merge(summary.getTaskId(),
-                                             summary,
-                                             (first, second) -> first.getLastCommentId() >= second.getLastCommentId() ? first : second));
+    for (Object[] row : countsQuery.getResultList()) {
+      long taskId = ((Number) row[0]).longValue();
+      summaries.put(taskId, new CommentsSummaryDto(taskId, ((Number) row[1]).longValue(), (Date) row[2], null, 0));
+    }
+    if (summaries.isEmpty()) {
+      return summaries;
+    }
+    TypedQuery<Object[]> latestQuery = getEntityManager().createQuery(LATEST_COMMENTS_QUERY, Object[].class);
+    latestQuery.setParameter("taskIds", summaries.keySet());
+    latestQuery.setParameter("createdTimes",
+                             summaries.values().stream().map(CommentsSummaryDto::getLastCommentDate).distinct().toList());
+    for (Object[] row : latestQuery.getResultList()) {
+      CommentsSummaryDto summary = summaries.get(((Number) row[0]).longValue());
+      long commentId = ((Number) row[3]).longValue();
+      if (((Date) row[1]).getTime() == summary.getLastCommentDate().getTime()
+          && (summary.getLastCommentAuthor() == null || commentId > summary.getLastCommentId())) {
+        summary.setLastCommentAuthor((String) row[2]);
+        summary.setLastCommentId(commentId);
+      }
+    }
     return summaries;
   }
 

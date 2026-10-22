@@ -66,7 +66,8 @@ public interface CommentStorage {
   CommentDto getLastComment(long taskId);
 
   /**
-   * Summarizes the comments of several tasks in one query.
+   * Summarizes the comments of several tasks in two queries, whatever their
+   * number.
    *
    * @param taskIds the tasks
    * @return for each of them that has comments, the number of its comments,

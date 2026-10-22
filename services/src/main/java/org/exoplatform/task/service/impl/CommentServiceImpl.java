@@ -130,7 +130,8 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
-     * Summarizes the comments of several tasks in one query.
+     * Summarizes the comments of several tasks in two queries, whatever their
+     * number.
      *
      * @param taskIds the tasks
      * @return the summaries of those that have comments, by task id

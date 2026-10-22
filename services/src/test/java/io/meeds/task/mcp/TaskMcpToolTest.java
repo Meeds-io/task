@@ -2236,10 +2236,12 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * The comments of a page of 100 tasks are read in one query, whatever the
-   * number of tasks, never task by task, and a task without comments carries
-   * neither a latest comment date nor its author. Mutants: the comments
-   * counted task by task; the summaries read per task.
+   * The comments of a page of 100 tasks are read in one call, whatever the
+   * number of tasks, never task by task; a commented task carries the date of
+   * its latest comment, not its own creation or due date, and a task without
+   * comments carries neither a latest comment date nor its author. Mutants:
+   * the comments counted task by task; the latest comment's date swapped for
+   * the task's creation or due date.
    *
    * @throws Exception never
    */
@@ -2255,11 +2257,18 @@ public class TaskMcpToolTest {
     when(commentService.getCommentsSummaries(taskIds)).thenReturn(Map.of(1L,
                                                                          new CommentsSummaryDto(1L,
                                                                                                 16,
-                                                                                                new Date(),
+                                                                                                Date.from(Instant.parse("2026-09-01T07:00:00Z")),
                                                                                                 OTHER_USER,
                                                                                                 9L)));
+    when(tasks.get(0).getDueDate()).thenReturn(Date.from(Instant.parse("2026-12-01T00:00:00Z")));
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 0, 100, null, null, null, null, null, null));
+    TaskCollectionModel result;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getUserTimeZone).thenReturn(TimeZone.getTimeZone("UTC"));
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> ((Date) invocation.getArgument(0)).toInstant().toString());
+      result = tool.listTasks(null, false, false, null, 0, 100, null, null, null, null, null, null);
+    }
 
     assertEquals(100, result.getTasks().size());
     verify(commentService).getCommentsSummaries(taskIds);
@@ -2267,6 +2276,7 @@ public class TaskMcpToolTest {
     verify(commentService, never()).countCommentsWithSubs(anyLong());
     TaskListItemModel commented = (TaskListItemModel) result.getTasks().get(0);
     assertEquals(16, commented.getCommentsCount());
+    assertEquals("2026-09-01T07:00:00Z", commented.getLastCommentDate());
     assertEquals(OTHER_USER, commented.getLastCommentAuthor().getUsername());
     JsonNode uncommented = JSON.readTree(JSON.writeValueAsString(result.getTasks().get(1)));
     assertFalse(uncommented.has("last_comment_date"));
