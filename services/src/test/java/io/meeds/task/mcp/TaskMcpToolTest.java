@@ -1428,6 +1428,33 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * A listed project carries its description in the description and its
+   * permanent link in the url, not the one in the other's place.
+   * Mutant: the description and the link are passed in each other's position.
+   */
+  @Test
+  public void listProjectsShouldKeepTheDescriptionAndTheUrlEachInItsOwnField() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10)))
+                                                                            .thenReturn(Collections.singletonList(project));
+    when(projectService.countProjects(any(), eq(null))).thenReturn(1);
+    when(project.getId()).thenReturn(PROJECT_ID);
+    when(project.getName()).thenReturn(PROJECT_NAME);
+    when(project.getDescription()).thenReturn("Reworks the Shortcuts portlet");
+    when(project.getManager()).thenReturn(Collections.emptySet());
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(Collections.emptyList());
+    when(labelService.findLabelsByProject(PROJECT_ID, currentIdentity, 0, 100)).thenReturn(Collections.emptyList());
+    when(permanentLinkService.getLink(any())).thenReturn("/project-link");
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null));
+
+    ProjectModel model = result.getProjects().get(0);
+    assertTrue(model.getDescription(), model.getDescription().contains("Reworks the Shortcuts portlet"));
+    assertTrue(model.getUrl(), model.getUrl().endsWith("/project-link"));
+  }
+
+  /**
    * In a run limited to a space, the query gets the user's roles of that space
    * group and nothing of the user's other memberships, and only the projects
    * the space scope resolver gives to that space are returned: the list and

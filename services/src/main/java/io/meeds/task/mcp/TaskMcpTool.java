@@ -1440,8 +1440,8 @@ public class TaskMcpTool implements McpToolPlugin {
     Space space = getProjectSpace(project);
     return new ProjectModel(project.getId(),
                             project.getName(),
-                            getUrl(project),
                             transformHtmlContent(project.getDescription(), aclIdentity, locale),
+                            getUrl(project),
                             getProjectStatuses(project.getId()),
                             getProjectLabels(project.getId()),
                             space == null ? null : space.getSpaceId(),
