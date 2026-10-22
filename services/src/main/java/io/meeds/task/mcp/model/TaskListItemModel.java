@@ -37,7 +37,8 @@ import lombok.NoArgsConstructor;
  * result does, with its assignee, due date, creation date, priority and
  * comments count, without its description, coworkers or other dates, which
  * get_task_by_id returns. The creation date tells the tasks created since a
- * date apart. On request, the description as cut plain text.
+ * date apart, the date of the latest comment the tasks left without one.
+ * On request, the description as cut plain text.
  */
 @Data
 @NoArgsConstructor
@@ -84,8 +85,24 @@ public class TaskListItemModel {
 
   private Priority           priority;
 
+  /**
+   * The number of its comments, replies included.
+   */
   @JsonProperty("comments_count")
   private int                commentsCount;
+
+  /**
+   * When its latest comment, a reply or not, was written, formatted as
+   * created_date; none for a task without comments.
+   */
+  @JsonProperty("last_comment_date")
+  private String             lastCommentDate;
+
+  /**
+   * Who wrote its latest comment; none for a task without comments.
+   */
+  @JsonProperty("last_comment_author")
+  private TaskAssigneeModel  lastCommentAuthor;
 
   /**
    * The changes since the date of a listing with {@code changed_since} or
@@ -109,8 +126,10 @@ public class TaskListItemModel {
   private Boolean            descriptionTruncated;
 
   /**
-   * A list item without its description, which
-   * {@link #setPlainTextDescription(String)} adds on request.
+   * A list item without its latest comment, which
+   * {@link #setLastComment(String, TaskAssigneeModel)} adds, nor its
+   * description, which {@link #setPlainTextDescription(String)} adds on
+   * request.
    *
    * @param id the task
    * @param title its title
@@ -125,7 +144,7 @@ public class TaskListItemModel {
    * @param createdDate its creation date
    * @param daysOverdue its days overdue, null when not overdue
    * @param priority its priority
-   * @param commentsCount its comments count
+   * @param commentsCount its comments count, replies included
    * @param changes its changes since a date, null for none
    */
   public TaskListItemModel(long id, // NOSONAR the item's fields, each one its own
@@ -157,6 +176,8 @@ public class TaskListItemModel {
          daysOverdue,
          priority,
          commentsCount,
+         null,
+         null,
          changes,
          null,
          null);
@@ -173,6 +194,17 @@ public class TaskListItemModel {
     String cut = TaskDescriptionText.cut(plainText);
     this.description = cut;
     this.descriptionTruncated = cut != null && cut.length() < plainText.length() ? Boolean.TRUE : null;
+  }
+
+  /**
+   * Sets when and by whom its latest comment was written.
+   *
+   * @param date the date of its latest comment, formatted as created_date
+   * @param author its author
+   */
+  public void setLastComment(String date, TaskAssigneeModel author) {
+    this.lastCommentDate = date;
+    this.lastCommentAuthor = author;
   }
 
 }

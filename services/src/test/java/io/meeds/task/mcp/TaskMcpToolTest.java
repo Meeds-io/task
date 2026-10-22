@@ -55,6 +55,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
@@ -89,6 +90,7 @@ import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
@@ -2112,11 +2114,14 @@ public class TaskMcpToolTest {
   /**
    * list_tasks returns compact items: the task's identifier, title, link,
    * completion, project, status, labels, assignee as a username and a display
-   * name, due date, creation date (the full task's), days overdue, priority
-   * and comments count; no description, no coworkers, and no user profile
-   * read for the coworkers. With include_change_log, the full task. Mutants:
-   * the full model listed; the coworkers looked up; the assignee's display
-   * name not read; the creation date dropped.
+   * name, due date, creation date (the full task's), days overdue, priority,
+   * comments count with the replies, and the date and author of the latest
+   * comment; no description, no coworkers, and no user profile read for the
+   * coworkers. With include_change_log, the full task, whose comments count
+   * holds the replies too. Mutants: the full model listed; the coworkers
+   * looked up; the assignee's display name not read; the creation date
+   * dropped; the latest comment dropped; the full task counting the top-level
+   * comments only.
    *
    * @throws Exception never
    */
@@ -2128,7 +2133,19 @@ public class TaskMcpToolTest {
     lenient().when(task.getDescription()).thenReturn("<p>A long description</p>");
     when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-01T10:00:00Z")));
     when(task.getPriority()).thenReturn(Priority.HIGH);
-    when(commentService.countComments(TASK_ID)).thenReturn(3);
+    when(commentService.countComments(TASK_ID)).thenReturn(1);
+    when(commentService.countCommentsWithSubs(TASK_ID)).thenReturn(3);
+    when(commentService.getCommentsSummaries(List.of(TASK_ID))).thenReturn(Map.of(TASK_ID,
+                                                                                   new CommentsSummaryDto(TASK_ID,
+                                                                                                          3,
+                                                                                                          new Date(),
+                                                                                                          "paul",
+                                                                                                          55L)));
+    org.exoplatform.social.core.identity.model.Identity paul = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    Profile paulProfile = mock(Profile.class);
+    when(paul.getProfile()).thenReturn(paulProfile);
+    when(paulProfile.getFullName()).thenReturn("Paul Martin");
+    when(identityManager.getOrCreateUserIdentity("paul")).thenReturn(paul);
     org.exoplatform.social.core.identity.model.Identity john = mock(org.exoplatform.social.core.identity.model.Identity.class);
     Profile johnProfile = mock(Profile.class);
     when(john.getProfile()).thenReturn(johnProfile);
@@ -2151,6 +2168,9 @@ public class TaskMcpToolTest {
     assertEquals(Integer.valueOf(7), item.getDaysOverdue());
     assertEquals(Priority.HIGH, item.getPriority());
     assertEquals(3, item.getCommentsCount());
+    assertEquals("2024-01-01T00:00:00Z", item.getLastCommentDate());
+    assertEquals("paul", item.getLastCommentAuthor().getUsername());
+    assertEquals("Paul Martin", item.getLastCommentAuthor().getDisplayName());
     assertNull("no changes without changed_since", item.getChanges());
     verify(identityManager, never()).getOrCreateUserIdentity("mary");
     verify(taskService, never()).getTaskLogs(anyLong(), anyInt(), anyInt());
@@ -2167,9 +2187,12 @@ public class TaskMcpToolTest {
                         "created_date",
                         "days_overdue",
                         "priority",
-                        "comments_count"),
+                        "comments_count",
+                        "last_comment_date",
+                        "last_comment_author"),
                  fieldNames(json));
     assertEquals(Set.of("username", "display_name"), fieldNames(json.path("assignee")));
+    assertEquals(Set.of("username", "display_name"), fieldNames(json.path("last_comment_author")));
 
     TaskCollectionModel full = runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null));
 
@@ -2177,8 +2200,48 @@ public class TaskMcpToolTest {
     assertTrue(fullTask instanceof TaskWithChangeLogModel);
     assertEquals("A long description", fullTask.getDescription().replaceAll("<[^>]+>", "").trim());
     assertEquals(1, fullTask.getCoworkers().size());
+    assertEquals("the full task counts the replies", 3, fullTask.getCommentsCount());
     assertNotNull(item.getCreatedDate());
     assertEquals("the same creation date as the full task", fullTask.getCreatedDate(), item.getCreatedDate());
+  }
+
+  /**
+   * The comments of a page of 100 tasks are read in one query, whatever the
+   * number of tasks, never task by task, and a task without comments carries
+   * neither a latest comment date nor its author. Mutants: the comments
+   * counted task by task; the summaries read per task.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aPageOfTasksReadsItsCommentsInOneQuery() throws Exception { // NOSONAR
+    List<TaskDto> tasks = new ArrayList<>();
+    for (long id = 1; id <= 100; id++) {
+      tasks.add(mockTaskWithProject(id, new Date()));
+    }
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(100))).thenReturn(tasks);
+    when(taskService.countTasks(any())).thenReturn(100);
+    List<Long> taskIds = tasks.stream().map(TaskDto::getId).toList();
+    when(commentService.getCommentsSummaries(taskIds)).thenReturn(Map.of(1L,
+                                                                         new CommentsSummaryDto(1L,
+                                                                                                16,
+                                                                                                new Date(),
+                                                                                                OTHER_USER,
+                                                                                                9L)));
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 0, 100, null, null, null, null, null, null));
+
+    assertEquals(100, result.getTasks().size());
+    verify(commentService).getCommentsSummaries(taskIds);
+    verify(commentService, never()).countComments(anyLong());
+    verify(commentService, never()).countCommentsWithSubs(anyLong());
+    TaskListItemModel commented = (TaskListItemModel) result.getTasks().get(0);
+    assertEquals(16, commented.getCommentsCount());
+    assertEquals(OTHER_USER, commented.getLastCommentAuthor().getUsername());
+    JsonNode uncommented = JSON.readTree(JSON.writeValueAsString(result.getTasks().get(1)));
+    assertFalse(uncommented.has("last_comment_date"));
+    assertFalse(uncommented.has("last_comment_author"));
+    assertEquals(0, uncommented.path("comments_count").asInt());
   }
 
   /**
