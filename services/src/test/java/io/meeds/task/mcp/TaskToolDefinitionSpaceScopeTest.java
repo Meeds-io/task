@@ -159,8 +159,8 @@ public class TaskToolDefinitionSpaceScopeTest {
 
   /**
    * The project list reads the call's space when it names none, takes its
-   * space only through {@code space_id}, and may carry its paging, nothing
-   * else.
+   * space only through {@code space_id}, and may carry its paging and the
+   * name filter, which narrows the projects of that space, nothing else.
    * Mutant: {@code when_absent} dropped, so an absent space is refused; or
    * the space argument renamed.
    */
@@ -172,7 +172,7 @@ public class TaskToolDefinitionSpaceScopeTest {
     assertTrue(scope.isSpaceKind());
     assertEquals("space_id", scope.getSpaceArg());
     assertTrue(scope.isUseScopeWhenAbsent());
-    assertEquals(List.of("offset", "limit"), allowed(tool));
+    assertEquals(List.of("offset", "limit", "name"), allowed(tool));
     assertTrue(tool.getDescription().contains("In a run limited to a space, only the projects managed through that space"));
     JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
     assertTrue(properties.has("space_id"));
