@@ -36,9 +36,9 @@ import lombok.NoArgsConstructor;
  * A task in a list: what tells the card apart on its board, as a search
  * result does, with its assignee, due date, creation date, priority and
  * comments count, without its description, coworkers or other dates, which
- * get_task_by_id returns. The creation date tells the tasks created since a
- * date apart, the date of the latest comment the tasks left without one.
- * On request, the description as cut plain text.
+ * get_task_by_id returns. The creation date tells apart the tasks created
+ * since a date; the date of the latest comment tells apart those nobody has
+ * commented on since. On request, the description as cut plain text.
  */
 @Data
 @NoArgsConstructor

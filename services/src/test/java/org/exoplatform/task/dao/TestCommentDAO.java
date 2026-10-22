@@ -282,10 +282,14 @@ public class TestCommentDAO extends AbstractTest {
   }
 
   /**
-   * The comments of several tasks are summarized in one query, run by the
-   * real engine: the count holds the replies, the latest comment may be a
-   * reply, two comments created at the same time give the one created last,
-   * and a task without comments, or not asked for, is absent.
+   * The comments of several tasks are summarized in two queries, whatever the
+   * number of tasks, run by the real engine: the count holds the replies, the
+   * latest comment may be a reply, two comments created at the same time give
+   * the one created last, a comment saved later but created at the time of
+   * another task's latest one is not taken for its own task's latest, and a
+   * task without comments, or not asked for, is absent. The query plans are
+   * not checked here: HSQLDB runs the statements, no real database measured
+   * their cost.
    */
   @Test
   public void testGetCommentsSummaries() {
@@ -302,6 +306,7 @@ public class TestCommentDAO extends AbstractTest {
 
     commentDAO.create(newComment(tiedTask, "root", 5000L));
     Comment lastTied = commentDAO.create(newComment(tiedTask, "mary", 5000L));
+    commentDAO.create(newComment(tiedTask, "paul", 3000L));
     commentDAO.create(newComment(otherTask, "root", 9000L));
     RequestLifeCycle.restartTransaction();
 
@@ -315,7 +320,7 @@ public class TestCommentDAO extends AbstractTest {
     Assert.assertEquals(3000L, replied.getLastCommentDate().getTime());
     Assert.assertEquals("john", replied.getLastCommentAuthor());
     CommentsSummaryDto tied = summaries.get(tiedTask.getId());
-    Assert.assertEquals(2, tied.getCount());
+    Assert.assertEquals(3, tied.getCount());
     Assert.assertEquals(lastTied.getId().longValue(), tied.getLastCommentId());
     Assert.assertEquals("mary", tied.getLastCommentAuthor());
     Assert.assertTrue(commentDAO.getCommentsSummaries(List.of()).isEmpty());

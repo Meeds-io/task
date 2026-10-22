@@ -1748,7 +1748,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * @return their list items, each overdue one with its days overdue, each
    *         with its changes since that date when one is given, each
    *         commented one with its comments count and latest comment, all read
-   *         in one query
+   *         in two queries, whatever the number of tasks
    */
   private List<TaskListItemModel> toTaskListItems(List<TaskDto> tasks,
                                                   Date since,
