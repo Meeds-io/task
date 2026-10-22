@@ -74,6 +74,7 @@ import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
@@ -1744,7 +1745,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param includeDescription whether each item carries its description as
    *          cut plain text
    * @return their list items, each overdue one with its days overdue, each
-   *         with its changes since that date when one is given
+   *         with its changes since that date when one is given, each
+   *         commented one with its comments count and latest comment, all read
+   *         in one query
    */
   private List<TaskListItemModel> toTaskListItems(List<TaskDto> tasks,
                                                   Date since,
@@ -1755,8 +1758,17 @@ public class TaskMcpTool implements McpToolPlugin {
     }
     LocalDate today = getToday(zone);
     Identity aclIdentity = getCurrentUserAclIdentity();
+    Map<Long, CommentsSummaryDto> commentsSummaries = commentService.getCommentsSummaries(tasks.stream()
+                                                                                               .map(TaskDto::getId)
+                                                                                               .toList());
     return tasks.stream().map(task -> {
       TaskListItemModel item = toTaskListItem(task, since, zone, today, aclIdentity);
+      CommentsSummaryDto commentsSummary = commentsSummaries.get(task.getId());
+      if (commentsSummary != null) {
+        item.setCommentsCount((int) commentsSummary.getCount());
+        item.setLastComment(formatDate(commentsSummary.getLastCommentDate()),
+                            getTaskAssignee(commentsSummary.getLastCommentAuthor()));
+      }
       if (includeDescription) {
         // the stored HTML read as text, without the rendering that resolves links and mentions
         item.setPlainTextDescription(TaskDescriptionText.toPlainText(task.getDescription()));
@@ -1767,9 +1779,10 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Maps a task to its list item: what tells it apart on its board, as a
-   * search result, with its assignee, due date, creation date, priority and
-   * comments count. It reads neither the description, nor the coworkers, nor the last update
-   * date that the full model holds.
+   * search result, with its assignee, due date, creation date and priority,
+   * without its comments, which {@link #toTaskListItems} reads for the whole
+   * page. It reads neither the description, nor the coworkers, nor the last
+   * update date that the full model holds.
    *
    * @param task a task
    * @param since the date the changes are listed from, null for none
@@ -1802,7 +1815,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                  formatDate(task.getCreatedTime()),
                                  getDaysOverdue(task, zone, today),
                                  task.getPriority(),
-                                 commentService.countComments(task.getId()),
+                                 0,
                                  changes);
   }
 
@@ -2105,7 +2118,7 @@ public class TaskMcpTool implements McpToolPlugin {
     Locale locale = getCurrentUserLocale();
     StatusDto status = task.getStatus();
     ProjectDto project = status != null && status.getProject() != null ? status.getProject() : null;
-    int commentsCount = commentService.countComments(task.getId());
+    int commentsCount = commentService.countCommentsWithSubs(task.getId());
     String assignee = task.getAssignee();
     Space space = project == null ? null : getProjectSpace(project);
     Long projectId = project == null ? null : project.getId();
