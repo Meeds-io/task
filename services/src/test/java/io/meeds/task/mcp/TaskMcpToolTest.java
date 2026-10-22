@@ -1788,8 +1788,12 @@ public class TaskMcpToolTest {
   /**
    * list_projects returns compact items, the project's identifier, name,
    * space and link, counted by the project count: the description, statuses
-   * and labels are neither read nor serialized. Mutants: the full project
-   * model listed; the statuses or labels read for each project.
+   * and labels are neither read nor serialized. The count is that of a
+   * project query of the memberships in the order of the list, which counts
+   * each project once, not that of the named query that counts a project once
+   * per manager and participant. Mutants: the full project model listed; the
+   * statuses or labels read for each project; the count read from the named
+   * query.
    *
    * @throws Exception never
    */
@@ -1799,7 +1803,7 @@ public class TaskMcpToolTest {
 
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10)))
                                                                             .thenReturn(Collections.singletonList(project));
-    when(projectService.countProjects(any(), eq(null))).thenReturn(1);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
 
     when(project.getId()).thenReturn(PROJECT_ID);
     when(project.getName()).thenReturn(PROJECT_NAME);
@@ -1814,7 +1818,10 @@ public class TaskMcpToolTest {
     assertEquals(1L, result.getCount());
     assertFalse(result.isHasMore());
     assertNull(result.getNextOffset());
-    verify(projectService).countProjects(any(), eq(null));
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).countProjects(counted.capture());
+    verify(projectService, never()).countProjects(any(), any());
+    assertNameQuery(counted.getValue(), null);
     ProjectListItemModel item = result.getProjects().get(0);
     assertEquals(PROJECT_ID, item.getId());
     assertEquals(PROJECT_NAME, item.getName());
@@ -1872,20 +1879,53 @@ public class TaskMcpToolTest {
   @Test
   public void listProjectsByNamePassesTheSameKeywordToTheListAndTheCount() throws Exception { // NOSONAR
     when(projectService.findProjects(any(), any(), any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
-    when(projectService.countProjects(any(), any())).thenReturn(0);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
 
-    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Roadmap  "));
-    verify(projectService).findProjects(any(), eq("Roadmap"), any(), eq(0), eq(10));
-    verify(projectService).countProjects(any(), eq("Roadmap"));
+    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Q3 Roadmap  "));
+    verify(projectService).findProjects(any(), eq("Q3 Roadmap"), any(), eq(0), eq(10));
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService, times(2)).countProjects(counted.capture());
+    assertAllWordsQuery(counted.getAllValues().get(0), "%q3%", "%roadmap%");
+    assertNameQuery(counted.getAllValues().get(1), AggregateCondition.OR, "%q3%", "%roadmap%");
 
     runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, " "));
     verify(projectService).findProjects(any(), eq(null), any(), eq(0), eq(10));
-    verify(projectService).countProjects(any(), eq(null));
+    verify(projectService, times(3)).countProjects(counted.capture());
+    assertNameQuery(counted.getAllValues().get(counted.getAllValues().size() - 1), null);
+    verify(projectService, never()).countProjects(any(), any());
 
     givenSpaceTheUserIsMemberOf();
     currentSpaceScoped = true;
-    runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Roadmap"));
-    verify(projectService).findProjects(any(), eq("Roadmap"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+    runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Q3 Roadmap"));
+    verify(projectService).findProjects(any(), eq("Q3 Roadmap"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+  }
+
+  /**
+   * A one-word name selects the same projects whether all or any of its words
+   * are asked for: when none holds it, the empty result is returned without
+   * reading the list or the count by any word, in a plain run as in a run
+   * limited to a space. Mutant: the fallback run for one word.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByOneWordNameNeverFallsBack() throws Exception { // NOSONAR
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Roadmap "));
+    assertTrue(result.getProjects().isEmpty());
+    assertEquals(0L, result.getCount());
+    assertFalse(result.isHasMore());
+    verify(projectService, times(1)).countProjects(any(ProjectQuery.class));
+
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectCollectionModel ofSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Roadmap"));
+    assertTrue(ofSpace.getProjects().isEmpty());
+    assertEquals(0L, ofSpace.getCount());
+    verify(projectService, times(2)).countProjects(any(ProjectQuery.class));
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
   }
 
   /**
@@ -1930,9 +1970,8 @@ public class TaskMcpToolTest {
   @Test
   public void listProjectsByNameFallsBackToAnyWordWhenNoneHoldsThemAll() throws Exception { // NOSONAR
     ProjectDto onboarding = listedProject(4L, null);
-    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0, 3);
     when(projectService.findProjects(any(), eq("Big Board 50"), any(), eq(2), eq(5))).thenReturn(List.of(onboarding));
-    when(projectService.countProjects(any(), eq("Big Board 50"))).thenReturn(3);
 
     ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 "));
 
@@ -2007,11 +2046,23 @@ public class TaskMcpToolTest {
    * @param likes the patterns each word must match, lower-cased
    */
   private void assertAllWordsQuery(ProjectQuery query, String... likes) {
+    assertNameQuery(query, AggregateCondition.AND, likes);
+  }
+
+  /**
+   * @param query a query of the projects of the memberships, by name words
+   *          or not, the most recently modified first
+   * @param wordsType how the name words are combined, {@link AggregateCondition#AND}
+   *          or {@link AggregateCondition#OR}; null when the query has no name
+   *          condition
+   * @param likes the patterns each word must match, lower-cased
+   */
+  private void assertNameQuery(ProjectQuery query, String wordsType, String... likes) {
     assertEquals(1, query.getOrderBy().size());
     assertEquals("lastModifiedDate", query.getOrderBy().get(0).getFieldName());
     assertFalse(query.getOrderBy().get(0).isAscending());
     List<Condition> conditions = ((AggregateCondition) query.getCondition()).getConditions();
-    assertEquals(2, conditions.size());
+    assertEquals(wordsType == null ? 1 : 2, conditions.size());
     AggregateCondition membership = (AggregateCondition) conditions.get(0);
     assertEquals(AggregateCondition.OR, membership.getType());
     assertEquals(List.of("manager", "participator"),
@@ -2019,8 +2070,11 @@ public class TaskMcpToolTest {
     Object roles = ((SingleCondition<?>) membership.getConditions().get(0)).getValue();
     assertFalse(((List<?>) roles).isEmpty());
     assertEquals(roles, ((SingleCondition<?>) membership.getConditions().get(1)).getValue());
+    if (wordsType == null) {
+      return;
+    }
     AggregateCondition words = (AggregateCondition) conditions.get(1);
-    assertEquals(AggregateCondition.AND, words.getType());
+    assertEquals(wordsType, words.getType());
     assertEquals(List.of(likes), words.getConditions().stream().map(c -> ((SingleCondition<?>) c).getValue()).toList());
     words.getConditions()
          .forEach(c -> assertEquals(SingleCondition.LIKE, ((SingleCondition<?>) c).getType()));
@@ -2300,7 +2354,7 @@ public class TaskMcpToolTest {
     ProjectDto inSpace = listedProject(1L, 10L);
     ProjectDto shared = listedProject(2L, null);
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(List.of(inSpace, shared));
-    when(projectService.countProjects(any(), eq(null))).thenReturn(2);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(2);
 
     ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
 
