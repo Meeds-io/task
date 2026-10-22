@@ -101,13 +101,16 @@ import io.meeds.social.util.JsonUtils;
 import io.meeds.task.mcp.model.ProjectActivityModel;
 import io.meeds.task.mcp.model.ProjectCollectionModel;
 import io.meeds.task.mcp.model.ProjectLabel;
+import io.meeds.task.mcp.model.ProjectListItemModel;
 import io.meeds.task.mcp.model.ProjectModel;
 import io.meeds.task.mcp.model.ProjectStatisticsModel;
 import io.meeds.task.mcp.model.ProjectStatus;
+import io.meeds.task.mcp.model.TaskAssigneeModel;
 import io.meeds.task.mcp.model.TaskChangeLog;
 import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentModel;
+import io.meeds.task.mcp.model.TaskListItemModel;
 import io.meeds.task.mcp.model.TaskModel;
 import io.meeds.task.mcp.model.TaskSearchCollectionModel;
 import io.meeds.task.mcp.model.TaskSearchResultModel;
@@ -126,6 +129,12 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /** How many projects a scan of the projects of a space reads at a time. */
   static final int                      SPACE_SCAN_CHUNK                = 50;
+
+  /**
+   * The most items a list tool returns at a time, whatever limit it is given:
+   * the bound search_tasks has, {@link TaskService#TEXT_SEARCH_WINDOW}.
+   */
+  static final int                      MAX_LIMIT                       = TaskService.TEXT_SEARCH_WINDOW;
 
   private static final int              MAX_TO_LOAD                     = 100;
 
@@ -273,30 +282,98 @@ public class TaskMcpTool implements McpToolPlugin {
    * when the space has enough of them. The count is the number of projects of
    * the space when the scan reached the end; when it stopped earlier, it is
    * the number kept so far, which is more than the offset and the page, and
-   * means that more exist.
+   * means that more exist; {@code has_more} is exact in both cases.
+   * <p>
+   * With {@code name}, only the projects whose name contains one of its
+   * words, ignoring case, among those the other arguments select. Each
+   * project comes as a list item, without its description, statuses or
+   * labels, which {@link #getProjectById(Long)} returns.
    *
    * @param spaceId the space whose projects are listed, null or not positive
    *          for the projects of the current user
    * @param offset the first project returned
-   * @param limit the most projects returned
-   * @return the projects, with their count
+   * @param limit the most projects returned, {@value #MAX_LIMIT} at most
+   * @param name words of the name of the projects listed, blank for any
+   * @return the projects, with their count and whether more remain
    */
   public ProjectCollectionModel listProjects(Long spaceId,
                                              Integer offset,
-                                             Integer limit) {
+                                             Integer limit,
+                                             String name) {
     boolean spaceGiven = spaceId != null && spaceId > 0;
     Space space = spaceGiven ? spaceService.getSpaceById(spaceId) : null;
     List<String> memberships = getMemberships(space);
-    int usedOffset = getInteger(offset, DEFAULT_OFFSET);
-    int usedLimit = getInteger(limit, DEFAULT_LIMIT);
+    int usedOffset = getOffset(offset);
+    int usedLimit = getLimit(limit);
+    String keyword = StringUtils.isBlank(name) ? null : name.trim();
     if (memberships.isEmpty() || spaceGiven && space == null) {
-      return new ProjectCollectionModel(Collections.emptyList(), usedOffset, usedLimit, 0);
+      return toProjectCollection(Collections.emptyList(), usedOffset, usedLimit, 0);
     } else if (space != null && isSpaceScoped()) {
-      return listSpaceProjects(space, memberships, Math.max(usedOffset, 0), Math.max(usedLimit, 0));
+      return listSpaceProjects(space, memberships, keyword, usedOffset, usedLimit);
     }
-    List<ProjectModel> projects = getProjectModels(memberships, offset, limit);
-    long count = countProjects(memberships);
-    return new ProjectCollectionModel(projects, usedOffset, usedLimit, count);
+    List<ProjectListItemModel> projects = getProjectListItems(memberships, keyword, usedOffset, usedLimit);
+    long count = projectService.countProjects(memberships, keyword);
+    return toProjectCollection(projects, usedOffset, usedLimit, count);
+  }
+
+  /**
+   * @param limit the limit a tool call gives, possibly null, zero or negative
+   * @return the limit used: {@value McpToolPlugin#DEFAULT_LIMIT} when none
+   *         or not positive, {@value #MAX_LIMIT} at most
+   */
+  static int getLimit(Integer limit) {
+    int value = getInteger(limit, DEFAULT_LIMIT);
+    return value < 1 ? DEFAULT_LIMIT : Math.min(value, MAX_LIMIT);
+  }
+
+  /**
+   * @param offset the offset a tool call gives, possibly null or negative
+   * @return the offset used, never negative
+   */
+  static int getOffset(Integer offset) {
+    return Math.max(getInteger(offset, DEFAULT_OFFSET), 0);
+  }
+
+  /**
+   * @param projects the projects of a page
+   * @param offset the offset of the page
+   * @param limit the limit of the page
+   * @param count the count of the projects the listing selects
+   * @return the page, saying whether more remain after it and from which
+   *         offset
+   */
+  private ProjectCollectionModel toProjectCollection(List<ProjectListItemModel> projects,
+                                                     int offset,
+                                                     int limit,
+                                                     long count) {
+    Integer nextOffset = getNextOffset(projects.size(), offset, count);
+    return new ProjectCollectionModel(projects, offset, limit, count, nextOffset != null, nextOffset);
+  }
+
+  /**
+   * @param tasks the tasks of a page
+   * @param offset the offset of the page
+   * @param limit the limit of the page
+   * @param count the count of the tasks the listing selects
+   * @return the page, saying whether more remain after it and from which
+   *         offset
+   */
+  private TaskCollectionModel toTaskCollection(List<?> tasks, int offset, int limit, long count) {
+    Integer nextOffset = getNextOffset(tasks.size(), offset, count);
+    return new TaskCollectionModel(tasks, offset, limit, count, nextOffset != null, nextOffset);
+  }
+
+  /**
+   * @param pageSize the items of a page
+   * @param offset the offset of the page
+   * @param count the count of the items the listing selects
+   * @return the offset of the next page when items remain after this one,
+   *         null otherwise, an empty page included so that no caller loops on
+   *         the same offset
+   */
+  static Integer getNextOffset(int pageSize, int offset, long count) {
+    int next = offset + pageSize;
+    return pageSize > 0 && next < count ? next : null;
   }
 
   /**
@@ -364,22 +441,32 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
+   * Scans the projects the memberships reach, those whose name matches the
+   * keyword when one is given, and keeps those of the space. The scan stops
+   * once one more project than the page is kept, so that one more kept
+   * project than the offset and the page tells exactly that more remain.
+   *
    * @param space an existing space
    * @param memberships the roles of the space group the current user holds
+   * @param keyword words of the name of the projects, null for any
    * @param offset the first project returned, not negative
-   * @param limit the most projects returned, not negative
+   * @param limit the most projects returned, positive
    * @return the projects of that space among those the memberships reach,
    *         with the count described on
-   *         {@link #listProjects(Long, Integer, Integer)}
+   *         {@link #listProjects(Long, Integer, Integer, String)}
    */
-  private ProjectCollectionModel listSpaceProjects(Space space, List<String> memberships, int offset, int limit) {
+  private ProjectCollectionModel listSpaceProjects(Space space,
+                                                   List<String> memberships,
+                                                   String keyword,
+                                                   int offset,
+                                                   int limit) {
     int wanted = offset + limit + 1;
     List<ProjectDto> ofSpace = new ArrayList<>();
     int from = 0;
     boolean finished = false;
     while (!finished && ofSpace.size() < wanted) {
       List<ProjectDto> chunk = projectService.findProjects(memberships,
-                                                           null,
+                                                           keyword,
                                                            new OrderBy.DESC("lastModifiedDate"),
                                                            from,
                                                            SPACE_SCAN_CHUNK);
@@ -392,12 +479,12 @@ public class TaskMcpTool implements McpToolPlugin {
         }
       }
     }
-    List<ProjectModel> page = ofSpace.stream()
-                                     .skip(offset)
-                                     .limit(limit)
-                                     .map(this::toProjectModel)
-                                     .toList();
-    return new ProjectCollectionModel(page, offset, limit, ofSpace.size());
+    List<ProjectListItemModel> page = ofSpace.stream()
+                                             .skip(offset)
+                                             .limit(limit)
+                                             .map(this::toProjectListItem)
+                                             .toList();
+    return toProjectCollection(page, offset, limit, ofSpace.size());
   }
 
   /**
@@ -419,45 +506,44 @@ public class TaskMcpTool implements McpToolPlugin {
    * date, and with {@code completedSince} only those completed since that
    * date, completed tasks included, each with its changes since that date
    * (EXO-91902). Asking both the overdue tasks and the tasks completed since
-   * a date is refused.
+   * a date is refused. Without any of these filters, the open tasks, the most
+   * recently active first. Each task comes as a list item, without its
+   * description or coworkers, which {@link #getTaskById(Long)} returns.
    *
-   * @param limit the most tasks returned
+   * @param offset the first task returned
+   * @param limit the most tasks returned, {@value #MAX_LIMIT} at most
    * @param overdueOnly whether only the overdue tasks are listed
    * @param changedSince a date or date-time, blank for no condition
    * @param completedSince a date or date-time, blank for no condition
-   * @return the tasks, with their count
+   * @return the tasks, with their count and whether more remain
    */
-  public TaskCollectionModel listAssignedTasks(Integer limit,
+  public TaskCollectionModel listAssignedTasks(Integer offset,
+                                               Integer limit,
                                                Boolean overdueOnly,
                                                String changedSince,
                                                String completedSince) {
     ZoneId zone = getCurrentUserZone();
-    int max = getInteger(limit, DEFAULT_LIMIT);
+    int usedOffset = getOffset(offset);
+    int usedLimit = getLimit(limit);
     Date changedSinceDate = parseSince(changedSince, ARG_CHANGED_SINCE, zone);
     Date completedSinceDate = parseSince(completedSince, ARG_COMPLETED_SINCE, zone);
     Date since = changedSinceDate == null ? completedSinceDate : changedSinceDate;
     checkNotOverdueAndCompleted(overdueOnly, completedSinceDate);
-    List<? extends TaskModel> taskModels;
-    long count;
-    if (Boolean.TRUE.equals(overdueOnly) || since != null) {
-      TaskQuery taskQuery = taskService.getAssignedTasksQuery(getCurrentUserName(),
-                                                              new TaskChangeFilter(changedSinceDate,
-                                                                                   completedSinceDate,
-                                                                                   null,
-                                                                                   null,
-                                                                                   false));
-      if (Boolean.TRUE.equals(overdueOnly)) {
-        setOverdueOnly(taskQuery, zone);
-      }
-      List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ? findOverdueTasks(taskQuery, 0, max) :
-                                                             taskService.findLastUpdatedTasks(taskQuery, 0, max);
-      taskModels = since == null ? toTaskModels(tasks, zone) : toTaskWithChangesModels(tasks, since, false, zone);
-      count = countTasks(taskQuery);
+    boolean filtered = Boolean.TRUE.equals(overdueOnly) || since != null;
+    TaskQuery taskQuery = taskService.getAssignedTasksQuery(getCurrentUserName(),
+                                                            new TaskChangeFilter(changedSinceDate,
+                                                                                 completedSinceDate,
+                                                                                 null,
+                                                                                 null,
+                                                                                 !filtered));
+    List<TaskDto> tasks;
+    if (Boolean.TRUE.equals(overdueOnly)) {
+      setOverdueOnly(taskQuery, zone);
+      tasks = findOverdueTasks(taskQuery, usedOffset, usedLimit);
     } else {
-      taskModels = toTaskModels(taskService.getUncompletedTasks(getCurrentUserName(), max), zone);
-      count = countAssignedTaskModels();
+      tasks = taskService.findLastUpdatedTasks(taskQuery, usedOffset, usedLimit);
     }
-    return new TaskCollectionModel(taskModels, 0, max, count);
+    return toTaskCollection(toTaskListItems(tasks, since, zone), usedOffset, usedLimit, countTasks(taskQuery));
   }
 
   /**
@@ -478,19 +564,24 @@ public class TaskMcpTool implements McpToolPlugin {
    * the overdue tasks, which are open, and the tasks completed since a date
    * is refused. The count is
    * the count of the tasks the same filters select.
+   * <p>
+   * Each task comes as a list item, without its description or coworkers,
+   * which {@link #getTaskById(Long)} returns; with {@code includeChangeLog},
+   * each comes in full, with its change log.
    *
    * @param projectId the project, null for every accessible task
    * @param hideCompletedTasks whether the completed tasks are left out
-   * @param includeChangeLog whether each task comes with its change log
+   * @param includeChangeLog whether each task comes in full, with its change
+   *          log
    * @param overdueOnly whether only the overdue tasks are listed
    * @param offset the first task returned
-   * @param limit the most tasks returned
+   * @param limit the most tasks returned, {@value #MAX_LIMIT} at most
    * @param title a part of the title of the tasks listed, blank for any
    * @param changedSince a date or date-time, blank for no condition
    * @param completedSince a date or date-time, blank for no condition
    * @param assignee the username of the assignee, blank for any
    * @param statusId the status of the tasks listed, null for any
-   * @return the tasks, with their count
+   * @return the tasks, with their count and whether more remain
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
    * @throws IllegalArgumentException when a date is no date, or when both
@@ -523,26 +614,20 @@ public class TaskMcpTool implements McpToolPlugin {
                                                      assignee,
                                                      statusId,
                                                      Boolean.TRUE.equals(hideCompletedTasks)));
-    List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ?
-                                                           findOverdueTasks(taskQuery,
-                                                                            getInteger(offset, DEFAULT_OFFSET),
-                                                                            getInteger(limit, DEFAULT_LIMIT)) :
-                                                           taskService.findLastUpdatedTasks(taskQuery,
-                                                                                            getInteger(offset, DEFAULT_OFFSET),
-                                                                                            getInteger(limit, DEFAULT_LIMIT));
+    int usedOffset = getOffset(offset);
+    int usedLimit = getLimit(limit);
+    List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ? findOverdueTasks(taskQuery, usedOffset, usedLimit) :
+                                                           taskService.findLastUpdatedTasks(taskQuery, usedOffset, usedLimit);
     Date since = changedSinceDate == null ? completedSinceDate : changedSinceDate;
-    List<? extends TaskModel> taskModels;
-    if (since != null) {
-      taskModels = toTaskWithChangesModels(tasks, since, Boolean.TRUE.equals(includeChangeLog), zone);
-    } else if (Boolean.TRUE.equals(includeChangeLog)) {
-      taskModels = tasks.stream().map(t -> toTaskWithChangeLogModel(t, null, zone, today)).toList();
+    List<?> taskModels;
+    if (!Boolean.TRUE.equals(includeChangeLog)) {
+      taskModels = toTaskListItems(tasks, since, zone);
+    } else if (since != null) {
+      taskModels = toTaskWithChangesModels(tasks, since, true, zone);
     } else {
-      taskModels = toTaskModels(tasks, zone);
+      taskModels = tasks.stream().map(t -> toTaskWithChangeLogModel(t, null, zone, today)).toList();
     }
-    return new TaskCollectionModel(taskModels,
-                                   getInteger(offset, DEFAULT_OFFSET),
-                                   getInteger(limit, DEFAULT_LIMIT),
-                                   countTasks(taskQuery));
+    return toTaskCollection(taskModels, usedOffset, usedLimit, countTasks(taskQuery));
   }
 
   /**
@@ -614,16 +699,26 @@ public class TaskMcpTool implements McpToolPlugin {
     return toTaskModel(task);
   }
 
+  /**
+   * Lists the comments of a task, each followed by its replies.
+   *
+   * @param taskId the task
+   * @param offset the first comment returned
+   * @param limit the most comments returned, replies aside,
+   *          {@value #MAX_LIMIT} at most
+   * @return the comments, with their count
+   * @throws ObjectNotFoundException when the task doesn't exist
+   * @throws IllegalAccessException when the user can't view the task
+   */
   public TaskCommentCollectionModel listTaskCommentsById(Long taskId,
                                                          Integer offset,
                                                          Integer limit) throws ObjectNotFoundException, IllegalAccessException {
     TaskDto task = getTaskDetailById(taskId);
-    List<TaskCommentModel> taskComments = getTaskCommentModels(task, offset, limit);
+    int usedOffset = getOffset(offset);
+    int usedLimit = getLimit(limit);
+    List<TaskCommentModel> taskComments = getTaskCommentModels(task, usedOffset, usedLimit);
     int count = countTaskComments(task.getId());
-    return new TaskCommentCollectionModel(taskComments,
-                                          getInteger(offset, DEFAULT_OFFSET),
-                                          getInteger(limit, DEFAULT_LIMIT),
-                                          count);
+    return new TaskCommentCollectionModel(taskComments, usedOffset, usedLimit, count);
   }
 
   public ProjectModel createProjectInSpace(Long spaceId,
@@ -1079,17 +1174,32 @@ public class TaskMcpTool implements McpToolPlugin {
     return toTaskModel(task);
   }
 
+  /**
+   * Lists the open tasks of a project that have neither a start nor a due
+   * date, among its {@value #MAX_TO_LOAD} most recently active open tasks.
+   * Each task comes as a list item. The tool takes no offset: {@code has_more}
+   * says more unscheduled tasks were found than the limit let through, and
+   * no {@code next_offset} is given.
+   *
+   * @param projectId the project
+   * @param limit the most tasks returned, {@value #MAX_LIMIT} at most
+   * @return the tasks, with the count of those returned and whether more
+   *         were found
+   * @throws IllegalAccessException when the user can't view the project
+   * @throws ObjectNotFoundException when the project doesn't exist
+   */
   public TaskCollectionModel listUnscheduledTasks(Long projectId,
                                                   Integer limit) throws IllegalAccessException, ObjectNotFoundException {
-    int max = getInteger(limit, DEFAULT_LIMIT);
+    int max = getLimit(limit);
     ZoneId zone = getCurrentUserZone();
-    List<TaskModel> unscheduled = toTaskModels(getTasks(projectId, 0, MAX_TO_LOAD, true).stream()
-                                                                                        .filter(t -> t.getStartDate() == null
-                                                                                            && t.getDueDate() == null)
-                                                                                        .limit(max)
-                                                                                        .toList(),
-                                               zone);
-    return new TaskCollectionModel(unscheduled, 0, max, unscheduled.size());
+    List<TaskDto> unscheduled = getTasks(projectId, 0, MAX_TO_LOAD, true).stream()
+                                                                        .filter(t -> t.getStartDate() == null
+                                                                                     && t.getDueDate() == null)
+                                                                        .limit(max + 1L)
+                                                                        .toList();
+    boolean hasMore = unscheduled.size() > max;
+    List<TaskListItemModel> page = toTaskListItems(hasMore ? unscheduled.subList(0, max) : unscheduled, null, zone);
+    return new TaskCollectionModel(page, 0, max, page.size(), hasMore, null);
   }
 
   private TaskModel setTaskCompleted(long taskId, boolean completed) throws ObjectNotFoundException, IllegalAccessException {
@@ -1344,23 +1454,40 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
-  private long countProjects(List<String> memberships) {
-    return projectService.countProjects(memberships, null);
-  }
-
-  private List<ProjectModel> getProjectModels(List<String> memberships, Integer offset, Integer limit) {
+  /**
+   * @param memberships the memberships whose projects are listed
+   * @param keyword words of the name of the projects, null for any
+   * @param offset the first project returned
+   * @param limit the most projects returned
+   * @return the projects of the page, the most recently modified first, as
+   *         list items
+   */
+  private List<ProjectListItemModel> getProjectListItems(List<String> memberships, String keyword, int offset, int limit) {
     List<ProjectDto> projects = projectService.findProjects(memberships,
-                                                            null,
+                                                            keyword,
                                                             new OrderBy.DESC("lastModifiedDate"),
-                                                            getInteger(offset, DEFAULT_OFFSET),
-                                                            getInteger(limit, DEFAULT_LIMIT));
+                                                            offset,
+                                                            limit);
     if (CollectionUtils.isEmpty(projects)) {
       return Collections.emptyList();
     } else {
       return projects.stream()
-                     .map(this::toProjectModel)
+                     .map(this::toProjectListItem)
                      .toList();
     }
+  }
+
+  /**
+   * @param project a project
+   * @return its list item: its identifier, name, space and link, without
+   *         reading its statuses or labels
+   */
+  private ProjectListItemModel toProjectListItem(ProjectDto project) {
+    Space space = getProjectSpace(project);
+    return new ProjectListItemModel(project.getId(),
+                                    project.getName(),
+                                    space == null ? null : space.getSpaceId(),
+                                    getUrl(project));
   }
 
   /**
@@ -1479,15 +1606,73 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * @param tasks tasks, possibly null
+   * @param since the date a listing with {@code changed_since} or
+   *          {@code completed_since} lists the changes from, null otherwise
    * @param zone the user's time zone
-   * @return their models, each overdue one with its days overdue
+   * @return their list items, each overdue one with its days overdue, each
+   *         with its changes since that date when one is given
    */
-  private List<TaskModel> toTaskModels(List<TaskDto> tasks, ZoneId zone) {
+  private List<TaskListItemModel> toTaskListItems(List<TaskDto> tasks, Date since, ZoneId zone) {
     if (CollectionUtils.isEmpty(tasks)) {
       return Collections.emptyList();
     }
     LocalDate today = getToday(zone);
-    return tasks.stream().map(task -> toTaskModel(task, zone, today)).toList();
+    Identity aclIdentity = getCurrentUserAclIdentity();
+    return tasks.stream().map(task -> toTaskListItem(task, since, zone, today, aclIdentity)).toList();
+  }
+
+  /**
+   * Maps a task to its list item: what tells it apart on its board, as a
+   * search result, with its assignee, due date, priority and comments count.
+   * It reads neither the description, nor the coworkers, nor the last update
+   * date that the full model holds.
+   *
+   * @param task a task
+   * @param since the date the changes are listed from, null for none
+   * @param zone the user's time zone
+   * @param today today in that zone
+   * @param aclIdentity the current user, who reads the labels
+   * @return its list item
+   */
+  @SneakyThrows
+  private TaskListItemModel toTaskListItem(TaskDto task, Date since, ZoneId zone, LocalDate today, Identity aclIdentity) {
+    StatusDto status = task.getStatus();
+    ProjectDto project = status == null ? null : status.getProject();
+    Long projectId = project == null ? null : project.getId();
+    List<TaskChange> changes = since == null ? null :
+                                             CollectionUtils.emptyIfNull(taskService.getTaskChanges(task, since, false)
+                                                                                    .getChanges())
+                                                            .stream()
+                                                            .map(this::toTaskChange)
+                                                            .toList();
+    return new TaskListItemModel(task.getId(),
+                                 task.getTitle(),
+                                 getUrl(task),
+                                 task.isCompleted(),
+                                 projectId,
+                                 project == null ? null : project.getName(),
+                                 getTaskStatus(status),
+                                 project == null ? null : getTaskLabels(task, projectId, aclIdentity),
+                                 getTaskAssignee(task.getAssignee()),
+                                 formatDate(task.getDueDate()),
+                                 getDaysOverdue(task, zone, today),
+                                 task.getPriority(),
+                                 commentService.countComments(task.getId()),
+                                 changes);
+  }
+
+  /**
+   * @param username the username of an assignee, possibly blank
+   * @return the assignee's username and display name, null for none; the
+   *         username alone when the user has no profile
+   */
+  private TaskAssigneeModel getTaskAssignee(String username) {
+    if (StringUtils.isBlank(username)) {
+      return null;
+    }
+    org.exoplatform.social.core.identity.model.Identity identity = identityManager.getOrCreateUserIdentity(username);
+    String displayName = identity == null || identity.getProfile() == null ? null : identity.getProfile().getFullName();
+    return new TaskAssigneeModel(username, displayName);
   }
 
   /**
@@ -1538,11 +1723,6 @@ public class TaskMcpTool implements McpToolPlugin {
     } else {
       return Collections.emptyList();
     }
-  }
-
-  private long countAssignedTaskModels() {
-    String currentUserName = getCurrentUserName();
-    return taskService.countUncompletedTasks(currentUserName);
   }
 
   /**
