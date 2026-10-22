@@ -2206,6 +2206,36 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * The full task of a listing with include_change_log has one "commented"
+   * entry per comment, each reply included, as its comments count does.
+   * Mutant: the top-level comments read without their replies.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void theChangeLogOfAFullTaskHoldsTheReplies() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject();
+    CommentDto comment = new CommentDto();
+    comment.setAuthor(OTHER_USER);
+    comment.setCreatedTime(Date.from(Instant.parse("2026-10-01T10:00:00Z")));
+    CommentDto reply = new CommentDto();
+    reply.setAuthor(OTHER_USER);
+    reply.setCreatedTime(Date.from(Instant.parse("2026-10-02T10:00:00Z")));
+    comment.setSubComments(List.of(reply));
+    when(commentService.countComments(TASK_ID)).thenReturn(1);
+    when(commentService.countCommentsWithSubs(TASK_ID)).thenReturn(2);
+    when(commentService.getCommentsWithSubs(TASK_ID, 0, 1)).thenReturn(List.of(comment));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel full = runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null));
+
+    TaskWithChangeLogModel fullTask = (TaskWithChangeLogModel) full.getTasks().get(0);
+    assertEquals(2, fullTask.getCommentsCount());
+    assertEquals(2, fullTask.getChangeLogs().stream().filter(l -> "commented".equals(l.getActionId())).count());
+  }
+
+  /**
    * The comments of a page of 100 tasks are read in one query, whatever the
    * number of tasks, never task by task, and a task without comments carries
    * neither a latest comment date nor its author. Mutants: the comments

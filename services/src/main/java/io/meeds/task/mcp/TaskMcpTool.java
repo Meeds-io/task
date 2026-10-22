@@ -47,6 +47,7 @@ import java.util.TimeZone;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -1966,7 +1967,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param logs its change log entries, as the task service returns them
    * @param since only the entries and comments after this instant, null for
    *          all
-   * @return its change log and comments, oldest first when it has comments
+   * @return its change log and comments, replies included, oldest first when
+   *         it has comments
    */
   private List<TaskChangeLog> getChangeLogs(TaskDto task, List<ChangeLogEntry> logs, Instant since) {
     List<TaskChangeLog> taskLogs = logs.stream()
@@ -1977,8 +1979,12 @@ public class TaskMcpTool implements McpToolPlugin {
                                        .toList();
     int commentsCount = commentService.countComments(task.getId());
     if (commentsCount > 0) {
-      List<TaskChangeLog> commentTaskLogs = commentService.getComments(task.getId(), 0, commentsCount)
+      // the count bounds the top-level comments, each read with its replies
+      List<TaskChangeLog> commentTaskLogs = commentService.getCommentsWithSubs(task.getId(), 0, commentsCount)
                                                           .stream()
+                                                          .flatMap(c -> Stream.concat(Stream.of(c),
+                                                                                      CollectionUtils.emptyIfNull(c.getSubComments())
+                                                                                                     .stream()))
                                                           .filter(c -> since == null
                                                                        || Instant.ofEpochMilli(c.getCreatedTime().getTime())
                                                                                  .isAfter(since))
