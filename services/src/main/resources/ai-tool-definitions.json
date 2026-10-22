@@ -4,14 +4,14 @@
     {
       "name": "list_projects",
       "title": "List Task Projects",
-      "description": "List task projects accessible to the current user, optionally filtered by space, the most recently modified first. In a run limited to a space, only the projects managed through that space are listed. To find a project by its name, pass name: only the projects whose name contains one of its words, ignoring case. Compact items; get_project_by_id for details. While has_more, call again with offset=next_offset.",
+      "description": "List task projects accessible to the current user, optionally filtered by space, the most recently modified first. In a run limited to a space, only the projects managed through that space are listed. To find a project by its name, pass name: the projects whose name holds all its words, ignoring case; when none does, those holding any one of them. Compact items; get_project_by_id for details. While has_more, call again with offset=next_offset.",
       "input_schema": {
         "type": "object",
         "properties": {
           "space_id": {"type": "integer" },
           "offset": { "type": "integer" },
           "limit": { "type": "integer", "description": "Default 10, max 100." },
-          "name": { "type": "string", "description": "Words of the project name: a project is listed when its name contains one of them, ignoring case." }
+          "name": { "type": "string", "description": "Words of the project name: projects holding all of them, ignoring case; when none does, any one of them." }
         }
       },
       "annotations": {
