@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -68,6 +69,7 @@ import org.exoplatform.social.core.utils.MentionUtils;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ChangeLogEntry;
@@ -284,8 +286,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * the number kept so far, which is more than the offset and the page, and
    * means that more exist; {@code has_more} is exact in both cases.
    * <p>
-   * With {@code name}, only the projects whose name contains one of its
-   * words, ignoring case, among those the other arguments select. Each
+   * With {@code name}, only the projects whose name holds all its words,
+   * each one ignoring case, among those the other arguments select; when
+   * none of them does, those whose name holds any one of its words. Each
    * project comes as a list item, without its description, statuses or
    * labels, which {@link #getProjectById(Long)} returns.
    *
@@ -311,9 +314,35 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (space != null && isSpaceScoped()) {
       return listSpaceProjects(space, memberships, keyword, usedOffset, usedLimit);
     }
+    ProjectQuery allWords = getAllWordsQuery(memberships, keyword);
+    int allWordsCount = allWords == null ? 0 : projectService.countProjects(allWords);
+    if (allWordsCount > 0) {
+      List<ProjectListItemModel> projects = toProjectListItems(projectService.findProjects(allWords, usedOffset, usedLimit));
+      return toProjectCollection(projects, usedOffset, usedLimit, allWordsCount);
+    }
     List<ProjectListItemModel> projects = getProjectListItems(memberships, keyword, usedOffset, usedLimit);
     long count = projectService.countProjects(memberships, keyword);
     return toProjectCollection(projects, usedOffset, usedLimit, count);
+  }
+
+  /**
+   * Builds the query of the projects the memberships reach whose name holds
+   * every word of the keyword, the most recently modified first: the same
+   * memberships and order as the list by any word of the keyword.
+   *
+   * @param memberships the memberships whose projects are listed
+   * @param keyword words of the name of the projects, null for any
+   * @return the query, or null when there is no keyword
+   */
+  private ProjectQuery getAllWordsQuery(List<String> memberships, String keyword) {
+    if (keyword == null) {
+      return null;
+    }
+    ProjectQuery query = new ProjectQuery();
+    query.setMembership(memberships);
+    query.setNameWords(keyword);
+    query.setOrderBy(List.of(new OrderBy.DESC("lastModifiedDate")));
+    return query;
   }
 
   /**
@@ -441,10 +470,9 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Scans the projects the memberships reach, those whose name matches the
-   * keyword when one is given, and keeps those of the space. The scan stops
-   * once one more project than the page is kept, so that one more kept
-   * project than the offset and the page tells exactly that more remain.
+   * Lists the projects of the space whose name holds every word of the
+   * keyword; when the space has none, those whose name holds any one of its
+   * words. Each selection is read by {@link #scanSpaceProjects}.
    *
    * @param space an existing space
    * @param memberships the roles of the space group the current user holds
@@ -460,16 +488,46 @@ public class TaskMcpTool implements McpToolPlugin {
                                                    String keyword,
                                                    int offset,
                                                    int limit) {
-    int wanted = offset + limit + 1;
+    ProjectQuery allWords = getAllWordsQuery(memberships, keyword);
+    if (allWords != null && projectService.countProjects(allWords) > 0) {
+      List<ProjectDto> ofSpace = scanSpaceProjects(space,
+                                                   (from, size) -> projectService.findProjects(allWords, from, size),
+                                                   offset + limit + 1);
+      if (!ofSpace.isEmpty()) {
+        return toSpaceProjectCollection(ofSpace, offset, limit);
+      }
+    }
+    List<ProjectDto> ofSpace = scanSpaceProjects(space,
+                                                 (from, size) -> projectService.findProjects(memberships,
+                                                                                             keyword,
+                                                                                             new OrderBy.DESC("lastModifiedDate"),
+                                                                                             from,
+                                                                                             size),
+                                                 offset + limit + 1);
+    return toSpaceProjectCollection(ofSpace, offset, limit);
+  }
+
+  /**
+   * Scans a selection of projects in chunks of {@value #SPACE_SCAN_CHUNK},
+   * in its order, and keeps those of the space. The scan stops once the
+   * wanted number of projects is kept, so that one more kept project than the
+   * offset and the page tells exactly that more remain.
+   *
+   * @param space an existing space
+   * @param reader reads the projects of the selection from an offset, at
+   *          most a given number of them
+   * @param wanted the number of kept projects that stops the scan
+   * @return the projects of that space, in the order of the selection, at
+   *         most the wanted number
+   */
+  private List<ProjectDto> scanSpaceProjects(Space space,
+                                             BiFunction<Integer, Integer, List<ProjectDto>> reader,
+                                             int wanted) {
     List<ProjectDto> ofSpace = new ArrayList<>();
     int from = 0;
     boolean finished = false;
     while (!finished && ofSpace.size() < wanted) {
-      List<ProjectDto> chunk = projectService.findProjects(memberships,
-                                                           keyword,
-                                                           new OrderBy.DESC("lastModifiedDate"),
-                                                           from,
-                                                           SPACE_SCAN_CHUNK);
+      List<ProjectDto> chunk = reader.apply(from, SPACE_SCAN_CHUNK);
       int read = chunk == null ? 0 : chunk.size();
       finished = read < SPACE_SCAN_CHUNK;
       from += read;
@@ -479,6 +537,16 @@ public class TaskMcpTool implements McpToolPlugin {
         }
       }
     }
+    return ofSpace;
+  }
+
+  /**
+   * @param ofSpace the projects of a space a scan kept
+   * @param offset the first project returned, not negative
+   * @param limit the most projects returned, positive
+   * @return the page of those projects, their count being the number kept
+   */
+  private ProjectCollectionModel toSpaceProjectCollection(List<ProjectDto> ofSpace, int offset, int limit) {
     List<ProjectListItemModel> page = ofSpace.stream()
                                              .skip(offset)
                                              .limit(limit)
@@ -1468,6 +1536,14 @@ public class TaskMcpTool implements McpToolPlugin {
                                                             new OrderBy.DESC("lastModifiedDate"),
                                                             offset,
                                                             limit);
+    return toProjectListItems(projects);
+  }
+
+  /**
+   * @param projects projects, possibly null
+   * @return their list items, in the same order
+   */
+  private List<ProjectListItemModel> toProjectListItems(List<ProjectDto> projects) {
     if (CollectionUtils.isEmpty(projects)) {
       return Collections.emptyList();
     } else {
