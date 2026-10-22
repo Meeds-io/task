@@ -18,12 +18,15 @@
  */
 package org.exoplatform.task.dao;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.exoplatform.commons.api.persistence.GenericDAO;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.domain.Comment;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 
 public interface CommentHandler extends GenericDAO<Comment, Long> {
   ListAccess<Comment> findComments(long taskId);
@@ -39,5 +42,15 @@ public interface CommentHandler extends GenericDAO<Comment, Long> {
    * @return null if no comments else last created comment on task
    */
   Comment getLastComment(long taskId);
+
+  /**
+   * Summarizes the comments of several tasks in one query.
+   *
+   * @param taskIds the tasks
+   * @return for each of them that has comments, the number of its comments,
+   *         replies included, and its latest comment's date and author; the
+   *         tasks without comments are absent
+   */
+  Map<Long, CommentsSummaryDto> getCommentsSummaries(Collection<Long> taskIds);
 
 }
