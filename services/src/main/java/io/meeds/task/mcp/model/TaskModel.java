@@ -96,12 +96,6 @@ public class TaskModel {
   @JsonProperty("days_overdue")
   private Integer            daysOverdue;
 
-  @JsonProperty("list_task_comments_tool")
-  private final String       retrieveTaskCommentsTool = "list_task_comments_by_id"; // NOSONAR
-
-  @JsonProperty("list_allowed_project_labels")
-  private final String       retrieveAllowedLabels    = "list_project_labels";      // NOSONAR
-
   public TaskModel(TaskModel model) {
     this(model.id,
          model.title,

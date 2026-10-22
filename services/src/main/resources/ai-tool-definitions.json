@@ -4,13 +4,14 @@
     {
       "name": "list_projects",
       "title": "List Task Projects",
-      "description": "List task projects accessible to the current user, optionally filtered by space. In a run limited to a space, only the projects managed through that space are listed.",
+      "description": "List task projects accessible to the current user, optionally filtered by space, the most recently modified first. In a run limited to a space, only the projects managed through that space are listed. To find a project by its name, pass name: the projects whose name holds all its words, ignoring case; when none does, those holding any one of them. Compact items; get_project_by_id for details. While has_more, call again with offset=next_offset.",
       "input_schema": {
         "type": "object",
         "properties": {
           "space_id": {"type": "integer" },
           "offset": { "type": "integer" },
-          "limit": { "type": "integer" }
+          "limit": { "type": "integer", "description": "Default 10, max 100." },
+          "name": { "type": "string", "description": "Words of the project name: projects holding all of them, ignoring case; when none does, any one of them." }
         }
       },
       "annotations": {
@@ -19,12 +20,12 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "space_arg": "space_id", "when_absent": "use_scope", "allowed_args": ["offset", "limit"] }
+      "space_scope": { "space_arg": "space_id", "when_absent": "use_scope", "allowed_args": ["offset", "limit", "name"] }
     },
     {
       "name": "get_project_by_id",
       "title": "Get a Task Project",
-      "description": "Get a task project by its identifier, checking access permissions.",
+      "description": "Get a task project by its identifier, checking access permissions, with its statuses and labels.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -142,21 +143,22 @@
     {
       "name": "list_tasks",
       "title": "List Tasks",
-      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date, the most overdue first; an overdue task carries days_overdue. With title, only the tasks whose title contains it, ignoring case. With changed_since, only the tasks whose status, project, due date, assignee or completion changed since that date, completed tasks included unless hide_completed_tasks; an assignee change of a task created since that date is not counted. With completed_since, only the tasks completed since that date. A task listed with either carries changes: each change since that date, oldest first, with its field (status, project, due_date, assignee or completed), its old_value and new_value when the change log records them, its date and its author; to tell what moved, use them instead of comparing dates. With assignee, only the tasks assigned to that user; with status_id, only the tasks in that status. count is the total: while the tasks received so far are fewer than count, call again with offset set to that number. In a run limited to a space, project_id is required and must be a project of that space, as list_projects returns them; to find a task by its title, list the tasks of each of those projects with title. Elsewhere, to find a task by words of its title or description, call search_tasks instead of listing a whole project.",
+      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date, the most overdue first; an overdue task carries days_overdue. With title, only the tasks whose title contains it, ignoring case. With changed_since, only the tasks whose status, project, due date, assignee or completion changed since that date, completed tasks included unless hide_completed_tasks; an assignee change of a task created since that date is not counted. With completed_since, only the tasks completed since that date. A task listed with either carries changes: each change since that date, oldest first, with its field (status, project, due_date, assignee or completed), its old_value and new_value when the change log records them, its date and its author; to tell what moved, use them instead of comparing dates. With assignee, only the tasks assigned to that user; with status_id, only the tasks in that status. Compact items (status is the board column); get_task_by_id for details. count is the total. While has_more, call again with offset=next_offset. In a run limited to a space, project_id is required and must be a project of that space, as list_projects returns them; to find a task by its title, list the tasks of each of those projects with title. Elsewhere, to find a task by words of its title or description, call search_tasks instead of listing a whole project.",
       "input_schema": {
         "type": "object",
         "properties": {
           "project_id": { "type": "integer" },
           "hide_completed_tasks": { "type": "boolean" },
-          "include_change_log": { "type": "boolean" },
+          "include_change_log": { "type": "boolean", "description": "Full tasks with their change log instead of compact items." },
           "overdue_only": { "type": "boolean", "description": "Only the open tasks whose due date is before today, in the user's time zone; a task due today is not overdue." },
           "offset": { "type": "integer" },
-          "limit": { "type": "integer" },
+          "limit": { "type": "integer", "description": "Default 10, max 100." },
           "title": { "type": "string", "description": "A part of the task title, matched ignoring case." },
           "changed_since": { "type": "string", "description": "Only the tasks whose status, project, due date, assignee or completion changed at or after this date. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." },
           "completed_since": { "type": "string", "description": "Only the tasks completed at or after this date, whatever hide_completed_tasks says; not together with overdue_only. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." },
           "assignee": { "type": "string", "description": "Only the tasks assigned to this user, by username." },
-          "status_id": { "type": "integer", "description": "Only the tasks in this status, a status_id of list_project_statuses." }
+          "status_id": { "type": "integer", "description": "Only the tasks in this status, a status_id of list_project_statuses." },
+          "include_description": { "type": "boolean", "description": "true: each item carries its description as plain text, cut at 500 characters (description_truncated when cut)." }
         }
       },
       "annotations": {
@@ -165,7 +167,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["hide_completed_tasks", "include_change_log", "overdue_only", "offset", "limit", "title", "changed_since", "completed_since", "assignee", "status_id"] }
+      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["hide_completed_tasks", "include_change_log", "overdue_only", "offset", "limit", "title", "changed_since", "completed_since", "assignee", "status_id", "include_description"] }
     },
     {
       "name": "list_project_activity_since",
@@ -189,14 +191,16 @@
     {
       "name": "list_assigned_tasks",
       "title": "Get Self Assigned Tasks",
-      "description": "List uncompleted tasks assigned to the current user, or of which they are a coworker. With overdue_only, only those past their due date, the most overdue first; an overdue task carries days_overdue. With changed_since, only those whose status, project, due date, assignee or completion changed since that date, completed tasks included; an assignee change of a task created since that date is not counted. With completed_since, only those completed since that date; not together with overdue_only. A task listed with either carries changes: each change since that date, oldest first, with its field, its old_value and new_value when the change log records them, its date and its author. count is the total: when it is above the tasks returned, call again with limit set to count (this tool has no offset).",
+      "description": "List uncompleted tasks assigned to the current user, or of which they are a coworker. With overdue_only, only those past their due date, the most overdue first; an overdue task carries days_overdue. With changed_since, only those whose status, project, due date, assignee or completion changed since that date, completed tasks included; an assignee change of a task created since that date is not counted. With completed_since, only those completed since that date; not together with overdue_only. A task listed with either carries changes: each change since that date, oldest first, with its field, its old_value and new_value when the change log records them, its date and its author. Otherwise, the most recently active first. Compact items. count is the total. While has_more, call again with offset=next_offset.",
       "input_schema": {
         "type": "object",
         "properties": {
-          "limit": { "type": "integer" },
+          "offset": { "type": "integer" },
+          "limit": { "type": "integer", "description": "Default 10, max 100." },
           "overdue_only": { "type": "boolean", "description": "Only the tasks whose due date is before today, in the user's time zone; a task due today is not overdue." },
           "changed_since": { "type": "string", "description": "Only the tasks whose status, project, due date, assignee or completion changed at or after this date. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." },
-          "completed_since": { "type": "string", "description": "Only the tasks completed at or after this date. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." }
+          "completed_since": { "type": "string", "description": "Only the tasks completed at or after this date. A date such as 2026-10-14, read as the start of that day in the user's time zone, or a date and time with its offset such as 2026-10-14T09:00:00+02:00." },
+          "include_description": { "type": "boolean", "description": "true: each item carries its description as plain text, cut at 500 characters (description_truncated when cut)." }
         }
       },
       "annotations": {
@@ -209,7 +213,7 @@
     {
       "name": "get_task_by_id",
       "title": "Get a Task",
-      "description": "Get a task by its identifier, checking access permissions.",
+      "description": "Get a task by its identifier, checking access permissions, in full; list_task_comments_by_id for its comments.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -246,13 +250,13 @@
     {
       "name": "list_task_comments_by_id",
       "title": "List Task comments",
-      "description": "List comments for a task by its identifier, checking access permissions.",
+      "description": "List comments for a task by its identifier, checking access permissions, each followed by its replies.",
       "input_schema": {
         "type": "object",
         "properties": {
           "task_id": { "type": "integer" },
           "offset": { "type": "integer" },
-          "limit": { "type": "integer" }
+          "limit": { "type": "integer", "description": "Comments, replies aside. Default 10, max 100." }
         },
         "required": ["task_id"]
       },
@@ -659,12 +663,13 @@
     {
       "name": "list_unscheduled_tasks",
       "title": "List unscheduled Tasks",
-      "description": "List the uncompleted tasks of a project that have neither a start nor a due date (the tasks that still need to be scheduled in the Plan view).",
+      "description": "List the uncompleted tasks of a project that have neither a start nor a due date (the tasks that still need to be scheduled in the Plan view), among its 100 most recently active uncompleted tasks. Compact items. No offset: while has_more, call again with a higher limit.",
       "input_schema": {
         "type": "object",
         "properties": {
           "project_id": { "type": "integer" },
-          "limit": { "type": "integer" }
+          "limit": { "type": "integer", "description": "Default 10, max 100." },
+          "include_description": { "type": "boolean", "description": "true: each item carries its description as plain text, cut at 500 characters (description_truncated when cut)." }
         },
         "required": ["project_id"]
       },

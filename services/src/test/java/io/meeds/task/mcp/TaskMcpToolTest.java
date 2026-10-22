@@ -20,6 +20,7 @@ package io.meeds.task.mcp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -55,6 +56,7 @@ import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.TimeZone;
 
 import org.junit.Before;
@@ -71,11 +73,13 @@ import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.security.MembershipEntry;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
@@ -108,18 +112,24 @@ import io.meeds.social.translation.service.TranslationService;
 import io.meeds.task.mcp.model.ProjectActivityModel;
 import io.meeds.task.mcp.model.TaskChange;
 import io.meeds.task.mcp.model.TaskChangeLog;
+import io.meeds.task.mcp.model.TaskWithChangeLogModel;
 import io.meeds.task.mcp.model.TaskWithChangesModel;
 import io.meeds.task.mcp.model.ProjectCollectionModel;
 import io.meeds.task.mcp.model.ProjectLabel;
+import io.meeds.task.mcp.model.ProjectListItemModel;
 import io.meeds.task.mcp.model.ProjectModel;
 import io.meeds.task.mcp.model.ProjectStatisticsModel;
 import io.meeds.task.mcp.model.ProjectStatus;
 import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
+import io.meeds.task.mcp.model.TaskListItemModel;
 import io.meeds.task.mcp.model.TaskModel;
 import io.meeds.task.plugin.TaskAclPlugin;
 
 import lombok.SneakyThrows;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TaskMcpToolTest {
@@ -143,6 +153,8 @@ public class TaskMcpToolTest {
   private static final ZoneId     USER_ZONE    = ZoneId.of("Europe/Paris");
 
   private static final LocalDate  TODAY        = LocalDate.of(2026, 10, 8);
+
+  private static final JsonMapper JSON         = JsonMapper.builder().build();
 
   @Mock
   private ProjectService          projectService;
@@ -885,7 +897,7 @@ public class TaskMcpToolTest {
     when(taskService.findTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null, null, null, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null, null, null, null, null, null, null));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -894,7 +906,7 @@ public class TaskMcpToolTest {
     verify(taskService, never()).findLastUpdatedTasks(any(), anyInt(), anyInt());
     verify(taskService).countTasks(query.getValue());
     assertEquals(1L, result.getCount());
-    assertEquals(Integer.valueOf(10), result.getTasks().get(0).getDaysOverdue());
+    assertEquals(Integer.valueOf(10), ((TaskListItemModel) result.getTasks().get(0)).getDaysOverdue());
   }
 
   /**
@@ -907,7 +919,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(4);
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null);
 
     assertNull(findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -928,14 +940,14 @@ public class TaskMcpToolTest {
     when(taskService.findTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, true, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, 5, true, null, null, null));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
     assertMostOverdueFirst(query.getValue());
     verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
     assertEquals(1L, result.getCount());
-    assertEquals(Integer.valueOf(1), result.getTasks().get(0).getDaysOverdue());
+    assertEquals(Integer.valueOf(1), ((TaskListItemModel) result.getTasks().get(0)).getDaysOverdue());
   }
 
   /**
@@ -978,7 +990,7 @@ public class TaskMcpToolTest {
                                                                                   "2026-10-01",
                                                                                   null,
                                                                                   null,
-                                                                                  null));
+                                                                                  null, null));
 
     List<Condition> conjunction = conjunction(query.getValue());
     assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
@@ -987,13 +999,12 @@ public class TaskMcpToolTest {
     assertTrue("hide_completed_tasks keeps the completed tasks out", selectsOpenTasksOnly(query.getValue()));
     verify(taskService).countTasks(query.getValue());
     assertEquals(1L, result.getCount());
-    TaskWithChangesModel model = (TaskWithChangesModel) result.getTasks().get(0);
+    TaskListItemModel model = (TaskListItemModel) result.getTasks().get(0);
     assertEquals(1, model.getChanges().size());
     TaskChange change = model.getChanges().get(0);
     assertEquals(TaskChange.FIELD_STATUS, change.getField());
     assertEquals("ToDo", change.getOldValue());
     assertEquals("InProgress", change.getNewValue());
-    assertNull("asked for no change log", model.getChangeLogs());
   }
 
   /**
@@ -1009,7 +1020,7 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(null, true, false, null, null, null, null, null, "2026-10-05T08:00:00Z", null, null);
+    tool.listTasks(null, true, false, null, null, null, null, null, "2026-10-05T08:00:00Z", null, null, null);
 
     LoggedSince loggedSince = findLoggedSince(query.getValue());
     assertEquals(List.of("mark_done"), loggedSince.actionNames());
@@ -1035,8 +1046,8 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(null, false, false, null, null, null, null, null, null, " john ", 8L);
-    tool.listTasks(null, false, false, null, null, null, null, null, null, " ", null);
+    tool.listTasks(null, false, false, null, null, null, null, null, null, " john ", 8L, null);
+    tool.listTasks(null, false, false, null, null, null, null, null, null, " ", null, null);
 
     List<Condition> filtered = conjunction(query.getAllValues().get(0));
     assertTrue(filtered.stream()
@@ -1064,7 +1075,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(5))).thenReturn(List.of(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, null, "2026-10-01", null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, 5, null, "2026-10-01", null, null));
 
     assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
     assertChangedSince(query.getValue(), Date.from(Instant.parse("2026-09-30T22:00:00Z")));
@@ -1072,7 +1083,7 @@ public class TaskMcpToolTest {
     verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
     verify(taskService).countTasks(query.getValue());
     assertEquals(1L, result.getCount());
-    assertTrue(result.getTasks().get(0) instanceof TaskWithChangesModel);
+    assertTrue("a compact item with its changes", ((TaskListItemModel) result.getTasks().get(0)).getChanges() != null);
   }
 
   /**
@@ -1090,7 +1101,7 @@ public class TaskMcpToolTest {
                                                                                       log(1, "created", "ToDo", "2026-10-04T10:00:00Z")));
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
 
-    runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null));
+    runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null));
 
     verify(identityManager).getOrCreateUserIdentity(OTHER_USER);
     verify(identityManager, never()).getOrCreateUserIdentity("ToDo");
@@ -1170,7 +1181,7 @@ public class TaskMcpToolTest {
                                                                                   "2026-09-01",
                                                                                   null,
                                                                                   null,
-                                                                                  null));
+                                                                                  null, null));
 
     List<TaskChangeLog> changeLogs = ((TaskWithChangesModel) result.getTasks().get(0)).getChangeLogs();
     assertEquals(1, changeLogs.size());
@@ -1185,8 +1196,8 @@ public class TaskMcpToolTest {
   @Test
   public void overdueOnlyAndCompletedSinceAreRefusedTogether() throws Exception { // NOSONAR
     assertThrows(IllegalArgumentException.class,
-                 () -> tool.listTasks(null, null, false, true, null, null, null, null, "2026-10-01", null, null));
-    assertThrows(IllegalArgumentException.class, () -> tool.listAssignedTasks(5, true, null, "2026-10-01"));
+                 () -> tool.listTasks(null, null, false, true, null, null, null, null, "2026-10-01", null, null, null));
+    assertThrows(IllegalArgumentException.class, () -> tool.listAssignedTasks(null, 5, true, null, "2026-10-01", null));
     verify(taskService, never()).findTasks(any(), anyInt(), anyInt());
   }
 
@@ -1360,25 +1371,38 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.emptyList());
 
-    skippingTool.listAssignedTasks(5, true, null, null);
+    skippingTool.listAssignedTasks(null, 5, true, null, null, null);
 
     assertEquals(Date.from(Instant.parse("2018-11-04T03:00:00Z")), findDueDateBefore(query.getValue()));
     assertEquals(1, ZonedDateTime.ofInstant(findDueDateBefore(query.getValue()).toInstant(), saoPaulo).getHour());
   }
 
+  /**
+   * Without a filter, list_assigned_tasks lists the open tasks the user is
+   * assigned to or a coworker of, the most recently active first, counted by
+   * the same query. Mutants: the completed tasks kept; the count of another
+   * query.
+   *
+   * @throws Exception never
+   */
   @Test
   public void listAssignedTasksShouldReturnCollection() throws Exception {// NOSONAR
     TaskDto task = mockTask();
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.singletonList(task));
+    when(taskService.countTasks(any())).thenReturn(1);
 
-    when(taskService.getUncompletedTasks(USER, 5)).thenReturn(Collections.singletonList(task));
-    when(taskService.countUncompletedTasks(USER)).thenReturn(1L);
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, 5, null, null, null, null));
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, null, null, null));
-
+    assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
+    assertTrue("only the open tasks", selectsOpenTasksOnly(query.getValue()));
+    verify(taskService).countTasks(query.getValue());
+    verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
     assertEquals(1, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
     assertEquals(5, result.getUsedLimit());
     assertEquals(1L, result.getCount());
+    assertFalse(result.isHasMore());
   }
 
   @Test
@@ -1386,7 +1410,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(0);
 
-    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null);
 
     assertEquals(0, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
@@ -1762,29 +1786,667 @@ public class TaskMcpToolTest {
     tool.createProjectLabel(PROJECT_ID, "Bug");
   }
 
+  /**
+   * list_projects returns compact items, the project's identifier, name,
+   * space and link, counted by the project count: the description, statuses
+   * and labels are neither read nor serialized. The count is that of a
+   * project query of the memberships in the order of the list, which counts
+   * each project once, not that of the named query that counts a project once
+   * per manager and participant. Mutants: the full project model listed; the
+   * statuses or labels read for each project; the count read from the named
+   * query.
+   *
+   * @throws Exception never
+   */
   @Test
   public void listProjectsShouldUseProjectCountAndReturnCollection() throws Exception { // NOSONAR
     ProjectDto project = mock(ProjectDto.class);
 
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10)))
                                                                             .thenReturn(Collections.singletonList(project));
-    when(projectService.countProjects(any(), eq(null))).thenReturn(1);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
 
     when(project.getId()).thenReturn(PROJECT_ID);
     when(project.getName()).thenReturn(PROJECT_NAME);
-    when(project.getDescription()).thenReturn("");
+    lenient().when(project.getDescription()).thenReturn("<p>A long description</p>");
     when(project.getManager()).thenReturn(Collections.emptySet());
-    when(statusService.getStatuses(PROJECT_ID)).thenReturn(Collections.emptyList());
-    when(labelService.findLabelsByProject(PROJECT_ID, currentIdentity, 0, 100))
-                                                                               .thenReturn(Collections.emptyList());
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, null));
 
     assertEquals(1, result.getProjects().size());
     assertEquals(0, result.getUsedOffset());
     assertEquals(10, result.getUsedLimit());
     assertEquals(1L, result.getCount());
-    verify(projectService).countProjects(any(), eq(null));
+    assertFalse(result.isHasMore());
+    assertNull(result.getNextOffset());
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).countProjects(counted.capture());
+    verify(projectService, never()).countProjects(any(), any());
+    assertNameQuery(counted.getValue(), null);
+    ProjectListItemModel item = result.getProjects().get(0);
+    assertEquals(PROJECT_ID, item.getId());
+    assertEquals(PROJECT_NAME, item.getName());
+    assertTrue(item.getUrl().endsWith("/task-link"));
+    verify(statusService, never()).getStatuses(anyLong());
+    verify(labelService, never()).findLabelsByProject(anyLong(), any(), anyInt(), anyInt());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(result));
+    assertEquals(Set.of("project_id", "name", "url"), fieldNames(json.path("projects").path(0)));
+    assertFalse("no next_offset on the last page", json.has("next_offset"));
+    assertFalse(json.path("has_more").asBoolean());
+  }
+
+  /**
+   * get_project_by_id keeps the full project: its description, statuses and
+   * labels. Mutant: the list item returned.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void getProjectByIdReturnsTheFullProject() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(project.getId()).thenReturn(PROJECT_ID);
+    when(project.getName()).thenReturn(PROJECT_NAME);
+    when(project.getDescription()).thenReturn("A description");
+    when(project.getManager()).thenReturn(Collections.emptySet());
+    StatusDto status = mock(StatusDto.class);
+    when(status.getId()).thenReturn(8L);
+    when(status.getName()).thenReturn("ToDo");
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(List.of(status));
+    LabelDto label = mock(LabelDto.class);
+    when(label.getId()).thenReturn(3L);
+    when(label.getName()).thenReturn(LABEL_NAME);
+    when(labelService.findLabelsByProject(PROJECT_ID, currentIdentity, 0, 100)).thenReturn(List.of(label));
+
+    ProjectModel model = runWithDateFormatMockResult(() -> tool.getProjectById(PROJECT_ID));
+
+    assertEquals(1, model.getAllowedStatusList().size());
+    assertEquals(LABEL_NAME, model.getAllowedLabelList().get(0).getName());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(model));
+    assertTrue(json.has("allowed_status_list"));
+    assertTrue(json.has("allowed_label_list"));
+  }
+
+  /**
+   * name reaches the project list and the project count with the same
+   * keyword, trimmed, and a blank name is no keyword; in a run limited to a
+   * space, the scan of the space's projects reads the keyword too. Mutants:
+   * the keyword dropped from the list, from the count or from the scan; the
+   * list and the count given different keywords.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByNamePassesTheSameKeywordToTheListAndTheCount() throws Exception { // NOSONAR
+    when(projectService.findProjects(any(), any(), any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
+
+    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Q3 Roadmap  "));
+    verify(projectService).findProjects(any(), eq("Q3 Roadmap"), any(), eq(0), eq(10));
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService, times(2)).countProjects(counted.capture());
+    assertAllWordsQuery(counted.getAllValues().get(0), "%q3%", "%roadmap%");
+    assertNameQuery(counted.getAllValues().get(1), AggregateCondition.OR, "%q3%", "%roadmap%");
+
+    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, " "));
+    verify(projectService).findProjects(any(), eq(null), any(), eq(0), eq(10));
+    verify(projectService, times(3)).countProjects(counted.capture());
+    assertNameQuery(counted.getAllValues().get(counted.getAllValues().size() - 1), null);
+    verify(projectService, never()).countProjects(any(), any());
+
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Q3 Roadmap"));
+    verify(projectService).findProjects(any(), eq("Q3 Roadmap"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+  }
+
+  /**
+   * A one-word name selects the same projects whether all or any of its words
+   * are asked for: when none holds it, the empty result is returned without
+   * reading the list or the count by any word, in a plain run as in a run
+   * limited to a space. Mutant: the fallback run for one word.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByOneWordNameNeverFallsBack() throws Exception { // NOSONAR
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Roadmap "));
+    assertTrue(result.getProjects().isEmpty());
+    assertEquals(0L, result.getCount());
+    assertFalse(result.isHasMore());
+    verify(projectService, times(1)).countProjects(any(ProjectQuery.class));
+
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectCollectionModel ofSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Roadmap"));
+    assertTrue(ofSpace.getProjects().isEmpty());
+    assertEquals(0L, ofSpace.getCount());
+    verify(projectService, times(2)).countProjects(any(ProjectQuery.class));
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+  }
+
+  /**
+   * When a project's name holds every word of name, the list and the count
+   * come from one query: the memberships of the plain list, every word as a
+   * case-insensitive part of the name, the most recently modified first; the
+   * list by any one word is never read. Mutants: the any-word list or count
+   * read although a project holds every word; the words joined by OR; the
+   * memberships or the order dropped from the query.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByNameListsOnlyTheProjectsHoldingAllItsWords() throws Exception { // NOSONAR
+    ProjectDto board = listedProject(1L, null);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(2), eq(5))).thenReturn(List.of(board));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 "));
+
+    assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, result.getCount());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).countProjects(any(), any());
+    ArgumentCaptor<ProjectQuery> listed = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listed.capture(), eq(2), eq(5));
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).countProjects(counted.capture());
+    for (ProjectQuery query : List.of(listed.getValue(), counted.getValue())) {
+      assertAllWordsQuery(query, "%big%", "%board%", "%50%");
+    }
+  }
+
+  /**
+   * When no project's name holds every word of name, the list and the count
+   * are those of any one word, with the same keyword, offset and limit as
+   * before. Mutants: no fallback; the fallback given another keyword, offset
+   * or limit.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByNameFallsBackToAnyWordWhenNoneHoldsThemAll() throws Exception { // NOSONAR
+    ProjectDto onboarding = listedProject(4L, null);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0, 3);
+    when(projectService.findProjects(any(), eq("Big Board 50"), any(), eq(2), eq(5))).thenReturn(List.of(onboarding));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 "));
+
+    assertEquals(List.of(4L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(3L, result.getCount());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+  }
+
+  /**
+   * In a run limited to a space, the scan reads the projects holding every
+   * word of name when the space has some, and keeps those of the space with
+   * the exact has_more; the scan by any one word is never read. Mutants: the
+   * any-word scan read although a project of the space holds every word;
+   * has_more lost on that path.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsOfASpaceByNameScansTheProjectsHoldingAllItsWords() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> projects = List.of(listedProject(1L, 10L), listedProject(2L, 11L), listedProject(3L, 10L));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(3);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(projects);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 1, "Big Board"));
+
+    assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertTrue(result.isHasMore());
+    assertEquals(Integer.valueOf(1), result.getNextOffset());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    ArgumentCaptor<ProjectQuery> scanned = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(scanned.capture(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+    assertAllWordsQuery(scanned.getValue(), "%big%", "%board%");
+  }
+
+  /**
+   * In a run limited to a space, the scan reads the projects holding any one
+   * word of name when no project holds them all, and also when those holding
+   * them all are none of the space's. Mutants: no fallback; the fallback
+   * only on a zero count, so that a space whose projects hold one word lists
+   * nothing.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsOfASpaceByNameFallsBackToAnyWordWhenTheSpaceHasNoneHoldingThemAll() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectDto onboarding = listedProject(4L, 10L);
+    ProjectDto ofOtherSpace = listedProject(2L, 11L);
+    when(projectService.findProjects(any(), eq("Big Board"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                           .thenReturn(List.of(onboarding));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0, 1);
+    when(projectService.findProjects(any(ProjectQuery.class),
+                                     eq(0),
+                                     eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(List.of(ofOtherSpace));
+
+    ProjectCollectionModel none = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board"));
+    assertEquals(List.of(4L), none.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, none.getCount());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+
+    ProjectCollectionModel otherSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board"));
+    assertEquals(List.of(4L), otherSpace.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, otherSpace.getCount());
+    verify(projectService, times(2)).findProjects(any(), eq("Big Board"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+  }
+
+  /**
+   * @param query a query of the projects holding all the words of a name
+   * @param likes the patterns each word must match, lower-cased
+   */
+  private void assertAllWordsQuery(ProjectQuery query, String... likes) {
+    assertNameQuery(query, AggregateCondition.AND, likes);
+  }
+
+  /**
+   * @param query a query of the projects of the memberships, by name words
+   *          or not, the most recently modified first
+   * @param wordsType how the name words are combined, {@link AggregateCondition#AND}
+   *          or {@link AggregateCondition#OR}; null when the query has no name
+   *          condition
+   * @param likes the patterns each word must match, lower-cased
+   */
+  private void assertNameQuery(ProjectQuery query, String wordsType, String... likes) {
+    assertEquals(1, query.getOrderBy().size());
+    assertEquals("lastModifiedDate", query.getOrderBy().get(0).getFieldName());
+    assertFalse(query.getOrderBy().get(0).isAscending());
+    List<Condition> conditions = ((AggregateCondition) query.getCondition()).getConditions();
+    assertEquals(wordsType == null ? 1 : 2, conditions.size());
+    AggregateCondition membership = (AggregateCondition) conditions.get(0);
+    assertEquals(AggregateCondition.OR, membership.getType());
+    assertEquals(List.of("manager", "participator"),
+                 membership.getConditions().stream().map(c -> ((SingleCondition<?>) c).getField()).toList());
+    Object roles = ((SingleCondition<?>) membership.getConditions().get(0)).getValue();
+    assertFalse(((List<?>) roles).isEmpty());
+    assertEquals(roles, ((SingleCondition<?>) membership.getConditions().get(1)).getValue());
+    if (wordsType == null) {
+      return;
+    }
+    AggregateCondition words = (AggregateCondition) conditions.get(1);
+    assertEquals(wordsType, words.getType());
+    assertEquals(List.of(likes), words.getConditions().stream().map(c -> ((SingleCondition<?>) c).getValue()).toList());
+    words.getConditions()
+         .forEach(c -> assertEquals(SingleCondition.LIKE, ((SingleCondition<?>) c).getType()));
+  }
+
+  /**
+   * In a run limited to a space, has_more is exact although the count is only
+   * what the scan kept: a full page with one more project kept says more
+   * remain, from the next offset, and the page that reaches the end of the
+   * scan says none remain. Mutant: has_more read from the page being full.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunSaysWhetherMoreRemain() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> projects = new ArrayList<>();
+    for (long id = 1; id <= 4; id++) {
+      projects.add(listedProject(id, 10L));
+    }
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(projects);
+
+    ProjectCollectionModel first = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2, null));
+    assertTrue(first.isHasMore());
+    assertEquals(Integer.valueOf(2), first.getNextOffset());
+
+    ProjectCollectionModel last = runWithDateFormatMockResult(() -> tool.listProjects(10L, 2, 2, null));
+    assertEquals(List.of(3L, 4L), last.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertFalse(last.isHasMore());
+    assertNull(last.getNextOffset());
+  }
+
+  /**
+   * list_tasks returns compact items: the task's identifier, title, link,
+   * completion, project, status, labels, assignee as a username and a display
+   * name, due date, creation date (the full task's), days overdue, priority
+   * and comments count; no description, no coworkers, and no user profile
+   * read for the coworkers. With include_change_log, the full task. Mutants:
+   * the full model listed; the coworkers looked up; the assignee's display
+   * name not read; the creation date dropped.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksReturnsCompactItemsAndTheFullTaskWithTheChangeLog() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(task.getAssignee()).thenReturn(OTHER_USER);
+    lenient().when(task.getCoworker()).thenReturn(Set.of("mary"));
+    lenient().when(task.getDescription()).thenReturn("<p>A long description</p>");
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-01T10:00:00Z")));
+    when(task.getPriority()).thenReturn(Priority.HIGH);
+    when(commentService.countComments(TASK_ID)).thenReturn(3);
+    org.exoplatform.social.core.identity.model.Identity john = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    Profile johnProfile = mock(Profile.class);
+    when(john.getProfile()).thenReturn(johnProfile);
+    when(johnProfile.getFullName()).thenReturn("John Smith");
+    when(identityManager.getOrCreateUserIdentity(OTHER_USER)).thenReturn(john);
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null));
+
+    TaskListItemModel item = (TaskListItemModel) result.getTasks().get(0);
+    assertEquals(TASK_ID, item.getId());
+    assertEquals("Task " + TASK_ID, item.getTitle());
+    assertEquals(Long.valueOf(PROJECT_ID), item.getProjectId());
+    assertEquals(PROJECT_NAME, item.getProjectName());
+    assertEquals(8L, item.getStatus().getId());
+    assertEquals(OTHER_USER, item.getAssignee().getUsername());
+    assertEquals("John Smith", item.getAssignee().getDisplayName());
+    assertEquals("2024-01-01T00:00:00Z", item.getDueDate());
+    assertEquals(Integer.valueOf(7), item.getDaysOverdue());
+    assertEquals(Priority.HIGH, item.getPriority());
+    assertEquals(3, item.getCommentsCount());
+    assertNull("no changes without changed_since", item.getChanges());
+    verify(identityManager, never()).getOrCreateUserIdentity("mary");
+    verify(taskService, never()).getTaskLogs(anyLong(), anyInt(), anyInt());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(item));
+    assertEquals(Set.of("task_id",
+                        "title",
+                        "link",
+                        "completed",
+                        "project_id",
+                        "project_name",
+                        "status",
+                        "assignee",
+                        "due_date",
+                        "created_date",
+                        "days_overdue",
+                        "priority",
+                        "comments_count"),
+                 fieldNames(json));
+    assertEquals(Set.of("username", "display_name"), fieldNames(json.path("assignee")));
+
+    TaskCollectionModel full = runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null));
+
+    TaskModel fullTask = (TaskModel) full.getTasks().get(0);
+    assertTrue(fullTask instanceof TaskWithChangeLogModel);
+    assertEquals("A long description", fullTask.getDescription().replaceAll("<[^>]+>", "").trim());
+    assertEquals(1, fullTask.getCoworkers().size());
+    assertNotNull(item.getCreatedDate());
+    assertEquals("the same creation date as the full task", fullTask.getCreatedDate(), item.getCreatedDate());
+  }
+
+  /**
+   * A compact item of list_tasks and of list_assigned_tasks carries the
+   * task's creation date, the one the full task carries, not its due date, so
+   * that the tasks created since a date are found. Mutants: the creation date
+   * dropped; the due date given instead.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCompactItemCarriesTheCreationDateOfTheFullTask() throws Exception { // NOSONAR
+    Date createdTime = Date.from(Instant.parse("2026-10-12T08:30:00Z"));
+    TaskDto task = mockTaskWithProject(TASK_ID, createdTime);
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-30T10:00:00Z")));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getUserTimeZone).thenReturn(TimeZone.getTimeZone("UTC"));
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> ((Date) invocation.getArgument(0)).toInstant().toString());
+
+      TaskListItemModel item = (TaskListItemModel) tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null)
+                                                       .getTasks()
+                                                       .get(0);
+      TaskModel fullTask = (TaskModel) tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null)
+                                           .getTasks()
+                                           .get(0);
+      TaskListItemModel assigned = (TaskListItemModel) tool.listAssignedTasks(null, null, null, null, null, null).getTasks().get(0);
+
+      assertEquals("2026-10-12T08:30:00Z", item.getCreatedDate());
+      assertEquals(fullTask.getCreatedDate(), item.getCreatedDate());
+      assertEquals("2026-10-12T08:30:00Z", assigned.getCreatedDate());
+      assertEquals("2026-10-12T08:30:00Z", JSON.readTree(JSON.writeValueAsString(item)).path("created_date").asText());
+    }
+  }
+
+  /**
+   * The description of an opportunity card, as the editor stores it: a
+   * mention, entities and one qualification line per paragraph, list item or
+   * line break.
+   */
+  private static final String QUALIFICATION_HTML  = "<p>Contact: <a class=\"user-suggester\" href=\"/portal/dw/profile/john\">@john</a>"
+      + " &amp; Co&nbsp;Ltd</p><ul><li>Users: 500</li><li>Competition: <a href=\"https://example.org\">none</a></li></ul>"
+      + "<p>Planning: Q1<br>Budget: 50 k&euro;</p>";
+
+  /**
+   * The plain text of {@link #QUALIFICATION_HTML}.
+   */
+  private static final String QUALIFICATION_TEXT  = "Contact: @john & Co Ltd\nUsers: 500\nCompetition: none\nPlanning: Q1\nBudget: 50 k\u20ac";
+
+  /**
+   * The keys of a compact item of {@link #mockTaskWithProject(long, Date)}
+   * listed without include_description.
+   */
+  private static final Set<String> DEFAULT_ITEM_KEYS = Set.of("task_id",
+                                                              "title",
+                                                              "link",
+                                                              "completed",
+                                                              "project_id",
+                                                              "project_name",
+                                                              "status",
+                                                              "created_date",
+                                                              "comments_count");
+
+  /**
+   * Without include_description, null or false, a compact item of list_tasks
+   * and of list_assigned_tasks keeps its keys: neither description nor
+   * description_truncated, and the description is not even read. Mutants:
+   * the description always added; a false truncation flag serialised.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCompactItemHasNoDescriptionWithoutIncludeDescription() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject(TASK_ID, Date.from(Instant.parse("2026-10-12T08:30:00Z")));
+    lenient().when(task.getDescription()).thenReturn(QUALIFICATION_HTML);
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    for (Boolean includeDescription : new Boolean[] { null, false }) {
+      TaskListItemModel listed = (TaskListItemModel) runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, includeDescription)).getTasks()
+                                                                                                                                                                                      .get(0);
+      TaskListItemModel assigned = (TaskListItemModel) runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, null, null, null, null, includeDescription)).getTasks()
+                                                                                                                                                                  .get(0);
+
+      assertEquals(DEFAULT_ITEM_KEYS, fieldNames(JSON.readTree(JSON.writeValueAsString(listed))));
+      assertEquals(DEFAULT_ITEM_KEYS, fieldNames(JSON.readTree(JSON.writeValueAsString(assigned))));
+    }
+    verify(task, never()).getDescription();
+  }
+
+  /**
+   * With include_description, a compact item of list_tasks and of
+   * list_assigned_tasks carries its description as plain text: the tags and
+   * entities removed, a mention and a link kept as their text, unresolved,
+   * one line per block. A short one comes whole, without
+   * description_truncated; a long one is cut at 500 characters at most, at a
+   * word boundary, with description_truncated true. Mutants: the HTML kept;
+   * no cut; a cut inside a word; the flag missing or always set.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCompactItemCarriesItsDescriptionAsCutPlainTextOnRequest() throws Exception { // NOSONAR
+    String longText = "lorem ipsum dolor sit amet consectetur ".repeat(20).strip();
+    TaskDto shortTask = mockTaskWithProject(TASK_ID, Date.from(Instant.parse("2026-10-12T08:30:00Z")));
+    when(shortTask.getDescription()).thenReturn(QUALIFICATION_HTML);
+    TaskDto longTask = mockTaskWithProject(TASK_ID + 1, Date.from(Instant.parse("2026-10-12T08:30:00Z")));
+    when(longTask.getDescription()).thenReturn("<p>" + longText + "</p>");
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(shortTask, longTask));
+    when(taskService.countTasks(any())).thenReturn(2);
+
+    List<?> listed = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, true)).getTasks();
+    List<?> assigned = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, null, null, null, null, true)).getTasks();
+
+    for (List<?> items : List.of(listed, assigned)) {
+      JsonNode shortItem = JSON.readTree(JSON.writeValueAsString(items.get(0)));
+      Set<String> withDescription = new HashSet<>(DEFAULT_ITEM_KEYS);
+      withDescription.add("description");
+      assertEquals(withDescription, fieldNames(shortItem));
+      assertEquals(QUALIFICATION_TEXT, shortItem.path("description").asString());
+
+      JsonNode longItem = JSON.readTree(JSON.writeValueAsString(items.get(1)));
+      withDescription.add("description_truncated");
+      assertEquals(withDescription, fieldNames(longItem));
+      assertTrue(longItem.path("description_truncated").asBoolean());
+      String cut = longItem.path("description").asString();
+      assertTrue(cut.length() <= 500);
+      assertTrue(cut.length() > 450);
+      assertTrue(longText.startsWith(cut));
+      assertEquals("cut at a word boundary", ' ', longText.charAt(cut.length()));
+    }
+  }
+
+  /**
+   * A limit above the most a list returns is cut to it, on every list tool,
+   * and a limit not positive is the default one. Mutants: the comparison
+   * inverted or dropped; a negative limit passed on.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aListLimitAboveTheMostIsCutToIt() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    when(projectService.findProjects(any(), any(), any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+
+    TaskCollectionModel tasks = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, 101, null, null, null, null, null, null));
+    verify(taskService).findLastUpdatedTasks(any(), eq(0), eq(100));
+    assertEquals(100, tasks.getUsedLimit());
+
+    runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, 101, null, null, null, null));
+    verify(taskService, times(2)).findLastUpdatedTasks(any(), eq(0), eq(100));
+
+    ProjectCollectionModel projects = runWithDateFormatMockResult(() -> tool.listProjects(null, null, 101, null));
+    verify(projectService).findProjects(any(), any(), any(), eq(0), eq(100));
+    assertEquals(100, projects.getUsedLimit());
+
+    runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, 100, null, null, null, null, null, null));
+    verify(taskService, times(3)).findLastUpdatedTasks(any(), eq(0), eq(100));
+
+    assertEquals(100, TaskMcpTool.getLimit(101));
+    assertEquals(100, TaskMcpTool.getLimit(100));
+    assertEquals(99, TaskMcpTool.getLimit(99));
+    assertEquals(10, TaskMcpTool.getLimit(-2));
+    assertEquals(10, TaskMcpTool.getLimit(null));
+    assertEquals(0, TaskMcpTool.getOffset(-4));
+  }
+
+  /**
+   * A full page with more tasks after it says has_more, with the offset of
+   * the next page; the last page, and an empty one past the end, say none
+   * remain and carry no next_offset. Mutants: has_more always true or
+   * false; next_offset left on the last page; the page size ignored.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aPageSaysWhetherMoreTasksRemainAndFromWhichOffset() throws Exception { // NOSONAR
+    List<TaskDto> ten = new ArrayList<>();
+    for (long id = 1; id <= 10; id++) {
+      ten.add(mockTaskWithProject(id, new Date()));
+    }
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(ten);
+    when(taskService.findLastUpdatedTasks(any(), eq(20), eq(10))).thenReturn(ten.subList(0, 5));
+    when(taskService.findLastUpdatedTasks(any(), eq(30), eq(10))).thenReturn(Collections.emptyList());
+    when(taskService.countTasks(any())).thenReturn(25);
+
+    TaskCollectionModel first = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 0, 10, null, null, null, null, null, null));
+    assertTrue(first.isHasMore());
+    assertEquals(Integer.valueOf(10), first.getNextOffset());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(first));
+    assertTrue(json.path("has_more").asBoolean());
+    assertEquals(10, json.path("next_offset").asInt());
+    assertEquals(25, json.path("count").asInt());
+    assertEquals(10, json.path("used_limit").asInt());
+
+    TaskCollectionModel last = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 20, 10, null, null, null, null, null, null));
+    assertFalse(last.isHasMore());
+    assertNull(last.getNextOffset());
+    assertFalse(JSON.readTree(JSON.writeValueAsString(last)).has("next_offset"));
+
+    TaskCollectionModel past = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 30, 10, null, null, null, null, null, null));
+    assertFalse(past.isHasMore());
+    assertNull(past.getNextOffset());
+
+    assertEquals(Integer.valueOf(10), TaskMcpTool.getNextOffset(10, 0, 11));
+    assertNull(TaskMcpTool.getNextOffset(10, 0, 10));
+    assertNull(TaskMcpTool.getNextOffset(0, 5, 10));
+  }
+
+  /**
+   * list_assigned_tasks pages with its offset, on the plain list and on a
+   * filtered one. Mutant: the offset dropped (the first page read again).
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listAssignedTasksOffsetReachesTheQuery() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    when(taskService.findTasks(any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(20, 10, null, null, null, null));
+    verify(taskService).findLastUpdatedTasks(any(), eq(20), eq(10));
+    assertEquals(20, result.getUsedOffset());
+
+    runWithDateFormatMockResult(() -> tool.listAssignedTasks(30, 10, true, null, null, null));
+    verify(taskService).findTasks(any(), eq(30), eq(10));
+  }
+
+  /**
+   * list_unscheduled_tasks returns compact items and says when more
+   * unscheduled tasks were found than the limit let through, without a
+   * next_offset since the tool takes no offset. Mutant: has_more read from
+   * the page alone.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listUnscheduledTasksSaysWhenMoreWereFound() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    List<TaskDto> three = List.of(mockTaskWithProject(1L, new Date()),
+                                  mockTaskWithProject(2L, new Date()),
+                                  mockTaskWithProject(3L, new Date()));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(100))).thenReturn(three);
+
+    TaskCollectionModel more = runWithDateFormatMockResult(() -> tool.listUnscheduledTasks(PROJECT_ID, 2, null));
+    assertEquals(2, more.getTasks().size());
+    assertTrue(more.getTasks().get(0) instanceof TaskListItemModel);
+    assertTrue(more.isHasMore());
+    assertNull(more.getNextOffset());
+
+    TaskCollectionModel all = runWithDateFormatMockResult(() -> tool.listUnscheduledTasks(PROJECT_ID, 3, null));
+    assertEquals(3, all.getTasks().size());
+    assertFalse(all.isHasMore());
+  }
+
+  /**
+   * @param node a JSON object
+   * @return the names of its fields
+   */
+  private static Set<String> fieldNames(JsonNode node) {
+    Set<String> names = new HashSet<>();
+    node.propertyNames().forEach(names::add);
+    return names;
   }
 
   /**
@@ -1810,9 +2472,9 @@ public class TaskMcpToolTest {
                                                                                                                           inNoSpace,
                                                                                                                           inSpaceToo));
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
 
-    assertEquals(List.of(1L, 4L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(List.of(1L, 4L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(2L, result.getCount());
     ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
     verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
@@ -1831,11 +2493,11 @@ public class TaskMcpToolTest {
     ProjectDto inSpace = listedProject(1L, 10L);
     ProjectDto shared = listedProject(2L, null);
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(List.of(inSpace, shared));
-    when(projectService.countProjects(any(), eq(null))).thenReturn(2);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(2);
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
 
-    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(2L, result.getCount());
     verify(spaceScopeResolver, never()).spaceOfProject(any());
     ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
@@ -1845,7 +2507,8 @@ public class TaskMcpToolTest {
 
   /**
    * The page is cut from the projects of the space, after the selection, and
-   * the offset and limit given back are the ones used.
+   * the offset and limit given back are the ones used: a negative offset is
+   * none, and a limit not positive the default one.
    * Mutant: the page is cut before the selection, or the offset is ignored.
    */
   @Test
@@ -1862,17 +2525,17 @@ public class TaskMcpToolTest {
                                                                                                                           second,
                                                                                                                           third));
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 1, 1));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 1, 1, null));
 
-    assertEquals(List.of(3L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(List.of(3L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(3L, result.getCount());
     assertEquals(1, result.getUsedOffset());
     assertEquals(1, result.getUsedLimit());
 
-    ProjectCollectionModel clamped = runWithDateFormatMockResult(() -> tool.listProjects(10L, -4, -2));
-    assertEquals(0, clamped.getProjects().size());
+    ProjectCollectionModel clamped = runWithDateFormatMockResult(() -> tool.listProjects(10L, -4, -2, null));
+    assertEquals(List.of(1L, 3L, 4L), clamped.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(0, clamped.getUsedOffset());
-    assertEquals(0, clamped.getUsedLimit());
+    assertEquals(10, clamped.getUsedLimit());
   }
 
   /**
@@ -1892,9 +2555,9 @@ public class TaskMcpToolTest {
     }
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(chunk);
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2, null));
 
-    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(3L, result.getCount());
     verify(projectService, times(1)).findProjects(any(), any(), any(), anyInt(), anyInt());
     verify(spaceScopeResolver, never()).spaceOfProject(chunk.get(3));
@@ -1922,9 +2585,9 @@ public class TaskMcpToolTest {
                                                                                                                                                       minetoo,
                                                                                                                                                       theirs));
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
 
-    assertEquals(List.of(100L, 101L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(List.of(100L, 101L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(2L, result.getCount());
     verify(projectService, times(2)).findProjects(any(), any(), any(), anyInt(), anyInt());
   }
@@ -1941,13 +2604,13 @@ public class TaskMcpToolTest {
     ProjectDto other = listedProject(2L, 11L);
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
                                                                                                       .thenReturn(List.of(other));
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
     assertEquals(0, result.getProjects().size());
     assertEquals(0L, result.getCount());
 
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
                                                                                                       .thenReturn(Collections.emptyList());
-    result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+    result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
     assertEquals(0L, result.getCount());
   }
 
@@ -2076,9 +2739,9 @@ public class TaskMcpToolTest {
 
     for (boolean scoped : new boolean[] { false, true }) {
       currentSpaceScoped = scoped;
-      assertEquals(0L, runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20)).getCount());
+      assertEquals(0L, runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20, null)).getCount());
     }
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20, null));
 
     assertEquals(0, result.getProjects().size());
     assertEquals(0L, result.getCount());
@@ -2099,7 +2762,7 @@ public class TaskMcpToolTest {
                                                                 .thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null, null, null, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null, null, null, null, null, null, null));
 
     assertEquals(1, result.getTasks().size());
     assertEquals(1L, result.getCount());
@@ -2123,7 +2786,7 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(PROJECT_ID, false, false, null, null, null, "  Live Check 2 ", null, null, null, null);
+    tool.listTasks(PROJECT_ID, false, false, null, null, null, "  Live Check 2 ", null, null, null, null, null);
 
     List<Condition> conjunction = conjunction(query.getValue());
     assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
@@ -2144,8 +2807,8 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(null, false, false, null, null, null, "Live", null, null, null, null);
-    tool.listTasks(null, false, false, null, null, null, "  ", null, null, null, null);
+    tool.listTasks(null, false, false, null, null, null, "Live", null, null, null, null, null);
+    tool.listTasks(null, false, false, null, null, null, "  ", null, null, null, null, null);
 
     List<Condition> withTitle = conjunction(query.getAllValues().get(0));
     assertTrue(withTitle.stream()
@@ -2162,14 +2825,14 @@ public class TaskMcpToolTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(false);
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null, null);
   }
 
   @Test(expected = ObjectNotFoundException.class)
   public void listTasksWithProjectWhenProjectServiceThrowsEntityNotFoundShouldThrowObjectNotFound() throws Exception { // NOSONAR
     when(projectService.getProject(PROJECT_ID)).thenThrow(new EntityNotFoundException(PROJECT_ID, ProjectDto.class));
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null, null);
   }
 
   @Test
@@ -2209,14 +2872,14 @@ public class TaskMcpToolTest {
   @SneakyThrows
   private TaskDto mockTask() {
     TaskDto task = mock(TaskDto.class);
-    when(task.getId()).thenReturn(TASK_ID);
-    when(task.getTitle()).thenReturn("Task title");
-    when(task.getDescription()).thenReturn("");
-    when(task.getCreatedTime()).thenReturn(new Date());
-    when(task.getPriority()).thenReturn(null);
-    when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(Collections.emptyList());
-    when(commentService.getLastComment(TASK_ID)).thenReturn(null);
-    when(commentService.countComments(TASK_ID)).thenReturn(0);
+    lenient().when(task.getId()).thenReturn(TASK_ID);
+    lenient().when(task.getTitle()).thenReturn("Task title");
+    lenient().when(task.getDescription()).thenReturn("");
+    lenient().when(task.getCreatedTime()).thenReturn(new Date());
+    lenient().when(task.getPriority()).thenReturn(null);
+    lenient().when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    lenient().when(commentService.getLastComment(TASK_ID)).thenReturn(null);
+    lenient().when(commentService.countComments(TASK_ID)).thenReturn(0);
     return task;
   }
 
