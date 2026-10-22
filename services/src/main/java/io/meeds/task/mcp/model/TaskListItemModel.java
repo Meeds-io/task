@@ -32,9 +32,10 @@ import lombok.NoArgsConstructor;
 
 /**
  * A task in a list: what tells the card apart on its board, as a search
- * result does, with its assignee, due date, priority and comments count,
- * without its description, coworkers or other dates, which get_task_by_id
- * returns.
+ * result does, with its assignee, due date, creation date, priority and
+ * comments count, without its description, coworkers or other dates, which
+ * get_task_by_id returns. The creation date tells the tasks created since a
+ * date apart.
  */
 @Data
 @NoArgsConstructor
@@ -65,6 +66,12 @@ public class TaskListItemModel {
 
   @JsonProperty("due_date")
   private String             dueDate;
+
+  /**
+   * When the task was created, formatted as the full model's created_date.
+   */
+  @JsonProperty("created_date")
+  private String             createdDate;
 
   /**
    * The days an open task is past its due date, in the user's time zone;
