@@ -78,6 +78,7 @@ import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
@@ -1885,6 +1886,144 @@ public class TaskMcpToolTest {
     currentSpaceScoped = true;
     runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Roadmap"));
     verify(projectService).findProjects(any(), eq("Roadmap"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+  }
+
+  /**
+   * When a project's name holds every word of name, the list and the count
+   * come from one query: the memberships of the plain list, every word as a
+   * case-insensitive part of the name, the most recently modified first; the
+   * list by any one word is never read. Mutants: the any-word list or count
+   * read although a project holds every word; the words joined by OR; the
+   * memberships or the order dropped from the query.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByNameListsOnlyTheProjectsHoldingAllItsWords() throws Exception { // NOSONAR
+    ProjectDto board = listedProject(1L, null);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(2), eq(5))).thenReturn(List.of(board));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 "));
+
+    assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, result.getCount());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).countProjects(any(), any());
+    ArgumentCaptor<ProjectQuery> listed = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listed.capture(), eq(2), eq(5));
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).countProjects(counted.capture());
+    for (ProjectQuery query : List.of(listed.getValue(), counted.getValue())) {
+      assertAllWordsQuery(query, "%big%", "%board%", "%50%");
+    }
+  }
+
+  /**
+   * When no project's name holds every word of name, the list and the count
+   * are those of any one word, with the same keyword, offset and limit as
+   * before. Mutants: no fallback; the fallback given another keyword, offset
+   * or limit.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByNameFallsBackToAnyWordWhenNoneHoldsThemAll() throws Exception { // NOSONAR
+    ProjectDto onboarding = listedProject(4L, null);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
+    when(projectService.findProjects(any(), eq("Big Board 50"), any(), eq(2), eq(5))).thenReturn(List.of(onboarding));
+    when(projectService.countProjects(any(), eq("Big Board 50"))).thenReturn(3);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 "));
+
+    assertEquals(List.of(4L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(3L, result.getCount());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+  }
+
+  /**
+   * In a run limited to a space, the scan reads the projects holding every
+   * word of name when the space has some, and keeps those of the space with
+   * the exact has_more; the scan by any one word is never read. Mutants: the
+   * any-word scan read although a project of the space holds every word;
+   * has_more lost on that path.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsOfASpaceByNameScansTheProjectsHoldingAllItsWords() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> projects = List.of(listedProject(1L, 10L), listedProject(2L, 11L), listedProject(3L, 10L));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(3);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(projects);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 1, "Big Board"));
+
+    assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertTrue(result.isHasMore());
+    assertEquals(Integer.valueOf(1), result.getNextOffset());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    ArgumentCaptor<ProjectQuery> scanned = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(scanned.capture(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+    assertAllWordsQuery(scanned.getValue(), "%big%", "%board%");
+  }
+
+  /**
+   * In a run limited to a space, the scan reads the projects holding any one
+   * word of name when no project holds them all, and also when those holding
+   * them all are none of the space's. Mutants: no fallback; the fallback
+   * only on a zero count, so that a space whose projects hold one word lists
+   * nothing.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsOfASpaceByNameFallsBackToAnyWordWhenTheSpaceHasNoneHoldingThemAll() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectDto onboarding = listedProject(4L, 10L);
+    ProjectDto ofOtherSpace = listedProject(2L, 11L);
+    when(projectService.findProjects(any(), eq("Big Board"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                           .thenReturn(List.of(onboarding));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0, 1);
+    when(projectService.findProjects(any(ProjectQuery.class),
+                                     eq(0),
+                                     eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(List.of(ofOtherSpace));
+
+    ProjectCollectionModel none = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board"));
+    assertEquals(List.of(4L), none.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, none.getCount());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+
+    ProjectCollectionModel otherSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board"));
+    assertEquals(List.of(4L), otherSpace.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, otherSpace.getCount());
+    verify(projectService, times(2)).findProjects(any(), eq("Big Board"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+  }
+
+  /**
+   * @param query a query of the projects holding all the words of a name
+   * @param likes the patterns each word must match, lower-cased
+   */
+  private void assertAllWordsQuery(ProjectQuery query, String... likes) {
+    assertEquals(1, query.getOrderBy().size());
+    assertEquals("lastModifiedDate", query.getOrderBy().get(0).getFieldName());
+    assertFalse(query.getOrderBy().get(0).isAscending());
+    List<Condition> conditions = ((AggregateCondition) query.getCondition()).getConditions();
+    assertEquals(2, conditions.size());
+    AggregateCondition membership = (AggregateCondition) conditions.get(0);
+    assertEquals(AggregateCondition.OR, membership.getType());
+    assertEquals(List.of("manager", "participator"),
+                 membership.getConditions().stream().map(c -> ((SingleCondition<?>) c).getField()).toList());
+    Object roles = ((SingleCondition<?>) membership.getConditions().get(0)).getValue();
+    assertFalse(((List<?>) roles).isEmpty());
+    assertEquals(roles, ((SingleCondition<?>) membership.getConditions().get(1)).getValue());
+    AggregateCondition words = (AggregateCondition) conditions.get(1);
+    assertEquals(AggregateCondition.AND, words.getType());
+    assertEquals(List.of(likes), words.getConditions().stream().map(c -> ((SingleCondition<?>) c).getValue()).toList());
+    words.getConditions()
+         .forEach(c -> assertEquals(SingleCondition.LIKE, ((SingleCondition<?>) c).getType()));
   }
 
   /**
