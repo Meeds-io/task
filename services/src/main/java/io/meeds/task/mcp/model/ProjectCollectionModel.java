@@ -20,6 +20,8 @@ package io.meeds.task.mcp.model;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.AllArgsConstructor;
@@ -31,14 +33,28 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ProjectCollectionModel {
 
-  private List<ProjectModel> projects;
+  private List<ProjectListItemModel> projects;
 
   @JsonProperty("used_offset")
-  private int                usedOffset;
+  private int     usedOffset;
 
   @JsonProperty("used_limit")
-  private int                usedLimit;
+  private int     usedLimit;
 
-  private long               count;
+  private long    count;
+
+  /**
+   * Whether more items than the ones returned remain after this page: call
+   * again with {@code next_offset} as the offset to read them.
+   */
+  @JsonProperty("has_more")
+  private boolean hasMore;
+
+  /**
+   * The offset of the next page, only when {@code has_more} is true.
+   */
+  @JsonProperty("next_offset")
+  @JsonInclude(Include.NON_NULL)
+  private Integer nextOffset;
 
 }
