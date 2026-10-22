@@ -26,6 +26,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.exoplatform.task.domain.Priority;
 
+import io.meeds.task.mcp.util.TaskDescriptionText;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,7 +37,7 @@ import lombok.NoArgsConstructor;
  * result does, with its assignee, due date, creation date, priority and
  * comments count, without its description, coworkers or other dates, which
  * get_task_by_id returns. The creation date tells the tasks created since a
- * date apart.
+ * date apart. On request, the description as cut plain text.
  */
 @Data
 @NoArgsConstructor
@@ -90,5 +92,87 @@ public class TaskListItemModel {
    * {@code completed_since}, oldest first; none otherwise.
    */
   private List<TaskChange>   changes;
+
+  /**
+   * The description as plain text, cut at
+   * {@link io.meeds.task.mcp.util.TaskDescriptionText#MAX_LENGTH}
+   * characters, in a listing with {@code include_description}; none
+   * otherwise, nor for a task without a description.
+   */
+  private String             description;
+
+  /**
+   * True when the description was cut; none otherwise, so that a listing
+   * without {@code include_description} keeps its keys.
+   */
+  @JsonProperty("description_truncated")
+  private Boolean            descriptionTruncated;
+
+  /**
+   * A list item without its description, which
+   * {@link #setPlainTextDescription(String)} adds on request.
+   *
+   * @param id the task
+   * @param title its title
+   * @param link its link
+   * @param completed whether it is completed
+   * @param projectId its project, null for a personal task
+   * @param projectName the name of its project
+   * @param status its status
+   * @param labels its labels
+   * @param assignee its assignee
+   * @param dueDate its due date
+   * @param createdDate its creation date
+   * @param daysOverdue its days overdue, null when not overdue
+   * @param priority its priority
+   * @param commentsCount its comments count
+   * @param changes its changes since a date, null for none
+   */
+  public TaskListItemModel(long id, // NOSONAR the item's fields, each one its own
+                           String title,
+                           String link,
+                           boolean completed,
+                           Long projectId,
+                           String projectName,
+                           ProjectStatus status,
+                           List<ProjectLabel> labels,
+                           TaskAssigneeModel assignee,
+                           String dueDate,
+                           String createdDate,
+                           Integer daysOverdue,
+                           Priority priority,
+                           int commentsCount,
+                           List<TaskChange> changes) {
+    this(id,
+         title,
+         link,
+         completed,
+         projectId,
+         projectName,
+         status,
+         labels,
+         assignee,
+         dueDate,
+         createdDate,
+         daysOverdue,
+         priority,
+         commentsCount,
+         changes,
+         null,
+         null);
+  }
+
+  /**
+   * Sets the description from its plain text, cut at
+   * {@link io.meeds.task.mcp.util.TaskDescriptionText#MAX_LENGTH}
+   * characters, with {@code description_truncated} when it was cut.
+   *
+   * @param plainText the description as plain text, null for none
+   */
+  public void setPlainTextDescription(String plainText) {
+    String cut = TaskDescriptionText.cut(plainText);
+    this.description = cut;
+    this.descriptionTruncated = cut != null && cut.length() < plainText.length() ? Boolean.TRUE : null;
+  }
 
 }
