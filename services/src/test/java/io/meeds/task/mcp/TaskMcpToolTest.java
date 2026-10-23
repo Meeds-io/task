@@ -33,6 +33,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -984,6 +985,22 @@ public class TaskMcpToolTest {
 
     assertEquals(TASK_ID, result.getId());
     verify(taskService).createTask(argThat(task -> task.getStatus() == status));
+  }
+
+  @Test
+  public void createPersonalTaskShouldAssignTheCallerWhenNoAssigneeIsGiven() throws Exception {// NOSONAR
+    TaskDto createdTask = mockTask();
+    when(taskService.createTask(any(TaskDto.class))).thenReturn(createdTask);
+    ArgumentCaptor<TaskDto> created = ArgumentCaptor.forClass(TaskDto.class);
+
+    runWithDateFormatMockResult(() -> tool.createPersonalTask("Title", "Description", null, null, null, null, null, null));
+    runWithDateFormatMockResult(() -> tool.createPersonalTask("Title", "Description", " ", null, null, null, null, null));
+    runWithDateFormatMockResult(() -> tool.createPersonalTask("Title", "Description", OTHER_USER, null, null, null, null, null));
+
+    verify(taskService, times(3)).createTask(created.capture());
+    assertEquals(USER, created.getAllValues().get(0).getAssignee());
+    assertEquals(USER, created.getAllValues().get(1).getAssignee());
+    assertEquals(OTHER_USER, created.getAllValues().get(2).getAssignee());
   }
 
   @Test
