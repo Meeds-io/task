@@ -77,7 +77,7 @@
                 <v-icon size="18">fa-ellipsis-v</v-icon>
               </v-btn>
             </template>
-            <v-list class="pa-0 white" dense>
+            <v-list class="pa-0 transparent" dense>
               <template v-for="menuAction in menuActions">
                 <component
                   :is="menuAction.vueComponent || 'v-list-item'"
