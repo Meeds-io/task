@@ -19,6 +19,7 @@
 package org.exoplatform.task.storage;
 
 import java.util.List;
+import java.util.function.LongConsumer;
 
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.dto.ProjectDto;
@@ -58,6 +59,19 @@ public interface StatusStorage {
   StatusDto createStatus(ProjectDto project, String status, int rank) throws NotAllowedOperationOnEntityException;
 
   void removeStatus(long statusId, boolean removeAll) throws Exception;
+
+  /**
+   * Removes a status, deleting its tasks when <code>removeAll</code> is true
+   * and moving them to another status of its project otherwise.
+   *
+   * @param statusId the status id
+   * @param removeAll true to delete the status' tasks
+   * @param onTaskRemoved called with the id of each deleted task, once its
+   *          deletion has returned
+   * @throws Exception when the status does not exist, or when it is the last
+   *           status of its project and its tasks are kept
+   */
+  void removeStatus(long statusId, boolean removeAll, LongConsumer onTaskRemoved) throws Exception;
 
   StatusDto updateStatus(long statusId, String statusName) throws EntityNotFoundException, NotAllowedOperationOnEntityException;
 
