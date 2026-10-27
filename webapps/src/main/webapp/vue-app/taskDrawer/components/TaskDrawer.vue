@@ -171,19 +171,6 @@
                 @updateTaskStatus="updateTaskStatus($event)" />
             </div>
           </div>
-          <extension-registry-components
-            v-if="task"
-            :key="`${task.id || 'new'}-${taskProjectId}`"
-            :params="{
-              taskId: task.id,
-              projectId: taskProjectId,
-              spaceId: taskSpaceId,
-              expanded,
-            }"
-            name="TaskDrawer"
-            type="task-drawer-section"
-            element="div"
-            strict-type />
           <v-divider class="my-0" />
           <div class="taskDescription py-4">
             <task-description-editor
@@ -198,6 +185,19 @@
               :task="task"
               @labelsListOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeAssignements()" />
           </div>
+          <extension-registry-components
+            v-if="task"
+            :key="`${task.id || 'new'}-${taskProjectId}`"
+            :params="{
+              taskId: task.id,
+              projectId: taskProjectId,
+              spaceId: taskSpaceId,
+              expanded,
+            }"
+            name="TaskDrawer"
+            type="task-drawer-section"
+            element="div"
+            strict-type />
           <extension-registry-components
             :params="{
               taskId: task && task.id,
