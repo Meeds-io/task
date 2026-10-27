@@ -35,6 +35,7 @@
       body-classes="hide-scroll decrease-z-index-more"
       right
       allow-expand
+      @expand-updated="expanded = $event"
       @closed="onCloseDrawer">
       <template v-if="drawer && taskId" #title>
         <div class="drawerTitleAndProject d-flex">
@@ -170,6 +171,19 @@
                 @updateTaskStatus="updateTaskStatus($event)" />
             </div>
           </div>
+          <extension-registry-components
+            v-if="task"
+            :key="`${task.id || 'new'}-${taskProjectId}`"
+            :params="{
+              taskId: task.id,
+              projectId: taskProjectId,
+              spaceId: taskSpaceId,
+              expanded,
+            }"
+            name="TaskDrawer"
+            type="task-drawer-section"
+            element="div"
+            strict-type />
           <v-divider class="my-0" />
           <div class="taskDescription py-4">
             <task-description-editor
@@ -193,7 +207,8 @@
             type="task-drawer-action"
             element="div"
             element-class="overflow-hidden"
-            class="d-flex" />
+            class="d-flex"
+            strict-type />
           <v-divider class="my-0" />
           <v-flex
             v-if="task && task.id"
@@ -253,6 +268,7 @@ export default {
       displayActionMenu: false,
       menuActions: [],
       drawer: false,
+      expanded: false,
       reset: false,
       dates: [],
       commentPlaceholder: this.$t('comment.message.addYourComment'),
@@ -341,7 +357,13 @@ export default {
       if ( this.task && this.task.id !== null && typeof this.task.id !== 'undefined' ) {
         this.displayDrawerMenuAction( this.task );
       }
-    }
+    },
+    taskProjectId(newId, oldId) {
+      if (this.drawer && newId !== oldId) {
+        this.taskSpace = {};
+        this.getTaskSpace();
+      }
+    },
   },
   created() {
     $(document).on('mousedown', () => {
@@ -697,10 +719,13 @@ export default {
       return this.comments;
     },
     getTaskSpace() {
-      if (this.taskProjectId) {
-        this.$projectService.getProject(this.taskProjectId).then(
+      const projectId = this.taskProjectId;
+      if (projectId) {
+        this.$projectService.getProject(projectId).then(
           (project) => {
-            this.taskSpace = project.spaceDetails;
+            if (this.taskProjectId === projectId) {
+              this.taskSpace = project.spaceDetails;
+            }
           });
       } else {
         this.taskSpace = {};
@@ -718,6 +743,7 @@ export default {
       this.assignee= null;
       this.taskStartDate= null;
       this.taskDueDate= null;
+      this.taskSpace = {};
       this.taskPriority='NONE';
       window.setTimeout(() => {
         document.dispatchEvent(new CustomEvent('loadTaskPriority', {
@@ -743,10 +769,10 @@ export default {
         }));
       },
       200);
+      this.getTaskSpace();
       if (task.id != null) {
         this.retrieveTaskLogs();
         this.getTaskComments();
-        this.getTaskSpace();
         this.$root.$emit('set-url', {
           type: 'task',
           id: task.id
