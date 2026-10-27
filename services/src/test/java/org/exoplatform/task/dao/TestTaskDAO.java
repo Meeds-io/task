@@ -29,6 +29,11 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
+
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
@@ -37,6 +42,8 @@ import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.AbstractTest;
 import org.exoplatform.task.dao.condition.Conditions;
+import org.exoplatform.task.dao.condition.PredicateCondition;
+import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.domain.*;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.TaskService;
@@ -227,6 +234,90 @@ public class TestTaskDAO extends AbstractTest {
     query.setProjectIds(Arrays.asList(alpha.getId()));
     query.setTitle("Live check");
     assertEquals(0, tDAO.findTasks(query).getSize());
+  }
+
+  /**
+   * A {@link PredicateCondition} restricts the page and the count of a task
+   * query alike, combined with the project restriction: a correlated EXISTS
+   * subquery keeps the commented tasks of the project, a NOT EXISTS one its
+   * uncommented tasks, through the DAO and through the task service. Without
+   * the {@link PredicateCondition} branch of {@code CommonJPADAO#buildQuery},
+   * a query whose only condition is the predicate silently returns every task,
+   * which the first assertions catch; beside another condition the query fails
+   * to build. A builder that returns no predicate is refused, for the page and
+   * the count, rather than run the query unfiltered.
+   */
+  @Test
+  public void testFindTasksByPredicateCondition() throws Exception {
+    Project alpha = new Project();
+    alpha.setName("Alpha");
+    alpha = daoHandler.getProjectHandler().create(alpha);
+    Project beta = new Project();
+    beta.setName("Beta");
+    beta = daoHandler.getProjectHandler().create(beta);
+    Status alphaStatus = newStatusInstance("To do", 1);
+    alphaStatus.setProject(alpha);
+    daoHandler.getStatusHandler().create(alphaStatus);
+    Status betaStatus = newStatusInstance("To do", 1);
+    betaStatus.setProject(beta);
+    daoHandler.getStatusHandler().create(betaStatus);
+    Task firstCommented = newTaskInstance("First commented", "", null);
+    firstCommented.setStatus(alphaStatus);
+    tDAO.create(firstCommented);
+    Task uncommented = newTaskInstance("Uncommented", "", null);
+    uncommented.setStatus(alphaStatus);
+    tDAO.create(uncommented);
+    Task secondCommented = newTaskInstance("Second commented", "", null);
+    secondCommented.setStatus(alphaStatus);
+    tDAO.create(secondCommented);
+    Task commentedInBeta = newTaskInstance("Commented in beta", "", null);
+    commentedInBeta.setStatus(betaStatus);
+    tDAO.create(commentedInBeta);
+    for (Task task : Arrays.asList(firstCommented, secondCommented, commentedInBeta)) {
+      Comment comment = new Comment();
+      comment.setAuthor(username);
+      comment.setComment("a comment");
+      comment.setCreatedTime(new Date());
+      comment.setTask(task);
+      cDAO.create(comment);
+    }
+
+    TaskQuery onlyPredicateQuery = new TaskQuery();
+    onlyPredicateQuery.add(new PredicateCondition<Task>((cb, query, root) -> cb.exists(commentsOf(cb, query, root))));
+    ListAccess<Task> commentedEverywhere = tDAO.findTasks(onlyPredicateQuery);
+    assertEquals(3, commentedEverywhere.getSize());
+    assertEquals(3, ListUtil.load(commentedEverywhere, 0, -1).length);
+
+    TaskQuery commentedQuery = new TaskQuery();
+    commentedQuery.setProjectIds(Arrays.asList(alpha.getId()));
+    commentedQuery.add(new PredicateCondition<Task>((cb, query, root) -> cb.exists(commentsOf(cb, query, root))));
+    commentedQuery.setOrderBy(Arrays.asList(new OrderBy.DESC("id")));
+    ListAccess<Task> commented = tDAO.findTasks(commentedQuery);
+    assertEquals(2, commented.getSize());
+    Task[] firstPage = ListUtil.load(commented, 0, 1);
+    assertEquals(1, firstPage.length);
+    assertEquals(secondCommented.getId(), firstPage[0].getId());
+    Task[] secondPage = ListUtil.load(commented, 1, 1);
+    assertEquals(1, secondPage.length);
+    assertEquals(firstCommented.getId(), secondPage[0].getId());
+    assertEquals(2, taskService.countTasks(commentedQuery));
+    assertEquals(Arrays.asList(secondCommented.getId(), firstCommented.getId()),
+                 taskService.findTasks(commentedQuery, 0, 10).stream().map(TaskDto::getId).toList());
+
+    TaskQuery uncommentedQuery = new TaskQuery();
+    uncommentedQuery.setProjectIds(Arrays.asList(alpha.getId()));
+    uncommentedQuery.add(new PredicateCondition<Task>((cb, query, root) -> cb.not(cb.exists(commentsOf(cb, query, root)))));
+    ListAccess<Task> uncommentedTasks = tDAO.findTasks(uncommentedQuery);
+    assertEquals(1, uncommentedTasks.getSize());
+    Task[] found = ListUtil.load(uncommentedTasks, 0, -1);
+    assertEquals(1, found.length);
+    assertEquals(uncommented.getId(), found[0].getId());
+    assertEquals(1, taskService.countTasks(uncommentedQuery));
+
+    TaskQuery nullPredicateQuery = new TaskQuery();
+    nullPredicateQuery.add(new PredicateCondition<Task>((cb, query, root) -> null));
+    assertThrows(IllegalStateException.class, () -> tDAO.findTasks(nullPredicateQuery));
+    assertThrows(IllegalStateException.class, () -> taskService.countTasks(nullPredicateQuery));
   }
 
   @Test
@@ -1211,6 +1302,21 @@ public class TestTaskDAO extends AbstractTest {
     task.setCreatedBy(username);
     task.setCreatedTime(new Date());
     return task;
+  }
+
+  /**
+   * Builds the subquery of the comments of the task at the root of a query.
+   *
+   * @param cb the criteria builder
+   * @param query the query the subquery is correlated with
+   * @param root the task root of that query
+   * @return the subquery selecting the comments of that task
+   */
+  private Subquery<Long> commentsOf(CriteriaBuilder cb, CriteriaQuery<?> query, Root<Task> root) {
+    Subquery<Long> comments = query.subquery(Long.class);
+    Root<Comment> comment = comments.from(Comment.class);
+    comments.select(comment.get("id")).where(cb.equal(comment.get("task"), root));
+    return comments;
   }
 
   private Status newStatusInstance(String name, int rank) {
