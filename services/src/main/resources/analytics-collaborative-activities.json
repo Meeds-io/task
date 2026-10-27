@@ -1,0 +1,32 @@
+{
+  "modules": ["tasks"],
+  "operations": [
+    "taskCreated",
+    "taskUpdated",
+    "taskTitleChanged",
+    "taskDescriptionChanged",
+    "taskAssigneeChanged",
+    "taskCoworderChanged",
+    "taskDueDateChanged",
+    "taskDatesChanged",
+    "taskPriorityChanged",
+    "taskProjectChanged",
+    "taskStatusChanged",
+    "taskCompleted",
+    "taskCommented"
+  ],
+  "labels": {
+    "counted": [
+      "task.collaborativeActivity.help.counted.createTask",
+      "task.collaborativeActivity.help.counted.updateTask",
+      "task.collaborativeActivity.help.counted.changeStatus",
+      "task.collaborativeActivity.help.counted.completeTask",
+      "task.collaborativeActivity.help.counted.commentTask"
+    ],
+    "notCounted": [
+      "task.collaborativeActivity.help.notCounted.reorderTask",
+      "task.collaborativeActivity.help.notCounted.labelTask",
+      "task.collaborativeActivity.help.notCounted.createProject"
+    ]
+  }
+}
