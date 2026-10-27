@@ -71,7 +71,7 @@ public class CollaborativeActivityDeclarationTest {
         expectedOperations.add((String) field.get(null));
       }
     }
-    assertEquals("two configured names, ten computed changes, one comment, before the rank is removed", 13, expectedOperations.size());
+    assertEquals("two configured names, eleven computed changes, one comment, before the rank is removed", 14, expectedOperations.size());
     expectedOperations.remove(TaskSavedListener.TASK_RANK_CHANGED_OPERATION);
     List<String> operations = (List<String>) declaration.get("operations");
     assertEquals(expectedOperations, new HashSet<>(operations));
