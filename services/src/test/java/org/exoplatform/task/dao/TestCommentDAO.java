@@ -21,6 +21,7 @@ package org.exoplatform.task.dao;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.After;
@@ -35,6 +36,7 @@ import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.task.AbstractTest;
 import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.util.ListUtil;
 
 public class TestCommentDAO extends AbstractTest {
@@ -279,6 +281,51 @@ public class TestCommentDAO extends AbstractTest {
     Assert.assertEquals(0, mentionedUsers.size());
   }
 
+  /**
+   * The comments of several tasks are summarized in two queries, whatever the
+   * number of tasks, run by the real engine: the count holds the replies, the
+   * latest comment may be a reply, two comments created at the same time give
+   * the one created last, a comment saved later but created at the time of
+   * another task's latest one is not taken for its own task's latest, and a
+   * task without comments, or not asked for, is absent. The query plans are
+   * not checked here: HSQLDB runs the statements, no real database measured
+   * their cost.
+   */
+  @Test
+  public void testGetCommentsSummaries() {
+    Task repliedTask = taskDAO.create(newDefaultSimpleTask());
+    Task tiedTask = taskDAO.create(newDefaultSimpleTask());
+    Task uncommentedTask = taskDAO.create(newDefaultSimpleTask());
+    Task otherTask = taskDAO.create(newDefaultSimpleTask());
+
+    Comment comment = commentDAO.create(newComment(repliedTask, "root", 1000L));
+    Comment reply = newComment(repliedTask, "john", 3000L);
+    reply.setParentComment(comment);
+    commentDAO.create(reply);
+    commentDAO.create(newComment(repliedTask, "mary", 2000L));
+
+    commentDAO.create(newComment(tiedTask, "root", 5000L));
+    Comment lastTied = commentDAO.create(newComment(tiedTask, "mary", 5000L));
+    commentDAO.create(newComment(tiedTask, "paul", 3000L));
+    commentDAO.create(newComment(otherTask, "root", 9000L));
+    RequestLifeCycle.restartTransaction();
+
+    Map<Long, CommentsSummaryDto> summaries = commentDAO.getCommentsSummaries(List.of(repliedTask.getId(),
+                                                                                      tiedTask.getId(),
+                                                                                      uncommentedTask.getId()));
+
+    Assert.assertEquals(Set.of(repliedTask.getId(), tiedTask.getId()), summaries.keySet());
+    CommentsSummaryDto replied = summaries.get(repliedTask.getId());
+    Assert.assertEquals(3, replied.getCount());
+    Assert.assertEquals(3000L, replied.getLastCommentDate().getTime());
+    Assert.assertEquals("john", replied.getLastCommentAuthor());
+    CommentsSummaryDto tied = summaries.get(tiedTask.getId());
+    Assert.assertEquals(3, tied.getCount());
+    Assert.assertEquals(lastTied.getId().longValue(), tied.getLastCommentId());
+    Assert.assertEquals("mary", tied.getLastCommentAuthor());
+    Assert.assertTrue(commentDAO.getCommentsSummaries(List.of()).isEmpty());
+  }
+
   private Task newDefaultSimpleTask() {
     Task task = new Task();
     task.setTitle("Default task");
@@ -294,6 +341,19 @@ public class TestCommentDAO extends AbstractTest {
     comment.setComment("Default comment");
     comment.setCreatedTime(new Date());
     comment.setTask(task);
+    return comment;
+  }
+
+  /**
+   * @param task the task commented
+   * @param author the comment's author
+   * @param time the comment's creation time, in milliseconds
+   * @return a comment, not saved
+   */
+  private Comment newComment(Task task, String author, long time) {
+    Comment comment = newDefaultSimpleComment(task);
+    comment.setAuthor(author);
+    comment.setCreatedTime(new Date(time));
     return comment;
   }
 }
