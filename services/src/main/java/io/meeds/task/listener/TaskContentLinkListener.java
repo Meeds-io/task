@@ -19,6 +19,7 @@
 package io.meeds.task.listener;
 
 import static org.exoplatform.task.util.TaskUtil.TASK_CREATED;
+import static org.exoplatform.task.util.TaskUtil.TASKS_REMOVED;
 import static org.exoplatform.task.util.TaskUtil.TASK_DELETED;
 import static org.exoplatform.task.util.TaskUtil.TASK_UPDATED;
 
@@ -33,7 +34,7 @@ import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.task.service.TaskPayload;
-import org.exoplatform.task.service.TaskService;
+import org.exoplatform.task.service.TasksRemovedPayload;
 
 import io.meeds.social.html.model.HtmlProcessorContext;
 import io.meeds.social.html.utils.HtmlUtils;
@@ -42,11 +43,12 @@ import io.meeds.task.plugin.TaskContentLinkPlugin;
 import jakarta.annotation.PostConstruct;
 
 @Component
-public class TaskContentLinkListener extends Listener<TaskService, TaskPayload> {
+public class TaskContentLinkListener extends Listener<Object, Object> {
 
   private static final List<String> SUPPORTED_EVENTS = Arrays.asList(TASK_CREATED,
                                                                      TASK_UPDATED,
-                                                                     TASK_DELETED);
+                                                                     TASK_DELETED,
+                                                                     TASKS_REMOVED);
 
   @Autowired
   private PortalContainer           container;
@@ -57,19 +59,42 @@ public class TaskContentLinkListener extends Listener<TaskService, TaskPayload> 
     SUPPORTED_EVENTS.forEach(name -> listenerService.addListener(name, this));
   }
 
+  /**
+   * Updates the content links of the task of a task event from its
+   * description, and clears those of a deleted task and of every task a
+   * project removal deleted.
+   *
+   * @param event a task event with a {@link TaskPayload}, or a
+   *          {@link org.exoplatform.task.util.TaskUtil#TASKS_REMOVED} event
+   *          with a {@link TasksRemovedPayload}
+   */
   @Override
-  public void onEvent(Event<TaskService, TaskPayload> event) throws Exception {
+  public void onEvent(Event<Object, Object> event) throws Exception {
+    if (TASKS_REMOVED.equals(event.getEventName())) {
+      ((TasksRemovedPayload) event.getData()).taskIds().forEach(this::clearContentLinks);
+      return;
+    }
+    TaskPayload data = (TaskPayload) event.getData();
     String content = switch (event.getEventName()) {
     case TASK_DELETED: {
       yield "";
     }
     default:
-      yield event.getData().after().getDescription();
+      yield data.after().getDescription();
     };
     HtmlUtils.process(content,
                       new HtmlProcessorContext(TaskContentLinkPlugin.OBJECT_TYPE,
-                                               String.valueOf(event.getData().after().getId()),
+                                               String.valueOf(data.after().getId()),
                                                null));
+  }
+
+  /**
+   * Clears the content links of a deleted task.
+   *
+   * @param taskId the task id
+   */
+  private void clearContentLinks(long taskId) {
+    HtmlUtils.process("", new HtmlProcessorContext(TaskContentLinkPlugin.OBJECT_TYPE, String.valueOf(taskId), null));
   }
 
 }
