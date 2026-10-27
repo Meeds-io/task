@@ -48,6 +48,7 @@ import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.Query;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
+import org.exoplatform.task.dao.condition.PredicateCondition;
 import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.domain.ChangeLog;
 import org.exoplatform.task.domain.Comment;
@@ -201,11 +202,31 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
     return em.createQuery(q);
   }
   
+  /**
+   * Builds the predicate of a condition tree over the root of a query: a
+   * {@link PredicateCondition} by its builder, a {@link SingleCondition} by its
+   * field, operator and value, an {@link AggregateCondition} by combining its
+   * conditions with AND or OR.
+   *
+   * @param condition the condition, possibly null
+   * @param root the root of the query being built
+   * @param cb the criteria builder
+   * @param query the query being built
+   * @return the predicate, or null when the condition is null or of no known type
+   * @throws IllegalStateException when a {@link PredicateCondition}'s builder
+   *           returns no predicate, which would otherwise drop the filter
+   */
   protected Predicate buildQuery(Condition condition, Root<E> root, CriteriaBuilder cb, CriteriaQuery query) {
     if (condition == null) {
       return null;
     }
-    if (condition instanceof SingleCondition) {
+    if (condition instanceof PredicateCondition) {
+      Predicate predicate = ((PredicateCondition<E>) condition).getBuilder().build(cb, query, root);
+      if (predicate == null) {
+        throw new IllegalStateException("A predicate condition's builder returned no predicate");
+      }
+      return predicate;
+    } else if (condition instanceof SingleCondition) {
       return buildSingleCondition((SingleCondition)condition, root, cb, query);
     } else if (condition instanceof AggregateCondition) {
       AggregateCondition agg = (AggregateCondition)condition;
