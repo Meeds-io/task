@@ -26,20 +26,22 @@ import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.service.TaskPayload;
-import org.exoplatform.task.service.TaskService;
+import org.exoplatform.task.service.TasksRemovedPayload;
+import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.storage.search.TaskIndexingServiceConnector;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import static org.exoplatform.task.util.TaskUtil.TASK_CREATED;
+import static org.exoplatform.task.util.TaskUtil.TASKS_REMOVED;
 import static org.exoplatform.task.util.TaskUtil.TASK_DELETED;
 import static org.exoplatform.task.util.TaskUtil.TASK_UPDATED;
 
 @Asynchronous
 @Component
-public class TaskIndexingListener extends Listener<TaskService, TaskPayload> {
+public class TaskIndexingListener extends Listener<Object, Object> {
 
-  private String[]        LISTENERS = { TASK_CREATED, TASK_UPDATED, TASK_DELETED };
+  private String[]        LISTENERS = { TASK_CREATED, TASK_UPDATED, TASK_DELETED, TASKS_REMOVED };
 
   @Autowired
   private ListenerService listenerService;
@@ -54,9 +56,23 @@ public class TaskIndexingListener extends Listener<TaskService, TaskPayload> {
     }
   }
 
+  /**
+   * Indexes, reindexes or unindexes the task of a task event, and unindexes
+   * every task a project removal deleted.
+   *
+   * @param event a task event with a {@link TaskPayload}, or a
+   *          {@link TaskUtil#TASKS_REMOVED} event with a
+   *          {@link TasksRemovedPayload}
+   */
   @Override
-  public void onEvent(Event<TaskService, TaskPayload> event) throws Exception {
-    TaskPayload data = event.getData();
+  public void onEvent(Event<Object, Object> event) throws Exception {
+    if (TASKS_REMOVED.equals(event.getEventName())) {
+      ((TasksRemovedPayload) event.getData()).taskIds()
+                                             .forEach(taskId -> indexingService.unindex(TaskIndexingServiceConnector.TYPE,
+                                                                                        String.valueOf(taskId)));
+      return;
+    }
+    TaskPayload data = (TaskPayload) event.getData();
     TaskDto newTask = data.after();
     switch (event.getEventName()) {
     case TASK_CREATED -> indexingService.index(TaskIndexingServiceConnector.TYPE, String.valueOf(newTask.getId()));
