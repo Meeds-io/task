@@ -41,7 +41,9 @@ public interface PredicateBuilder<E> {
    * @param cb the criteria builder of the entity manager running the query
    * @param query the criteria query being built, to create correlated subqueries
    * @param root the root of that query
-   * @return the predicate, which restricts the entities the query returns
+   * @return the predicate, which restricts the entities the query returns;
+   *         never null, which the DAO refuses with an
+   *         {@link IllegalStateException} rather than run the query unfiltered
    */
   Predicate build(CriteriaBuilder cb, CriteriaQuery<?> query, Root<E> root);
 

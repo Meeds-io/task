@@ -213,13 +213,19 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
    * @param cb the criteria builder
    * @param query the query being built
    * @return the predicate, or null when the condition is null or of no known type
+   * @throws IllegalStateException when a {@link PredicateCondition}'s builder
+   *           returns no predicate, which would otherwise drop the filter
    */
   protected Predicate buildQuery(Condition condition, Root<E> root, CriteriaBuilder cb, CriteriaQuery query) {
     if (condition == null) {
       return null;
     }
     if (condition instanceof PredicateCondition) {
-      return ((PredicateCondition<E>) condition).getBuilder().build(cb, query, root);
+      Predicate predicate = ((PredicateCondition<E>) condition).getBuilder().build(cb, query, root);
+      if (predicate == null) {
+        throw new IllegalStateException("A predicate condition's builder returned no predicate");
+      }
+      return predicate;
     } else if (condition instanceof SingleCondition) {
       return buildSingleCondition((SingleCondition)condition, root, cb, query);
     } else if (condition instanceof AggregateCondition) {

@@ -244,7 +244,8 @@ public class TestTaskDAO extends AbstractTest {
    * the {@link PredicateCondition} branch of {@code CommonJPADAO#buildQuery},
    * a query whose only condition is the predicate silently returns every task,
    * which the first assertions catch; beside another condition the query fails
-   * to build.
+   * to build. A builder that returns no predicate is refused, for the page and
+   * the count, rather than run the query unfiltered.
    */
   @Test
   public void testFindTasksByPredicateCondition() throws Exception {
@@ -312,6 +313,11 @@ public class TestTaskDAO extends AbstractTest {
     assertEquals(1, found.length);
     assertEquals(uncommented.getId(), found[0].getId());
     assertEquals(1, taskService.countTasks(uncommentedQuery));
+
+    TaskQuery nullPredicateQuery = new TaskQuery();
+    nullPredicateQuery.add(new PredicateCondition<Task>((cb, query, root) -> null));
+    assertThrows(IllegalStateException.class, () -> tDAO.findTasks(nullPredicateQuery));
+    assertThrows(IllegalStateException.class, () -> taskService.countTasks(nullPredicateQuery));
   }
 
   @Test
