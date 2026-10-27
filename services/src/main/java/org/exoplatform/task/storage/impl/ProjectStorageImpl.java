@@ -112,6 +112,10 @@ public class ProjectStorageImpl implements ProjectStorage {
                               LongConsumer onProjectRemoved) throws EntityNotFoundException {
         ProjectDto project = getProject(projectId);
         if (project == null) throw new EntityNotFoundException(projectId, Project.class);
+        List<Status> statuses = daoHandler.getStatusHandler().getStatuses(projectId);
+        if (CollectionUtils.isNotEmpty(statuses)) {
+          statuses.forEach(status -> removeStatus(status, onTaskRemoved));
+        }
         List<Long> removedProjectIds = new ArrayList<>();
         removedProjectIds.add(projectId);
         List<Long> descendantTaskIds = new ArrayList<>();
@@ -123,10 +127,6 @@ public class ProjectStorageImpl implements ProjectStorage {
             descendantTasks.setProjectIds(descendantIds);
             descendantTaskIds.addAll(daoHandler.getTaskHandler().<Long> selectTaskField(descendantTasks, "id"));
           }
-        }
-        List<Status> statuses = daoHandler.getStatusHandler().getStatuses(projectId);
-        if (CollectionUtils.isNotEmpty(statuses)) {
-          statuses.forEach(status -> removeStatus(status, onTaskRemoved));
         }
         daoHandler.getProjectHandler().removeProject(projectId, deleteChild);
         descendantTaskIds.forEach(onTaskRemoved::accept);

@@ -91,7 +91,10 @@ public interface ProjectStorage {
      * @param onTaskRemoved called with the id of each deleted task, once its
      *          deletion has returned
      * @param onProjectRemoved called with the id of the project and of each
-     *          deleted descendant, once the project's deletion has returned
+     *          deleted descendant, once the project's deletion has returned;
+     *          the descendants and their tasks are read just before that
+     *          deletion, so a task created in a descendant in between is
+     *          deleted without being reported
      * @throws EntityNotFoundException when the project does not exist
      */
     void removeProject(long projectId,
