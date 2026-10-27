@@ -74,7 +74,6 @@ public class TaskSavedListener extends Listener<TaskService, TaskPayload> {
 
   public static final String TASK_DATES_CHANGED_OPERATION       = "taskDatesChanged";
 
-
   private static final Log LOG = ExoLogger.getLogger(TaskSavedListener.class);
 
   private PortalContainer  container;
