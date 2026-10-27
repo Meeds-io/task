@@ -29,10 +29,13 @@ import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskChangeFilter;
+import org.exoplatform.task.model.TaskChanges;
 import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.util.TaskUtil;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.TimeZone;
@@ -45,6 +48,13 @@ public interface TaskService {
 
     /** The code of the refusal of a text search holding no word with letters. */
     String TEXT_SEARCH_NO_WORD = "task.search.noWord";
+
+    /**
+     * The change log actions whose target is a user, an assignee or a
+     * coworker; the other actions name a status, a project or nothing there
+     * (EXO-91902).
+     */
+    List<String> USER_TARGET_ACTIONS = List.of("assign", "unassign", "assignCoworker", "unassignCoworker");
 
 
     /**
@@ -146,6 +156,44 @@ public interface TaskService {
 
 
     List<ChangeLogEntry> getTaskLogs(long taskId, int offset, int limit) throws Exception;
+
+    /**
+     * Narrows a task query with the conditions of a change filter
+     * (EXO-91902): the tasks whose status, project, due date, assignee or
+     * completion changed since a date, an assignee change counting only on a
+     * task created before it; the tasks completed since a date; those
+     * assigned to one user; those in one status; the completed tasks left out
+     * on demand, unless the completed ones are asked for.
+     *
+     * @param query the query to narrow, already scoped to what the user can see
+     * @param filter the change filter, possibly null
+     */
+    void addChangeFilter(TaskQuery query, TaskChangeFilter filter);
+
+    /**
+     * Builds the query of the tasks a user is assigned to or a coworker of,
+     * narrowed by a change filter (EXO-91902).
+     *
+     * @param username the user
+     * @param filter the change filter, possibly null
+     * @return the query
+     */
+    TaskQuery getAssignedTasksQuery(String username, TaskChangeFilter filter);
+
+    /**
+     * Rebuilds the changes of a task since a date from its whole change log
+     * (EXO-91902), oldest first: its status, project, due date, assignee and
+     * completion changes, each with its old and new value when the log tells
+     * it. On demand, also its newest change log entries, at most a hundred.
+     *
+     * @param task the task
+     * @param since the earliest date of the changes, included; required
+     * @param includeChangeLog whether its newest change log entries come too
+     * @return its changes
+     * @throws IllegalArgumentException when since is null
+     * @throws Exception when its change log can't be read
+     */
+    TaskChanges getTaskChanges(TaskDto task, Date since, boolean includeChangeLog) throws Exception;
 
     //TODO: should use via #findTasks(TaskQuery)?
     TaskDto findTaskByActivityId(String activityId);
