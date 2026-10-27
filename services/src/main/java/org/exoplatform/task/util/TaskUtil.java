@@ -61,6 +61,13 @@ public final class TaskUtil {
 
   public static final String           TASK_DELETED                                    = "exo.task.taskDeleted";
 
+  /**
+   * Broadcast once per project removal, with the removed project id as source
+   * and a {@link org.exoplatform.task.service.TasksRemovedPayload} as data,
+   * instead of a {@link #TASK_DELETED} per task.
+   */
+  public static final String           TASKS_REMOVED                                   = "exo.task.tasksRemoved";
+
   public static final String           TASK_COMMENT_CREATED                            = "exo.task.taskCommentCreation";
 
   public static final String           TASK_COMMENT_DELETED                            = "exo.task.taskCommentDeletion";

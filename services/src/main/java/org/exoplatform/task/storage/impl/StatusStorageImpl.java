@@ -23,6 +23,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.LongConsumer;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -144,6 +145,12 @@ public class StatusStorageImpl implements StatusStorage {
 
   @Override
   public void removeStatus(long statusId, boolean removeAll) throws Exception {
+    removeStatus(statusId, removeAll, taskId -> {
+    });
+  }
+
+  @Override
+  public void removeStatus(long statusId, boolean removeAll, LongConsumer onTaskRemoved) throws Exception {
     Status st = daoHandler.getStatusHandler().find(statusId);
     if (st == null) {
       throw new EntityNotFoundException(statusId, Status.class);
@@ -151,7 +158,10 @@ public class StatusStorageImpl implements StatusStorage {
 
     List<Task> tasks = daoHandler.getTaskHandler().getByStatus(statusId);
     if (removeAll) {
-      tasks.forEach(task -> taskStorage.delete(taskStorage.getTaskById(task.getId())));
+      for (Task task : tasks) {
+        taskStorage.delete(taskStorage.getTaskById(task.getId()));
+        onTaskRemoved.accept(task.getId());
+      }
     } else {
       Project project = st.getProject();
       Status altStatus = findAltStatus(st, project);

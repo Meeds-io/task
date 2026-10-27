@@ -38,8 +38,10 @@ import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
+import org.exoplatform.task.service.TasksRemovedPayload;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.util.StorageUtil;
+import org.exoplatform.task.util.TaskUtil;
 
 @Singleton
 public class ProjectServiceImpl implements ProjectService {
@@ -124,12 +126,33 @@ public class ProjectServiceImpl implements ProjectService {
     projectStorage.updateProjectNoReturn(proj);
   }
 
+  /**
+   * Removes a project, and its descendants when <code>deleteChild</code> is
+   * true, then broadcasts {@link TaskUtil#TASKS_REMOVED} with what was deleted,
+   * even when the removal failed midway: the tasks already deleted are gone for
+   * good. After a failure the event names only those tasks and no project.
+   *
+   * @param id the project id
+   * @param deleteChild true to delete the descendants too
+   * @throws EntityNotFoundException when the project does not exist
+   */
   @Override
   public void removeProject(long id, boolean deleteChild) throws EntityNotFoundException {
     ProjectDto project = getProject(id);
     if (project == null)
       throw new EntityNotFoundException(id, ProjectDto.class);
-    projectStorage.removeProject(id, deleteChild);
+    List<Long> removedTaskIds = new ArrayList<>();
+    List<Long> removedProjectIds = new ArrayList<>();
+    try {
+      projectStorage.removeProject(id, deleteChild, removedTaskIds::add, removedProjectIds::add);
+    } finally {
+      if (!removedTaskIds.isEmpty() || !removedProjectIds.isEmpty()) {
+        TaskUtil.broadcastEvent(listenerService,
+                                TaskUtil.TASKS_REMOVED,
+                                id,
+                                new TasksRemovedPayload(removedProjectIds, removedTaskIds));
+      }
+    }
   }
 
   @Override
