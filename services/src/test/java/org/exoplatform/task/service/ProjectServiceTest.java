@@ -46,6 +46,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.commons.utils.ListAccessImpl;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.task.TestDtoUtils;
@@ -345,6 +346,9 @@ public class ProjectServiceTest {
         projectParent.setChildren(projectChilds);
 
         when(projectHandler.find(3L)).thenReturn(projectParent);
+        when(projectHandler.findSubProjects(projectParent)).thenReturn(new ListAccessImpl<>(Project.class, projectChilds));
+        when(daoHandler.getTaskHandler()).thenReturn(taskHandler);
+        when(taskHandler.selectTaskField(any(TaskQuery.class), eq("id"))).thenReturn(List.of());
 
         projectService.removeProject(3L, true);
         verify(projectHandler, times(1)).removeProject(eq(3L), eq(true));

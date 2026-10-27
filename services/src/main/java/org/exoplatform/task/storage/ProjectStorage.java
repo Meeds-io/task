@@ -18,6 +18,8 @@
  */
 package org.exoplatform.task.storage;
 
+import java.util.function.LongConsumer;
+
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
@@ -75,6 +77,27 @@ public interface ProjectStorage {
      * @throws EntityNotFoundException when user is not authorized to remove project.
      */
     void removeProject(long projectId, boolean deleteChild) throws EntityNotFoundException;
+
+    /**
+     * Removes the project with the given <code>projectId</code>, and also its
+     * descendants if <code>deleteChild</code> is true, reporting what was
+     * deleted as it is deleted. The project's own tasks are deleted one by one,
+     * each committing as its deletion returns; the descendants' tasks are
+     * deleted with the project.
+     *
+     * @param projectId the project id
+     * @param deleteChild true to delete the descendants, false to attach them to
+     *          the project's parent
+     * @param onTaskRemoved called with the id of each deleted task, once its
+     *          deletion has returned
+     * @param onProjectRemoved called with the id of the project and of each
+     *          deleted descendant, once the project's deletion has returned
+     * @throws EntityNotFoundException when the project does not exist
+     */
+    void removeProject(long projectId,
+                       boolean deleteChild,
+                       LongConsumer onTaskRemoved,
+                       LongConsumer onProjectRemoved) throws EntityNotFoundException;
 
     /**
      * Return a list of children of a parent project with given <code>parentId</code>.

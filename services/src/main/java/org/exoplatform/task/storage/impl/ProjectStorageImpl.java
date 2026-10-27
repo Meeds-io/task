@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.LongConsumer;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -33,12 +34,14 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
+import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.StatusStorage;
+import org.exoplatform.task.util.ListUtil;
 import org.exoplatform.task.util.StorageUtil;
 
 import lombok.SneakyThrows;
@@ -97,13 +100,37 @@ public class ProjectStorageImpl implements ProjectStorage {
 
     @Override
     public void removeProject(long projectId, boolean deleteChild) throws EntityNotFoundException {
+        removeProject(projectId, deleteChild, taskId -> {
+        }, removedProjectId -> {
+        });
+    }
+
+    @Override
+    public void removeProject(long projectId,
+                              boolean deleteChild,
+                              LongConsumer onTaskRemoved,
+                              LongConsumer onProjectRemoved) throws EntityNotFoundException {
         ProjectDto project = getProject(projectId);
         if (project == null) throw new EntityNotFoundException(projectId, Project.class);
+        List<Long> removedProjectIds = new ArrayList<>();
+        removedProjectIds.add(projectId);
+        List<Long> descendantTaskIds = new ArrayList<>();
+        if (deleteChild) {
+          List<Long> descendantIds = getDescendantIds(projectId);
+          if (!descendantIds.isEmpty()) {
+            removedProjectIds.addAll(descendantIds);
+            TaskQuery descendantTasks = new TaskQuery();
+            descendantTasks.setProjectIds(descendantIds);
+            descendantTaskIds.addAll(daoHandler.getTaskHandler().<Long> selectTaskField(descendantTasks, "id"));
+          }
+        }
         List<Status> statuses = daoHandler.getStatusHandler().getStatuses(projectId);
         if (CollectionUtils.isNotEmpty(statuses)) {
-          statuses.forEach(this::removeStatus);
+          statuses.forEach(status -> removeStatus(status, onTaskRemoved));
         }
         daoHandler.getProjectHandler().removeProject(projectId, deleteChild);
+        descendantTaskIds.forEach(onTaskRemoved::accept);
+        removedProjectIds.forEach(onProjectRemoved::accept);
     }
 
     @Override
@@ -193,10 +220,35 @@ public class ProjectStorageImpl implements ProjectStorage {
 
     }
 
+    /**
+     * Removes a status of a removed project with its tasks.
+     *
+     * @param status the status
+     * @param onTaskRemoved called with the id of each deleted task, once its
+     *          deletion has returned
+     */
     @SneakyThrows
-    private void removeStatus(Status status) {
+    private void removeStatus(Status status, LongConsumer onTaskRemoved) {
       StatusStorage statusStorage = ExoContainerContext.getService(StatusStorage.class);
-      statusStorage.removeStatus(status.getId(), true);
+      statusStorage.removeStatus(status.getId(), true, onTaskRemoved);
+    }
+
+    /**
+     * Collects the ids of every descendant of a project, children first.
+     *
+     * @param projectId the project id
+     * @return the descendants' ids, empty when the project has no child
+     */
+    private List<Long> getDescendantIds(long projectId) {
+      List<Long> descendantIds = new ArrayList<>();
+      Project project = daoHandler.getProjectHandler().find(projectId);
+      Project[] children = project == null ? new Project[0]
+                                           : ListUtil.load(daoHandler.getProjectHandler().findSubProjects(project), 0, -1);
+      for (Project child : children) {
+        descendantIds.add(child.getId());
+        descendantIds.addAll(getDescendantIds(child.getId()));
+      }
+      return descendantIds;
     }
 
 }
