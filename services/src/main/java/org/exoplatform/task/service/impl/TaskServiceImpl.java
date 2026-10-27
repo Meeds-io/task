@@ -23,6 +23,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -39,6 +40,7 @@ import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.*;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskSearchFilter;
+import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.service.TaskPayload;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
@@ -47,6 +49,9 @@ import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.StorageUtil;
 import org.exoplatform.task.util.TaskUtil;
+import org.exoplatform.task.util.UserUtil;
+
+import io.meeds.task.plugin.TaskAclPlugin;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -299,6 +304,44 @@ public class TaskServiceImpl implements TaskService {
         return taskStorage.findTasks(user, memberships, query, limit);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public TaskTextSearchResult searchTasks(String text,
+                                            Long projectId,
+                                            boolean includeCompleted,
+                                            int limit,
+                                            Identity identity) throws ObjectNotFoundException, IllegalAccessException {
+      String words = TaskUtil.toSearchWords(text);
+      if (!words.matches(".*\\p{L}.*")) {
+        throw new IllegalArgumentException(TEXT_SEARCH_NO_WORD);
+      }
+      if (projectId != null) {
+        checkCanViewProject(projectId, identity);
+      }
+      int max = Math.clamp(limit, 1, TEXT_SEARCH_WINDOW);
+      TaskSearchFilter filter = new TaskSearchFilter(identity.getUserId(),
+                                                     words,
+                                                     UserUtil.getMemberships(identity),
+                                                     null,
+                                                     null,
+                                                     0,
+                                                     TEXT_SEARCH_WINDOW);
+      if (projectId != null) {
+        filter.setProjectIds(Collections.singletonList(projectId));
+      }
+      List<TaskDto> hits = findTasks(filter);
+      List<TaskDto> found = new ArrayList<>();
+      collectSearchHits(hits, projectId, false, identity.getUserId(), found, max + 1);
+      if (includeCompleted) {
+        collectSearchHits(hits, projectId, true, identity.getUserId(), found, max + 1);
+      }
+      // a full window may hide matches ranked below it, whatever the filters kept
+      boolean hasMore = found.size() > max || hits.size() >= TEXT_SEARCH_WINDOW;
+      return new TaskTextSearchResult(found.size() > max ? new ArrayList<>(found.subList(0, max)) : found, max, hasMore);
+    }
+
     @Override
     public List<TaskDto> findTasks(TaskSearchFilter filter) {
       if (StringUtils.isBlank(filter.getUserId())) {
@@ -546,6 +589,68 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public List<Long> getAllIds(int offset, int limit) {
       return taskStorage.getAllIds(offset, limit);
+    }
+
+    /**
+     * Checks that a project exists and that a user can view it.
+     *
+     * @param projectId the project
+     * @param identity the user
+     * @throws ObjectNotFoundException when the project doesn't exist
+     * @throws IllegalAccessException when the user can't view the project
+     */
+    private void checkCanViewProject(long projectId, Identity identity) throws ObjectNotFoundException, IllegalAccessException {
+      ProjectDto project;
+      try {
+        project = ExoContainerContext.getService(ProjectService.class).getProject(projectId);
+      } catch (EntityNotFoundException e) {
+        project = null;
+      }
+      if (project == null) {
+        throw new ObjectNotFoundException("Project " + projectId + " not found");
+      } else if (!project.canView(identity)) {
+        throw new IllegalAccessException("User " + identity.getUserId() + " cannot view project " + projectId);
+      }
+    }
+
+    /**
+     * Adds to the tasks found the search hits of one completion state, in their
+     * order of relevance, that belong to the project searched, when there is
+     * one, and that the user can view, until there are enough.
+     *
+     * @param hits the search hits, the most relevant first
+     * @param projectId the project searched, null for any
+     * @param completed the completion state of the hits added
+     * @param username the user who searches
+     * @param found the tasks found so far, completed by this call
+     * @param enough how many tasks found are enough
+     */
+    private void collectSearchHits(List<TaskDto> hits,
+                                   Long projectId,
+                                   boolean completed,
+                                   String username,
+                                   List<TaskDto> found,
+                                   int enough) {
+      UserACL userAcl = ExoContainerContext.getService(UserACL.class);
+      for (TaskDto task : hits) {
+        if (found.size() >= enough) {
+          return;
+        }
+        if (task.isCompleted() == completed
+            && (projectId == null || projectId.equals(getProjectIdOrNull(task)))
+            && userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(task.getId()), username)) {
+          found.add(task);
+        }
+      }
+    }
+
+    /**
+     * @param task a task
+     * @return the identifier of its project, null for a personal task
+     */
+    private Long getProjectIdOrNull(TaskDto task) {
+      StatusDto status = task.getStatus();
+      return status == null || status.getProject() == null ? null : status.getProject().getId();
     }
 
     private boolean canViewProject(long projectId, Identity identity) {

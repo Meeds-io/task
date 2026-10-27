@@ -142,7 +142,7 @@
     {
       "name": "list_tasks",
       "title": "List Tasks",
-      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date, the most overdue first; an overdue task carries days_overdue. With title, only the tasks whose title contains it, ignoring case. count is the total: while the tasks received so far are fewer than count, call again with offset set to that number. In a run limited to a space, project_id is required and must be a project of that space, as list_projects returns them; to find a task by its title, list the tasks of each of those projects with title.",
+      "description": "List tasks, optionally filtered by project; without project_id, every task the user can access, personal tasks included. With overdue_only, only the open tasks past their due date, the most overdue first; an overdue task carries days_overdue. With title, only the tasks whose title contains it, ignoring case. count is the total: while the tasks received so far are fewer than count, call again with offset set to that number. In a run limited to a space, project_id is required and must be a project of that space, as list_projects returns them; to find a task by its title, list the tasks of each of those projects with title. Elsewhere, to find a task by words of its title or description, call search_tasks instead of listing a whole project.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -976,6 +976,39 @@
         "openWorldHint": false
       },
       "require_approval": true
+    },
+    {
+      "name": "search_tasks",
+      "title": "Search Tasks",
+      "description": "Search the tasks the user can view by words of their title or description, ignoring case and accents: every word must be in the title, or every word in the description. Numbers are not searched: a task id goes to get_task_by_id. With project_id, only the tasks of that project. Call it to find a task or a card by its name, before listing a whole project. The open tasks come first, the most relevant first; the completed ones only with include_completed, after the open ones. Each task comes with its task_id, title, link, project, status (its column on the board) and labels; call get_task_by_id for its details. has_more says more tasks may match than were returned: call again with project_id or with more words; a higher limit helps only when the tasks returned fill it.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The words searched in the title or the description of the tasks; at least one word with letters."
+          },
+          "project_id": {
+            "type": "integer",
+            "description": "The project whose tasks are searched; none for every task the user can view."
+          },
+          "include_completed": {
+            "type": "boolean",
+            "description": "Whether the completed tasks are returned too, after the open ones."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "The most tasks returned, 10 by default, 100 at most."
+          }
+        },
+        "required": ["query"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
     }
   ]
 }
