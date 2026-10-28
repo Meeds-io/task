@@ -29,14 +29,20 @@
       :class="editorReady && 'active'"
       class="taskDescription richEditor">
       <div class="taskDescriptionToShow">
+        <button
+          v-if="!value"
+          type="button"
+          class="taskDescriptionInvite width-full text-start py-1 px-2"
+          @click="showDescriptionEditor($event)">
+          {{ placeholder }}
+        </button>
         <div
+          v-show="value"
           ref="descriptionText"
           v-sanitized-html="value"
-          :data-text="placeholder"
           :class="!expanded && 'taskDescriptionClamped'"
           class="taskDescriptionText py-1 px-2 reset-style-box rich-editor-content"
           @click="onDescriptionClick($event)">
-          {{ placeholder }}
         </div>
         <v-btn
           v-if="clamped || expanded"
@@ -267,9 +273,9 @@ export default {
     },
 
     /**
-     * Opens a link of the description in a new tab; a click on an empty
-     * description, which shows the invitation to write one, opens the editor.
-     * A click on the text itself does nothing: its pencil opens the editor.
+     * Opens a link of the description in a new tab. A click on the text
+     * itself does nothing: its pencil opens the editor, and an empty
+     * description shows a button inviting to write one.
      *
      * @param {MouseEvent} event the click
      * @returns {void}
@@ -280,8 +286,6 @@ export default {
         event.preventDefault();
         event.stopPropagation();
         window.open(link.href, '_blank');
-      } else if (!this.value) {
-        this.showDescriptionEditor(event);
       }
     },
 
