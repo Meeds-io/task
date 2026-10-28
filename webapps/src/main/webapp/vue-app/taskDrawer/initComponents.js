@@ -23,6 +23,8 @@ import TaskPriority from './components/TaskDrawerComponents/TaskPriority.vue';
 import TaskStatus from './components/TaskDrawerComponents/TasksStatus.vue';
 import TaskFormDatePickers from './components/TaskDrawerComponents/TaskFormDatePickers.vue';
 import TaskChangesDrawer from './components/TaskDrawerComponents/TaskChangesDrawer.vue';
+import TaskChangesLog from './components/TaskDrawerComponents/TaskChangesLog.vue';
+import TaskChangesTabs from './components/TaskDrawerComponents/TaskChangesTabs.vue';
 
 const components = {
   'task-drawer': TaskDrawer,
@@ -33,7 +35,9 @@ const components = {
   'task-priority': TaskPriority,
   'task-status': TaskStatus,
   'task-form-date-pickers': TaskFormDatePickers,
-  'task-changes-drawer': TaskChangesDrawer
+  'task-changes-drawer': TaskChangesDrawer,
+  'task-changes-log': TaskChangesLog,
+  'task-changes-tabs': TaskChangesTabs,
 };
 
 for (const key in components) {

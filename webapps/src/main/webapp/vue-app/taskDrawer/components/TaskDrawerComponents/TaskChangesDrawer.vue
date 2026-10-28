@@ -26,104 +26,175 @@
       {{ $t('label.changes') }}
     </template>
     <template #content>
-      <v-list class="py-0">
-        <v-list-item
-          v-for="(item, i) in logs"
-          :key="i"
-          class="pe-0">
-          <v-list-item-content class="mt-n1">
-            <div class="d-flex">
-              <exo-user-avatar
-                :profile-id="item.author"
-                :size="30"
-                :url="false"
-                popover
-                align-top />
-              <div class="d-flex" v-sanitized-html="renderChangeHTML(item)"></div>
-            </div>
-            <div>
-              <div class="dateTime caption px-10 my-n3">
-                <date-format :value="item.createdTime" :format="dateTimeFormat" />
-              </div>
-            </div>
-          </v-list-item-content>
-        </v-list-item>
-      </v-list>
+      <task-changes-tabs
+        v-if="tabs.length"
+        :tabs="tabs"
+        :selected-index="selectedIndex"
+        @change="chooseTab" />
+      <v-progress-linear
+        v-if="tabsLoading && requestedTab !== selectedTabId"
+        indeterminate
+        color="primary" />
+      <component
+        :is="selectedTab.vueComponent"
+        v-else-if="selectedTab && showTaskChangesDrawer"
+        :key="`${selectedTab.id}-${taskId}`"
+        :task-id="taskId"
+        :project-id="projectId" />
+      <task-changes-log v-else :logs="logs" />
     </template>
   </exo-drawer>
 </template>
 <script>
+/** The tab showing the task's own change log, always first. */
+const TASK_TAB = 'task';
+/** The type under which another add-on registers a tab, on the TaskDrawer extension app. */
+const TAB_TYPE = 'task-changes-tab';
+
 export default {
   props: {
     logs: {
       type: Object,
-      default: () => {
-        return {};
-      }
+      default: () => ({}),
     },
     task: {
-      type: Boolean,
-      default: false
+      type: Object,
+      default: null
     },
   },
   data() {
     return {
       showTaskChangesDrawer: false,
-      dateTimeFormat: {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      },
-      currentUserName: eXo.env.portal.userName,
-      changeAuthor: {},
-      userAvatar: '',
-      avatarUrl: ''
+      tabs: [],
+      tabsKey: null,
+      tabsRequest: 0,
+      tabsLoading: false,
+      requestedTab: TASK_TAB,
+      selectedIndex: 0,
     };
   },
-  watch: {
-    userAvatar() {
-      this.avatarUrl = this.userAvatar;
-    }
+  computed: {
+    taskId() {
+      return this.task && this.task.id || null;
+    },
+    projectId() {
+      return this.task && this.task.status && this.task.status.project && this.task.status.project.id || null;
+    },
+    selectedTab() {
+      return this.selectedIndex > 0 && this.tabs[this.selectedIndex - 1] || null;
+    },
+    selectedTabId() {
+      return this.selectedTab && this.selectedTab.id || TASK_TAB;
+    },
+  },
+  created() {
+    document.addEventListener(`component-TaskDrawer-${TAB_TYPE}-updated`, this.refreshOpenTabs);
   },
   mounted() {
-    this.$root.$on('displayTaskChanges', () => {
-      this.showTaskChangesDrawer = true;
-    });
-    this.$root.$on('hideTaskChanges', () => {
-      this.showTaskChangesDrawer = false;
-    });
+    this.$root.$on('displayTaskChanges', this.open);
+    this.$root.$on('hideTaskChanges', this.closeDrawer);
+  },
+  beforeDestroy() {
+    document.removeEventListener(`component-TaskDrawer-${TAB_TYPE}-updated`, this.refreshOpenTabs);
+    this.$root.$off('displayTaskChanges', this.open);
+    this.$root.$off('hideTaskChanges', this.closeDrawer);
   },
   methods: {
+    /**
+     * Opens the drawer, on the tab of the given id once it is known to apply
+     * to this task, on the task's own changes otherwise.
+     *
+     * @param {string} [tabId] the id of the tab to open; the task's own changes by default
+     * @returns {Promise} settled once the tabs applying to the task are shown
+     */
+    open(tabId) {
+      this.requestedTab = typeof tabId === 'string' && tabId || TASK_TAB;
+      this.showTaskChangesDrawer = true;
+      this.selectRequestedTab();
+      return this.refreshTabs();
+    },
+    /**
+     * Closes the drawer.
+     *
+     * @returns {void}
+     */
     closeDrawer() {
       this.showTaskChangesDrawer = false;
     },
-    logMsg(item) {
-      return `log.${ item.actionName }`;
+    /**
+     * Re-reads the tabs when one is registered while the drawer is open; a
+     * closed drawer reads them when it opens.
+     *
+     * @returns {Promise} settled once the tabs are shown
+     */
+    refreshOpenTabs() {
+      return this.showTaskChangesDrawer && this.refreshTabs() || Promise.resolve();
     },
-    renderChangeHTML(item) {
-      let str = '';
-      if (item.actionName === 'assign' || item.actionName === 'unassign' || item.actionName === 'assignCoworker' || item.actionName === 'unassignCoworker') {
-        const targetFullName = item.isTargetFullNameExternal ? `${item.targetFullName} (${this.$t('label.external')})` :  `${item.targetFullName}`;
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${targetFullName}'>` +
-            `<span>${ this.$t(this.logMsg(item))}</span>`+
-            `<a href='/portal/dw/profile/${item.target}'> ${targetFullName} </a>`+
-            '</p>';
-      } else if ( item.actionName === 'edit_project' ) {
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))}  ${item.target}'>` +
-            `<span>${ this.$t(this.logMsg(item))}</span>`+
-            `<a href='#'> ${item.target} </a>`+
-            '</p>';
-      } else if ( item.actionName === 'created' ) {
-        // the target of a creation entry is the status the task was created in, not shown
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))}'> ${ this.$t(this.logMsg(item)) }</p>`;
-      } else if ( item.actionName === 'edit_priority' ) {
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${item.task.status.priority}'> ${ this.$t(this.logMsg(item)) } ${item.task.priority}</p>`;
-      } else {
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${item.target}'> ${ this.$t(this.logMsg(item)) } ${item.target}</p>`;
+    /**
+     * Reads the tabs other add-ons registered, keeps those that apply to the
+     * task, the last one registered per id, ordered by rank, and selects the
+     * requested one. The tabs of another task are dropped at once, and an
+     * answer arriving after a newer read is ignored. While the read is
+     * pending, a drawer asked to open on another tab than the task's own
+     * changes shows that it is loading rather than those changes.
+     *
+     * @returns {Promise} settled once the tabs are shown or the answer dropped
+     */
+    refreshTabs() {
+      const request = ++this.tabsRequest;
+      const params = {taskId: this.taskId, projectId: this.projectId};
+      const key = `${params.taskId}-${params.projectId}`;
+      if (this.tabsKey !== key) {
+        this.tabsKey = key;
+        this.tabs = [];
+        this.selectRequestedTab();
       }
-      return str;
+      const byId = new Map();
+      (this.taskId && extensionRegistry.loadComponents('TaskDrawer') || [])
+        .filter(component => component.componentName === TAB_TYPE)
+        .forEach(component => byId.set(component.componentOptions.id, component.componentOptions));
+      const registered = [...byId.values()];
+      this.tabsLoading = true;
+      return Promise.all(registered.map(tab => this.isTabEnabled(tab, params)))
+        .then(enabled => {
+          if (request === this.tabsRequest) {
+            this.tabs = registered.filter((tab, index) => enabled[index])
+              .sort((tab1, tab2) => (tab1.rank || 0) - (tab2.rank || 0));
+            this.selectRequestedTab();
+            this.tabsLoading = false;
+          }
+        });
+    },
+    /**
+     * @param {object} tab the options a tab was registered with
+     * @param {object} params the task's and its project's ids
+     * @returns {Promise<boolean>} whether the tab applies to the task; not when its check fails
+     */
+    isTabEnabled(tab, params) {
+      if (!tab.isEnabled) {
+        return Promise.resolve(true);
+      }
+      return Promise.resolve()
+        .then(() => tab.isEnabled(params))
+        .then(enabled => !!enabled)
+        .catch(() => false);
+    },
+    /**
+     * Selects the requested tab when it is shown, the task's own changes otherwise.
+     *
+     * @returns {void}
+     */
+    selectRequestedTab() {
+      const index = this.tabs.findIndex(tab => tab.id === this.requestedTab);
+      this.selectedIndex = index + 1;
+    },
+    /**
+     * @param {number} index the index of the tab the user chose, the task's own changes being 0
+     * @returns {void}
+     */
+    chooseTab(index) {
+      this.selectedIndex = index;
+      this.requestedTab = index > 0 && this.tabs[index - 1] && this.tabs[index - 1].id || TASK_TAB;
     },
   }
 };
