@@ -159,16 +159,11 @@
     &.taskDrawerFieldsTwoColumns {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      // As a form card's row in full screen (pe-6): a table's line, 48px
-      // high, with a divider under it that stops 24px before the next column,
-      // and none under the last row
+      // As a form card's row in full screen (pe-6): 48px high, ending 24px
+      // before the next column; the task's own fields have no divider
       .taskDrawerField {
         min-height: 48px;
         margin-inline-end: 24px;
-        border-bottom: 1px solid @btnBorder;
-        &.taskDrawerField-labels {
-          border-bottom: 0;
-        }
         .taskDrawerFieldLabel {
           height: 48px;
         }
