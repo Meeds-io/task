@@ -26,19 +26,11 @@
       {{ $t('label.changes') }}
     </template>
     <template #content>
-      <v-tabs
+      <task-changes-tabs
         v-if="tabs.length"
-        :value="selectedIndex"
-        class="taskChangesTabs"
-        @change="chooseTab">
-        <v-tab class="text-none">{{ $t('label.changes.tab.task') }}</v-tab>
-        <v-tab
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="text-none">
-          {{ tabLabel(tab) }}
-        </v-tab>
-      </v-tabs>
+        :tabs="tabs"
+        :selected-index="selectedIndex"
+        @change="chooseTab" />
       <v-progress-linear
         v-if="tabsLoading && requestedTab !== selectedTabId"
         indeterminate
@@ -49,29 +41,7 @@
         :key="`${selectedTab.id}-${taskId}`"
         :task-id="taskId"
         :project-id="projectId" />
-      <v-list v-else class="py-0">
-        <v-list-item
-          v-for="(item, i) in logs"
-          :key="i"
-          class="pe-0">
-          <v-list-item-content class="mt-n1">
-            <div class="d-flex">
-              <exo-user-avatar
-                :profile-id="item.author"
-                :size="30"
-                :url="false"
-                popover
-                align-top />
-              <div class="d-flex" v-sanitized-html="renderChangeHTML(item)"></div>
-            </div>
-            <div>
-              <div class="dateTime caption px-10 my-n3">
-                <date-format :value="item.createdTime" :format="dateTimeFormat" />
-              </div>
-            </div>
-          </v-list-item-content>
-        </v-list-item>
-      </v-list>
+      <task-changes-log v-else :logs="logs" />
     </template>
   </exo-drawer>
 </template>
@@ -85,9 +55,7 @@ export default {
   props: {
     logs: {
       type: Object,
-      default: () => {
-        return {};
-      }
+      default: () => ({}),
     },
     task: {
       type: Object,
@@ -103,17 +71,6 @@ export default {
       tabsLoading: false,
       requestedTab: TASK_TAB,
       selectedIndex: 0,
-      dateTimeFormat: {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      },
-      currentUserName: eXo.env.portal.userName,
-      changeAuthor: {},
-      userAvatar: '',
-      avatarUrl: ''
     };
   },
   computed: {
@@ -129,11 +86,6 @@ export default {
     selectedTabId() {
       return this.selectedTab && this.selectedTab.id || TASK_TAB;
     },
-  },
-  watch: {
-    userAvatar() {
-      this.avatarUrl = this.userAvatar;
-    }
   },
   created() {
     document.addEventListener(`component-TaskDrawer-${TAB_TYPE}-updated`, this.refreshOpenTabs);
@@ -243,39 +195,6 @@ export default {
     chooseTab(index) {
       this.selectedIndex = index;
       this.requestedTab = index > 0 && this.tabs[index - 1] && this.tabs[index - 1].id || TASK_TAB;
-    },
-    /**
-     * @param {object} tab the options a tab was registered with
-     * @returns {string} its label, translated when it gives a key
-     */
-    tabLabel(tab) {
-      return tab.labelKey && this.$te(tab.labelKey) && this.$t(tab.labelKey) || tab.label || tab.id;
-    },
-    logMsg(item) {
-      return `log.${ item.actionName }`;
-    },
-    renderChangeHTML(item) {
-      let str = '';
-      if (item.actionName === 'assign' || item.actionName === 'unassign' || item.actionName === 'assignCoworker' || item.actionName === 'unassignCoworker') {
-        const targetFullName = item.isTargetFullNameExternal ? `${item.targetFullName} (${this.$t('label.external')})` :  `${item.targetFullName}`;
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${targetFullName}'>` +
-            `<span>${ this.$t(this.logMsg(item))}</span>`+
-            `<a href='/portal/dw/profile/${item.target}'> ${targetFullName} </a>`+
-            '</p>';
-      } else if ( item.actionName === 'edit_project' ) {
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))}  ${item.target}'>` +
-            `<span>${ this.$t(this.logMsg(item))}</span>`+
-            `<a href='#'> ${item.target} </a>`+
-            '</p>';
-      } else if ( item.actionName === 'created' ) {
-        // the target of a creation entry is the status the task was created in, not shown
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))}'> ${ this.$t(this.logMsg(item)) }</p>`;
-      } else if ( item.actionName === 'edit_priority' ) {
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${item.task.status.priority}'> ${ this.$t(this.logMsg(item)) } ${item.task.priority}</p>`;
-      } else {
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${item.target}'> ${ this.$t(this.logMsg(item)) } ${item.target}</p>`;
-      }
-      return str;
     },
   }
 };
