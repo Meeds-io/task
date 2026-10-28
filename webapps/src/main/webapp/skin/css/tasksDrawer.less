@@ -82,23 +82,11 @@
           }
         }
       }
-      .drawerTitleAndProject {
-        max-width: 300px;
-        align-items: center;
-        .uiArrowBAckIcon {
-          cursor: pointer;
-          color: @iconColor !important;
-          padding-right: 10px ~'; /** orientation=lt */ ';
-          padding-right: 10px ~'; /** orientation=rt */ ';
-          &:before {
-            font-style: normal;
-            font-size: 22px;
-          }
-        }
-        .taskProjectName {
-          .projectName {
-            max-width: 200px;
-          }
+      #taskDrawerScrolledHeader {
+        min-width: 0;
+        max-width: 100%;
+        .taskDrawerScrolledTitle {
+          min-width: 0;
         }
       }
     }
@@ -111,14 +99,6 @@
     .inputTaskProjectName {
       box-shadow: none!important;
       border: none!important;
-      .v-input__prepend-outer {
-        margin-top: 8px;
-        i {
-          color: @primaryColor;
-          font-size: 18px;
-        }
-
-      }
       .v-input__control {
         min-height: 27px!important;
         height: 27px;
@@ -139,11 +119,7 @@
         }
       }
       .v-menu__content {
-        position: fixed!important;
-        max-width: 70%!important;
-        left: 100px ~'!important; /** orientation=lt */ ';
-        right: 100px ~'!important; /** orientation=rt */ ';
-        top: 50px!important;
+        max-width: 100%!important;
         &::-webkit-scrollbar {
           width: 5px;
         }
@@ -159,6 +135,75 @@
         .v-list-item {
           min-height: 35px!important;
         }
+      }
+    }
+  }
+  // The field list: one row per field, laid out as the form cards' rows
+  // (exoplatform/forms FormsFieldRow): an 18px icon in a 21px box, a 10px gap,
+  // a 40px first line, 48px on a touch screen. A form row's label column is a
+  // third of the card's inner width (26px narrower: its padding and borders)
+  // plus the icon, and starts 13px in; this one is a third of the row plus
+  // 35px, so that the values of both start on one line.
+  .taskDrawerFields {
+    display: flex;
+    flex-direction: column;
+    &.taskDrawerFieldsTwoColumns {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 48px;
+      .taskDrawerFieldWide {
+        grid-column: 1 / -1;
+      }
+    }
+  }
+  .taskDrawerField {
+    min-height: 40px;
+    .taskDrawerFieldLabel {
+      height: 40px;
+      flex: 0 0 calc(~"100% / 3 + 35px");
+      max-width: calc(~"100% / 3 + 35px");
+      min-width: 0;
+    }
+    .taskDrawerFieldIcon {
+      width: 21px;
+      height: 20px;
+      margin-right: 10px ~'; /** orientation=lt */ ';
+      margin-left: 10px ~'; /** orientation=rt */ ';
+    }
+    .taskDrawerFieldValue {
+      min-height: 40px;
+      min-width: 0;
+      border-radius: 4px;
+    }
+    .taskDrawerFieldContent {
+      min-width: 0;
+      padding: 0 8px;
+    }
+    .taskDrawerFieldPen {
+      visibility: hidden;
+    }
+    &.taskDrawerFieldEditable:hover, &.taskDrawerFieldEditable:focus-within {
+      .taskDrawerFieldValue {
+        background: @primaryBackground;
+      }
+      .taskDrawerFieldPen {
+        visibility: visible;
+      }
+    }
+    .taskProjectLink {
+      line-height: 40px;
+    }
+    @media (pointer: coarse) {
+      min-height: 48px;
+      .taskDrawerFieldLabel, .taskDrawerFieldValue {
+        min-height: 48px;
+        height: auto;
+      }
+      .taskProjectLink {
+        line-height: 48px;
+      }
+      .taskDrawerFieldPen {
+        visibility: visible;
       }
     }
   }
@@ -209,13 +254,6 @@
     .inputTaskLabel{
       box-shadow: none!important;
       border: none!important;
-      .v-input__prepend-outer {
-        margin-top: 8px;
-        i {
-          color: @primaryColor;
-          font-size: 18px;
-        }
-      }
       .v-input__control {
         min-height: 38px!important;
         > .v-input__slot {
@@ -227,7 +265,7 @@
               max-width: 100%!important;
             }
             label {
-              color: @greyColorLighten1;
+              color: @primaryColor;
             }
           }
         }
@@ -322,10 +360,8 @@
       }
     }
   }
-  .taskDates {
-    max-width: 50%;
-    padding-right: 10px ~'; /** orientation=lt */ ';
-    padding-left: 10px ~'; /** orientation=rt */ ';
+  .taskDrawerDates {
+    display: contents;
     .datePickerComponent {
       &:after {
         display: none!important;
@@ -344,15 +380,12 @@
         box-shadow: none;
         box-sizing: border-box;
         &::placeholder {
-          font-size: 16px!important;
+          color: @primaryColor;
+          opacity: 1;
         }
       }
     }
     .taskPlanDateCalender {
-      .uiIconStartDate {
-        color: @primaryColor;
-        font-size: 24px;
-      }
       .v-picker__actions.v-card__actions {
         border-top: 1px solid  @borderColor;
         margin-top: 4px;
@@ -362,12 +395,6 @@
       }
     }
     .taskDueDateCalender {
-      .uiIconDueDate {
-        &:before {
-          color: @primaryColor;
-          font-size: 24px;
-        }
-      }
       .v-picker__actions.v-card__actions {
         border-top: 1px solid  @borderColor;
         margin-top: 4px;
@@ -377,113 +404,23 @@
       }
     }
   }
-  .taskStatusAndPriority {
-    max-width: 50%;
-    justify-content: space-between;
+  .taskPriority, .taskStatus {
     .v-input__control {
+      min-height: 40px!important;
       > .v-input__slot {
         box-shadow: none!important;
+        background: transparent!important;
         padding: 0!important;
+        margin-bottom: 0!important;
       }
     }
-    .v-input__prepend-outer {
-      margin-top: 8px;
-
-      i {
-        color: @primaryColor;
-        font-size: 22px;
-      }
-    }
-    .taskPriority, .taskStatus {
-      max-height: 48px;
-      min-height: 48px;
-    }
-    .taskPriority {
-      .v-input__control {
-        > .v-input__slot {
-          justify-content: flex-end!important;
-          .v-select__slot {
-            .v-input__append-inner {
-              position: absolute;
-              width: 100%;
-              height: 30px;
-              i {
-                position: absolute;
-                right: 0 ~'; /** orientation=lt */ ';
-                left: 0 ~'; /** orientation=rt */ ';
-                top: 4px;
-              }
-            }
-            .v-select__selections {
-              margin-top: -6px;
-              max-width: 84%!important;
-              .v-select__selection {
-                max-width: 100%;
-                width: 100%;
-                text-align: end;
-                display: inline;
-                margin-right: 0 ~'!important; /** orientation=lt */ ';
-                margin-left: 0 ~'!important; /** orientation=rt */ ';
-              }
-            }
-          }
-        }
-      }
-      .v-menu__content {
-        top: 40px !important;
-        .v-list {
-          padding: 0!important;
-          .v-list-item {
-            min-height: 40px;
-            .v-list-item__content {
-              padding: 0!important;
-            }
-          }
-        }
-      }
-    }
-    .taskStatus {
-      .v-input__control {
-        > .v-input__slot {
-          justify-content: flex-end!important;
-          .v-select__slot {
-            i {
-              font-size: 28px!important;
-            }
-            .v-input__append-inner {
-              position: absolute;
-              width: 100%;
-              height: 30px;
-              i {
-                position: absolute;
-                right: 0 ~'; /** orientation=lt */ ';
-                left: 0 ~'; /** orientation=rt */ ';
-              }
-            }
-            .v-select__selections {
-              margin-top: -6px;
-              max-width: 84%!important;
-              .v-select__selection {
-                max-width: 100%;
-                width: 100%;
-                text-align: end;
-                display: inline;
-                margin-right: 0 ~'!important; /** orientation=lt */ ';
-                margin-left: 0 ~'!important; /** orientation=rt */ ';
-              }
-            }
-          }
-        }
-      }
-      .v-menu__content {
-        top: 40px !important;
-        .v-list {
-          padding: 0!important;
-          .v-list-item {
-            min-height: 40px;
-            .v-list-item__content {
-              padding: 0!important;
-            }
+    .v-menu__content {
+      .v-list {
+        padding: 0!important;
+        .v-list-item {
+          min-height: 40px;
+          .v-list-item__content {
+            padding: 0!important;
           }
         }
       }

@@ -31,9 +31,13 @@
       eager
       bottom>
       <template #activator="{ on }">
-        <div class="d-flex align-center taskAssignItem" v-on="on">
-          <div 
-            v-if="taskAssigneeObj && taskAssigneeObj.profile && taskAssigneeObj.profile.fullName" 
+        <button
+          :aria-label="$t('taskDrawer.field.assignee')"
+          type="button"
+          class="d-flex align-center width-full text-start taskAssignItem"
+          v-on="on">
+          <div
+            v-if="hasAssignee"
             class="assigneeName overflow-hidden">
             <exo-user-avatar
               :profile-id="taskAssigneeObj.remoteId"
@@ -47,12 +51,12 @@
             v-if="taskCoworkers.length > 0"
             class="user-name coworkerNumber pe-2 caption font-italic lighten-2"> +{{ taskCoworkers.length }} {{ $t('label.coworker') }}
           </span>
-          <a
-            class="taskAssignBtn mt-n1">
-            <i class="uiIcon uiAddAssignIcon"></i>
-            <span class="text-decoration-underline">{{ $t('label.assign') }}</span>
-          </a>
-        </div>
+          <span
+            v-if="!hasAssignee && !taskCoworkers.length"
+            class="taskAssignBtn primary--text text-body-2">
+            {{ $t('taskDrawer.field.addAssignee') }}
+          </span>
+        </button>
       </template>
       <v-card class="pb-4" flat>
         <v-card-text class="assignTaskMenu pb-0 d-flex justify-space-between">
@@ -129,6 +133,9 @@ export default {
     };
   },
   computed: {
+    hasAssignee() {
+      return !!this.taskAssigneeObj?.profile?.fullName;
+    },
     suggesterLabels() {
       return {
         placeholder: this.$t('label.assignee'),
