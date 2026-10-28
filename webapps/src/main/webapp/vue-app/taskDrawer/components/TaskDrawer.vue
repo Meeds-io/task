@@ -226,6 +226,7 @@
                 icon="fa-clock"
                 editable>
                 <task-status
+                  ref="taskStatus"
                   :task="task"
                   @statusListOpened="closePriority(); closeProjectsList();closeLabelsList();closeTaskDates();closeAssignements()"
                   @updateTaskStatus="updateTaskStatus($event)" />
@@ -252,6 +253,7 @@
                 icon="fa-flag"
                 editable>
                 <task-priority
+                  ref="taskPriority"
                   :task="task"
                   @updateTaskPriority="updateTaskPriority($event)"
                   @PriorityListOpened="closeStatus(); closeProjectsList(); closeLabelsList();closeTaskDates();closeAssignements()" />
@@ -270,8 +272,10 @@
                 class="taskLabelsName taskDrawerFieldWide"
                 editable>
                 <task-labels
+                  ref="taskLabels"
                   :task="task"
                   :limit="twoColumns ? 0 : 3"
+                  @labelAdded="labelsToAdd.push($event)"
                   @labelsListOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeAssignements()" />
               </task-drawer-field>
             </div>
@@ -546,22 +550,6 @@ export default {
         window.setTimeout(() => {
           this.displayActionMenu = false;
         }, 200);
-      }
-    });
-    document.addEventListener('labelListChanged', event => {
-      if (event && event.detail) {
-        const label = event.detail;
-        this.labelsToAdd.push(label);
-      }
-    });
-    document.addEventListener('taskAssigneeChanged', event => {
-      if (event && event.detail) {
-        this.assignee = event.detail;
-      }
-    });
-    document.addEventListener('taskCoworkerChanged', event => {
-      if (event && event.detail) {
-        this.taskCoworkers = event.detail;
       }
     });
     this.$root.$on('display-back-arrow', () => {
@@ -913,6 +901,20 @@ export default {
     navigateTo(pagelink) {
       window.open(`${ eXo.env.portal.context }/${ eXo.env.portal.portalName }/${ pagelink }`, '_blank');
     },
+    /**
+     * Loads the task this drawer opens into this drawer's own fields, and in
+     * no other task drawer of the page.
+     *
+     * @param {object} task the task the drawer opens
+     * @returns {void}
+     */
+    loadFields(task) {
+      this.$refs.taskPriority?.load(task);
+      this.$refs.taskStatus?.load(task);
+      this.$refs.taskProjects?.load(task);
+      this.$refs.taskLabels?.load(task);
+      this.$refs.taskAssignment?.load(task);
+    },
     open(task) {
       this.oldTask = task;
       this.task = JSON.parse(JSON.stringify(task));
@@ -925,30 +927,9 @@ export default {
       this.taskSpace = {};
       this.taskPriority='NONE';
       this.movingProject = false;
-      window.setTimeout(() => {
-        document.dispatchEvent(new CustomEvent('loadTaskPriority', {
-          detail: task
-        }));
-        document.dispatchEvent(new CustomEvent('loadProjectStatus', {
-          detail: task
-        }));
-        document.dispatchEvent(new CustomEvent('loadProjectName', {
-          detail: task
-        }));
-        document.dispatchEvent(new CustomEvent('loadPlanDates', {
-          detail: task
-        }));
-        document.dispatchEvent(new CustomEvent('loadProjectLabels', {
-          detail: task
-        }));
-        document.dispatchEvent(new CustomEvent('loadTaskLabels', {
-          detail: task
-        }));
-        document.dispatchEvent(new CustomEvent('loadAssignee', {
-          detail: task
-        }));
-      },
-      200);
+      // Each field is loaded through this drawer's own refs: another task
+      // drawer of the page keeps its fields, and saves nothing
+      window.setTimeout(() => this.loadFields(task), 200);
       this.getTaskSpace();
       if (task.id != null) {
         this.retrieveTaskLogs();
@@ -972,9 +953,7 @@ export default {
       this.task = {};
       this.comments = {};
       this.$root.$emit('drawerClosed');
-      document.dispatchEvent(new CustomEvent('loadTaskLabels', {
-        detail: {}
-      }));
+      this.$refs.taskLabels?.load({});
       this.$root.$emit('hideTaskComment');
       this.$root.$emit('hideTaskChanges');
     },
