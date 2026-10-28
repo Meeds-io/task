@@ -239,10 +239,11 @@
               element-class="overflow-hidden"
               class="d-flex flex-shrink-0 px-4 pt-4"
               strict-type />
-            <task-comments-column
+            <task-comments-panel
               :task="task"
               :comments="comments"
               class="flex-grow-1"
+              column
               @confirmDialogOpened="isDrawerClose = false"
               @confirmDialogClosed="isDrawerClose = true" />
           </aside>
