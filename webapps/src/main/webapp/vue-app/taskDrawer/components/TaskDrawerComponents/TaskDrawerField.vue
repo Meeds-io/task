@@ -35,13 +35,15 @@
       <div class="taskDrawerFieldContent flex-grow-1">
         <slot></slot>
       </div>
-      <v-icon
-        v-if="editable"
-        size="12"
-        class="taskDrawerFieldPen text-light-color flex-shrink-0 mx-2"
-        aria-hidden="true">
-        fa-pen
-      </v-icon>
+      <v-btn
+        v-if="pencil"
+        :aria-label="pencilLabel"
+        class="taskDrawerFieldPen flex-shrink-0 mx-1"
+        icon
+        small
+        @click="$emit('edit')">
+        <v-icon size="12" class="text-light-color">fa-pen</v-icon>
+      </v-btn>
     </div>
   </div>
 </template>
@@ -60,7 +62,9 @@ const WIDE_LABEL_COLUMN_WIDTH = 'calc(100% / 6 + 27px)';
 /**
  * One row of the task drawer's field list: the field's icon and label in the
  * label column, its value in the value column, laid out as the rows of the
- * form cards the drawer shows below, so that both read as one list.
+ * form cards the drawer shows below, so that both read as one list. An
+ * editable row is tinted on hover and focus; a row whose value is a link
+ * shows a pencil there, the way to edit it, which emits « edit ».
  */
 export default {
   props: {
@@ -83,6 +87,14 @@ export default {
     wide: {
       type: Boolean,
       default: false,
+    },
+    pencil: {
+      type: Boolean,
+      default: false,
+    },
+    pencilLabel: {
+      type: String,
+      default: null,
     },
   },
   computed: {
