@@ -15,21 +15,41 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div>
+  <div class="taskDescriptionEditor position-relative">
+    <v-btn
+      v-if="!showEditor && value"
+      :aria-label="$t('taskDrawer.description.edit')"
+      class="taskDescriptionPen"
+      icon
+      small
+      @click="showDescriptionEditor()">
+      <v-icon size="12" class="text-light-color">fa-pen</v-icon>
+    </v-btn>
     <div
       id="taskDescriptionId"
       :class="editorReady && 'active'"
       class="taskDescription richEditor">
       <div class="taskDescriptionToShow">
         <div
+          ref="descriptionText"
           v-sanitized-html="value"
+          v-resize="measureClamp"
           :data-text="placeholder"
-          :title="$t('tooltip.clickToEdit')"
-          contentEditable="true"
-          class="py-1 px-2 reset-style-box rich-editor-content"
-          @click="showDescriptionEditor($event)">
+          :class="!expanded && 'taskDescriptionClamped'"
+          class="taskDescriptionText py-1 px-2 reset-style-box rich-editor-content"
+          @click="onDescriptionClick($event)">
           {{ placeholder }}
         </div>
+        <v-btn
+          v-if="clamped || expanded"
+          :aria-expanded="String(expanded)"
+          class="taskDescriptionMore text-none px-2"
+          color="primary"
+          text
+          small
+          @click="expanded = !expanded">
+          {{ $t(expanded ? 'taskDrawer.description.seeLess' : 'taskDrawer.description.seeMore') }}
+        </v-btn>
         <attachments-image-items
           v-if="metadataObjectId"
           :object-id="metadataObjectId"
@@ -50,19 +70,29 @@
         object-type="task"
         autofocus
         content-link-enabled
-        disable-suggester />
+        disable-suggester
+        @ready="onEditorReady" />
     </div>
-    <v-btn
+    <div
       v-if="task.id && displayEditor && editorReady"
-      id="saveDescriptionButton"
-      :loading="savingDescription"
-      :disabled="saveDescriptionButtonDisabled"
-      depressed
-      outlined
-      class="btn mt-2 ml-auto d-flex px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
-      @click="saveDescription($event)">
-      {{ $t('label.apply') }}
-    </v-btn>
+      class="d-flex justify-end mt-2">
+      <v-btn
+        id="cancelDescriptionButton"
+        class="btn me-2"
+        @click="cancelDescription($event)">
+        {{ $t('popup.cancel') }}
+      </v-btn>
+      <v-btn
+        id="saveDescriptionButton"
+        :loading="savingDescription"
+        :disabled="saveDescriptionButtonDisabled"
+        depressed
+        outlined
+        class="btn px-2 btn-primary v-btn v-btn--contained theme--light v-size--default"
+        @click="saveDescription($event)">
+        {{ $t('label.apply') }}
+      </v-btn>
+    </div>
   </div>
 </template>
 
@@ -91,7 +121,10 @@ export default {
       editorReady: false,
       showEditor: false,
       description: null,
-      savingDescription: false
+      savingDescription: false,
+      previousDescription: null,
+      expanded: false,
+      clamped: false,
     };
   },
   computed: {
@@ -119,6 +152,8 @@ export default {
         if (this.value !== this.description) {
           this.description = this.value;
         }
+        // Measured once the new text is rendered
+        this.$nextTick(this.measureClamp);
       },
     },
     description() {
@@ -216,12 +251,79 @@ export default {
         event.preventDefault();
         event.stopPropagation();
       }
-      if (!this.showEditor && event?.target?.nodeName !== 'A') {
+      if (!this.showEditor) {
+        this.previousDescription = this.value;
         this.inputVal = this.value;
         this.editorReady = true;
         this.showEditor = true;
-      } else if (event?.target?.nodeName === 'A') {
-        window.open(event.target.href, '_blank');
+      }
+    },
+
+    /**
+     * Opens a link of the description in a new tab; a click on an empty
+     * description, which shows the invitation to write one, opens the editor.
+     * A click on the text itself does nothing: its pencil opens the editor.
+     *
+     * @param {MouseEvent} event the click
+     * @returns {void}
+     */
+    onDescriptionClick(event) {
+      const link = event?.target?.closest?.('a');
+      if (link) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.open(link.href, '_blank');
+      } else if (!this.value) {
+        this.showDescriptionEditor(event);
+      }
+    },
+
+    /**
+     * Closes the editor and gives the description back the text it had when
+     * the editor opened, as stored, not as the editor emits it.
+     *
+     * @param {Event} [event] the click on Cancel
+     * @returns {void}
+     */
+    cancelDescription(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      this.description = this.previousDescription;
+      this.$emit('input', this.previousDescription);
+      this.hideDescriptionEditor();
+    },
+
+    /**
+     * Lets Escape cancel the edit inside the editor, without the key reaching
+     * the drawer, which would close.
+     *
+     * @returns {void}
+     */
+    onEditorReady() {
+      const editor = this.$refs.taskDescriptionEditor?.editor;
+      if (editor) {
+        editor.on('key', evt => {
+          if (evt.data.keyCode === 27) {
+            evt.cancel();
+            evt.data.domEvent?.$?.stopPropagation?.();
+            this.cancelDescription();
+          }
+        });
+      }
+    },
+
+    /**
+     * Tells whether the description is longer than its five shown lines, so
+     * that it offers « See more ».
+     *
+     * @returns {void}
+     */
+    measureClamp() {
+      const text = this.$refs.descriptionText;
+      if (text && !this.expanded) {
+        this.clamped = text.scrollHeight > text.clientHeight + 1;
       }
     },
   }
