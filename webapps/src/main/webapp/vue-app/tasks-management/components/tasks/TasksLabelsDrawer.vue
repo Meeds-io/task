@@ -67,12 +67,6 @@
 <script>
 export default {
   props: {
-    task: {
-      type: Object,
-      default: () => {
-        return {};
-      }
-    },
     projectId: {
       type: Number,
       default: 0
