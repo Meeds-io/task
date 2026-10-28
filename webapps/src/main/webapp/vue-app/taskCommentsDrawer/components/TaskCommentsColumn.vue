@@ -24,8 +24,8 @@
       class="taskCommentsColumnList flex-grow-1 overflow-y-auto px-4">
       <template v-if="commentsCount">
         <div
-          v-for="(item, i) in comments"
-          :key="i"
+          v-for="item in comments"
+          :key="item.comment.id"
           class="pe-0 ps-0 TaskCommentItem">
           <task-comments
             :task="task"
@@ -41,26 +41,26 @@
     </div>
     <div class="taskCommentsColumnComposer flex-shrink-0 pa-4">
       <div
-        v-if="composerOpen"
+        v-show="composerOpen"
         class="editorContent commentEditorContainer newCommentEditor">
         <task-comment-editor
           ref="commentEditor"
           :max-length="MESSAGE_MAX_LENGTH"
           :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)"
           :task="task"
-          :show-comment-editor="true"
-          :id="editorId"
+          :id="`commentContent-${editorKey}`"
           class="subComment subCommentEditor"
           @addNewComment="addTaskComment" />
       </div>
       <div
-        v-else
+        v-if="!composerOpen"
         :title="$t('comment.message.addYourComment')"
         class="taskCommentsColumnPlaceholder d-flex align-center text-sub-title px-3"
         role="button"
         tabindex="0"
         @click="openComposer"
-        @keydown.enter="openComposer">
+        @keydown.enter="openComposer"
+        @keydown.space.prevent="openComposer">
         {{ $t('comment.message.addYourComment') }}
       </div>
     </div>
@@ -80,7 +80,7 @@ export default {
   },
   data: () => ({
     MESSAGE_MAX_LENGTH: 1300,
-    editorId: 'commentContent-column',
+    editorKey: 'column',
     composerOpen: false,
   }),
   computed: {
@@ -90,25 +90,34 @@ export default {
   },
   created() {
     this.$root.$on('task-comment-created', this.closeComposer);
-    this.$root.$on('showEditor', this.closeComposer);
+    this.$root.$on('showEditor', this.onShowEditor);
     this.$root.$on('newCommentEditor', this.closeComposer);
   },
   beforeDestroy() {
     this.$root.$off('task-comment-created', this.closeComposer);
-    this.$root.$off('showEditor', this.closeComposer);
+    this.$root.$off('showEditor', this.onShowEditor);
     this.$root.$off('newCommentEditor', this.closeComposer);
   },
   methods: {
     /**
-     * Opens the new comment editor at the bottom of the column, after closing
-     * any reply editor open in the comments above, so that a single comment
-     * editor is open at a time, as in the comments drawer.
+     * Opens the new comment editor at the bottom of the column through the
+     * comment editors' own event, which also closes any reply editor open in
+     * the comments above, so that a single comment editor is open at a time.
      *
      * @returns {void}
      */
     openComposer() {
-      this.$root.$emit('showEditor', null);
-      this.$nextTick().then(() => this.composerOpen = true);
+      this.$root.$emit('showEditor', this.editorKey);
+    },
+    /**
+     * Shows the new comment editor when the opened editor is this column's
+     * one, and the placeholder when a reply editor opens instead.
+     *
+     * @param {string} commentId the key of the comment editor that opens
+     * @returns {void}
+     */
+    onShowEditor(commentId) {
+      this.composerOpen = commentId === this.editorKey;
     },
     /**
      * Closes the new comment editor, when a comment was posted or when another
