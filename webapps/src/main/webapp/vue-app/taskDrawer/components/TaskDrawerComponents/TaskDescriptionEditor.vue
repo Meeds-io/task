@@ -22,7 +22,7 @@
       class="taskDescriptionPen"
       icon
       small
-      @click="showDescriptionEditor()">
+      @click="showDescriptionEditor($event)">
       <v-icon size="12" class="text-light-color">fa-pen</v-icon>
     </v-btn>
     <div
