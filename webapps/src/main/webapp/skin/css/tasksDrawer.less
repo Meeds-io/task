@@ -302,6 +302,9 @@
     }
   }
   .lastUpdatedTask {
+    button {
+      text-align: start;
+    }
     color: @greyColorLighten1;
     font-size: @textFontSize;
     font-weight: @textFontWeight;
@@ -526,11 +529,9 @@
         outline-width: 0 !important;
       }
     }
-    .taskDescriptionText:empty:before {
-      content:attr(data-text);
+    .taskDescriptionInvite {
       color: @greyColorLighten1Default;
       font-size: 16px;
-      cursor: text;
     }
     // Five lines until the user asks for more
     .taskDescriptionClamped {
