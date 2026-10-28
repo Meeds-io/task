@@ -123,19 +123,26 @@ export default {
         }
       }, 100);
     });
-    document.addEventListener('loadProjectName', event => {
-      if (event && event.detail) {
-        const task = event.detail;
-        if (task.status && task.status.project) {
-          this.projectModel = this.task.status.project;
-        } else {
-          this.projectModel = null;
-          this.projectLabel = this.$t('label.noProject');
-        }
-      }
-    });
   },
   methods: {
+    /**
+     * Shows the project of the task its drawer opens. Only the drawer that
+     * holds this field calls it.
+     *
+     * @param {object} task the task the drawer opens
+     * @returns {void}
+     */
+    load(task) {
+      if (!task) {
+        return;
+      }
+      if (task.status && task.status.project) {
+        this.projectModel = this.task.status.project;
+      } else {
+        this.projectModel = null;
+        this.projectLabel = this.$t('label.noProject');
+      }
+    },
     getProjects() {
       this.$taskDrawerApi.getProjects().then((projects) => {
         this.projects = projects.projects;
