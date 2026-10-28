@@ -311,6 +311,19 @@
     cursor: pointer;
   }
   .taskLabelsName {
+    // Labels flow on lines; their × shows on hover and focus, as the row's pencil
+    .v-select__selections {
+      flex-wrap: wrap;
+      flex-direction: row;
+    }
+    .v-chip .v-icon {
+      visibility: hidden;
+    }
+    &:hover, &:focus-within {
+      .v-chip .v-icon {
+        visibility: visible;
+      }
+    }
     .inputTaskLabel{
       box-shadow: none!important;
       border: none!important;
