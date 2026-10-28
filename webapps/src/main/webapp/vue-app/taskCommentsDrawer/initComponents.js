@@ -21,6 +21,7 @@ import TaskCommentEditor from './components/TaskCommentEditor.vue';
 import TaskCommentItem from './components/TaskCommentItem.vue';
 import TaskLastComment from './components/TaskLastComment.vue';
 import TaskViewAllComments from './components/TaskViewAllComments.vue';
+import TaskCommentsColumn from './components/TaskCommentsColumn.vue';
 
 import * as tasksService from '../../js/tasksService.js';
 import * as taskDrawerApi from '../../js/taskDrawerApi.js';
@@ -33,6 +34,7 @@ const components = {
   'task-comment-item': TaskCommentItem,
   'task-last-comment': TaskLastComment,
   'task-view-all-comments': TaskViewAllComments,
+  'task-comments-column': TaskCommentsColumn,
 };
 
 for (const key in components) {

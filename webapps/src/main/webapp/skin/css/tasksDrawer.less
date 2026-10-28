@@ -495,3 +495,32 @@
   }
 }
 
+
+/*----------- Task drawer full screen: right column ---------------*/
+
+#task-Drawer {
+  .taskDrawerColumns {
+    .taskDrawerDetails {
+      min-width: 0;
+    }
+    .taskDrawerAside {
+      width: 440px;
+      background: rgba(9, 30, 66, 0.02);
+      border-left: 1px solid @borderColor ~'; /** orientation=lt */ ';
+      border-right: 1px solid @borderColor ~'; /** orientation=rt */ ';
+      .taskCommentsColumn {
+        min-height: 0;
+      }
+      .taskCommentsColumnComposer {
+        border-top: 1px solid @borderColor;
+      }
+      .taskCommentsColumnPlaceholder {
+        min-height: 40px;
+        border: 1px solid @borderColor;
+        border-radius: 4px;
+        background: @baseBackground;
+        cursor: text;
+      }
+    }
+  }
+}
