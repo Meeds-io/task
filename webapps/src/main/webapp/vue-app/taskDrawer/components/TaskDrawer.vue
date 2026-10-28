@@ -242,7 +242,9 @@
             <task-comments-column
               :task="task"
               :comments="comments"
-              class="flex-grow-1" />
+              class="flex-grow-1"
+              @confirmDialogOpened="isDrawerClose = false"
+              @confirmDialogClosed="isDrawerClose = true" />
           </aside>
         </div>
       </template>
