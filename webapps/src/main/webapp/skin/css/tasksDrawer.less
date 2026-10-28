@@ -177,15 +177,30 @@
     .taskDrawerFieldContent {
       min-width: 0;
       padding: 0 8px;
+      // One text style for every value, as the form cards' values
+      font-size: 14px;
+      .v-select__selection, input, label, .user-name, .assigneeName a, .assigneeName p {
+        font-size: 14px!important;
+        font-weight: normal!important;
+      }
+      input, .v-input__slot {
+        background: transparent!important;
+      }
+      // A choice shows its arrow only while the row is pointed at or focused
+      .v-input__append-inner {
+        visibility: hidden;
+      }
     }
     .taskDrawerFieldPen {
       visibility: hidden;
     }
-    &.taskDrawerFieldEditable:hover, &.taskDrawerFieldEditable:focus-within {
+    // The row's box, pencil and arrow show on hover and on keyboard focus,
+    // never at rest: a field keeps the focus after a mouse choice
+    &.taskDrawerFieldEditable:hover, &.taskDrawerFieldEditable:has(:focus-visible) {
       .taskDrawerFieldValue {
         background: @primaryBackground;
       }
-      .taskDrawerFieldPen {
+      .taskDrawerFieldPen, .v-input__append-inner {
         visibility: visible;
       }
     }
@@ -203,6 +218,15 @@
       }
       .taskDrawerFieldPen {
         visibility: visible;
+      }
+    }
+    // The assignee, its coworkers and the invitation stay on one line
+    .taskAssignItem {
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      min-width: 0;
+      .assigneeName {
+        min-width: 0;
       }
     }
   }
@@ -287,11 +311,20 @@
         cursor: pointer;
       }
     }
-    .taskAssignMenu {
+    // The menu opens under the row, its end on the value column's end, so that
+    // it stays inside the drawer in the side panel and in full screen
+    .assigneeParent {
       position: relative;
+    }
+    .taskAssignMenu {
+      position: static!important;
       .v-menu__content {
-        top: 10px!important;
-        right: 30px ~'!important; /** orientation=rt */ ';
+        min-width: 300px!important;
+        top: 100%!important;
+        left: auto ~'!important; /** orientation=lt */ ';
+        right: 0 ~'!important; /** orientation=lt */ ';
+        right: auto ~'!important; /** orientation=rt */ ';
+        left: 0 ~'!important; /** orientation=rt */ ';
       }
     }
     .assignTaskMenu {
@@ -349,6 +382,21 @@
   }
   .taskDrawerDates {
     display: contents;
+    // The calendar opens under its row, its end on the value column's end,
+    // so that it stays inside the drawer
+    .datePickerComponent {
+      position: relative;
+    }
+    .datePickerMenu {
+      position: static!important;
+      .v-menu__content {
+        top: 100%!important;
+        left: auto ~'!important; /** orientation=lt */ ';
+        right: 0 ~'!important; /** orientation=lt */ ';
+        right: auto ~'!important; /** orientation=rt */ ';
+        left: 0 ~'!important; /** orientation=rt */ ';
+      }
+    }
     .datePickerComponent {
       &:after {
         display: none!important;
