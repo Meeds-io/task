@@ -84,7 +84,6 @@ export default {
       items: [],
       nonce: 1,
       model: [],
-      taskLabels: [],
       x: 0,
       search: null,
       y: 0,
@@ -135,21 +134,6 @@ export default {
         }
       }, 100);
     });
-    document.addEventListener('loadTaskLabels', event => {
-      if (event && event.detail) {
-        const task = event.detail;
-        if (task.id!=null) {
-          this.getTaskLabels();
-          this.$taskDrawerApi.getTaskLabels(task.id).then((labels) => {
-            this.taskLabels = labels.map(function (el) {
-              const o = Object.assign({}, el);
-              o.text = o.name;
-              return o;
-            });
-          });
-        }
-      }
-    });
     document.addEventListener('loadFilterProjectLabels', event => {
       if (event && event.detail) {
         this.projectId=event.detail;
@@ -175,15 +159,6 @@ export default {
     getMyAllLabels() {
       this.$taskDrawerApi.getMyAllLabels().then((labels) => {
         this.items = labels.map(function (el) {
-          const o = Object.assign({}, el);
-          o.text = o.name;
-          return o;
-        });
-      });
-    },
-    getTaskLabels() {
-      this.$taskDrawerApi.getTaskLabels(this.task.id).then((labels) => {
-        this.model = labels.map(function (el) {
           const o = Object.assign({}, el);
           o.text = o.name;
           return o;

@@ -171,13 +171,21 @@ export default {
         }, 100);
       }
     });
-    document.addEventListener('loadAssignee', event => {
+  },
+  methods: {
+    /**
+     * Shows the assignee and the coworkers of the task its drawer opens. Only
+     * the drawer that holds this field calls it; the field keeps the task its
+     * drawer gives it.
+     *
+     * @param {object} task the task the drawer opens
+     * @returns {void}
+     */
+    load(task) {
       this.taskAssigneeObj = {};
       this.taskCoworkers = [];
       this.taskCoworkerObj = [];
-      if (event && event.detail) {
-        const task = event.detail;
-        this.task = task;
+      if (task) {
         if (task.id==null && !task.status.project) {
           this.$identityService.getIdentityByProviderIdAndRemoteId('organization',this.currentUser).then(user => {
             this.taskAssigneeObj = {
@@ -226,9 +234,7 @@ export default {
           });
         }
       }
-    });
-  },
-  methods: {
+    },
     /**
      * Opens the assignment menu, as a click on the assignee does.
      *
@@ -270,7 +276,7 @@ export default {
           };
           this.taskCoworkerObj.push(taskCoworker);
         }).then(() => {
-          document.dispatchEvent(new CustomEvent('taskCoworkerChanged',{detail: this.taskCoworkers}));
+          this.$emit('updateTaskCoworker', this.taskCoworkers);
           this.isNewTask = false;
         });
       } else {
