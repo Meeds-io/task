@@ -32,10 +32,10 @@
       bottom>
       <template #activator="{ on }">
         <button
-          :aria-label="$t('taskDrawer.field.assignee')"
           type="button"
           class="d-flex align-center width-full text-start taskAssignItem"
           v-on="on">
+          <span class="d-sr-only">{{ $t('taskDrawer.field.assignee') }}</span>
           <div
             v-if="hasAssignee"
             class="assigneeName overflow-hidden">
@@ -133,6 +133,11 @@ export default {
     };
   },
   computed: {
+    /**
+     * Whether the task has an assignee to show.
+     *
+     * @returns {boolean} whether an assignee is shown
+     */
     hasAssignee() {
       return !!this.taskAssigneeObj?.profile?.fullName;
     },
