@@ -213,6 +213,17 @@
               element-class="overflow-hidden"
               class="d-flex"
               strict-type />
+            <extension-registry-components
+              v-if="task && task.id"
+              :key="`${task.id}-${attachmentsVersion}`"
+              :params="{
+                entityId: String(task.id),
+                entityType: 'task',
+              }"
+              name="TaskDrawer"
+              type="task-drawer-attachments"
+              element="div"
+              strict-type />
             <template v-if="!twoColumns">
               <v-divider class="my-0" />
               <v-flex
@@ -324,6 +335,7 @@ export default {
       taskSpace: {},
       taskTitle: null,
       taskDescription: null,
+      attachmentsVersion: 0,
     };
   },
   computed: {
@@ -420,9 +432,11 @@ export default {
     this.$root.$on('display-back-arrow', () => {
       this.showBackArrow = true;
     });
+    document.addEventListener('entity-attachments-updated', this.refreshAttachmentsCarousel);
   },
   destroyed: function() {
     document.removeEventListener('keyup', this.escapeKeyListener);
+    document.removeEventListener('entity-attachments-updated', this.refreshAttachmentsCarousel);
   },
   methods: {
 
@@ -899,6 +913,17 @@ export default {
       }
     },
 
+    /**
+     * Reloads the add-on sections shown after the task's attachments (Documents'
+     * row of file cards) after a file is attached to or detached from the task:
+     * they read the attachments when they are created, and the attachments
+     * drawer announces each change on the document.
+     *
+     * @returns {void}
+     */
+    refreshAttachmentsCarousel() {
+      this.attachmentsVersion++;
+    },
     /**
      * Fits the height of the task title to the lines it takes at the title's
      * new width, once the drawer has been expanded or collapsed or the window
