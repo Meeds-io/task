@@ -174,33 +174,37 @@ export default {
         }
       }, 100);
     });
-    document.addEventListener('loadProjectLabels', event => {
-      if (event && event.detail) {
-        const task = event.detail;
-        this.model = [];
-        if (task?.status?.project?.id) {
-          this.getProjectLabels(task.status.project.id);
-        }
+  },
+  methods: {
+    /**
+     * Shows the labels of the task its drawer opens, and offers its project's
+     * labels. Only the drawer that holds this field calls it; a task with no
+     * id, as the drawer closing gives, empties the field.
+     *
+     * @param {object} task the task the drawer opens
+     * @returns {void}
+     */
+    load(task) {
+      if (!task) {
+        return;
       }
-    });
-    document.addEventListener('loadTaskLabels', event => {
-      if (event && event.detail) {
-        const task = event.detail;
-        this.model = [];
-        if (task?.id) {
-          this.getTaskLabels();
-          this.$taskDrawerApi.getTaskLabels(task.id).then((labels) => {
+      this.model = [];
+      if (task.status?.project?.id) {
+        this.getProjectLabels(task.status.project.id);
+      }
+      if (task.id) {
+        this.$taskDrawerApi.getTaskLabels(task.id).then((labels) => {
+          if (this.task?.id === task.id) {
             this.model = labels.map(function (el) {
               const o = Object.assign({}, el);
               o.text = o.name;
               return o;
             });
-          });
-        }
+            this.modelCopy = this.model;
+          }
+        });
       }
-    });
-  },
-  methods: {
+    },
     filter(item, queryText, itemText) {
       if (item.header) {
         return false;
@@ -258,7 +262,7 @@ export default {
           });
         });
       } else {
-        document.dispatchEvent(new CustomEvent('labelListChanged', {detail: label}));
+        this.$emit('labelAdded', label);
       }
       this.model.push(label);
       document.getElementById('labelInput').focus();

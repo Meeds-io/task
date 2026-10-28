@@ -64,10 +64,6 @@ export default {
         }, 100);
       }
     });
-    document.addEventListener('loadProjectStatus', this.loadProjectStatus);
-  },
-  destroyed() {
-    document.removeEventListener('loadProjectStatus', this.loadProjectStatus);
   },
   methods: {
     getI18nStatus(status) {
@@ -93,21 +89,28 @@ export default {
           }
         });
     },
-    loadProjectStatus(event) {
-      if (event && event.detail) {
-        const task = event.detail;
-        if (task.status != null && task.status.project) {
-          this.getStatusesByProjectId(task);
-          if (task.status.name) {
-            this.taskStatus = task.status.name;
-          }
-        } else {
-          this.projectStatuses.push({key: 'ToDo', value: this.$t('exo.tasks.status.todo')});
-          this.projectStatuses.push({key: 'InProgress', value: this.$t('exo.tasks.status.inprogress')});
-          this.projectStatuses.push({key: 'WaitingOn', value: this.$t('exo.tasks.status.waitingon')});
-          this.projectStatuses.push({key: 'Done', value: this.$t('exo.tasks.status.done')});
-          this.taskStatus = 'ToDo';
+    /**
+     * Shows the status of the task its drawer opens, among its project's
+     * statuses. Only the drawer that holds this field calls it.
+     *
+     * @param {object} task the task the drawer opens
+     * @returns {void}
+     */
+    load(task) {
+      if (!task) {
+        return;
+      }
+      if (task.status != null && task.status.project) {
+        this.getStatusesByProjectId(task);
+        if (task.status.name) {
+          this.taskStatus = task.status.name;
         }
+      } else {
+        this.projectStatuses.push({key: 'ToDo', value: this.$t('exo.tasks.status.todo')});
+        this.projectStatuses.push({key: 'InProgress', value: this.$t('exo.tasks.status.inprogress')});
+        this.projectStatuses.push({key: 'WaitingOn', value: this.$t('exo.tasks.status.waitingon')});
+        this.projectStatuses.push({key: 'Done', value: this.$t('exo.tasks.status.done')});
+        this.taskStatus = 'ToDo';
       }
     },
   }
