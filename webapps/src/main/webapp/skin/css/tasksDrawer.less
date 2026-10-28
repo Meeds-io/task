@@ -82,23 +82,17 @@
           }
         }
       }
-      .drawerTitleAndProject {
-        max-width: 300px;
-        align-items: center;
-        .uiArrowBAckIcon {
-          cursor: pointer;
-          color: @iconColor !important;
-          padding-right: 10px ~'; /** orientation=lt */ ';
-          padding-right: 10px ~'; /** orientation=rt */ ';
-          &:before {
-            font-style: normal;
-            font-size: 22px;
-          }
+      #taskDrawerScrolledHeader {
+        min-width: 0;
+        max-width: 100%;
+        // The title gives way first, then the last update line
+        .taskDrawerScrolledTitle {
+          min-width: 0;
+          flex: 0 100 auto;
         }
-        .taskProjectName {
-          .projectName {
-            max-width: 200px;
-          }
+        .taskDrawerScrolledUpdate {
+          min-width: 0;
+          flex: 0 1 auto;
         }
       }
     }
@@ -111,14 +105,6 @@
     .inputTaskProjectName {
       box-shadow: none!important;
       border: none!important;
-      .v-input__prepend-outer {
-        margin-top: 8px;
-        i {
-          color: @primaryColor;
-          font-size: 18px;
-        }
-
-      }
       .v-input__control {
         min-height: 27px!important;
         height: 27px;
@@ -139,11 +125,7 @@
         }
       }
       .v-menu__content {
-        position: fixed!important;
-        max-width: 70%!important;
-        left: 100px ~'!important; /** orientation=lt */ ';
-        right: 100px ~'!important; /** orientation=rt */ ';
-        top: 50px!important;
+        max-width: 100%!important;
         &::-webkit-scrollbar {
           width: 5px;
         }
@@ -159,6 +141,143 @@
         .v-list-item {
           min-height: 35px!important;
         }
+      }
+    }
+  }
+  // The field list: one row per field, laid out as the form cards' rows
+  // (exoplatform/forms FormsFieldRow, FormsObjectSection) so that both read as
+  // one list: the same 13px inset as a card's padding and border, two equal
+  // columns with no gap in full screen, a label column a third of a column plus
+  // the icon (set inline by TaskDrawerField.vue: the portal's minifier breaks a
+  // calc() with a « + »), an 18px icon in a 21px box, a 10px gap, a 40px first
+  // line, 48px on a touch screen and in full screen.
+  .taskDrawerFields {
+    display: flex;
+    flex-direction: column;
+    padding-left: 13px;
+    padding-right: 13px;
+    &.taskDrawerFieldsTwoColumns {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      // As a form card's row in full screen (pe-6): 48px high, ending 24px
+      // before the next column; the task's own fields have no divider
+      .taskDrawerField {
+        min-height: 48px;
+        margin-inline-end: 24px;
+        .taskDrawerFieldLabel {
+          height: 48px;
+        }
+        .taskDrawerFieldValue {
+          min-height: 48px;
+        }
+        .taskProjectLink {
+          line-height: 48px;
+        }
+      }
+      .taskAssignItem {
+        flex-wrap: nowrap;
+        min-height: 48px;
+        .assigneeName {
+          line-height: 48px;
+        }
+        .coworkerNumber {
+          flex-basis: auto;
+          padding: 0 8px;
+          line-height: 48px;
+        }
+      }
+      .taskDrawerFieldWide {
+        grid-column: span 2;
+      }
+    }
+  }
+  .taskDrawerField {
+    min-height: 40px;
+    text-align: start;
+    .taskDrawerFieldLabel {
+      height: 40px;
+      min-width: 0;
+    }
+    .taskDrawerFieldIcon {
+      width: 21px;
+      height: 20px;
+      margin-right: 10px ~'; /** orientation=lt */ ';
+      margin-left: 10px ~'; /** orientation=rt */ ';
+    }
+    .taskDrawerFieldValue {
+      min-height: 40px;
+      min-width: 0;
+      border-radius: 4px;
+    }
+    .taskDrawerFieldContent {
+      min-width: 0;
+      padding: 0 8px;
+      text-align: start;
+      // One text style for every value, as the form cards' values
+      font-size: 14px;
+      .v-select__selection, input, label, .user-name, .assigneeName a, .assigneeName p {
+        font-size: 14px!important;
+        font-weight: normal!important;
+      }
+      input, .v-input__slot {
+        background: transparent!important;
+      }
+      // A choice shows its arrow only while the row is pointed at or focused
+      .v-input__append-inner {
+        visibility: hidden;
+      }
+    }
+    .taskDrawerFieldPen {
+      visibility: hidden;
+    }
+    // The row's box, pencil and arrow show on hover and on keyboard focus,
+    // never at rest: a field keeps the focus after a mouse choice
+    &.taskDrawerFieldEditable:hover, &.taskDrawerFieldEditable:has(:focus-visible) {
+      .taskDrawerFieldValue {
+        background: @primaryBackground;
+      }
+      .taskDrawerFieldPen, .v-input__append-inner {
+        visibility: visible;
+      }
+    }
+    .taskProjectLink {
+      line-height: 40px;
+      text-align: start;
+    }
+    @media (pointer: coarse) {
+      min-height: 48px;
+      .taskDrawerFieldLabel, .taskDrawerFieldValue {
+        min-height: 48px;
+        height: auto;
+      }
+      .taskProjectLink {
+        line-height: 48px;
+      }
+      .taskDrawerFieldPen {
+        visibility: visible;
+      }
+    }
+    // The assignee's avatar and name on the row's first line, its coworkers
+    // under the name in the side panel and beside it in full screen
+    &.taskAssignement .taskDrawerFieldValue {
+      align-items: flex-start;
+    }
+    .taskAssignItem {
+      flex-wrap: wrap;
+      white-space: nowrap;
+      min-width: 0;
+      min-height: 40px;
+      .assigneeName {
+        min-width: 0;
+        max-width: 100%;
+        line-height: 40px;
+      }
+      .coworkerNumber {
+        flex-basis: 100%;
+        padding-left: 32px ~'; /** orientation=lt */ ';
+        padding-right: 32px ~'; /** orientation=rt */ ';
+        line-height: 20px;
+        padding-bottom: 8px;
       }
     }
   }
@@ -197,6 +316,9 @@
     }
   }
   .lastUpdatedTask {
+    button {
+      text-align: start;
+    }
     color: @greyColorLighten1;
     font-size: @textFontSize;
     font-weight: @textFontWeight;
@@ -206,16 +328,29 @@
     cursor: pointer;
   }
   .taskLabelsName {
+    // Labels flow on lines; their × shows on hover, keyboard focus and touch, as the row's pencil
+    .v-select__selections {
+      flex-wrap: wrap;
+      flex-direction: row;
+    }
+    // Hidden at rest, keeping its place: showing it on hover must not move
+    // the labels, nor « +N more », under the pointer
+    .v-chip .v-icon {
+      visibility: hidden;
+    }
+    &:hover, &:has(:focus-visible) {
+      .v-chip .v-icon {
+        visibility: visible;
+      }
+    }
+    @media (pointer: coarse) {
+      .v-chip .v-icon {
+        visibility: visible;
+      }
+    }
     .inputTaskLabel{
       box-shadow: none!important;
       border: none!important;
-      .v-input__prepend-outer {
-        margin-top: 8px;
-        i {
-          color: @primaryColor;
-          font-size: 18px;
-        }
-      }
       .v-input__control {
         min-height: 38px!important;
         > .v-input__slot {
@@ -227,7 +362,7 @@
               max-width: 100%!important;
             }
             label {
-              color: @greyColorLighten1;
+              color: @primaryColor;
             }
           }
         }
@@ -245,28 +380,23 @@
   }
   .taskAssignement {
     .taskAssignItem {
+      padding: 0;
       .user-name {
         cursor: pointer;
       }
-      .taskAssignBtn {
-        .uiAddAssignIcon {
-          margin-top: -4px !important;
-          padding-right: 6px ~'; /** orientation=lt */ ';
-          padding-left: 6px ~'; /** orientation=rt */ ';
-          .fa();
-          .fa-user-plus();
-          &:before {
-            color: @iconColor;
-            font-size: 15px;
-          }
-        }
-      }
+    }
+    // The menu opens under the row, its end on the value column's end, so that
+    // it stays inside the drawer in the side panel and in full screen
+    .assigneeParent {
+      position: relative;
     }
     .taskAssignMenu {
-      position: relative;
+      position: static!important;
       .v-menu__content {
-        top: 10px!important;
-        right: 30px ~'!important; /** orientation=rt */ ';
+        min-width: 300px!important;
+        top: 100%!important;
+        inset-inline-start: auto!important;
+        inset-inline-end: 0!important;
       }
     }
     .assignTaskMenu {
@@ -322,37 +452,46 @@
       }
     }
   }
-  .taskDates {
-    max-width: 50%;
-    padding-right: 10px ~'; /** orientation=lt */ ';
-    padding-left: 10px ~'; /** orientation=rt */ ';
+  .taskDrawerDates {
+    display: contents;
+    // The calendar opens under its row, its end on the value column's end,
+    // so that it stays inside the drawer
+    .datePickerComponent {
+      position: relative;
+    }
+    .datePickerMenu {
+      position: static!important;
+      .v-menu__content {
+        top: 100%!important;
+        inset-inline-start: auto!important;
+        inset-inline-end: 0!important;
+      }
+    }
     .datePickerComponent {
       &:after {
         display: none!important;
       }
       input {
-        max-width: 90%!important;
+        max-width: 100%!important;
         min-height: auto;
         height: auto;
         line-height: 1em;
-        margin: auto 0;
+        font-size: 14px;
+        margin: auto 0!important;
         padding-right: 10px ~'!important; /** orientation=lt */ ';
         padding-left: 10px ~'!important; /** orientation=rt */ ';
-        padding-left: 2px ~'!important; /** orientation=lt */ ';
-        padding-right: 2px ~'!important; /** orientation=rt */ ';
+        padding-left: 0 ~'!important; /** orientation=lt */ ';
+        padding-right: 0 ~'!important; /** orientation=rt */ ';
         border: none!important;
         box-shadow: none;
         box-sizing: border-box;
         &::placeholder {
-          font-size: 16px!important;
+          color: @primaryColor!important;
+          opacity: 1;
         }
       }
     }
     .taskPlanDateCalender {
-      .uiIconStartDate {
-        color: @primaryColor;
-        font-size: 24px;
-      }
       .v-picker__actions.v-card__actions {
         border-top: 1px solid  @borderColor;
         margin-top: 4px;
@@ -362,12 +501,6 @@
       }
     }
     .taskDueDateCalender {
-      .uiIconDueDate {
-        &:before {
-          color: @primaryColor;
-          font-size: 24px;
-        }
-      }
       .v-picker__actions.v-card__actions {
         border-top: 1px solid  @borderColor;
         margin-top: 4px;
@@ -377,113 +510,23 @@
       }
     }
   }
-  .taskStatusAndPriority {
-    max-width: 50%;
-    justify-content: space-between;
+  .taskPriority, .taskStatus {
     .v-input__control {
+      min-height: 40px!important;
       > .v-input__slot {
         box-shadow: none!important;
+        background: transparent!important;
         padding: 0!important;
+        margin-bottom: 0!important;
       }
     }
-    .v-input__prepend-outer {
-      margin-top: 8px;
-
-      i {
-        color: @primaryColor;
-        font-size: 22px;
-      }
-    }
-    .taskPriority, .taskStatus {
-      max-height: 48px;
-      min-height: 48px;
-    }
-    .taskPriority {
-      .v-input__control {
-        > .v-input__slot {
-          justify-content: flex-end!important;
-          .v-select__slot {
-            .v-input__append-inner {
-              position: absolute;
-              width: 100%;
-              height: 30px;
-              i {
-                position: absolute;
-                right: 0 ~'; /** orientation=lt */ ';
-                left: 0 ~'; /** orientation=rt */ ';
-                top: 4px;
-              }
-            }
-            .v-select__selections {
-              margin-top: -6px;
-              max-width: 84%!important;
-              .v-select__selection {
-                max-width: 100%;
-                width: 100%;
-                text-align: end;
-                display: inline;
-                margin-right: 0 ~'!important; /** orientation=lt */ ';
-                margin-left: 0 ~'!important; /** orientation=rt */ ';
-              }
-            }
-          }
-        }
-      }
-      .v-menu__content {
-        top: 40px !important;
-        .v-list {
-          padding: 0!important;
-          .v-list-item {
-            min-height: 40px;
-            .v-list-item__content {
-              padding: 0!important;
-            }
-          }
-        }
-      }
-    }
-    .taskStatus {
-      .v-input__control {
-        > .v-input__slot {
-          justify-content: flex-end!important;
-          .v-select__slot {
-            i {
-              font-size: 28px!important;
-            }
-            .v-input__append-inner {
-              position: absolute;
-              width: 100%;
-              height: 30px;
-              i {
-                position: absolute;
-                right: 0 ~'; /** orientation=lt */ ';
-                left: 0 ~'; /** orientation=rt */ ';
-              }
-            }
-            .v-select__selections {
-              margin-top: -6px;
-              max-width: 84%!important;
-              .v-select__selection {
-                max-width: 100%;
-                width: 100%;
-                text-align: end;
-                display: inline;
-                margin-right: 0 ~'!important; /** orientation=lt */ ';
-                margin-left: 0 ~'!important; /** orientation=rt */ ';
-              }
-            }
-          }
-        }
-      }
-      .v-menu__content {
-        top: 40px !important;
-        .v-list {
-          padding: 0!important;
-          .v-list-item {
-            min-height: 40px;
-            .v-list-item__content {
-              padding: 0!important;
-            }
+    .v-menu__content {
+      .v-list {
+        padding: 0!important;
+        .v-list-item {
+          min-height: 40px;
+          .v-list-item__content {
+            padding: 0!important;
           }
         }
       }
@@ -501,10 +544,33 @@
         outline-width: 0 !important;
       }
     }
-    [contentEditable=true]:empty:not(:focus):before{
-      content:attr(data-text);
+    .taskDescriptionInvite {
       color: @greyColorLighten1Default;
       font-size: 16px;
+    }
+    // Five lines until the user asks for more
+    .taskDescriptionClamped {
+      display: -webkit-box;
+      -webkit-line-clamp: 5;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    // The pencil opens the editor: a click on the text follows its links
+    .taskDescriptionPen {
+      position: absolute;
+      top: 0;
+      right: 0 ~'; /** orientation=lt */ ';
+      left: 0 ~'; /** orientation=rt */ ';
+      z-index: 1;
+      opacity: 0;
+    }
+    .taskDescriptionEditor:hover .taskDescriptionPen, .taskDescriptionPen:focus-visible {
+      opacity: 1;
+    }
+    @media (pointer: coarse) {
+      .taskDescriptionPen {
+        opacity: 1;
+      }
     }
     #cke_descriptionContent {
       display: none;

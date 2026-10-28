@@ -38,24 +38,47 @@
       @expand-updated="expanded = $event"
       @closed="onCloseDrawer">
       <template v-if="drawer && taskId" #title>
-        <div class="drawerTitleAndProject d-flex">
-          <span>{{ $t('label.project') }}</span>
-          <div class="taskProjectName text-truncate">
-            <task-projects
-              :task="task"
-              @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
-          </div>
+        <div
+          v-if="titleScrolledAway"
+          id="taskDrawerScrolledHeader"
+          class="d-flex align-center overflow-hidden">
+          <v-btn
+            :aria-label="$t(task.completed ? 'taskDrawer.header.markAsUncompleted' : 'taskDrawer.header.markAsCompleted')"
+            class="flex-shrink-0"
+            icon
+            @click="updateCompleted">
+            <v-icon v-if="task.completed" class="markAsCompletedBtn">mdi-checkbox-marked-circle</v-icon>
+            <v-icon v-else class="markAsCompletedBtn">mdi-checkbox-blank-circle-outline</v-icon>
+          </v-btn>
+          <span
+            :class="task.completed && 'text-decoration-line-through'"
+            class="taskDrawerScrolledTitle text-truncate text-subtitle-1 font-weight-bold">
+            {{ taskTitle }}
+          </span>
+          <v-chip
+            v-if="taskStatusLabel"
+            class="taskDrawerScrolledStatus flex-shrink-0 ms-2"
+            color="primary"
+            text-color="white"
+            small>
+            {{ taskStatusLabel }}
+          </v-chip>
+          <button
+            v-if="twoColumns && lastTaskChangesLog"
+            :title="$t('tooltip.viewAllChanges')"
+            type="button"
+            class="taskDrawerScrolledUpdate text-truncate text-body-2 text-light-color ms-3"
+            @click="$root.$emit('displayTaskChanges')">
+            {{ $t('label.task.lastUpdate') }}
+            {{ displayedDate(lastTaskChangesLog) }}
+            {{ $t('label.task.lastUpdateBy') }}
+            {{ lastTaskChangesLogAuthor }}
+          </button>
         </div>
+        <span v-else>{{ $t('taskDrawer.header.task') }}</span>
       </template>
       <template v-else-if="drawer" #title>
-        <div class="drawerTitleAndProject d-flex">
-          <span>{{ $t('label.drawer.header.add') }}</span>
-          <div class="taskProjectName text-truncate">
-            <task-projects
-              :task="task"
-              @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
-          </div>
-        </div>
+        <span>{{ $t('label.drawer.header.add') }}</span>
       </template>
       <template v-if="drawer && taskId && menuActions.length" #titleIcons>
         <div
@@ -83,6 +106,7 @@
                 <component
                   :is="menuAction.vueComponent || 'v-list-item'"
                   :key="menuAction.title"
+                  :class="menuAction.id && `taskActionMenu-${menuAction.id}`"
                   v-bind="menuAction.vueComponent && {
                     task,
                   }"
@@ -112,7 +136,10 @@
           <div
             :class="twoColumns && 'flex-grow-1 overflow-y-auto'"
             class="taskDrawerDetails pa-4">
-            <div v-resize="fitTitleHeight" class="taskTitleAndMark d-flex">
+            <div
+              v-resize="fitTitleHeight"
+              v-intersect.quiet="onTitleIntersect"
+              class="taskTitleAndMark d-flex">
               <v-btn
                 id="check_btn"
                 class="ms-n2"
@@ -138,42 +165,122 @@
             </div>
             <div
               v-if="taskId"
-              :title="$t('tooltip.viewAllChanges')"
-              class="lastUpdatedTask pb-3"
-              @click="$root.$emit('displayTaskChanges')">
-              <span class="pe-2">{{ $t('label.task.lastUpdate') }}
-                {{ displayedDate(lastTaskChangesLog) }}
-                {{ $t('label.task.lastUpdateBy') }}
-                {{ lastTaskChangesLogAuthor }}</span>
+              class="lastUpdatedTask pb-3">
+              <v-tooltip top>
+                <template #activator="{ on, attrs }">
+                  <button
+                    v-bind="attrs"
+                    type="button"
+                    class="pe-2"
+                    v-on="on"
+                    @click="$root.$emit('displayTaskChanges')">
+                    {{ $t('label.task.lastUpdate') }}
+                    {{ displayedDate(lastTaskChangesLog) }}
+                    {{ $t('label.task.lastUpdateBy') }}
+                    {{ lastTaskChangesLogAuthor }}
+                  </button>
+                </template>
+                <span>{{ $t('tooltip.viewAllChanges') }}</span>
+              </v-tooltip>
             </div>
-            <div class="taskAssignement ms-8 pb-3">
-              <task-assignment
-                :task="task"
-                @updateTaskAssignment="updateTaskAssignee($event)"
-                @updateTaskCoworker="updateTaskCoworker($event)"
-                @assignmentsOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeLabelsList()" />
-            </div>
-            <v-divider class="my-0" />
-            <div class="d-flex py-2">
-              <div class="taskDates">
-                <task-form-date-pickers
-                  :task="task"
-                  :date-picker-top="datePickerTop"
-                  @startDateChanged="updateTaskStartDate($event)"
-                  @dueDateChanged="updateTaskDueDate($event)" />
-              </div>
-              <div class="taskStatusAndPriority">
-                <task-priority
-                  :task="task"
-                  class="py-2"
-                  @updateTaskPriority="updateTaskPriority($event)"
-                  @PriorityListOpened="closeStatus(); closeProjectsList(); closeLabelsList();closeTaskDates();closeAssignements()" />
+            <div
+              id="taskDrawerFields"
+              :class="twoColumns && 'taskDrawerFieldsTwoColumns'"
+              class="taskDrawerFields pb-2">
+              <task-drawer-field
+                :label="$t('taskDrawer.field.project')"
+                :pencil="!projectEditable"
+                :pencil-label="$t('taskDrawer.menu.moveProject')"
+                name="project"
+                icon="fa-folder"
+                editable
+                @edit="startMovingProject">
+                <div v-show="projectEditable" class="taskProjectName">
+                  <task-projects
+                    ref="taskProjects"
+                    :task="task"
+                    @blur="stopMovingProject"
+                    @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
+                </div>
+                <div
+                  v-if="!projectEditable"
+                  class="d-flex align-center">
+                  <space-avatar
+                    v-if="taskSpaceId"
+                    :space-id="taskSpaceId"
+                    avatar
+                    :size="24"
+                    :popover="false"
+                    extra-class="flex-shrink-0 me-2" />
+                  <a
+                    :href="taskProjectLink"
+                    class="taskProjectLink text-body-2 text-truncate">
+                    {{ taskProject.name }}
+                  </a>
+                </div>
+              </task-drawer-field>
+              <task-drawer-field
+                v-show="taskProject"
+                :label="$t('taskDrawer.field.status')"
+                name="status"
+                icon="fa-clock"
+                editable>
                 <task-status
                   :task="task"
-                  class="py-2"
                   @statusListOpened="closePriority(); closeProjectsList();closeLabelsList();closeTaskDates();closeAssignements()"
                   @updateTaskStatus="updateTaskStatus($event)" />
-              </div>
+              </task-drawer-field>
+              <task-drawer-field
+                :label="$t('taskDrawer.field.assignee')"
+                :pencil="hasAssigneeValue"
+                :pencil-label="$t('taskDrawer.field.assignee')"
+                name="assignee"
+                icon="fa-user"
+                class="taskAssignement"
+                editable
+                @edit="$refs.taskAssignment.openMenu()">
+                <task-assignment
+                  ref="taskAssignment"
+                  :task="task"
+                  @updateTaskAssignment="updateTaskAssignee($event)"
+                  @updateTaskCoworker="updateTaskCoworker($event)"
+                  @assignmentsOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeLabelsList()" />
+              </task-drawer-field>
+              <task-drawer-field
+                :label="$t('taskDrawer.field.priority')"
+                name="priority"
+                icon="fa-flag"
+                editable>
+                <task-priority
+                  :task="task"
+                  @updateTaskPriority="updateTaskPriority($event)"
+                  @PriorityListOpened="closeStatus(); closeProjectsList(); closeLabelsList();closeTaskDates();closeAssignements()" />
+              </task-drawer-field>
+              <task-form-date-pickers
+                :task="task"
+                :date-picker-top="datePickerTop"
+                @startDateChanged="updateTaskStartDate($event)"
+                @dueDateChanged="updateTaskDueDate($event)" />
+              <task-drawer-field
+                v-if="taskProject"
+                :label="$t('taskDrawer.field.labels')"
+                :wide="twoColumns"
+                name="labels"
+                icon="fa-tag"
+                class="taskLabelsName taskDrawerFieldWide"
+                editable>
+                <task-labels
+                  :task="task"
+                  :limit="twoColumns ? 0 : 3"
+                  @labelsListOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeAssignements()" />
+              </task-drawer-field>
+            </div>
+            <div class="taskDescription py-4">
+              <task-description-editor
+                v-model="taskDescription"
+                :task="task"
+                :placeholder="$t('editinline.taskDescription.empty')"
+                @addTaskDescription="addTaskDescription($event)" />
             </div>
             <extension-registry-components
               v-if="task"
@@ -188,20 +295,6 @@
               type="task-drawer-section"
               element="div"
               strict-type />
-            <v-divider class="my-0" />
-            <div class="taskDescription py-4">
-              <task-description-editor
-                v-model="taskDescription"
-                :task="task"
-                :placeholder="$t('editinline.taskDescription.empty')"
-                @addTaskDescription="addTaskDescription($event)" />
-            </div>
-            <div class="taskLabelsName mt-3 mb-3">
-              <task-labels
-                v-if="task && task.status && task.status.project"
-                :task="task"
-                @labelsListOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeAssignements()" />
-            </div>
             <extension-registry-components
               :params="{
                 taskId: task && task.id,
@@ -336,6 +429,8 @@ export default {
       taskTitle: null,
       taskDescription: null,
       attachmentsVersion: 0,
+      titleScrolledAway: false,
+      movingProject: false,
     };
   },
   computed: {
@@ -385,6 +480,46 @@ export default {
     taskSpaceId() {
       return this.taskSpace && this.taskSpace.id;
     },
+    /**
+     * Whether the Assignee row holds an assignee or coworkers: the row then
+     * shows its pencil, which opens the assignment menu.
+     *
+     * @returns {boolean} whether the task has an assignee or a coworker
+     */
+    hasAssigneeValue() {
+      return !!this.task?.assignee || !!this.task?.coworker?.length;
+    },
+    /**
+     * Whether the Project row shows the project field: for a new task, a task with no project, or while the user moves the task.
+     *
+     * @returns {boolean} whether the project field shows
+     */
+    projectEditable() {
+      return !this.taskId || !this.taskProject || this.movingProject;
+    },
+    /**
+     * The link to the page of the task's project.
+     *
+     * @returns {string} the project page's URL, empty without a project
+     */
+    taskProjectLink() {
+      return this.taskProjectId && `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/projectDetail/${this.taskProjectId}`;
+    },
+    /**
+     * The translated name of the task's status, shown in the header once the title scrolled away.
+     *
+     * @returns {string} the status name, null without a status
+     */
+    taskStatusLabel() {
+      const status = this.taskStatus?.name;
+      if (!status) {
+        return null;
+      }
+      if (this.$te(`tasks.status.${status}`)) {
+        return this.$t(`tasks.status.${status}`);
+      }
+      return this.$te(`tasks.status.${status.toLowerCase()}`) && this.$t(`tasks.status.${status.toLowerCase()}`) || status;
+    },
   },
   watch: {
     taskId() {
@@ -406,7 +541,7 @@ export default {
     },
   },
   created() {
-    $(document).on('mousedown', () => {
+    $(document).on('click', () => {
       if (this.displayActionMenu) {
         window.setTimeout(() => {
           this.displayActionMenu = false;
@@ -433,10 +568,12 @@ export default {
       this.showBackArrow = true;
     });
     document.addEventListener('entity-attachments-updated', this.refreshAttachmentsCarousel);
+    this.$root.$on('update-task-project', this.onTaskProjectUpdated);
   },
   destroyed: function() {
     document.removeEventListener('keyup', this.escapeKeyListener);
     document.removeEventListener('entity-attachments-updated', this.refreshAttachmentsCarousel);
+    this.$root.$off('update-task-project', this.onTaskProjectUpdated);
   },
   methods: {
 
@@ -787,6 +924,7 @@ export default {
       this.taskDueDate= null;
       this.taskSpace = {};
       this.taskPriority='NONE';
+      this.movingProject = false;
       window.setTimeout(() => {
         document.dispatchEvent(new CustomEvent('loadTaskPriority', {
           detail: task
@@ -828,6 +966,7 @@ export default {
       this.$refs.addTaskDrawer.close();
     },
     onCloseDrawer() {
+      this.titleScrolledAway = false;
       this.$root.$emit('task-drawer-closed', this.task);
       this.showEditor = false;
       this.task = {};
@@ -894,10 +1033,23 @@ export default {
     },
     displayDrawerMenuAction( task ) {
       const menuActions = extensionRegistry.loadExtensions('Task', 'task-menu');
+      // Only the latest rebuild applies, when the project changes again before its read returns
+      const menuActionsRequest = this.menuActionsRequest = (this.menuActionsRequest || 0) + 1;
       if (task && task.status && task.status.project && task.status.project.id ) {
         this.$projectService.getProject(task.status.project.id, true).then(data => {
+          if (menuActionsRequest !== this.menuActionsRequest) {
+            return;
+          }
           this.enableDelete = data.managerIdentities.some(manager => manager.username === eXo.env.portal.userName);
           this.enableClone = this.enableDelete || data.participatorIdentities.some(participator => participator.username === eXo.env.portal.userName);
+          menuActions.push({
+            id: 'moveProject',
+            title: this.$t('taskDrawer.menu.moveProject'),
+            icon: 'fa-folder-open',
+            enabled: true,
+            action: this.startMovingProject,
+            rank: 5,
+          });
           this.addMenuAction(menuActions, this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask', 10);
           this.addMenuAction(menuActions, this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask', 20);
           menuActions.sort((a, b) => a.rank - b.rank);
@@ -936,6 +1088,60 @@ export default {
     fitTitleHeight() {
       window.clearTimeout(this.fitTitleHeightTimeout);
       this.fitTitleHeightTimeout = window.setTimeout(() => this.$refs.autoFocusInput4?.calculateInputHeight?.(), 300);
+    },
+    /**
+     * Shows the task's title, completion and status in the drawer's header
+     * while the title is scrolled out of view, and the header's own title
+     * while the title is in view.
+     *
+     * @param {IntersectionObserverEntry[]} entries the observed changes
+     * @param {IntersectionObserver} observer the observer of the title
+     * @param {boolean} isIntersecting whether the title is in view
+     * @returns {void}
+     */
+    onTitleIntersect(entries, observer, isIntersecting) {
+      this.titleScrolledAway = !!this.taskId && !isIntersecting;
+    },
+
+    /**
+     * Swaps the Project row's link for the project field and opens its list,
+     * so that the user picks the project the task moves to.
+     *
+     * @returns {void}
+     */
+    startMovingProject() {
+      this.movingProject = true;
+      // After the menu item's click has reached the document, whose
+      // outside-click handling would close the list it opens
+      window.setTimeout(() => this.$refs.taskProjects?.openProjectsList(), 50);
+    },
+
+    /**
+     * Once the task moved to another project, shows the Project row's link
+     * again and rebuilds the ⋯ menu from the new project: its move action and
+     * the rights its managers and participants give.
+     *
+     * @returns {void}
+     */
+    onTaskProjectUpdated() {
+      this.stopMovingProject();
+      if (this.taskId) {
+        this.displayDrawerMenuAction(this.task);
+      }
+    },
+
+    /**
+     * Shows the Project row's link again once the task moved, or once the
+     * project field lost the focus without a move. The delay lets a click on
+     * a project of the list reach it before the field is removed.
+     *
+     * @returns {void}
+     */
+    stopMovingProject() {
+      if (this.movingProject) {
+        window.clearTimeout(this.stopMovingProjectTimeout);
+        this.stopMovingProjectTimeout = window.setTimeout(() => this.movingProject = false, 400);
+      }
     },
     displayedDate(value) {
       return value && this.$dateUtil.formatDateObjectToDisplay(new Date(value), this.dateTimeFormat, this.lang) || '';

@@ -24,20 +24,16 @@
       :hide-no-data="!search"
       :items="items"
       :search-input.sync="search"
-      :label="$t('label.tapLabel.name')"
+      :label="$t('taskDrawer.field.add')"
       attach
       class="pt-0 inputTaskLabel"
       hide-selected
       multiple
       small-chips
-      prepend-icon
       solo
       @click="openLabelsList()"
       @change="search = ''"
       @keyup.delete="onDeleteKeyPress()">
-      <template #prepend>
-        <i class="uiIconTag uiIconBlue"></i>
-      </template>
       <template #no-data>
         <v-list-item>
           <span class="subheading">{{ $t('label.createLabel') }}</span>
@@ -48,9 +44,18 @@
           </v-chip>
         </v-list-item>
       </template>
-      <template #selection="{ attrs, item, parent, selected }">
+      <template #selection="{ attrs, item, parent, selected, index }">
+        <v-btn
+          v-if="hiddenCount && index === limit"
+          class="taskLabelsMore text-none px-1"
+          color="primary"
+          text
+          @mousedown.stop
+          @click.stop="showAll = true">
+          {{ $t('taskDrawer.labels.more', {0: hiddenCount}) }}
+        </v-btn>
         <v-chip
-          v-if="item === Object(item)"
+          v-else-if="item === Object(item) && (!limit || showAll || index < limit)"
           v-bind="attrs"
           :color="`${item.color} lighten-3`"
           :input-value="selected"
@@ -69,6 +74,15 @@
             close
           </v-icon>
         </v-chip>
+        <v-btn
+          v-if="limit && showAll && model.length > limit && index === model.length - 1"
+          class="taskLabelsLess text-none px-1"
+          color="primary"
+          text
+          @mousedown.stop
+          @click.stop="showAll = false">
+          {{ $t('taskDrawer.labels.less') }}
+        </v-btn>
       </template>
       <template #item="{ item }">
         <v-list-item @click="addTaskToLabel(item)">
@@ -94,9 +108,14 @@ export default {
         return {};
       }
     },
+    limit: {
+      type: Number,
+      default: 0,
+    },
   },
   data() {
     return {
+      showAll: false,
       index: -1,
       items: [],
       nonce: 1,
@@ -107,6 +126,16 @@ export default {
       y: 0,
       currentUserName: eXo.env.portal.userName,
     };
+  },
+  computed: {
+    /**
+     * The labels left out of the first ones shown, which « See more » shows.
+     *
+     * @returns {number} the count of hidden labels, 0 when all show
+     */
+    hiddenCount() {
+      return this.limit && !this.showAll && this.model.length > this.limit ? this.model.length - this.limit : 0;
+    },
   },
   watch: {
     model(val, prev) {
