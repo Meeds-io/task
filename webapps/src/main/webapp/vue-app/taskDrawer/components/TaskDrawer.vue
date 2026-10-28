@@ -63,6 +63,17 @@
             small>
             {{ taskStatusLabel }}
           </v-chip>
+          <button
+            v-if="twoColumns && lastTaskChangesLog"
+            :title="$t('tooltip.viewAllChanges')"
+            type="button"
+            class="taskDrawerScrolledUpdate text-truncate text-body-2 text-light-color ms-3"
+            @click="$root.$emit('displayTaskChanges')">
+            {{ $t('label.task.lastUpdate') }}
+            {{ displayedDate(lastTaskChangesLog) }}
+            {{ $t('label.task.lastUpdateBy') }}
+            {{ lastTaskChangesLogAuthor }}
+          </button>
         </div>
         <span v-else>{{ $t('taskDrawer.header.task') }}</span>
       </template>
