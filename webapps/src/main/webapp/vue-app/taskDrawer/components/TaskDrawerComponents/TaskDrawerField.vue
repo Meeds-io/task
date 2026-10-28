@@ -47,13 +47,15 @@
 </template>
 <script>
 /**
- * The width of the label column: a third of the row plus 35px, so that the
- * values start on the same line as the form cards' values (see
- * tasksDrawer.less). Set inline, as the form cards' rows do: the portal's CSS
- * minifier removes the spaces around the « + » of a calc() in a stylesheet,
- * which makes the declaration invalid.
+ * The width of the label column, as the form cards' rows: a third of the row
+ * plus the icon and its gap. A row spanning the two columns of the full-screen
+ * list keeps the label column of one column: a third of half its width, less
+ * the 24px end padding each column has, plus the icon and its gap. Set inline, as the form cards'
+ * rows do: the portal's CSS minifier removes the spaces around the « + » of a
+ * calc() in a stylesheet, which makes the declaration invalid.
  */
-const LABEL_COLUMN_WIDTH = 'calc(100% / 3 + 35px)';
+const LABEL_COLUMN_WIDTH = 'calc(100% / 3 + 31px)';
+const WIDE_LABEL_COLUMN_WIDTH = 'calc(100% / 6 + 27px)';
 
 /**
  * One row of the task drawer's field list: the field's icon and label in the
@@ -78,6 +80,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    wide: {
+      type: Boolean,
+      default: false,
+    },
   },
   computed: {
     /**
@@ -86,7 +92,8 @@ export default {
      * @returns {string} the column's flex basis and maximum width
      */
     labelColumnStyle() {
-      return `flex: 0 0 ${LABEL_COLUMN_WIDTH}; max-width: ${LABEL_COLUMN_WIDTH}`;
+      const width = this.wide ? WIDE_LABEL_COLUMN_WIDTH : LABEL_COLUMN_WIDTH;
+      return `flex: 0 0 ${width}; max-width: ${width}`;
     },
   },
 };
