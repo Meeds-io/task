@@ -265,7 +265,7 @@ export default {
         this.$emit('labelAdded', label);
       }
       this.model.push(label);
-      document.getElementById('labelInput').focus();
+      this.$refs.selectLabel?.focus();
     },
     removeTaskFromLabel(item) {
       this.$taskDrawerApi.removeTaskFromLabel(this.task.id, item.id).then( () => {
