@@ -265,10 +265,10 @@
                 editable>
                 <task-labels
                   :task="task"
+                  :limit="twoColumns ? 0 : 3"
                   @labelsListOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeAssignements()" />
               </task-drawer-field>
             </div>
-            <v-divider class="my-0" />
             <div class="taskDescription py-4">
               <task-description-editor
                 v-model="taskDescription"
