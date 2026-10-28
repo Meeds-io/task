@@ -30,7 +30,9 @@
           <task-comments
             :task="task"
             :comment="item"
-            :comments="comments" />
+            :comments="comments"
+            @confirmDialogOpened="$emit('confirmDialogOpened')"
+            @confirmDialogClosed="$emit('confirmDialogClosed')" />
         </div>
       </template>
       <div v-else class="taskCommentEmpty text-sub-title">
@@ -80,7 +82,6 @@ export default {
     MESSAGE_MAX_LENGTH: 1300,
     editorId: 'commentContent-column',
     composerOpen: false,
-    newComment: null,
   }),
   computed: {
     commentsCount() {
@@ -119,8 +120,9 @@ export default {
       this.composerOpen = false;
     },
     /**
-     * Posts the new comment and its attachments, the same way the comments
-     * drawer does, then scrolls the comments list to the posted comment.
+     * Posts the new comment, shows it at the end of the comments list, then
+     * saves its attachments, in the same order as a comment posted from a
+     * comment thread.
      *
      * @returns {void}
      */
@@ -129,13 +131,10 @@ export default {
       comment = comment.length && this.$taskDrawerApi.urlVerify(comment) || '';
       this.$taskDrawerApi.addTaskComments(this.task.id, comment)
         .then(comment => {
-          this.newComment = comment;
-          return this.$refs.commentEditor.saveAttachments(comment.comment.id);
-        })
-        .then(() => {
-          this.comments.push(this.newComment);
+          this.comments.push(comment);
           this.$root.$emit('update-task-comments', this.comments.length, this.task.id);
           this.$nextTick().then(() => this.scrollToBottom());
+          return this.$refs.commentEditor.saveAttachments(comment.comment.id);
         })
         .finally(() => {
           this.$root.$emit('task-comment-created');
