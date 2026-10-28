@@ -21,9 +21,6 @@
       pa-0
       fluid
       d-flex>
-      <i
-        :class="$vuetify.rtl && 'fa-chevron-left' || 'fa-chevron-right'"
-        class="fa my-auto me-1 ms-2 disabled--text"></i>
       <v-combobox
         ref="select"
         :filter="filterProjects"
@@ -35,7 +32,8 @@
         class="pt-0 mb-0 inputTaskProjectName taskInputArea"
         solo
         prepend-icon
-        @click="$emit('projectsListOpened')">
+        @click="$emit('projectsListOpened')"
+        @blur="$emit('blur')">
         <template #selection="{ attrs, item, parent, selected }">
           <v-chip
             v-if="item === Object(item)"
@@ -163,6 +161,17 @@ export default {
       }).then( () => {
         this.$root.$emit('update-task-project', this.task);
       });
+    },
+    /**
+     * Gives the focus to the project field and opens its list of projects.
+     *
+     * @returns {void}
+     */
+    openProjectsList() {
+      if (this.$refs.select) {
+        this.$refs.select.focus();
+        this.$refs.select.isMenuActive = true;
+      }
     },
     handleRemove() {
       const project = this.projectModel;

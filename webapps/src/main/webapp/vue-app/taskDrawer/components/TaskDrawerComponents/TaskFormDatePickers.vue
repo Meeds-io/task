@@ -15,14 +15,18 @@
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template>
-  <div class="d-flex flex-column">
-    <div class="taskPlanDateCalender d-flex col ps-0 align-center">
-      <i class="uiIconStartDate uiIconBlue"></i>
+  <div class="taskDrawerDates">
+    <task-drawer-field
+      :label="$t('taskDrawer.field.startDate')"
+      name="startDate"
+      icon="fa-calendar-alt"
+      class="taskPlanDateCalender"
+      editable>
       <date-picker
         ref="taskStartDate"
         v-model="startDate"
         :default-value="false"
-        :placeholder="$t('label.startDate')"
+        :placeholder="$t('taskDrawer.field.addStartDate')"
         :max-value="maximumStartDate"
         width="100%"
         class="flex-grow-1 my-auto"
@@ -70,14 +74,18 @@
           </div>
         </template>
       </date-picker>
-    </div>
-    <div class="taskDueDateCalender d-flex col ps-0 align-center">
-      <i class="uiIconDueDate uiIconBlue"></i>
+    </task-drawer-field>
+    <task-drawer-field
+      :label="$t('taskDrawer.field.dueDate')"
+      name="dueDate"
+      icon="fa-calendar-check"
+      class="taskDueDateCalender"
+      editable>
       <date-picker
         ref="taskDueDate"
         v-model="dueDate"
         :default-value="false"
-        :placeholder="$t('label.dueDate')"
+        :placeholder="$t('taskDrawer.field.addDueDate')"
         :min-value="minimumEndDate"
         width="100%"
         class="flex-grow-1 my-auto"
@@ -128,7 +136,7 @@
           </div>
         </template>
       </date-picker>
-    </div>
+    </task-drawer-field>
   </div>
 </template>
 <script>
