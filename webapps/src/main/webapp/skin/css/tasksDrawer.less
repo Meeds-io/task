@@ -311,22 +311,23 @@
     cursor: pointer;
   }
   .taskLabelsName {
-    // Labels flow on lines; their × shows on hover and focus, as the row's pencil
+    // Labels flow on lines; their × shows on hover, keyboard focus and touch, as the row's pencil
     .v-select__selections {
       flex-wrap: wrap;
       flex-direction: row;
     }
+    // Out of the layout at rest, so that the chips take only their text's width
     .v-chip .v-icon {
-      visibility: hidden;
+      display: none;
     }
     &:hover, &:has(:focus-visible) {
       .v-chip .v-icon {
-        visibility: visible;
+        display: inline-flex;
       }
     }
     @media (pointer: coarse) {
       .v-chip .v-icon {
-        visibility: visible;
+        display: inline-flex;
       }
     }
     .inputTaskLabel{
