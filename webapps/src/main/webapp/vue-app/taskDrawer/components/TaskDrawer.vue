@@ -442,12 +442,27 @@ export default {
     taskSpaceId() {
       return this.taskSpace && this.taskSpace.id;
     },
+    /**
+     * Whether the Project row shows the project field: for a new task, a task with no project, or while the user moves the task.
+     *
+     * @returns {boolean} whether the project field shows
+     */
     projectEditable() {
       return !this.taskId || !this.taskProject || this.movingProject;
     },
+    /**
+     * The link to the page of the task's project.
+     *
+     * @returns {string} the project page's URL, empty without a project
+     */
     taskProjectLink() {
       return this.taskProjectId && `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/projectDetail/${this.taskProjectId}`;
     },
+    /**
+     * The translated name of the task's status, shown in the header once the title scrolled away.
+     *
+     * @returns {string} the status name, null without a status
+     */
     taskStatusLabel() {
       const status = this.taskStatus?.name;
       if (!status) {
@@ -506,12 +521,12 @@ export default {
       this.showBackArrow = true;
     });
     document.addEventListener('entity-attachments-updated', this.refreshAttachmentsCarousel);
-    this.$root.$on('update-task-project', this.stopMovingProject);
+    this.$root.$on('update-task-project', this.onTaskProjectUpdated);
   },
   destroyed: function() {
     document.removeEventListener('keyup', this.escapeKeyListener);
     document.removeEventListener('entity-attachments-updated', this.refreshAttachmentsCarousel);
-    this.$root.$off('update-task-project', this.stopMovingProject);
+    this.$root.$off('update-task-project', this.onTaskProjectUpdated);
   },
   methods: {
 
@@ -862,7 +877,6 @@ export default {
       this.taskDueDate= null;
       this.taskSpace = {};
       this.taskPriority='NONE';
-      this.titleScrolledAway = false;
       this.movingProject = false;
       window.setTimeout(() => {
         document.dispatchEvent(new CustomEvent('loadTaskPriority', {
@@ -905,6 +919,7 @@ export default {
       this.$refs.addTaskDrawer.close();
     },
     onCloseDrawer() {
+      this.titleScrolledAway = false;
       this.$root.$emit('task-drawer-closed', this.task);
       this.showEditor = false;
       this.task = {};
@@ -1047,6 +1062,20 @@ export default {
       // After the menu item's click has reached the document, whose
       // outside-click handling would close the list it opens
       window.setTimeout(() => this.$refs.taskProjects?.openProjectsList(), 50);
+    },
+
+    /**
+     * Once the task moved to another project, shows the Project row's link
+     * again and rebuilds the ⋯ menu from the new project: its move action and
+     * the rights its managers and participants give.
+     *
+     * @returns {void}
+     */
+    onTaskProjectUpdated() {
+      this.stopMovingProject();
+      if (this.taskId) {
+        this.displayDrawerMenuAction(this.task);
+      }
     },
 
     /**
