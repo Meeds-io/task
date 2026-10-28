@@ -57,9 +57,19 @@ export default {
     },
   }),
   methods: {
+    /**
+     * @param {object} item a change of the task
+     * @returns {string} the key of the label naming its action
+     */
     logMsg(item) {
       return `log.${ item.actionName }`;
     },
+    /**
+     * @param {object} item a change of the task
+     * @returns {string} the HTML line saying what changed: the action, and its
+     *          target where it has one, a person's profile link for an
+     *          assignment
+     */
     renderChangeHTML(item) {
       let str = '';
       if (item.actionName === 'assign' || item.actionName === 'unassign' || item.actionName === 'assignCoworker' || item.actionName === 'unassignCoworker') {
