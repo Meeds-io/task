@@ -202,18 +202,18 @@
                 :task="task"
                 @labelsListOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeAssignements()" />
             </div>
+            <extension-registry-components
+              :params="{
+                taskId: task && task.id,
+                spaceId: taskSpaceId,
+              }"
+              name="TaskDrawer"
+              type="task-drawer-action"
+              element="div"
+              element-class="overflow-hidden"
+              class="d-flex"
+              strict-type />
             <template v-if="!twoColumns">
-              <extension-registry-components
-                :params="{
-                  taskId: task && task.id,
-                  spaceId: taskSpaceId,
-                }"
-                name="TaskDrawer"
-                type="task-drawer-action"
-                element="div"
-                element-class="overflow-hidden"
-                class="d-flex"
-                strict-type />
               <v-divider class="my-0" />
               <v-flex
                 v-if="task && task.id"
@@ -228,17 +228,6 @@
           <aside
             v-if="twoColumns"
             class="taskDrawerAside d-flex flex-column flex-shrink-0">
-            <extension-registry-components
-              :params="{
-                taskId: task.id,
-                spaceId: taskSpaceId,
-              }"
-              name="TaskDrawer"
-              type="task-drawer-action"
-              element="div"
-              element-class="overflow-hidden"
-              class="d-flex flex-shrink-0 px-4 pt-4"
-              strict-type />
             <task-comments-panel
               :task="task"
               :comments="comments"
