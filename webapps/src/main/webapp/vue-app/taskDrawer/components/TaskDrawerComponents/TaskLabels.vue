@@ -24,20 +24,16 @@
       :hide-no-data="!search"
       :items="items"
       :search-input.sync="search"
-      :label="$t('label.tapLabel.name')"
+      :label="$t('taskDrawer.field.addLabels')"
       attach
       class="pt-0 inputTaskLabel"
       hide-selected
       multiple
       small-chips
-      prepend-icon
       solo
       @click="openLabelsList()"
       @change="search = ''"
       @keyup.delete="onDeleteKeyPress()">
-      <template #prepend>
-        <i class="uiIconTag uiIconBlue"></i>
-      </template>
       <template #no-data>
         <v-list-item>
           <span class="subheading">{{ $t('label.createLabel') }}</span>
