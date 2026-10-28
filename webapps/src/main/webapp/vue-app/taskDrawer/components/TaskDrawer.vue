@@ -171,7 +171,7 @@
                   <button
                     v-bind="attrs"
                     type="button"
-                    class="pe-2 text-start"
+                    class="pe-2"
                     v-on="on"
                     @click="$root.$emit('displayTaskChanges')">
                     {{ $t('label.task.lastUpdate') }}
