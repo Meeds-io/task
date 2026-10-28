@@ -319,7 +319,12 @@
     .v-chip .v-icon {
       visibility: hidden;
     }
-    &:hover, &:focus-within {
+    &:hover, &:has(:focus-visible) {
+      .v-chip .v-icon {
+        visibility: visible;
+      }
+    }
+    @media (pointer: coarse) {
       .v-chip .v-icon {
         visibility: visible;
       }
@@ -371,10 +376,8 @@
       .v-menu__content {
         min-width: 300px!important;
         top: 100%!important;
-        left: auto ~'!important; /** orientation=lt */ ';
-        right: 0 ~'!important; /** orientation=lt */ ';
-        right: auto ~'!important; /** orientation=rt */ ';
-        left: 0 ~'!important; /** orientation=rt */ ';
+        inset-inline-start: auto!important;
+        inset-inline-end: 0!important;
       }
     }
     .assignTaskMenu {
@@ -441,10 +444,8 @@
       position: static!important;
       .v-menu__content {
         top: 100%!important;
-        left: auto ~'!important; /** orientation=lt */ ';
-        right: 0 ~'!important; /** orientation=lt */ ';
-        right: auto ~'!important; /** orientation=rt */ ';
-        left: 0 ~'!important; /** orientation=rt */ ';
+        inset-inline-start: auto!important;
+        inset-inline-end: 0!important;
       }
     }
     .datePickerComponent {

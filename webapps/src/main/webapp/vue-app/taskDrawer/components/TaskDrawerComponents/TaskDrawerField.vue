@@ -38,10 +38,9 @@
       <v-btn
         v-if="pencil"
         :aria-label="pencilLabel"
-        class="taskDrawerFieldPen flex-shrink-0 mx-1"
+        class="taskDrawerFieldPen flex-shrink-0"
         icon
-        small
-        @click="$emit('edit')">
+        @click.stop="$emit('edit')">
         <v-icon size="12" class="text-light-color">fa-pen</v-icon>
       </v-btn>
     </div>
