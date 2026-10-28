@@ -32,7 +32,6 @@
         <div
           ref="descriptionText"
           v-sanitized-html="value"
-          v-resize="measureClamp"
           :data-text="placeholder"
           :class="!expanded && 'taskDescriptionClamped'"
           class="taskDescriptionText py-1 px-2 reset-style-box rich-editor-content"
@@ -189,6 +188,16 @@ export default {
     reset() {
       this.hideDescriptionEditor();
     },
+  },
+  mounted() {
+    // The text's width changes with the drawer's, side panel or full screen, not only with the window's
+    if (window.ResizeObserver && this.$refs.descriptionText) {
+      this.descriptionObserver = new ResizeObserver(() => this.measureClamp());
+      this.descriptionObserver.observe(this.$refs.descriptionText);
+    }
+  },
+  beforeDestroy() {
+    this.descriptionObserver?.disconnect();
   },
   created() {
     this.$root.$off('drawerClosed');
