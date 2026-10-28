@@ -146,7 +146,7 @@ public class TaskSavedListener extends Listener<TaskService, TaskPayload> {
     AnalyticsUtils.addStatisticData(statisticData);
   }
 
-  private String computeTaskOperation(TaskDto oldTask, TaskDto newTask) {
+  String computeTaskOperation(TaskDto oldTask, TaskDto newTask) {
     String taskOperation = operation;
     if (oldTask != null) {
       if (isDiff(oldTask.isCompleted(), newTask.isCompleted())) {
