@@ -111,6 +111,83 @@
   }
 }
 
+// The look of a task's comment threads and of their editors, shared by the
+// comments drawer and the full-screen column of the task drawer.
+.taskCommentThread() {
+  .dateTime.caption {
+    color: @greyColorLighten1;
+    text-align: start;
+    padding-left: 10px ~'; /** orientation=lt */ ';
+    padding-right: 10px ~'; /** orientation=rt */ ';
+  }
+  .TaskCommentContent {
+    .commentItem {
+      width: 100%;
+      .commentHeader {
+        width: 100%;
+        .removeCommentBtn {
+          margin-left: auto ~'; /** orientation=lt */ ';
+          margin-right: auto ~'; /** orientation=rt */ ';
+          .deleteComment {
+            right: 0;
+            top:0;
+            .uiIconTrashMini {
+              font-size: 12px;
+            }
+          }
+        }
+        .externalTagClass {
+          color: @baseColorLight;
+          font-weight: normal;
+        }
+      }
+      .commentBody {
+        display: inline-block;
+        .taskContentComment {
+          background: @commentBackgroundColor;
+          padding: 10px;
+          border-radius: 10px;
+          word-break: break-word;
+          p {
+            margin-bottom: 0!important;
+          }
+          .externalTagClass {
+            color: @baseColorLight;
+            font-weight: normal;
+          }
+        }
+      }
+    }
+    .TaskSubComments{
+      margin-left: -20px ~'!important; /** orientation=lt */ ';
+      margin-right: -20px ~'!important; /** orientation=rt */ ';
+      .TaskSubCommentItem {
+        padding-left: 60px ~'; /** orientation=lt */ ';
+        padding-right: 60px ~'; /** orientation=rt */ ';
+      }
+    }
+    .commentEditorContainer {
+      padding-left: 40px ~'; /** orientation=lt */ ';
+      padding-right: 40px ~'; /** orientation=rt */ ';
+    }
+    .newCommentEditor {
+      padding-left: 0 ~'; /** orientation=lt */ ';
+      padding-right: 0 ~'; /** orientation=rt */ ';
+    }
+  }
+  .editorContent {
+    .inactiveEditor {
+      display: none !important;
+    }
+    .comment {
+      position: relative;
+      .editorContainer {
+        width: 100%;
+      }
+    }
+  }
+}
+
 .taskCommentDrawer {
   .addCommentBtn {
     .uiIconTaskAddComment {
@@ -149,78 +226,7 @@
   }
   .drawerContent {
     padding: 8px;
-    .dateTime.caption {
-      color: @greyColorLighten1;
-      text-align: start;
-      padding-left: 10px ~'; /** orientation=lt */ ';
-      padding-right: 10px ~'; /** orientation=rt */ ';
-    }
-    .TaskCommentContent {
-      .commentItem {
-        width: 100%;
-        .commentHeader {
-          width: 100%;
-          .removeCommentBtn {
-            margin-left: auto ~'; /** orientation=lt */ ';
-            margin-right: auto ~'; /** orientation=rt */ ';
-            .deleteComment {
-              right: 0;
-              top:0;
-              .uiIconTrashMini {
-                font-size: 12px;
-              }
-            }
-          }
-          .externalTagClass {
-            color: @baseColorLight;
-            font-weight: normal;
-          }
-        }
-        .commentBody {
-          display: inline-block;
-          .taskContentComment {
-            background: @commentBackgroundColor;
-            padding: 10px;
-            border-radius: 10px;
-            word-break: break-word;
-            p {
-              margin-bottom: 0!important;
-            }
-            .externalTagClass {
-              color: @baseColorLight;
-              font-weight: normal;
-            }
-          }
-        }
-      }
-      .TaskSubComments{
-        margin-left: -20px ~'!important; /** orientation=lt */ ';
-        margin-right: -20px ~'!important; /** orientation=rt */ ';
-        .TaskSubCommentItem {
-          padding-left: 60px ~'; /** orientation=lt */ ';
-          padding-right: 60px ~'; /** orientation=rt */ ';
-        }
-      }
-      .commentEditorContainer {
-        padding-left: 40px ~'; /** orientation=lt */ ';
-        padding-right: 40px ~'; /** orientation=rt */ ';
-      }
-      .newCommentEditor {
-        padding-left: 0 ~'; /** orientation=lt */ ';
-        padding-right: 0 ~'; /** orientation=rt */ ';
-      }
-    }
-    .editorContent {
-      .inactiveEditor {
-        display: none !important;
-      }
-      .comment {
-        position: relative;
-        .editorContainer {
-          width: 100%;
-        }
-      }
-    }
+    .taskCommentThread();
     .changeUserAvatar {
       .pull-left.ml-2.d-flex.flex-column {
         align-self: flex-start;
@@ -235,6 +241,10 @@
       max-width: 270px;
     }
   }
+}
+
+#task-Drawer .taskCommentsColumn {
+  .taskCommentThread();
 }
 
 .taskContentComment {

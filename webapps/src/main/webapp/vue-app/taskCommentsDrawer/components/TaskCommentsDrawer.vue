@@ -46,38 +46,16 @@
       </v-flex>
     </template>
     <template slot="content">
-      <v-flex id="commentDrawerContent" class="drawerContent flex-grow-1 overflow-auto border-box-sizing">
-        <div
-          v-if="this.comments && this.comments.length"
-          class="TaskCommentContent">
-          <div
-            v-for="(item, i) in comments"
-            :key="i"
-            class="pe-0 ps-0 TaskCommentItem">
-            <task-comments
-              :task="task"
-              :comment="item"
-              :comments="comments"
-              :last-comment="commentId"
-              :show-new-comment-editor="showNewCommentEditor"
-              @confirmDialogOpened="$emit('confirmDialogOpened')"
-              @confirmDialogClosed="$emit('confirmDialogClosed')" />
-          </div>
-        </div>
-        <div v-else-if="drawer">
-          <div class="editorContent commentEditorContainer newCommentEditor">
-            <task-comment-editor
-              ref="commentEditor"
-              :max-length="MESSAGE_MAX_LENGTH"
-              :placeholder="$t('task.placeholder').replace('{0}', MESSAGE_MAX_LENGTH)"
-              :task="task"
-              :show-comment-editor="true"
-              :id="'commentContent-editor'"
-              class="subComment subCommentEditor"
-              @addNewComment="addTaskComment($event)" />
-          </div>
-        </div>
-      </v-flex>
+      <task-comments-panel
+        id="commentDrawerContent"
+        :task="task"
+        :comments="comments"
+        :last-comment="commentId"
+        :show-new-comment-editor="showNewCommentEditor"
+        :active="drawer"
+        class="drawerContent flex-grow-1 overflow-auto border-box-sizing"
+        @confirmDialogOpened="$emit('confirmDialogOpened')"
+        @confirmDialogClosed="$emit('confirmDialogClosed')" />
     </template>
   </exo-drawer>
 </template>
@@ -111,9 +89,6 @@ export default {
       showNewCommentEditor: false,
       drawer: false,
       test: false,
-      MESSAGE_MAX_LENGTH: 1300,
-      newComment: null,
-      newCommentId: null
     };
   },
   computed: {
@@ -141,22 +116,6 @@ export default {
     }
   },
   methods: {
-    addTaskComment() {
-      let comment = this.$refs.commentEditor.getMessage() || '';
-      comment = comment.length && this.urlVerify(comment) || '';
-      this.$taskDrawerApi.addTaskComments(this.task.id,comment)
-        .then(comment => {
-          this.newComment = comment;
-          return this.$refs.commentEditor.saveAttachments(comment.comment.id);
-        })
-        .then(() => {
-          this.comments.push(this.newComment);
-          this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
-        })
-        .finally(() => {
-          this.$root.$emit('task-comment-created');
-        });
-    },
     closeDrawer() {
       if (this.$refs.taskCommentDrawer) {
         this.$refs.taskCommentDrawer.close();
@@ -167,9 +126,6 @@ export default {
       if (this.$refs.taskCommentDrawer) {
         this.$refs.taskCommentDrawer.open();
       }
-    },
-    urlVerify(text) {
-      return this.$taskDrawerApi.urlVerify(text);
     },
     openEditorToBottom() {
       if (this.comments.length > 0) {
