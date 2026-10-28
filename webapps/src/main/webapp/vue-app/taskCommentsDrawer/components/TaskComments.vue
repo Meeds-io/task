@@ -107,20 +107,11 @@ export default {
   },
   methods: {
     addTaskComment(commentId) {
-      let commentText = this.$refs.commentEditor.getMessage() || '';
-      commentText = commentText.length && this.urlVerify(commentText) || '';
       if (this.newCommentEditor) {
-        this.$taskDrawerApi.addTaskComments(this.task.id,commentText)
-          .then((comment) => {
-            this.comments.push(comment);
-            return this.$refs.commentEditor.saveAttachments(comment.comment.id);
-          })
-          .then( () => {
-            this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
-          }).finally(() => {
-            this.$root.$emit('task-comment-created');
-          });
+        this.$emit('add-comment', this.$refs.commentEditor);
       } else {
+        let commentText = this.$refs.commentEditor.getMessage() || '';
+        commentText = commentText.length && this.urlVerify(commentText) || '';
         this.$taskDrawerApi.addTaskSubComment(this.task.id, commentId, commentText)
           .then(comment => {
             this.comment.subComments = this.comment.subComments || [];
