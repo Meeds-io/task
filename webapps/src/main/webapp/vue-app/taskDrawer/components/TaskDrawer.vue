@@ -168,14 +168,17 @@
               class="lastUpdatedTask pb-3">
               <v-tooltip top>
                 <template #activator="{ on, attrs }">
-                  <span
+                  <button
                     v-bind="attrs"
-                    class="pe-2"
+                    type="button"
+                    class="pe-2 text-start"
                     v-on="on"
-                    @click="$root.$emit('displayTaskChanges')">{{ $t('label.task.lastUpdate') }}
+                    @click="$root.$emit('displayTaskChanges')">
+                    {{ $t('label.task.lastUpdate') }}
                     {{ displayedDate(lastTaskChangesLog) }}
                     {{ $t('label.task.lastUpdateBy') }}
-                    {{ lastTaskChangesLogAuthor }}</span>
+                    {{ lastTaskChangesLogAuthor }}
+                  </button>
                 </template>
                 <span>{{ $t('tooltip.viewAllChanges') }}</span>
               </v-tooltip>
@@ -230,11 +233,14 @@
               <task-drawer-field
                 :label="$t('taskDrawer.field.assignee')"
                 :pencil="hasAssigneeValue"
+                :pencil-label="$t('taskDrawer.field.assignee')"
                 name="assignee"
                 icon="fa-user"
                 class="taskAssignement"
-                editable>
+                editable
+                @edit="$refs.taskAssignment.openMenu()">
                 <task-assignment
+                  ref="taskAssignment"
                   :task="task"
                   @updateTaskAssignment="updateTaskAssignee($event)"
                   @updateTaskCoworker="updateTaskCoworker($event)"

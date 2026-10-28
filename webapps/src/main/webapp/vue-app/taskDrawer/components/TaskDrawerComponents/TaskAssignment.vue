@@ -229,6 +229,14 @@ export default {
     });
   },
   methods: {
+    /**
+     * Opens the assignment menu, as a click on the assignee does.
+     *
+     * @returns {void}
+     */
+    openMenu() {
+      this.$el.querySelector('.taskAssignItem')?.click();
+    },
     assignToMe() {
       if ( this.task.assignee !== this.currentUser ) {
         this.$identityService.getIdentityByProviderIdAndRemoteId('organization',this.currentUser).then(user => {

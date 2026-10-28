@@ -21,7 +21,6 @@
       :aria-label="$t('taskDrawer.description.edit')"
       class="taskDescriptionPen"
       icon
-      small
       @click="showDescriptionEditor($event)">
       <v-icon size="12" class="text-light-color">fa-pen</v-icon>
     </v-btn>
@@ -46,7 +45,6 @@
           class="taskDescriptionMore text-none px-2"
           color="primary"
           text
-          small
           @click="expanded = !expanded">
           {{ $t(expanded ? 'taskDrawer.description.seeLess' : 'taskDrawer.description.seeMore') }}
         </v-btn>
@@ -252,7 +250,7 @@ export default {
         event.stopPropagation();
       }
       if (!this.showEditor) {
-        this.previousDescription = this.value;
+        this.previousDescription = this.task?.description || '';
         this.inputVal = this.value;
         this.editorReady = true;
         this.showEditor = true;
