@@ -986,8 +986,13 @@ export default {
     },
     displayDrawerMenuAction( task ) {
       const menuActions = extensionRegistry.loadExtensions('Task', 'task-menu');
+      // Only the latest rebuild applies, when the project changes again before its read returns
+      const menuActionsRequest = this.menuActionsRequest = (this.menuActionsRequest || 0) + 1;
       if (task && task.status && task.status.project && task.status.project.id ) {
         this.$projectService.getProject(task.status.project.id, true).then(data => {
+          if (menuActionsRequest !== this.menuActionsRequest) {
+            return;
+          }
           this.enableDelete = data.managerIdentities.some(manager => manager.username === eXo.env.portal.userName);
           this.enableClone = this.enableDelete || data.participatorIdentities.some(participator => participator.username === eXo.env.portal.userName);
           menuActions.push({
