@@ -335,18 +335,19 @@
       flex-wrap: wrap;
       flex-direction: row;
     }
-    // Out of the layout at rest, so that the chips take only their text's width
+    // Hidden at rest, keeping its place: showing it on hover must not move
+    // the labels, nor « +N more », under the pointer
     .v-chip .v-icon {
-      display: none;
+      visibility: hidden;
     }
     &:hover, &:has(:focus-visible) {
       .v-chip .v-icon {
-        display: inline-flex;
+        visibility: visible;
       }
     }
     @media (pointer: coarse) {
       .v-chip .v-icon {
-        display: inline-flex;
+        visibility: visible;
       }
     }
     .inputTaskLabel{
