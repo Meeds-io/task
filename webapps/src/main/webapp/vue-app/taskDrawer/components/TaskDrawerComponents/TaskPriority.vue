@@ -75,31 +75,12 @@ export default {
       ],
     };
   },
-  watch: {
-    priority() {
-      if (this.task.priority !== this.priority) {
-        this.updateTaskPriority();
-      }
-    }
-  },
   created() {
     $(document).on('mousedown', () => {
       if (this.$refs.selectPriority && this.$refs.selectPriority.isMenuActive) {
         window.setTimeout(() => {
           this.$refs.selectPriority.isMenuActive = false;
         }, 200);
-      }
-    });
-    document.addEventListener('loadTaskPriority', event => {
-      if (event && event.detail) {
-        const task = event.detail;
-        if (task.id!=null) {
-          this.priority = task.priority;
-          this.priorityDefaultColor = this.getTaskPriorityColor(task.priority);
-        } else {
-          this.priority = 'NONE';
-          this.priorityDefaultColor = this.getTaskPriorityColor('NONE');
-        }
       }
     });
     document.addEventListener('closePriority',()=> {
@@ -111,6 +92,22 @@ export default {
     });
   },
   methods: {
+    /**
+     * Shows the priority of the task its drawer opens. Only the drawer that
+     * holds this field calls it, and it saves nothing: the priority is saved
+     * only when the user chooses one in the list.
+     *
+     * @param {object} task the task the drawer opens
+     * @returns {void}
+     */
+    load(task) {
+      this.priority = task?.id != null ? task.priority : 'NONE';
+      this.priorityDefaultColor = this.getTaskPriorityColor(this.priority);
+    },
+    /**
+     * @param {string} priority a priority key: HIGH, NORMAL, LOW or NONE
+     * @returns {string} the class that colors the priority's flag
+     */
     getTaskPriorityColor(priority) {
       switch (priority) {
       case 'HIGH':
@@ -123,6 +120,11 @@ export default {
         return 'nonePriorityColor';
       }
     },
+    /**
+     * Asks the drawer to save the priority the user chose in the list.
+     *
+     * @returns {void}
+     */
     updateTaskPriority() {
       this.priorityDefaultColor = this.getTaskPriorityColor(this.priority);
       const value = {
