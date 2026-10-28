@@ -39,9 +39,13 @@
           {{ tabLabel(tab) }}
         </v-tab>
       </v-tabs>
+      <v-progress-linear
+        v-if="tabsLoading && requestedTab !== selectedTabId"
+        indeterminate
+        color="primary" />
       <component
         :is="selectedTab.vueComponent"
-        v-if="selectedTab && showTaskChangesDrawer"
+        v-else-if="selectedTab && showTaskChangesDrawer"
         :key="`${selectedTab.id}-${taskId}`"
         :task-id="taskId"
         :project-id="projectId" />
@@ -96,6 +100,7 @@ export default {
       tabs: [],
       tabsKey: null,
       tabsRequest: 0,
+      tabsLoading: false,
       requestedTab: TASK_TAB,
       selectedIndex: 0,
       dateTimeFormat: {
@@ -120,6 +125,9 @@ export default {
     },
     selectedTab() {
       return this.selectedIndex > 0 && this.tabs[this.selectedIndex - 1] || null;
+    },
+    selectedTabId() {
+      return this.selectedTab && this.selectedTab.id || TASK_TAB;
     },
   },
   watch: {
@@ -172,9 +180,11 @@ export default {
     },
     /**
      * Reads the tabs other add-ons registered, keeps those that apply to the
-     * task, ordered by rank, and selects the requested one. The tabs of
-     * another task are dropped at once, and an answer arriving after a newer
-     * read is ignored.
+     * task, the last one registered per id, ordered by rank, and selects the
+     * requested one. The tabs of another task are dropped at once, and an
+     * answer arriving after a newer read is ignored. While the read is
+     * pending, a drawer asked to open on another tab than the task's own
+     * changes shows that it is loading rather than those changes.
      *
      * @returns {Promise} settled once the tabs are shown or the answer dropped
      */
@@ -187,15 +197,19 @@ export default {
         this.tabs = [];
         this.selectRequestedTab();
       }
-      const registered = this.taskId && extensionRegistry.loadComponents('TaskDrawer')
+      const byId = new Map();
+      (this.taskId && extensionRegistry.loadComponents('TaskDrawer') || [])
         .filter(component => component.componentName === TAB_TYPE)
-        .map(component => component.componentOptions) || [];
+        .forEach(component => byId.set(component.componentOptions.id, component.componentOptions));
+      const registered = [...byId.values()];
+      this.tabsLoading = true;
       return Promise.all(registered.map(tab => this.isTabEnabled(tab, params)))
         .then(enabled => {
           if (request === this.tabsRequest) {
             this.tabs = registered.filter((tab, index) => enabled[index])
               .sort((tab1, tab2) => (tab1.rank || 0) - (tab2.rank || 0));
             this.selectRequestedTab();
+            this.tabsLoading = false;
           }
         });
     },
