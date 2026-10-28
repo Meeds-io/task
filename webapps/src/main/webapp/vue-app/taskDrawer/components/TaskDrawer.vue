@@ -52,15 +52,15 @@
           </v-btn>
           <span
             :class="task.completed && 'text-decoration-line-through'"
-            class="taskDrawerScrolledTitle text-truncate font-weight-bold">
+            class="taskDrawerScrolledTitle text-truncate text-subtitle-1 font-weight-bold">
             {{ taskTitle }}
           </span>
           <v-chip
             v-if="taskStatusLabel"
             class="taskDrawerScrolledStatus flex-shrink-0 ms-2"
             color="primary"
-            small
-            outlined>
+            text-color="white"
+            small>
             {{ taskStatusLabel }}
           </v-chip>
         </div>
