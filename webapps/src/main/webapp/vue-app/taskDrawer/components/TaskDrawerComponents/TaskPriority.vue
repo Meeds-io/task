@@ -28,8 +28,17 @@
       class="pt-0 selectFont"
       @change="updateTaskPriority()"
       @click="$emit('PriorityListOpened')">
-      <template #append>
-        <v-icon :class="priorityDefaultColor" size="20">mdi-flag-variant</v-icon>
+      <template #selection="{ item }">
+        <span v-if="item.key === 'NONE'" class="primary--text text-body-2">{{ $t('taskDrawer.field.addPriority') }}</span>
+        <span v-else class="d-flex align-center text-body-2">
+          <v-icon
+            :class="priorityDefaultColor"
+            class="me-1"
+            size="18">
+            mdi-flag-variant
+          </v-icon>
+          {{ item.value }}
+        </span>
       </template>
       <template slot="item" slot-scope="data">
         <v-list-avatar class="me-2">
