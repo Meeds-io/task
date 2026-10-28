@@ -51,7 +51,7 @@
  * The width of the label column, as the form cards' rows: a third of the row
  * plus the icon and its gap. A row spanning the two columns of the full-screen
  * list keeps the label column of one column: a third of half its width, less
- * the 24px end padding each column has, plus the icon and its gap. Set inline, as the form cards'
+ * the 24px end margin each column has, plus the icon and its gap. Set inline, as the form cards'
  * rows do: the portal's CSS minifier removes the spaces around the « + » of a
  * calc() in a stylesheet, which makes the declaration invalid.
  */
