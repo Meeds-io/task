@@ -74,17 +74,14 @@
           class="subComment subCommentEditor"
           @addNewComment="addTaskComment($refs.commentEditor)" />
       </div>
-      <div
+      <button
         v-if="!composerOpen"
         :title="$t('comment.message.addYourComment')"
-        class="taskCommentsColumnPlaceholder d-flex align-center text-sub-title px-3"
-        role="button"
-        tabindex="0"
-        @click="openComposer"
-        @keydown.enter="openComposer"
-        @keydown.space.prevent="openComposer">
+        type="button"
+        class="taskCommentsColumnPlaceholder d-flex align-center width-full text-sub-title px-3"
+        @click="openComposer">
         {{ $t('comment.message.addYourComment') }}
-      </div>
+      </button>
     </div>
   </v-flex>
 </template>
