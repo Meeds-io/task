@@ -18,7 +18,9 @@
   <div
     :class="[`taskDrawerField-${name}`, editable && 'taskDrawerFieldEditable']"
     class="taskDrawerField d-flex align-start">
-    <div class="taskDrawerFieldLabel d-flex align-center flex-shrink-0 pe-3">
+    <div
+      :style="labelColumnStyle"
+      class="taskDrawerFieldLabel d-flex align-center flex-shrink-0 pe-3">
       <span class="taskDrawerFieldIcon d-inline-flex align-center justify-center flex-shrink-0">
         <v-icon
           size="18"
@@ -45,6 +47,15 @@
 </template>
 <script>
 /**
+ * The width of the label column: a third of the row plus 35px, so that the
+ * values start on the same line as the form cards' values (see
+ * tasksDrawer.less). Set inline, as the form cards' rows do: the portal's CSS
+ * minifier removes the spaces around the « + » of a calc() in a stylesheet,
+ * which makes the declaration invalid.
+ */
+const LABEL_COLUMN_WIDTH = 'calc(100% / 3 + 35px)';
+
+/**
  * One row of the task drawer's field list: the field's icon and label in the
  * label column, its value in the value column, laid out as the rows of the
  * form cards the drawer shows below, so that both read as one list.
@@ -66,6 +77,16 @@ export default {
     editable: {
       type: Boolean,
       default: false,
+    },
+  },
+  computed: {
+    /**
+     * The style that sizes the label column.
+     *
+     * @returns {string} the column's flex basis and maximum width
+     */
+    labelColumnStyle() {
+      return `flex: 0 0 ${LABEL_COLUMN_WIDTH}; max-width: ${LABEL_COLUMN_WIDTH}`;
     },
   },
 };
