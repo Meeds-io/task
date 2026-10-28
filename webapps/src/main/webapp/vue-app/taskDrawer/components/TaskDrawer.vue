@@ -168,11 +168,12 @@
               class="taskDrawerFields pb-2">
               <task-drawer-field
                 :label="$t('taskDrawer.field.project')"
-                :editable="projectEditable"
-                :wide="twoColumns"
+                :pencil="!projectEditable"
+                :pencil-label="$t('taskDrawer.menu.moveProject')"
                 name="project"
                 icon="fa-folder"
-                class="taskDrawerFieldWide">
+                editable
+                @edit="startMovingProject">
                 <div v-show="projectEditable" class="taskProjectName">
                   <task-projects
                     ref="taskProjects"
@@ -200,6 +201,7 @@
               </task-drawer-field>
               <task-drawer-field
                 :label="$t('taskDrawer.field.assignee')"
+                :pencil="hasAssigneeValue"
                 name="assignee"
                 icon="fa-user"
                 class="taskAssignement"
@@ -228,9 +230,10 @@
               <task-drawer-field
                 v-if="taskProject"
                 :label="$t('taskDrawer.field.labels')"
+                :wide="twoColumns"
                 name="labels"
                 icon="fa-tag"
-                class="taskLabelsName"
+                class="taskLabelsName taskDrawerFieldWide"
                 editable>
                 <task-labels
                   :task="task"
@@ -442,6 +445,15 @@ export default {
     },
     taskSpaceId() {
       return this.taskSpace && this.taskSpace.id;
+    },
+    /**
+     * Whether the Assignee row holds an assignee or coworkers, whose names
+     * are links to their profiles: the row then shows its pencil.
+     *
+     * @returns {boolean} whether the task has an assignee or a coworker
+     */
+    hasAssigneeValue() {
+      return !!this.task?.assignee || !!this.task?.coworker?.length;
     },
     /**
      * Whether the Project row shows the project field: for a new task, a task with no project, or while the user moves the task.
