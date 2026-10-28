@@ -25,6 +25,7 @@ import TaskFormDatePickers from './components/TaskDrawerComponents/TaskFormDateP
 import TaskChangesDrawer from './components/TaskDrawerComponents/TaskChangesDrawer.vue';
 import TaskChangesLog from './components/TaskDrawerComponents/TaskChangesLog.vue';
 import TaskChangesTabs from './components/TaskDrawerComponents/TaskChangesTabs.vue';
+import TaskDrawerField from './components/TaskDrawerComponents/TaskDrawerField.vue';
 
 const components = {
   'task-drawer': TaskDrawer,
@@ -38,6 +39,7 @@ const components = {
   'task-changes-drawer': TaskChangesDrawer,
   'task-changes-log': TaskChangesLog,
   'task-changes-tabs': TaskChangesTabs,
+  'task-drawer-field': TaskDrawerField,
 };
 
 for (const key in components) {
