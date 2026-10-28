@@ -29,7 +29,7 @@
       @change="updateTaskPriority()"
       @click="$emit('PriorityListOpened')">
       <template #selection="{ item }">
-        <span v-if="item.key === 'NONE'" class="primary--text text-body-2">{{ $t('taskDrawer.field.addPriority') }}</span>
+        <span v-if="item.key === 'NONE'" class="primary--text text-body-2">{{ $t('taskDrawer.field.add') }}</span>
         <span v-else class="d-flex align-center text-body-2">
           <v-icon
             :class="priorityDefaultColor"

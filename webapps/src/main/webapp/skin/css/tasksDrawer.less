@@ -139,19 +139,25 @@
     }
   }
   // The field list: one row per field, laid out as the form cards' rows
-  // (exoplatform/forms FormsFieldRow): an 18px icon in a 21px box, a 10px gap,
-  // a 40px first line, 48px on a touch screen. A form row's label column is a
-  // third of the card's inner width (26px narrower: its padding and borders)
-  // plus the icon, and starts 13px in; this one is a third of the row plus
-  // 35px, so that the values of both start on one line (set inline by
-  // TaskDrawerField.vue: the portal's minifier breaks a calc() with a « + »).
+  // (exoplatform/forms FormsFieldRow, FormsObjectSection) so that both read as
+  // one list: the same 13px inset as a card's padding and border, two equal
+  // columns with no gap in full screen, a label column a third of a column plus
+  // the icon (set inline by TaskDrawerField.vue: the portal's minifier breaks a
+  // calc() with a « + »), an 18px icon in a 21px box, a 10px gap, a 40px first
+  // line, 48px on a touch screen.
   .taskDrawerFields {
     display: flex;
     flex-direction: column;
+    padding-left: 13px;
+    padding-right: 13px;
     &.taskDrawerFieldsTwoColumns {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      column-gap: 48px;
+      // As a form card's column in full screen (pe-6)
+      .taskDrawerField {
+        padding-right: 24px ~'; /** orientation=lt */ ';
+        padding-left: 24px ~'; /** orientation=rt */ ';
+      }
       .taskDrawerFieldWide {
         grid-column: span 2;
       }
@@ -159,6 +165,7 @@
   }
   .taskDrawerField {
     min-height: 40px;
+    text-align: start;
     .taskDrawerFieldLabel {
       height: 40px;
       min-width: 0;
@@ -416,7 +423,7 @@
         box-shadow: none;
         box-sizing: border-box;
         &::placeholder {
-          color: @primaryColor;
+          color: @primaryColor!important;
           opacity: 1;
         }
       }

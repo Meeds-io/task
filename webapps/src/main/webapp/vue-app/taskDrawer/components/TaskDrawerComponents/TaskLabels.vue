@@ -24,7 +24,7 @@
       :hide-no-data="!search"
       :items="items"
       :search-input.sync="search"
-      :label="$t('taskDrawer.field.addLabels')"
+      :label="$t('taskDrawer.field.add')"
       attach
       class="pt-0 inputTaskLabel"
       hide-selected

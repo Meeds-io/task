@@ -169,6 +169,7 @@
               <task-drawer-field
                 :label="$t('taskDrawer.field.project')"
                 :editable="projectEditable"
+                :wide="twoColumns"
                 name="project"
                 icon="fa-folder"
                 class="taskDrawerFieldWide">
