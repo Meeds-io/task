@@ -165,13 +165,20 @@
             </div>
             <div
               v-if="taskId"
-              :title="$t('tooltip.viewAllChanges')"
-              class="lastUpdatedTask pb-3"
-              @click="$root.$emit('displayTaskChanges')">
-              <span class="pe-2">{{ $t('label.task.lastUpdate') }}
-                {{ displayedDate(lastTaskChangesLog) }}
-                {{ $t('label.task.lastUpdateBy') }}
-                {{ lastTaskChangesLogAuthor }}</span>
+              class="lastUpdatedTask pb-3">
+              <v-tooltip top>
+                <template #activator="{ on, attrs }">
+                  <span
+                    v-bind="attrs"
+                    class="pe-2"
+                    v-on="on"
+                    @click="$root.$emit('displayTaskChanges')">{{ $t('label.task.lastUpdate') }}
+                    {{ displayedDate(lastTaskChangesLog) }}
+                    {{ $t('label.task.lastUpdateBy') }}
+                    {{ lastTaskChangesLogAuthor }}</span>
+                </template>
+                <span>{{ $t('tooltip.viewAllChanges') }}</span>
+              </v-tooltip>
             </div>
             <div
               id="taskDrawerFields"
@@ -192,12 +199,22 @@
                     @blur="stopMovingProject"
                     @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
                 </div>
-                <a
+                <div
                   v-if="!projectEditable"
-                  :href="taskProjectLink"
-                  class="taskProjectLink d-block text-body-2 text-truncate">
-                  {{ taskProject.name }}
-                </a>
+                  class="d-flex align-center">
+                  <space-avatar
+                    v-if="taskSpaceId"
+                    :space-id="taskSpaceId"
+                    :avatar="taskSpace.avatarUrl"
+                    :size="24"
+                    :popover="false"
+                    extra-class="flex-shrink-0 me-2" />
+                  <a
+                    :href="taskProjectLink"
+                    class="taskProjectLink text-body-2 text-truncate">
+                    {{ taskProject.name }}
+                  </a>
+                </div>
               </task-drawer-field>
               <task-drawer-field
                 v-show="taskProject"
