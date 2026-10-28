@@ -99,6 +99,14 @@
             @add-label="addLabelOnCreate"
             @edit-label-on-create="editLabelBeforeCreate" />
         </div>
+        <extension-registry-components
+          v-if="project.id"
+          :key="`${project.id}-${openCount}`"
+          :params="sectionParams"
+          name="ProjectDrawer"
+          type="project-drawer-section"
+          element="div"
+          strict-type />
       </v-form>
     </template>
     <template slot="footer">
@@ -135,6 +143,8 @@ export default {
       postProject: false,
       project: {},
       labelsToAdd: [],
+      openCount: 0,
+      saveHooks: [],
     };
   },
   computed: {
@@ -147,6 +157,12 @@ export default {
         return pureText.length> this.MESSAGE_MAX_LENGTH ;
       }
       return '';
+    },
+    sectionParams() {
+      return {
+        projectId: this.project.id,
+        registerSaveHook: this.registerSaveHook,
+      };
     },
     labelDrawer(){
       if (typeof this.project.id !== 'undefined'){
@@ -173,9 +189,38 @@ export default {
       const objIndex = this.labelsToAdd.findIndex((obj => obj.name === label.name));
       this.labelsToAdd[objIndex].name = label.text;
     },
+    /**
+     * Lets a section another add-on adds to the drawer save its own changes
+     * once the project is saved; the drawer closes only when every section
+     * saved. A section rejecting with an error carrying alertMessage has that
+     * message shown instead of the generic one.
+     *
+     * @param {Function} hook called with the project id, returns a Promise
+     * @returns {Function} removes the hook, for the section to call when it
+     *          is destroyed
+     */
+    registerSaveHook(hook) {
+      this.saveHooks.push(hook);
+      return () => this.saveHooks = this.saveHooks.filter(registered => registered !== hook);
+    },
+    /**
+     * Once the project is saved, shows it saved everywhere, then runs every
+     * section's save hook: a section failing to save leaves the drawer open
+     * on a project already up to date in the board and the list.
+     *
+     * @param {number} projectId the saved project's id
+     * @param {object} project what the project update answered
+     * @returns {Promise} resolved once every hook resolved
+     */
+    refreshThenRunSaveHooks(projectId, project) {
+      this.$emit('update-cart', project);
+      this.$root.$emit('update-projects-list', {});
+      return Promise.all(this.saveHooks.map(hook => hook(projectId)));
+    },
     open(project) {
       if (project && project.id){
         return this.$projectService.getProject(project.id,true).then(project => {
+          this.openCount++;
           this.project=project;
           this.manager=[];
           this.participator=[];
@@ -310,9 +355,7 @@ export default {
         const managers = this.manager;
         if (typeof projects.id !== 'undefined' && projects.id!== '') {
           this.postProject = true;
-          return this.$projectService.updateProjectInfo(projects).then(project => {
-            this.$emit('update-cart', project);
-            this.$root.$emit('update-projects-list', {});
+          return this.$projectService.updateProjectInfo(projects).then(project => this.refreshThenRunSaveHooks(projects.id, project)).then(() => {
             this.postProject = false;
             this.$refs.addProjectDrawer.close();
             this.$refs.projectManager.showManager_(false);
@@ -329,7 +372,7 @@ export default {
           })
             .catch(e => {
               console.error('Error updating project', e);
-              this.$root.$emit('show-alert',{type: 'error',message: this.$t('alert.error')} );
+              this.$root.$emit('show-alert',{type: 'error',message: e?.alertMessage || this.$t('alert.error')} );
               this.postProject = false;
             });
         } else {
