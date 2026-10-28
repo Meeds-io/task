@@ -65,7 +65,7 @@
             :left="!$vuetify.rtl"
             :right="$vuetify.rtl"
             transition="slide-x-reverse-transition"
-            content-class="taskActionMenu z-index-modal"
+            content-class="taskActionMenu z-index-modal application-menu"
             offset-y
             attach>
             <template #activator="{on, attrs}">
