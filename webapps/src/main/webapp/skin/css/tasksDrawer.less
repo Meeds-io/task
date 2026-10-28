@@ -85,8 +85,14 @@
       #taskDrawerScrolledHeader {
         min-width: 0;
         max-width: 100%;
+        // The title gives way first, then the last update line
         .taskDrawerScrolledTitle {
           min-width: 0;
+          flex: 0 100 auto;
+        }
+        .taskDrawerScrolledUpdate {
+          min-width: 0;
+          flex: 0 1 auto;
         }
       }
     }
