@@ -112,7 +112,7 @@
           <div
             :class="twoColumns && 'flex-grow-1 overflow-y-auto'"
             class="taskDrawerDetails pa-4">
-            <div class="taskTitleAndMark d-flex">
+            <div v-resize="fitTitleHeight" class="taskTitleAndMark d-flex">
               <v-btn
                 id="check_btn"
                 class="ms-n2"
@@ -396,6 +396,12 @@ export default {
         this.taskSpace = {};
         this.getTaskSpace();
       }
+    },
+    expanded() {
+      this.fitTitleHeight();
+    },
+    twoColumns() {
+      this.fitTitleHeight();
     },
   },
   created() {
@@ -904,6 +910,19 @@ export default {
       }
     },
 
+    /**
+     * Fits the height of the task title to the lines it takes at the title's
+     * new width, once the drawer has been expanded or collapsed or the window
+     * resized: the title grows with its text only when the text changes, so a
+     * title that wrapped in the side panel would otherwise keep its height in
+     * full screen.
+     *
+     * @returns {void}
+     */
+    fitTitleHeight() {
+      window.clearTimeout(this.fitTitleHeightTimeout);
+      this.fitTitleHeightTimeout = window.setTimeout(() => this.$refs.autoFocusInput4?.calculateInputHeight?.(), 300);
+    },
     displayedDate(value) {
       return value && this.$dateUtil.formatDateObjectToDisplay(new Date(value), this.dateTimeFormat, this.lang) || '';
     },
