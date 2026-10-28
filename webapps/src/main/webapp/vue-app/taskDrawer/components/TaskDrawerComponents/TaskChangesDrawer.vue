@@ -26,7 +26,26 @@
       {{ $t('label.changes') }}
     </template>
     <template #content>
-      <v-list class="py-0">
+      <v-tabs
+        v-if="tabs.length"
+        :value="selectedIndex"
+        class="taskChangesTabs"
+        @change="chooseTab">
+        <v-tab class="text-none">{{ $t('label.changes.tab.task') }}</v-tab>
+        <v-tab
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="text-none">
+          {{ tabLabel(tab) }}
+        </v-tab>
+      </v-tabs>
+      <component
+        :is="selectedTab.vueComponent"
+        v-if="selectedTab && showTaskChangesDrawer"
+        :key="`${selectedTab.id}-${taskId}`"
+        :task-id="taskId"
+        :project-id="projectId" />
+      <v-list v-else class="py-0">
         <v-list-item
           v-for="(item, i) in logs"
           :key="i"
@@ -53,6 +72,11 @@
   </exo-drawer>
 </template>
 <script>
+/** The tab showing the task's own change log, always first. */
+const TASK_TAB = 'task';
+/** The type under which another add-on registers a tab, on the TaskDrawer extension app. */
+const TAB_TYPE = 'task-changes-tab';
+
 export default {
   props: {
     logs: {
@@ -62,13 +86,18 @@ export default {
       }
     },
     task: {
-      type: Boolean,
-      default: false
+      type: Object,
+      default: null
     },
   },
   data() {
     return {
       showTaskChangesDrawer: false,
+      tabs: [],
+      tabsKey: null,
+      tabsRequest: 0,
+      requestedTab: TASK_TAB,
+      selectedIndex: 0,
       dateTimeFormat: {
         year: 'numeric',
         month: 'long',
@@ -82,22 +111,131 @@ export default {
       avatarUrl: ''
     };
   },
+  computed: {
+    taskId() {
+      return this.task && this.task.id || null;
+    },
+    projectId() {
+      return this.task && this.task.status && this.task.status.project && this.task.status.project.id || null;
+    },
+    selectedTab() {
+      return this.selectedIndex > 0 && this.tabs[this.selectedIndex - 1] || null;
+    },
+  },
   watch: {
     userAvatar() {
       this.avatarUrl = this.userAvatar;
     }
   },
+  created() {
+    document.addEventListener(`component-TaskDrawer-${TAB_TYPE}-updated`, this.refreshOpenTabs);
+  },
   mounted() {
-    this.$root.$on('displayTaskChanges', () => {
-      this.showTaskChangesDrawer = true;
-    });
-    this.$root.$on('hideTaskChanges', () => {
-      this.showTaskChangesDrawer = false;
-    });
+    this.$root.$on('displayTaskChanges', this.open);
+    this.$root.$on('hideTaskChanges', this.closeDrawer);
+  },
+  beforeDestroy() {
+    document.removeEventListener(`component-TaskDrawer-${TAB_TYPE}-updated`, this.refreshOpenTabs);
+    this.$root.$off('displayTaskChanges', this.open);
+    this.$root.$off('hideTaskChanges', this.closeDrawer);
   },
   methods: {
+    /**
+     * Opens the drawer, on the tab of the given id once it is known to apply
+     * to this task, on the task's own changes otherwise.
+     *
+     * @param {string} [tabId] the id of the tab to open; the task's own changes by default
+     * @returns {Promise} settled once the tabs applying to the task are shown
+     */
+    open(tabId) {
+      this.requestedTab = typeof tabId === 'string' && tabId || TASK_TAB;
+      this.showTaskChangesDrawer = true;
+      this.selectRequestedTab();
+      return this.refreshTabs();
+    },
+    /**
+     * Closes the drawer.
+     *
+     * @returns {void}
+     */
     closeDrawer() {
       this.showTaskChangesDrawer = false;
+    },
+    /**
+     * Re-reads the tabs when one is registered while the drawer is open; a
+     * closed drawer reads them when it opens.
+     *
+     * @returns {Promise} settled once the tabs are shown
+     */
+    refreshOpenTabs() {
+      return this.showTaskChangesDrawer && this.refreshTabs() || Promise.resolve();
+    },
+    /**
+     * Reads the tabs other add-ons registered, keeps those that apply to the
+     * task, ordered by rank, and selects the requested one. The tabs of
+     * another task are dropped at once, and an answer arriving after a newer
+     * read is ignored.
+     *
+     * @returns {Promise} settled once the tabs are shown or the answer dropped
+     */
+    refreshTabs() {
+      const request = ++this.tabsRequest;
+      const params = {taskId: this.taskId, projectId: this.projectId};
+      const key = `${params.taskId}-${params.projectId}`;
+      if (this.tabsKey !== key) {
+        this.tabsKey = key;
+        this.tabs = [];
+        this.selectRequestedTab();
+      }
+      const registered = this.taskId && extensionRegistry.loadComponents('TaskDrawer')
+        .filter(component => component.componentName === TAB_TYPE)
+        .map(component => component.componentOptions) || [];
+      return Promise.all(registered.map(tab => this.isTabEnabled(tab, params)))
+        .then(enabled => {
+          if (request === this.tabsRequest) {
+            this.tabs = registered.filter((tab, index) => enabled[index])
+              .sort((tab1, tab2) => (tab1.rank || 0) - (tab2.rank || 0));
+            this.selectRequestedTab();
+          }
+        });
+    },
+    /**
+     * @param {object} tab the options a tab was registered with
+     * @param {object} params the task's and its project's ids
+     * @returns {Promise<boolean>} whether the tab applies to the task; not when its check fails
+     */
+    isTabEnabled(tab, params) {
+      if (!tab.isEnabled) {
+        return Promise.resolve(true);
+      }
+      return Promise.resolve()
+        .then(() => tab.isEnabled(params))
+        .then(enabled => !!enabled)
+        .catch(() => false);
+    },
+    /**
+     * Selects the requested tab when it is shown, the task's own changes otherwise.
+     *
+     * @returns {void}
+     */
+    selectRequestedTab() {
+      const index = this.tabs.findIndex(tab => tab.id === this.requestedTab);
+      this.selectedIndex = index + 1;
+    },
+    /**
+     * @param {number} index the index of the tab the user chose, the task's own changes being 0
+     * @returns {void}
+     */
+    chooseTab(index) {
+      this.selectedIndex = index;
+      this.requestedTab = index > 0 && this.tabs[index - 1] && this.tabs[index - 1].id || TASK_TAB;
+    },
+    /**
+     * @param {object} tab the options a tab was registered with
+     * @returns {string} its label, translated when it gives a key
+     */
+    tabLabel(tab) {
+      return tab.labelKey && this.$te(tab.labelKey) && this.$t(tab.labelKey) || tab.label || tab.id;
     },
     logMsg(item) {
       return `log.${ item.actionName }`;
