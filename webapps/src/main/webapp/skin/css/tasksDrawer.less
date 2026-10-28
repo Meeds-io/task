@@ -158,6 +158,14 @@
         padding-right: 24px ~'; /** orientation=lt */ ';
         padding-left: 24px ~'; /** orientation=rt */ ';
       }
+      .taskAssignItem {
+        flex-wrap: nowrap;
+        .coworkerNumber {
+          flex-basis: auto;
+          padding: 0 8px;
+          line-height: 40px;
+        }
+      }
       .taskDrawerFieldWide {
         grid-column: span 2;
       }
@@ -227,13 +235,27 @@
         visibility: visible;
       }
     }
-    // The assignee, its coworkers and the invitation stay on one line
+    // The assignee's avatar and name on the row's first line, its coworkers
+    // under the name in the side panel and beside it in full screen
+    &.taskAssignement .taskDrawerFieldValue {
+      align-items: flex-start;
+    }
     .taskAssignItem {
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       white-space: nowrap;
       min-width: 0;
+      min-height: 40px;
       .assigneeName {
         min-width: 0;
+        max-width: 100%;
+        line-height: 40px;
+      }
+      .coworkerNumber {
+        flex-basis: 100%;
+        padding-left: 32px ~'; /** orientation=lt */ ';
+        padding-right: 32px ~'; /** orientation=rt */ ';
+        line-height: 20px;
+        padding-bottom: 8px;
       }
     }
   }
@@ -481,10 +503,35 @@
         outline-width: 0 !important;
       }
     }
-    [contentEditable=true]:empty:not(:focus):before{
+    .taskDescriptionText:empty:before {
       content:attr(data-text);
       color: @greyColorLighten1Default;
       font-size: 16px;
+      cursor: text;
+    }
+    // Five lines until the user asks for more
+    .taskDescriptionClamped {
+      display: -webkit-box;
+      -webkit-line-clamp: 5;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    // The pencil opens the editor: a click on the text follows its links
+    .taskDescriptionPen {
+      position: absolute;
+      top: 0;
+      right: 0 ~'; /** orientation=lt */ ';
+      left: 0 ~'; /** orientation=rt */ ';
+      z-index: 1;
+      opacity: 0;
+    }
+    .taskDescriptionEditor:hover .taskDescriptionPen, .taskDescriptionPen:focus-visible {
+      opacity: 1;
+    }
+    @media (pointer: coarse) {
+      .taskDescriptionPen {
+        opacity: 1;
+      }
     }
     #cke_descriptionContent {
       display: none;
