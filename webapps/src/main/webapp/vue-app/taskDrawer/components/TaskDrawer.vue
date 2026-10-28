@@ -208,7 +208,7 @@
                   <space-avatar
                     v-if="taskSpaceId"
                     :space-id="taskSpaceId"
-                    :avatar="taskSpace.avatarUrl"
+                    avatar
                     :size="24"
                     :popover="false"
                     extra-class="flex-shrink-0 me-2" />
@@ -481,8 +481,8 @@ export default {
       return this.taskSpace && this.taskSpace.id;
     },
     /**
-     * Whether the Assignee row holds an assignee or coworkers, whose names
-     * are links to their profiles: the row then shows its pencil.
+     * Whether the Assignee row holds an assignee or coworkers: the row then
+     * shows its pencil, which opens the assignment menu.
      *
      * @returns {boolean} whether the task has an assignee or a coworker
      */

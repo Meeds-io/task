@@ -50,6 +50,7 @@
           class="taskLabelsMore text-none px-1"
           color="primary"
           text
+          @mousedown.stop
           @click.stop="showAll = true">
           {{ $t('taskDrawer.labels.more', {0: hiddenCount}) }}
         </v-btn>
@@ -78,6 +79,7 @@
           class="taskLabelsLess text-none px-1"
           color="primary"
           text
+          @mousedown.stop
           @click.stop="showAll = false">
           {{ $t('taskDrawer.labels.less') }}
         </v-btn>
