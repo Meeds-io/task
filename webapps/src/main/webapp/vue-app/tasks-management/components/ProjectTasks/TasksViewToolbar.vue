@@ -179,7 +179,7 @@ export default {
     onFilterExtensionsCleared(event) {
       if (this.project && Number(event.detail) === Number(this.project.id) && this.$refs.filterTasksDrawer) {
         this.$refs.filterTasksDrawer.restoreExtensionFilters();
-        this.$refs.filterTasksDrawer.getFilterNumber();
+        this.$refs.filterTasksDrawer.refreshFilterNumber();
         this.$root.$emit('show-alert', {type: 'warning', message: this.$t('label.filter.extensionsCleared')});
       }
     },
