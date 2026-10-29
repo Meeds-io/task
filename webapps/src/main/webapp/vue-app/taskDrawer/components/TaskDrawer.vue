@@ -294,6 +294,7 @@
                 projectId: taskProjectId,
                 spaceId: taskSpaceId,
                 expanded,
+                creation: task.id ? null : creation,
               }"
               name="TaskDrawer"
               type="task-drawer-section"
@@ -435,6 +436,7 @@ export default {
       attachmentsVersion: 0,
       titleScrolledAway: false,
       movingProject: false,
+      creation: null,
     };
   },
   computed: {
@@ -776,38 +778,103 @@ export default {
         return Promise.all(promises).then(() => task);
       }
     },
+    /**
+     * Creates the task once every section of the drawer accepts what was
+     * entered in it, then has each section write what it holds on the task
+     * created. A section refusing keeps the drawer open and creates nothing;
+     * a section that could not write some of it keeps the task, names what
+     * was not saved, and the drawer re-opens on the task created.
+     *
+     * @returns {Promise} settled once the task is created, or not
+     */
     addTask() {
-      document.dispatchEvent(new CustomEvent('onAddTask'));
-      this.task.description = this.taskDescription;
-      this.task.coworker = this.taskCoworkers;
-      this.task.assignee = this.assignee;
-      this.task.startDate = this.taskStartDate;
-      this.task.dueDate = this.taskDueDate;
-      this.task.priority = this.taskPriority;
-      this.$taskDrawerApi.addTask(this.task).then(task => {
-        this.labelsToAdd.forEach(item => {
-          this.$taskDrawerApi.addTaskToLabel(task.id, item);
+      if (this.saving) {
+        return Promise.resolve();
+      }
+      this.saving = true;
+      const creation = this.creation;
+      return (creation ? creation.validate() : Promise.resolve(true)).then(valid => {
+        if (!valid) {
+          return;
+        }
+        document.dispatchEvent(new CustomEvent('onAddTask'));
+        this.task.description = this.taskDescription;
+        this.task.coworker = this.taskCoworkers;
+        this.task.assignee = this.assignee;
+        this.task.startDate = this.taskStartDate;
+        this.task.dueDate = this.taskDueDate;
+        this.task.priority = this.taskPriority;
+        return this.$taskDrawerApi.addTask(this.task).then(task => {
+          this.labelsToAdd.forEach(item => {
+            this.$taskDrawerApi.addTaskToLabel(task.id, item);
+          });
+          return (creation ? creation.commit(task.id) : Promise.resolve([])).then(notSaved => {
+            const taskObject = {
+              id: task.id,
+              type: 'task'
+            };
+            this.postSaveMessage(taskObject);
+            this.$root.$emit('task-added', task);
+            this.showEditor = false;
+            this.labelsToAdd = [];
+            if (notSaved.length) {
+              this.$root.$emit('show-alert', {
+                type: 'error',
+                message: this.$t('alert.error.task.createdValuesNotSaved', {0: notSaved.map(item => item.label).join(', ')})
+              });
+              return this.$tasksService.getTaskById(task.id).then(created => this.open(created));
+            }
+            this.$root.$emit('show-alert', {
+              type: 'success',
+              message: this.$t('alert.success.task.created')
+            });
+            this.$refs.addTaskDrawer.close();
+          });
+        }).catch(e => {
+          console.error('Error when adding task title', e);
+          this.$root.$emit('show-alert', {
+            type: 'error',
+            message: this.$t('alert.error')
+          });
         });
-        const taskObject = {
-          id: task.id,
-          type: 'task'
-        };
-        this.postSaveMessage(taskObject);
-        this.$root.$emit('task-added', task);
-        this.$root.$emit('show-alert', {
-          type: 'success',
-          message: this.$t('alert.success.task.created')
-        });
-        this.showEditor = false;
-        this.$refs.addTaskDrawer.close();
-        this.labelsToAdd = [];
-      }).catch(e => {
-        console.error('Error when adding task title', e);
-        this.$root.$emit('show-alert', {
-          type: 'error',
-          message: this.$t('alert.error')
-        });
-      });
+      }).finally(() => this.saving = false);
+    },
+    /**
+     * @returns {object} a card's creation, handed to the drawer's sections:
+     *          each registers what it checks before the card is created, what
+     *          it writes once the card exists, and what it gives back when the
+     *          drawer leaves the card. A section whose check fails for its
+     *          own reasons never blocks the creation.
+     */
+    newCreation() {
+      const hooks = new Set();
+      return {
+        register: hook => {
+          hooks.add(hook);
+          return () => hooks.delete(hook);
+        },
+        validate: () => Promise.all([...hooks].map(hook => Promise.resolve(hook.validate ? hook.validate() : true).catch(() => true)))
+          .then(answers => answers.every(Boolean)),
+        commit: taskId => Promise.all([...hooks].map(hook => Promise.resolve(hook.commit ? hook.commit(taskId) : []).catch(() => [])))
+          .then(notSaved => notSaved.flat()),
+        dispose: () => {
+          hooks.forEach(hook => hook.dispose?.());
+          hooks.clear();
+        },
+      };
+    },
+    /**
+     * Gives back the card's previous creation once the drawer shows what it
+     * opens next: a section re-opened on the card created takes over what
+     * that creation still holds before it is given back.
+     *
+     * @param {object} previous the previous creation, or null
+     * @returns {void}
+     */
+    disposeCreation(previous) {
+      if (previous) {
+        this.$nextTick(() => previous.dispose());
+      }
     },
     updateTaskAssignee(value) {
       if (this.task.id !== null && this.oldTask.assignee!==value) {
@@ -916,6 +983,8 @@ export default {
       this.$refs.taskAssignment?.load(task);
     },
     open(task) {
+      this.disposeCreation(this.creation);
+      this.creation = task.id ? null : this.newCreation();
       this.oldTask = task;
       this.task = JSON.parse(JSON.stringify(task));
       this.taskTitle = this.task.title;
@@ -947,6 +1016,8 @@ export default {
       this.$refs.addTaskDrawer.close();
     },
     onCloseDrawer() {
+      this.disposeCreation(this.creation);
+      this.creation = null;
       this.titleScrolledAway = false;
       this.$root.$emit('task-drawer-closed', this.task);
       this.showEditor = false;
