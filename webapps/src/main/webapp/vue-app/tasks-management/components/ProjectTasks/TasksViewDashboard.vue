@@ -206,7 +206,14 @@
   </div>
 </template>
 <script>
+import { CHANGED_EVENT, UPDATED_EVENT, getProviderIds, getTaskIds, loadIndicators } from '../../../../js/taskCardIndicators.js';
+
 export default {
+  provide() {
+    return {
+      taskCardIndicators: this.cardIndicators,
+    };
+  },
   props: {
     project: {
       type: Number,
@@ -231,9 +238,20 @@ export default {
       filterByStatus: false,
       status: null,
       showCompletedTasks: false,
+      cardIndicators: {byTask: {}},
+      indicatorsGeneration: 0,
+      indicatorsTimeout: null,
+      indicatorsKey: null,
+      indicatorsForced: false,
     };
   },
   watch: {
+    tasksList() {
+      this.scheduleIndicators();
+    },
+    allProjectTasks() {
+      this.scheduleIndicators();
+    },
     project() {
       if (localStorage.getItem(`filterStorage${this.project.id}+${this.taskViewTabName}`)) {
         const projectFilter = JSON.parse(localStorage.getItem(`filterStorage${this.project.id}+${this.taskViewTabName}`));
@@ -340,11 +358,52 @@ export default {
     });
 
     document.addEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
+    document.addEventListener(CHANGED_EVENT, this.onIndicatorsChanged);
+    document.addEventListener(UPDATED_EVENT, this.scheduleIndicators);
   },
   beforeDestroy() {
     document.removeEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
+    document.removeEventListener(CHANGED_EVENT, this.onIndicatorsChanged);
+    document.removeEventListener(UPDATED_EVENT, this.scheduleIndicators);
+    window.clearTimeout(this.indicatorsTimeout);
   },
   methods: {
+    scheduleIndicators(force) {
+      // Every list change of one tick (the board's, the Gantt's, a provider arriving) makes one request,
+      // forced when any of them was: a card's change is never absorbed by a list change landing after it
+      this.indicatorsForced = this.indicatorsForced || force === true;
+      window.clearTimeout(this.indicatorsTimeout);
+      this.indicatorsTimeout = window.setTimeout(() => {
+        const forced = this.indicatorsForced;
+        this.indicatorsForced = false;
+        this.refreshIndicators(forced);
+      });
+    },
+    refreshIndicators(force) {
+      const projectId = this.project && this.project.id;
+      const taskIds = getTaskIds([...this.tasksList.flat(), ...this.allProjectTasks]);
+      // A list change that leaves the same cards, with the same providers, asks nothing again
+      const key = `${projectId}|${getProviderIds().join(',')}|${[...taskIds].sort((a, b) => a - b).join(',')}`;
+      if (!force && key === this.indicatorsKey) {
+        return Promise.resolve();
+      }
+      this.indicatorsKey = key;
+      const generation = ++this.indicatorsGeneration;
+      return loadIndicators(projectId, taskIds).then(({byTask, failed}) => {
+        if (generation === this.indicatorsGeneration && projectId === (this.project && this.project.id)) {
+          this.cardIndicators.byTask = byTask;
+          if (failed) {
+            // A read a provider failed is never the current answer: the next list change asks again
+            this.indicatorsKey = null;
+          }
+        }
+      });
+    },
+    onIndicatorsChanged() {
+      // The whole board is read again, the read a list change makes: a later read always wins, so no
+      // answer started before the change can overwrite the changed card
+      this.scheduleIndicators(true);
+    },
     onFavoriteUpdated(event) {
       const detail = event && event.detail;
       // React only to a task being un-bookmarked while the "Favorites only" filter is active:
