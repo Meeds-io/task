@@ -15,6 +15,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 import { tasksConstants } from './tasksConstants';
+import { filterExtensionsParameter } from './taskFilterExtensions';
 
 export function getMyTasksList(type, query, offset, limit) {
   document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
@@ -32,7 +33,7 @@ export function getMyTasksList(type, query, offset, limit) {
 
 export function filterTasksList(tasks, groupBy, orderBy, filterLabelIds, projectId) {
   document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
-  return fetch(`${tasksConstants.PORTAL}/${tasksConstants.PORTAL_REST}/tasks/filter?projectId=${projectId || tasks.projectId || -2}&query=${tasks.query || ''}&dueDate=${tasks.dueDate || ''}&priority=${tasks.priority || ''}&statusId=${tasks.statusId || ''}&showCompletedTasks=${tasks.showCompletedTasks || ''}&favorite=${tasks.favorite || ''}&assignee=${tasks.assignee || ''}&watcher=${tasks.watcher || ''}&coworker=${tasks.coworker || ''}&groupBy=${groupBy || tasks.groupBy || ''}&orderBy=${orderBy || tasks.orderBy || ''}&dueCategory=${tasks.dueCategory || ''}&filterLabelIds=${filterLabelIds || tasks.filterLabelIds || ''}&offset=${tasks.offset || 0}&limit=${tasks.limit|| 0}`, {
+  return fetch(`${tasksConstants.PORTAL}/${tasksConstants.PORTAL_REST}/tasks/filter?projectId=${projectId || tasks.projectId || -2}&query=${tasks.query || ''}&dueDate=${tasks.dueDate || ''}&priority=${tasks.priority || ''}&statusId=${tasks.statusId || ''}&showCompletedTasks=${tasks.showCompletedTasks || ''}&favorite=${tasks.favorite || ''}&assignee=${tasks.assignee || ''}&watcher=${tasks.watcher || ''}&coworker=${tasks.coworker || ''}&groupBy=${groupBy || tasks.groupBy || ''}&orderBy=${orderBy || tasks.orderBy || ''}&dueCategory=${tasks.dueCategory || ''}&filterLabelIds=${filterLabelIds || tasks.filterLabelIds || ''}&offset=${tasks.offset || 0}&limit=${tasks.limit|| 0}${filterExtensionsParameter(projectId || tasks.projectId)}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {
@@ -99,7 +100,7 @@ export function getStatusesByProjectId(projectId) {
 }
 
 export function getTasksByProjectId(projectId) {
-  return fetch(`${tasksConstants.PORTAL}/${tasksConstants.PORTAL_REST}/tasks/project/${projectId}?returnDetails=true`, {
+  return fetch(`${tasksConstants.PORTAL}/${tasksConstants.PORTAL_REST}/tasks/project/${projectId}?returnDetails=true${filterExtensionsParameter(projectId)}`, {
     method: 'GET',
     credentials: 'include',
   }).then(resp => {
