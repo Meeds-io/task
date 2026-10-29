@@ -72,6 +72,17 @@ public class TaskQuery extends Query implements Cloneable {
     this.add(like(TASK_TITLE, '%' + title + '%'));
   }
 
+  /**
+   * Narrows the query to the tasks whose title contains the text, ignoring
+   * case. Unlike {@link #setTitle(String)}, the text is matched literally:
+   * a {@code %} or a {@code _} in it matches only itself.
+   *
+   * @param title the text the title contains
+   */
+  public void setTitleContaining(String title) {
+    this.add(contains(TASK_TITLE, title));
+  }
+
   public void setDescription(String description) {
     this.add(like(TASK_DES, '%' + description + '%'));
   }

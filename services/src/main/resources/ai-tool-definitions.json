@@ -56,7 +56,8 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
-      }
+      },
+      "space_scope": { "object_arg": "project_id", "resolver": "project" }
     },
     {
       "name": "list_project_statuses",
