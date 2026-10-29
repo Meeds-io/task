@@ -324,6 +324,24 @@
     padding-right: 20px ~'; /** orientation=rt */ ';
     width: 400px;
   }
+  /* the divider above the footer lines up with the inputs on both sides where the platform's 5px scrollbar applies
+     (Chromium, WebKit); elsewhere it follows the drawer's 20px, not the content's gutter */
+  .drawerContent + hr.my-0.v-divider.theme--light {
+    margin-inline-start: 0;
+    margin-inline-end: 20px;
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+  /* the content takes the drawer's start padding back and reserves a scrollbar gutter on both sides, so both
+     margins are 15px plus the same gutter whatever the scrollbar's width and whether the content scrolls */
+  .drawerContent {
+    margin-left: -20px ~'; /** orientation=lt */ ';
+    margin-right: -20px ~'; /** orientation=rt */ ';
+    padding-left: 15px;
+    padding-right: 15px;
+    scrollbar-gutter: stable both-edges;
+  }
   .v-navigation-drawer__content{
     padding-left: 20px ~'; /** orientation=lt */ ';
     padding-right: 20px ~'; /** orientation=rt */ ';
@@ -533,6 +551,16 @@
   .identitySuggester{
     height: 37px;
   }
+}
+
+#projectTasksFilterCount .v-badge__badge {
+  box-sizing: border-box;
+  height: 16px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 16px;
 }
 
 .tasksMenuParent {
