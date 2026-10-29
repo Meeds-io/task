@@ -124,11 +124,15 @@ export default {
   },
   created() {
     this.filterNumber = Number(localStorage.getItem('filtersNumber')) || 0;
+    document.addEventListener('task-filter-extensions-cleared', this.onFilterExtensionsCleared);
     this.$root.$on('hide-tasks-project', () => {
       this.taskViewTabName = 'board';
       this.keyword = null;
       this.searchOpen = false;
     });
+  },
+  beforeDestroy() {
+    document.removeEventListener('task-filter-extensions-cleared', this.onFilterExtensionsCleared);
   },
   methods: {
     openSearch() {
@@ -171,6 +175,13 @@ export default {
     },
     resetFields(activeField){
       this.$refs.filterTasksDrawer.resetFields(activeField);
+    },
+    onFilterExtensionsCleared(event) {
+      if (this.project && Number(event.detail) === Number(this.project.id) && this.$refs.filterTasksDrawer) {
+        this.$refs.filterTasksDrawer.restoreExtensionFilters();
+        this.$refs.filterTasksDrawer.getFilterNumber();
+        this.$root.$emit('show-alert', {type: 'warning', message: this.$t('label.filter.extensionsCleared')});
+      }
     },
     filterNumChanged(filtersnumber){
       this.filterNumber=filtersnumber;
