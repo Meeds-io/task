@@ -1001,6 +1001,44 @@ export default {
         });
       });
     },
+    /**
+     * Copies the link that opens this task directly, the one the favorites
+     * drawer opens, and confirms it with a « Link copied » alert: the installed
+     * app has no address bar to copy it from.
+     *
+     * @returns {Promise<void>} resolved once the alert is shown
+     */
+    copyLink() {
+      const taskLink = `${window.location.origin}${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/taskDetail/${this.task.id}`;
+      return navigator.clipboard.writeText(taskLink).then(() => {
+        this.$root.$emit('show-alert', {
+          type: 'success',
+          message: this.$t('alert.success.task.linkCopied')
+        });
+      }).catch(e => {
+        console.error('Error when copying the task link', e);
+        this.$root.$emit('show-alert', {
+          type: 'error',
+          message: this.$t('alert.error')
+        });
+      });
+    },
+    /**
+     * Builds the « Copy link » entry of the ⋯ menu, offered to whoever can open
+     * the task, whatever their role in its project.
+     *
+     * @returns {object} the menu action
+     */
+    copyLinkMenuAction() {
+      return {
+        id: 'copyLink',
+        title: this.$t('taskDrawer.menu.copyLink'),
+        icon: 'fa-link',
+        enabled: true,
+        action: this.copyLink,
+        rank: 1,
+      };
+    },
     addMenuAction(menuActions, title, uiIcon, enabled, actionFunctionName, rank) {
       menuActions.push({
         title: title,
@@ -1021,6 +1059,7 @@ export default {
           }
           this.enableDelete = data.managerIdentities.some(manager => manager.username === eXo.env.portal.userName);
           this.enableClone = this.enableDelete || data.participatorIdentities.some(participator => participator.username === eXo.env.portal.userName);
+          menuActions.push(this.copyLinkMenuAction());
           menuActions.push({
             id: 'moveProject',
             title: this.$t('taskDrawer.menu.moveProject'),
@@ -1037,6 +1076,7 @@ export default {
       } else if ( task && task.id ) {
         this.enableDelete = task.createdBy === eXo.env.portal.userName;
         this.enableClone = task.assignee === eXo.env.portal.userName || this.task.coworker.includes(eXo.env.portal.userName);
+        menuActions.push(this.copyLinkMenuAction());
         this.addMenuAction(menuActions, this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask', 10);
         this.addMenuAction(menuActions, this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask', 20);
         menuActions.sort((a, b) => a.rank - b.rank);
