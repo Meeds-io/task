@@ -33,6 +33,9 @@
  *   a count of 0 meaning the filter restricts nothing, which is then not stored.
  *   Only the payload is sent with the fetches; the optional state is kept for the
  *   section to show its rows again.
+ * - UI, a card-state switch: the same registration with the type 'task-filter-switch'
+ *   places the component among the drawer's switches (« Favorites only », « Show
+ *   completed tasks »), after them and before the sections; it receives the same props.
  * - Server: a io.meeds.task.plugin.TaskFilterPlugin whose getId() is that filter
  *   id; it receives the payload as JSON text.
  * When the server refuses the stored filters (a 400 with a task.extensionFilters.*
