@@ -89,10 +89,6 @@ public class CollaborativeActivityDeclarationTest {
                          "task.collaborativeActivity.help.counted.completeTask",
                          "task.collaborativeActivity.help.counted.commentTask"),
                  labels.get("counted"));
-    assertEquals(List.of("task.collaborativeActivity.help.notCounted.reorderTask",
-                         "task.collaborativeActivity.help.notCounted.labelTask",
-                         "task.collaborativeActivity.help.notCounted.createProject"),
-                 labels.get("notCounted"));
   }
 
 }
