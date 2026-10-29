@@ -141,34 +141,45 @@
                     </select>
 
 
-                    <div class="favoritesOnly d-flex flex-wrap pt-2">
-                      <form class="switchEnabled">
-                        <label class="col-form-label pt-0" max-rows="6">
-                          <i class="far fa-star me-1 icon-default-color"></i>{{ $t(`label.filter.favoritesOnly`) }}:</label>
-                        <label class="switch">
-                          <input
-                            v-model="favoritesOnly"
-                            type="checkbox">
-                          <div class="slider round"><span class="absolute-yes">{{ $t(`filter.task.showCompleted.yes`,"YES") }}</span></div>
-                          <span class="absolute-no">{{ $t(`filter.task.showCompleted.no`) }}</span>
-                        </label>
-                      </form>
+                    <div class="favoritesOnly d-flex align-center pt-2">
+                      <label for="tasksFilterFavoritesOnly" class="flex-grow-1 text-start mb-0">
+                        {{ $t('label.filter.favoritesOnly') }}
+                      </label>
+                      <v-switch
+                        id="tasksFilterFavoritesOnly"
+                        v-model="favoritesOnly"
+                        :aria-label="$t('label.filter.favoritesOnly')"
+                        color="primary"
+                        class="pa-0 my-auto"
+                        hide-details />
                     </div>
 
-                    <div class="showCompleteTasks d-flex flex-wrap pt-2">
-                      <form class="switchEnabled">
-                        <label class="col-form-label pt-0" max-rows="6">{{ $t(`filter.task.showCompleted`)
-                        }}:</label>
-                        <label class="switch">
-                          <input
-                            v-model="showCompletedTasks"
-                            type="checkbox">
-                          <div class="slider round"><span class="absolute-yes">{{ $t(`filter.task.showCompleted.yes`,"YES") }}</span></div>
-                          <span class="absolute-no">{{ $t(`filter.task.showCompleted.no`) }}</span>
-                        </label>
-                      </form>
+                    <div class="showCompleteTasks d-flex align-center pt-2">
+                      <label for="tasksFilterShowCompleted" class="flex-grow-1 text-start mb-0">
+                        {{ $t('filter.task.showCompleted') }}
+                      </label>
+                      <v-switch
+                        id="tasksFilterShowCompleted"
+                        v-model="showCompletedTasks"
+                        :aria-label="$t('filter.task.showCompleted')"
+                        color="primary"
+                        class="pa-0 my-auto"
+                        hide-details />
                     </div>
                   </form>
+                  <extension-registry-components
+                    v-if="project"
+                    id="taskFilterSwitches"
+                    :key="`task-filter-switches-${project}-${extensionFiltersVersion}`"
+                    :params="{
+                      projectId: project,
+                      filters: extensionFilters,
+                      update: updateExtensionFilter,
+                    }"
+                    name="TasksFilterDrawer"
+                    type="task-filter-switch"
+                    element="div"
+                    strict-type />
                   <extension-registry-components
                     v-if="project"
                     id="taskFilterSections"
