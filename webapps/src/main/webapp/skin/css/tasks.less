@@ -327,10 +327,8 @@
   /* the divider above the footer lines up with the inputs on both sides where the platform's 5px scrollbar applies
      (Chromium, WebKit); elsewhere it follows the drawer's 20px, not the content's gutter */
   .drawerContent + hr.my-0.v-divider.theme--light {
-    margin-left: 0 ~'; /** orientation=lt */ ';
-    margin-right: 20px ~'; /** orientation=lt */ ';
-    margin-right: 0 ~'; /** orientation=rt */ ';
-    margin-left: 20px ~'; /** orientation=rt */ ';
+    margin-inline-start: 0;
+    margin-inline-end: 20px;
     padding-left: 0;
     padding-right: 0;
     width: auto;
