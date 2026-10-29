@@ -143,7 +143,7 @@
 
                     <div class="favoritesOnly d-flex align-center pt-2">
                       <label for="tasksFilterFavoritesOnly" class="flex-grow-1 text-start mb-0">
-                        <i class="far fa-star me-1 icon-default-color"></i>{{ $t('label.filter.favoritesOnly') }}
+                        {{ $t('label.filter.favoritesOnly') }}
                       </label>
                       <v-switch
                         id="tasksFilterFavoritesOnly"
