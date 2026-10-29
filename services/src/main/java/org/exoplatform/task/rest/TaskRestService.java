@@ -170,7 +170,6 @@ public class TaskRestService implements ResourceContainer {
    * @return the set of favorite task ids, never {@code null} (empty when the user identity cannot
    *         be resolved)
    */
-
   private Set<Long> getFavoriteTaskIds(String username) {
     org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getOrCreateUserIdentity(username);
     if (userIdentity == null) {
