@@ -811,7 +811,9 @@ export default {
         this.task.priority = this.taskPriority;
         const labels = this.labelsToAdd;
         this.labelsToAdd = [];
+        let created = false;
         return this.$taskDrawerApi.addTask(this.task).then(task => {
+          created = true;
           labels.forEach(item => {
             this.$taskDrawerApi.addTaskToLabel(task.id, item);
           });
@@ -844,7 +846,7 @@ export default {
           });
         }).catch(e => {
           console.error('Error when adding task title', e);
-          if (this.creation === creation) {
+          if (!created && this.creation === creation) {
             this.labelsToAdd = labels.concat(this.labelsToAdd);
           }
           this.$root.$emit('show-alert', {
@@ -1036,6 +1038,7 @@ export default {
     open(task) {
       const previousCreation = this.creation;
       this.creation = task.id ? null : this.newCreation();
+      this.labelsToAdd = [];
       this.oldTask = task;
       this.task = JSON.parse(JSON.stringify(task));
       this.disposeCreation(previousCreation);
@@ -1070,6 +1073,7 @@ export default {
     onCloseDrawer() {
       this.disposeCreation(this.creation);
       this.creation = null;
+      this.labelsToAdd = [];
       this.titleScrolledAway = false;
       this.$root.$emit('task-drawer-closed', this.task);
       this.showEditor = false;
