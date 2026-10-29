@@ -448,7 +448,7 @@ export default {
       if (this.task == null || this.task.id == null) {
         return '';
       }
-      return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/taskDetail/${this.task.id}`;
+      return `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/taskDetail/${this.task.id}`;
     },
     taskTitleValid() {
       return  this.taskTitle?.trim().length >= 3 && this.taskTitle.length < 1024;
@@ -1004,24 +1004,34 @@ export default {
     /**
      * Copies the link that opens this task directly, the one the favorites
      * drawer opens, and confirms it with a « Link copied » alert: the installed
-     * app has no address bar to copy it from.
+     * app has no address bar to copy it from. The alert goes through the
+     * page-wide alert of the platform, since the drawer also opens outside the
+     * Tasks app (a content link, the search page, the quick actions).
      *
      * @returns {Promise<void>} resolved once the alert is shown
      */
     copyLink() {
-      const taskLink = `${window.location.origin}${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/taskDetail/${this.task.id}`;
-      return navigator.clipboard.writeText(taskLink).then(() => {
-        this.$root.$emit('show-alert', {
-          type: 'success',
-          message: this.$t('alert.success.task.linkCopied')
+      return Promise.resolve()
+        .then(() => navigator.clipboard.writeText(`${window.location.origin}${this.taskLink}`))
+        .then(() => this.showPageAlert('success', this.$t('alert.success.task.linkCopied')))
+        .catch(e => {
+          console.error('Error when copying the task link', e);
+          this.showPageAlert('error', this.$t('alert.error'));
         });
-      }).catch(e => {
-        console.error('Error when copying the task link', e);
-        this.$root.$emit('show-alert', {
-          type: 'error',
-          message: this.$t('alert.error')
-        });
-      });
+    },
+    /**
+     * Shows a message in the platform's page-wide alert, which every page that
+     * loads the common components mounts.
+     *
+     * @param {string} alertType the alert's type: success, error, warning or info
+     * @param {string} alertMessage the translated message
+     * @returns {void}
+     */
+    showPageAlert(alertType, alertMessage) {
+      document.dispatchEvent(new CustomEvent('alert-message', {detail: {
+        alertType,
+        alertMessage,
+      }}));
     },
     /**
      * Builds the « Copy link » entry of the ⋯ menu, offered to whoever can open
