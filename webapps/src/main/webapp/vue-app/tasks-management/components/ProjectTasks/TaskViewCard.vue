@@ -47,6 +47,9 @@
             </a>
           </div>
         </div>
+        <task-card-indicators
+          :task-id="task.task.id"
+          class="px-1 pb-1" />
         <v-divider v-if="displayCardBottomSection" />
         <div
           v-if="displayCardBottomSection"
