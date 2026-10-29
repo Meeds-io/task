@@ -169,8 +169,9 @@ public class TaskFilterExtensionServiceTest {
   }
 
   /**
-   * A parameter that is not a JSON object, too many filters and an unknown id
-   * are each refused with their own code.
+   * A parameter that is not a JSON object, too many filters, an unknown id and
+   * a payload its plugin refuses are each refused with their own code, the
+   * last two naming the filter.
    */
   @Test
   public void testInvalidFiltersAreRefused() throws Exception {
@@ -189,7 +190,11 @@ public class TaskFilterExtensionServiceTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(viewer)).thenReturn(true);
     refused = assertThrows(IllegalArgumentException.class, () -> service.resolve(PROJECT_ID, "{\"other\":{}}", viewer));
-    assertEquals(TaskFilterExtensionService.UNKNOWN_FILTER_CODE, refused.getMessage());
+    assertEquals(TaskFilterExtensionService.UNKNOWN_FILTER_CODE + ":other", refused.getMessage());
+
+    when(plugin.toCondition(anyLong(), anyString(), any())).thenThrow(new IllegalArgumentException("forms.condition.invalid"));
+    refused = assertThrows(IllegalArgumentException.class, () -> service.resolve(PROJECT_ID, "{\"forms.fields\":{}}", viewer));
+    assertEquals(TaskFilterExtensionService.REFUSED_FILTER_CODE + ":forms.fields", refused.getMessage());
   }
 
   /**
