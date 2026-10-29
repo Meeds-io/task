@@ -40,11 +40,15 @@
  * is dropped, or all of them when it names none; the event
  * 'task-filter-extensions-cleared' is dispatched on the document with the project
  * id, and the fetch runs again with what is left, so the views never stay empty
- * on a filter that no longer applies. A refusal of filters that were replaced
- * while the fetch ran drops nothing: the fetch runs again with what is stored now.
+ * on a filter that no longer applies, one refused filter after another. A
+ * refusal of filters that were replaced while the fetch ran drops nothing: the
+ * fetch runs again with what is stored now.
  */
 
 const STORAGE_PREFIX = 'taskFilterExtensions';
+
+/** How many times filters replaced while a fetch ran may start a new budget of attempts. */
+const MAX_REPLACEMENTS = 2;
 
 function storageKey(projectId) {
   return `${STORAGE_PREFIX}${projectId}`;
@@ -102,10 +106,27 @@ export function saveFilterExtensions(projectId, filters) {
  * @returns {Promise<Response>} the response of the fetch that applied
  */
 export function fetchProjectTasks(url, projectId) {
+  // The server names one refused filter per answer: one attempt per stored filter, plus the last one with
+  // none, bounds the loop; filters replaced meanwhile get a budget of their own, a bounded number of times
+  return fetchWithFilters(url, projectId, Object.keys(getFilterExtensions(projectId)).length + 1, MAX_REPLACEMENTS);
+}
+
+/**
+ * One attempt of fetchProjectTasks: fetches with the stored filters and, on a
+ * refusal of them, drops the refused one and tries again.
+ *
+ * @param {String} url the fetch URL, without the filters
+ * @param {Number|String} projectId the project id
+ * @param {Number} attempts the attempts left, this one included
+ * @param {Number} replacements how many more times filters replaced while a
+ *          fetch ran may start a new budget of attempts
+ * @returns {Promise<Response>} the response of the fetch that applied
+ */
+function fetchWithFilters(url, projectId, attempts, replacements) {
   const parameter = filterExtensionsParameter(projectId);
   const options = {method: 'GET', credentials: 'include'};
   return fetch(`${url}${parameter}`, options).then(resp => {
-    if (!parameter || !resp || resp.status !== 400) {
+    if (!parameter || !resp || resp.status !== 400 || attempts <= 1) {
       return resp;
     }
     return resp.clone().text().then(code => {
@@ -114,7 +135,8 @@ export function fetchProjectTasks(url, projectId) {
         return resp;
       }
       if (filterExtensionsParameter(projectId) !== parameter) {
-        return fetch(`${url}${filterExtensionsParameter(projectId)}`, options);
+        return replacements > 0 ? fetchWithFilters(url, projectId, Object.keys(getFilterExtensions(projectId)).length + 1, replacements - 1)
+                                : resp;
       }
       const filters = getFilterExtensions(projectId);
       if (refusal[1]) {
@@ -122,7 +144,7 @@ export function fetchProjectTasks(url, projectId) {
       }
       saveFilterExtensions(projectId, refusal[1] ? filters : {});
       document.dispatchEvent(new CustomEvent('task-filter-extensions-cleared', {detail: projectId}));
-      return fetch(`${url}${filterExtensionsParameter(projectId)}`, options);
+      return fetchWithFilters(url, projectId, attempts - 1, replacements);
     });
   });
 }
