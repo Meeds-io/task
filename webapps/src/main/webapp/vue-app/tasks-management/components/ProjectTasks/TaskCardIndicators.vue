@@ -18,24 +18,32 @@
   <div
     v-if="indicators.length"
     class="taskCardIndicators d-flex flex-wrap align-center">
-    <span
+    <v-tooltip
       v-for="(indicator, index) in indicators"
       :key="index"
-      :title="indicator.title"
-      :aria-label="indicator.title || indicator.label"
-      :class="`${indicator.color || 'error'}--text`"
-      class="taskCardIndicator d-flex align-center text-caption text-no-wrap me-2"
-      tabindex="0"
-      role="note">
-      <v-icon
-        :class="`${indicator.color || 'error'}--text`"
-        size="6"
-        class="me-1"
-        aria-hidden="true">
-        fa-circle
-      </v-icon>
-      {{ indicator.label }}
-    </span>
+      :disabled="!indicator.title"
+      bottom>
+      <template #activator="{ on, attrs }">
+        <span
+          v-bind="attrs"
+          :aria-label="indicator.title || indicator.label"
+          :class="`${indicator.color || 'error'}--text`"
+          class="taskCardIndicator d-flex align-center text-caption text-no-wrap me-2"
+          tabindex="0"
+          role="note"
+          v-on="on">
+          <v-icon
+            :class="`${indicator.color || 'error'}--text`"
+            size="6"
+            class="me-1"
+            aria-hidden="true">
+            fa-circle
+          </v-icon>
+          {{ indicator.label }}
+        </span>
+      </template>
+      <span>{{ indicator.title }}</span>
+    </v-tooltip>
   </div>
 </template>
 <script>
