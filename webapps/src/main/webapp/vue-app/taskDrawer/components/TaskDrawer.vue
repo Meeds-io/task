@@ -783,7 +783,10 @@ export default {
      * entered in it, then has each section write what it holds on the task
      * created. A section refusing keeps the drawer open and creates nothing;
      * a section that could not write some of it keeps the task, names what
-     * was not saved, and the drawer re-opens on the task created.
+     * was not saved, and the drawer re-opens on the task created. Once the
+     * task is being created, leaving the drawer no longer drops what the
+     * sections hold: they still write it, and the drawer is then closed or
+     * re-opened only if it shows no other card meanwhile.
      *
      * @returns {Promise} settled once the task is created, or not
      */
@@ -798,6 +801,7 @@ export default {
           // A refused value keeps the drawer open; a drawer closed or moved on meanwhile creates nothing
           return;
         }
+        creation?.seal();
         document.dispatchEvent(new CustomEvent('onAddTask'));
         this.task.description = this.taskDescription;
         this.task.coworker = this.taskCoworkers;
@@ -805,8 +809,9 @@ export default {
         this.task.startDate = this.taskStartDate;
         this.task.dueDate = this.taskDueDate;
         this.task.priority = this.taskPriority;
+        const labels = this.labelsToAdd;
         return this.$taskDrawerApi.addTask(this.task).then(task => {
-          this.labelsToAdd.forEach(item => {
+          labels.forEach(item => {
             this.$taskDrawerApi.addTaskToLabel(task.id, item);
           });
           return (creation ? creation.commit(task.id) : Promise.resolve([])).then(notSaved => {
@@ -816,20 +821,26 @@ export default {
             };
             this.postSaveMessage(taskObject);
             this.$root.$emit('task-added', task);
-            this.showEditor = false;
-            this.labelsToAdd = [];
+            const shown = this.creation === creation;
+            const otherCard = !shown && !!(this.creation || this.task?.id);
+            if (shown) {
+              this.showEditor = false;
+              this.labelsToAdd = [];
+            }
             if (notSaved.length) {
               this.$root.$emit('show-alert', {
                 type: 'error',
                 message: this.$t('alert.error.task.createdValuesNotSaved', {0: notSaved.map(item => item.label).join(', ')})
               });
-              return this.$tasksService.getTaskById(task.id).then(created => this.open(created));
+              return otherCard ? null : this.$tasksService.getTaskById(task.id).then(created => this.open(created));
             }
             this.$root.$emit('show-alert', {
               type: 'success',
               message: this.$t('alert.success.task.created')
             });
-            this.$refs.addTaskDrawer.close();
+            if (shown) {
+              this.$refs.addTaskDrawer.close();
+            }
           });
         }).catch(e => {
           console.error('Error when adding task title', e);
@@ -837,7 +848,7 @@ export default {
             type: 'error',
             message: this.$t('alert.error')
           });
-        });
+        }).finally(() => creation?.unseal());
       }).finally(() => this.saving = false);
     },
     /**
@@ -845,22 +856,47 @@ export default {
      *          each registers what it checks before the card is created, what
      *          it writes once the card exists, and what it gives back when the
      *          drawer leaves the card. A section whose check fails for its
-     *          own reasons never blocks the creation.
+     *          own reasons never blocks the creation. Sealed while the card is
+     *          being created, a creation keeps every section registered and
+     *          gives them back only once unsealed.
      */
     newCreation() {
       const hooks = new Set();
+      let sealed = false;
+      let disposeAsked = false;
+      const dispose = () => {
+        hooks.forEach(hook => hook.dispose?.());
+        hooks.clear();
+      };
       return {
         register: hook => {
           hooks.add(hook);
-          return () => hooks.delete(hook);
+          return () => {
+            if (!sealed) {
+              hooks.delete(hook);
+            }
+          };
         },
         validate: () => Promise.all([...hooks].map(hook => Promise.resolve(hook.validate ? hook.validate() : true).catch(() => true)))
           .then(answers => answers.every(Boolean)),
         commit: taskId => Promise.all([...hooks].map(hook => Promise.resolve(hook.commit ? hook.commit(taskId) : []).catch(() => [])))
           .then(notSaved => notSaved.flat()),
+        seal: () => {
+          sealed = true;
+        },
+        unseal: () => {
+          sealed = false;
+          if (disposeAsked) {
+            disposeAsked = false;
+            dispose();
+          }
+        },
         dispose: () => {
-          hooks.forEach(hook => hook.dispose?.());
-          hooks.clear();
+          if (sealed) {
+            disposeAsked = true;
+          } else {
+            dispose();
+          }
         },
       };
     },
