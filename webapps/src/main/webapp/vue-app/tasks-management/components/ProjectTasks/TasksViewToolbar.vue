@@ -76,11 +76,19 @@
           max-height="36"
           icon
           @click="openDrawer">
-          <v-icon
-            size="20"
-            :class="filterNumber > 0 && 'primary--text'">
-            fa-sliders-h
-          </v-icon>
+          <v-badge
+            id="projectTasksFilterCount"
+            :value="filterNumber > 0"
+            :content="filterNumber"
+            color="primary"
+            overlap
+            bordered>
+            <v-icon
+              size="20"
+              :class="filterNumber > 0 && 'primary--text'">
+              fa-sliders-h
+            </v-icon>
+          </v-badge>
         </v-btn>
       </template>
     </div>
@@ -91,7 +99,6 @@
       :status-list="statusList"
       :task-view-tab-name="taskViewTabName"
       :show-completed-tasks="showCompletedTasks"
-      @filter-num-changed="filterNumChanged"
       @filter-task="filterTasks"
       @reset-filter-task="resetFilterTask" />
   </div>
@@ -117,18 +124,32 @@ export default {
     return {
       keyword: null,
       filterNumber: 0,
+      appliedFilterNumbers: {},
       taskViewTabName: 'board',
       searchOpen: false,
       searchTimer: null,
     };
   },
+  watch: {
+    'project.id': {
+      immediate: true,
+      handler(projectId) {
+        this.filterNumber = this.appliedFilterNumbers[Number(projectId)] || 0;
+      },
+    },
+  },
   created() {
-    this.filterNumber = Number(localStorage.getItem('filtersNumber')) || 0;
+    this.$root.$on('task-filter-number', this.onAppliedFilterNumber);
+    document.addEventListener('task-filter-extensions-cleared', this.onFilterExtensionsCleared);
     this.$root.$on('hide-tasks-project', () => {
       this.taskViewTabName = 'board';
       this.keyword = null;
       this.searchOpen = false;
     });
+  },
+  beforeDestroy() {
+    document.removeEventListener('task-filter-extensions-cleared', this.onFilterExtensionsCleared);
+    this.$root.$off('task-filter-number', this.onAppliedFilterNumber);
   },
   methods: {
     openSearch() {
@@ -172,8 +193,27 @@ export default {
     resetFields(activeField){
       this.$refs.filterTasksDrawer.resetFields(activeField);
     },
-    filterNumChanged(filtersnumber){
-      this.filterNumber=filtersnumber;
+    /**
+     * Shows the number of filters the dashboard's last fetch of this board
+     * applied: one toolbar serves every board, so the count follows the
+     * board shown, whatever was counted before.
+     *
+     * @param {object} event the board's id and its applied filters' number
+     * @returns {void}
+     */
+    onAppliedFilterNumber(event) {
+      // A fetch can be reported before this toolbar's project prop follows the board shown, so the count is
+      // kept by board and read again when the board changes
+      this.$set(this.appliedFilterNumbers, Number(event.projectId), event.count);
+      if (this.project && Number(event.projectId) === Number(this.project.id)) {
+        this.filterNumber = event.count;
+      }
+    },
+    onFilterExtensionsCleared(event) {
+      if (this.project && Number(event.detail) === Number(this.project.id) && this.$refs.filterTasksDrawer) {
+        this.$refs.filterTasksDrawer.restoreExtensionFilters();
+        this.$root.$emit('show-alert', {type: 'warning', message: this.$t('label.filter.extensionsCleared')});
+      }
     },
     changeTaskViewTab(view){
       this.taskViewTabName=view;

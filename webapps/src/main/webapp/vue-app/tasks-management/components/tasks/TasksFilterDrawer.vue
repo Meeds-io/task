@@ -31,7 +31,7 @@
               <v-tabs
                 v-model="tab">
                 <v-tab class="text-capitalize">{{ $t('label.filter.groupandsort') }}</v-tab>
-                <v-tab v-if="taskViewTabName != 'gantt'" class="text-capitalize">{{ $t('label.filter.filter') }}</v-tab>
+                <v-tab v-if="taskViewTabName != 'gantt' || project" class="text-capitalize">{{ $t('label.filter.filter') }}</v-tab>
                 <v-tab v-if="taskViewTabName != 'gantt'" class="text-capitalize">{{ $t('label.filter.label') }}</v-tab>
               </v-tabs>
             </v-toolbar>
@@ -64,7 +64,10 @@
 
               <v-tab-item>
                 <v-card flat>
-                  <form ref="form1" class="mt-4">
+                  <form
+                    v-if="taskViewTabName !== 'gantt'"
+                    ref="form1"
+                    class="mt-4">
                     <v-label for="name">
                       <span class="font-weight-bold body-2">{{ $t('filter.task.contains') }}</span>
                     </v-label>
@@ -166,6 +169,19 @@
                       </form>
                     </div>
                   </form>
+                  <extension-registry-components
+                    v-if="project"
+                    id="taskFilterSections"
+                    :key="`task-filter-sections-${project}-${extensionFiltersVersion}`"
+                    :params="{
+                      projectId: project,
+                      filters: extensionFilters,
+                      update: updateExtensionFilter,
+                    }"
+                    name="TasksFilterDrawer"
+                    type="task-filter-section"
+                    element="div"
+                    strict-type />
                 </v-card>
               </v-tab-item>
 
@@ -216,6 +232,8 @@
   </exo-drawer>
 </template>
 <script>
+import { getFilterExtensions, saveFilterExtensions } from '../../../../js/taskFilterExtensions';
+
 export default {
   props: {
     task: {
@@ -268,6 +286,8 @@ export default {
         {name: ''},{name: 'NONE'},{name: 'LOW'},{name: 'NORMAL'},{name: 'HIGH'}
       ],
       labels: [],
+      extensionFilters: {},
+      extensionFiltersVersion: 0,
     };
   },
   computed: {
@@ -321,6 +341,7 @@ export default {
       localStorageSaveFilter && localStorageSaveFilter.projectId === 'None' && localStorageSaveFilter.orderBy ? localStorageSaveFilter.orderBy : '';
 
       this.favoritesOnly = !!(localStorageSaveFilter && localStorageSaveFilter.favorite);
+      this.restoreExtensionFilters();
 
       this.$root.$emit('reset-filter-task-sort', this.orderBy);
       this.$refs.filterTasksDrawer.open();
@@ -341,6 +362,7 @@ export default {
       this.labels='';
       this.showCompletedTasks=false;
       this.favoritesOnly=false;
+      this.restoreExtensionFilters();
       this.getFilterNumber();
       this.$root.$emit('reset-filter-task-group-sort',this.groupBy);
     },
@@ -359,6 +381,7 @@ export default {
       this.labels = '';
       this.showCompletedTasks = false;
       this.favoritesOnly = false;
+      this.clearExtensionFilters();
       this.getFilterNumber();
       const jsonToSave = {
         groupBy: this.groupBy,
@@ -369,6 +392,9 @@ export default {
       this.saveValueFilterInStorage(jsonToSave);      
       this.$root.$emit('reset-filter-task-group-sort', this.groupBy);
       this.$emit('reset-filter-task');
+      if (this.taskViewTabName === 'gantt') {
+        this.$root.$emit('task-filter-extensions-updated', this.project);
+      }
     },
     resetFields(source) {
       this.query='';
@@ -381,12 +407,16 @@ export default {
       this.labels='';
       this.showCompletedTasks=false;
       this.favoritesOnly=false;
+      this.clearExtensionFilters();
       this.$root.$emit('reset-filter-task-group-sort',this.groupBy);
       this.getFilterNumber(source);
+      this.$root.$emit('task-filter-extensions-updated', this.project);
     },
     filterTasks() {
       if (this.taskViewTabName === 'gantt') {
-        this.cancel();
+        this.saveExtensionFilters();
+        this.$root.$emit('task-filter-extensions-updated', this.project);
+        this.$refs.filterTasksDrawer.close();
       } else {
         if (this.groupBy === 'completed') {
           this.showCompletedTasks = true;
@@ -424,6 +454,7 @@ export default {
           tabView: (this.taskViewTabName !== '' ? this.taskViewTabName : 'list'),
         };
         this.saveValueFilterInStorage(jsonToSave);
+        this.saveExtensionFilters();
         if (this.project) {
           this.$emit('filter-task', {tasks, filterLabels, showCompletedTasks: this.showCompletedTasks});
           this.getFilterNumber();
@@ -464,8 +495,29 @@ export default {
       if (this.favoritesOnly){
         filtersnumber++;
       }
+      Object.values(this.extensionFilters).forEach(filter => filtersnumber += Number(filter && filter.count) || 0);
       localStorage.setItem('filtersNumber', JSON.stringify(filtersnumber));
       this.$emit('filter-num-changed',filtersnumber,source);
+    },
+    updateExtensionFilter(id, payload, count, state) {
+      this.extensionFilters = {
+        ...this.extensionFilters,
+        [id]: {payload, count: Number(count) || 0, state},
+      };
+    },
+    restoreExtensionFilters() {
+      this.extensionFilters = this.project ? getFilterExtensions(this.project) : {};
+      this.extensionFiltersVersion++;
+    },
+    saveExtensionFilters() {
+      if (this.project) {
+        saveFilterExtensions(this.project, this.extensionFilters);
+      }
+    },
+    clearExtensionFilters() {
+      this.extensionFilters = {};
+      this.saveExtensionFilters();
+      this.extensionFiltersVersion++;
     },
     saveValueFilterInStorage(value) {
       localStorage.setItem('projectStorage', JSON.stringify(this.project));

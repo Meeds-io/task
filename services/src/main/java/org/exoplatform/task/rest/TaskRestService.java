@@ -45,11 +45,13 @@ import javax.ws.rs.core.Response;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.task.model.TaskListFilter;
 import org.exoplatform.task.model.TaskSearchFilter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -62,6 +64,7 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.dao.condition.Condition;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.LabelDto;
@@ -92,6 +95,7 @@ import io.meeds.task.plugin.TaskAclPlugin;
 import io.meeds.social.html.model.HtmlTransformerContext;
 import io.meeds.social.html.utils.HtmlUtils;
 import io.meeds.task.plugin.TaskPermanentLinkPlugin;
+import io.meeds.task.service.TaskFilterExtensionService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -127,6 +131,8 @@ public class TaskRestService implements ResourceContainer {
   private FavoriteService  favoriteService;
 
   private IdentityManager  identityManager;
+
+  private TaskFilterExtensionService taskFilterExtensionService;
 
   private static final String PERCENT_ENCODED_REGEX = "%(?![0-9a-fA-F]{2})";
 
@@ -175,6 +181,29 @@ public class TaskRestService implements ResourceContainer {
                           .map(MetadataItem::getObjectId)
                           .map(Long::parseLong)
                           .collect(Collectors.toSet());
+  }
+
+  /**
+   * Returns the resolver of the filters other add-ons contribute, looked up
+   * on first use: it is a Spring service, and this Kernel resource is built
+   * before every add-on context has started.
+   *
+   * @return the filter extension service
+   */
+  TaskFilterExtensionService getTaskFilterExtensionService() {
+    if (taskFilterExtensionService == null) {
+      taskFilterExtensionService = CommonsUtils.getService(TaskFilterExtensionService.class);
+    }
+    return taskFilterExtensionService;
+  }
+
+  /**
+   * Sets the resolver of the filters other add-ons contribute.
+   *
+   * @param taskFilterExtensionService the filter extension service
+   */
+  void setTaskFilterExtensionService(TaskFilterExtensionService taskFilterExtensionService) {
+    this.taskFilterExtensionService = taskFilterExtensionService;
   }
 
 
@@ -299,6 +328,7 @@ public class TaskRestService implements ResourceContainer {
   @Operation(summary = "Gets  a specific task", method = "GET", description = "This returns  a specific task")
   @ApiResponses(value = {
           @ApiResponse(responseCode = "200", description = "Request ful"),
+          @ApiResponse(responseCode = "400", description = "Invalid extension filters"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "404", description = "Resource not found") })
   public Response filterTasks(@Parameter(description = "Type of task to get (all, incoming, overdue)") @QueryParam("statusDto") String status,
@@ -324,7 +354,10 @@ public class TaskRestService implements ResourceContainer {
                               @Parameter(description = "Returning All Details")
                               @Schema(defaultValue = "false")
                               @QueryParam("returnDetails")
-                              boolean returnDetails) {
+                              boolean returnDetails,
+                              @Parameter(description = "Filters other add-ons contribute to a project's tasks: a JSON object mapping a filter id to its payload")
+                              @QueryParam("extensionFilters")
+                              String extensionFilters) {
 
     try {
       String listId = ViewState.buildId(projectId, labelId, dueCategory);
@@ -393,29 +426,45 @@ public class TaskRestService implements ResourceContainer {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
 
-      TasksList tasks = taskService.filterTasks(query,
-                                                projectId,
-                                                filter.getKeyword(),
-                                                filter.getLabel(),
-                                                filter.getDue(),
-                                                filter.getPriority(),
-                                                filter.getAssignees(),
-                                                filter.getCoworkers(),
-                                                filter.getWatchers(),
-                                                labelId,
-                                                statusIdLong,
-                                                currIdentity,
-                                                dueCategory,
-                                                spaceGroupId,
-                                                userTimezone,
-                                                filter.isShowCompleted(),
-                                                advanceSearch,
-                                                noProjPermission,
-                                                noLblPermission,
-                                                orderBy,
-                                                groupBy,
-                                                offset,
-                                                limit);
+      List<Condition> extensionConditions = List.of();
+      if (StringUtils.isNotBlank(extensionFilters) && !noProjPermission) {
+        try {
+          extensionConditions = getTaskFilterExtensionService().resolve(projectId, extensionFilters, currIdentity);
+        } catch (IllegalArgumentException e) {
+          return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+        } catch (ObjectNotFoundException e) {
+          return Response.status(Response.Status.NOT_FOUND).build();
+        } catch (IllegalAccessException e) {
+          return Response.status(Response.Status.FORBIDDEN).build();
+        }
+      }
+
+      TaskListFilter taskListFilter = new TaskListFilter();
+      taskListFilter.setQuery(query);
+      taskListFilter.setProjectId(projectId);
+      taskListFilter.setKeyword(filter.getKeyword());
+      taskListFilter.setLabels(filter.getLabel());
+      taskListFilter.setDueDate(filter.getDue());
+      taskListFilter.setPriority(filter.getPriority());
+      taskListFilter.setAssignees(filter.getAssignees());
+      taskListFilter.setCoworkers(filter.getCoworkers());
+      taskListFilter.setWatchers(filter.getWatchers());
+      taskListFilter.setLabelId(labelId);
+      taskListFilter.setStatusId(statusIdLong);
+      taskListFilter.setCurrIdentity(currIdentity);
+      taskListFilter.setDueCategory(dueCategory);
+      taskListFilter.setSpaceGroupId(spaceGroupId);
+      taskListFilter.setUserTimezone(userTimezone);
+      taskListFilter.setShowCompleted(filter.isShowCompleted());
+      taskListFilter.setAdvanceSearch(advanceSearch);
+      taskListFilter.setNoProjPermission(noProjPermission);
+      taskListFilter.setNoLblPermission(noLblPermission);
+      taskListFilter.setOrderBy(orderBy);
+      taskListFilter.setGroupBy(groupBy);
+      taskListFilter.setOffset(offset);
+      taskListFilter.setLimit(limit);
+      taskListFilter.setExtensionConditions(extensionConditions);
+      TasksList tasks = taskService.filterTasks(taskListFilter);
       List<TaskDto> taskList = tasks.getListTasks();
 
       long tasksSize = tasks.getTasksSize();
@@ -455,7 +504,9 @@ public class TaskRestService implements ResourceContainer {
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Gets tasks by projectIdr", method = "GET", description = "This returns list of tasks by project")
-  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Invalid extension filters"),
+      @ApiResponse(responseCode = "401", description = "Unauthorized operation") })
   public Response getTasksByProjectId(@Parameter(description = "Id", required = true) @Schema(defaultValue = "0") @PathParam("id") Long id,
                                       @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
                                       @Parameter(description = "Limit") @Schema(defaultValue = "0") @QueryParam("limit") int limit,
@@ -464,14 +515,30 @@ public class TaskRestService implements ResourceContainer {
                                       @Parameter(description = "Returning All Details")
                                       @Schema(defaultValue = "false")
                                       @QueryParam("returnDetails")
-                                      boolean returnDetails) {
+                                      boolean returnDetails,
+                                      @Parameter(description = "Filters other add-ons contribute to the project's tasks: a JSON object mapping a filter id to its payload")
+                                      @QueryParam("extensionFilters")
+                                      String extensionFilters) {
     try {
       Identity currentUser = ConversationState.getCurrent().getIdentity();
       ProjectDto project = projectService.getProject(id);
       if (project == null || !project.canView(ConversationState.getCurrent().getIdentity())) {
         return Response.status(Response.Status.UNAUTHORIZED).build();
       }
+      List<Condition> extensionConditions = List.of();
+      if (StringUtils.isNotBlank(extensionFilters)) {
+        try {
+          extensionConditions = getTaskFilterExtensionService().resolve(id, extensionFilters, currentUser);
+        } catch (IllegalArgumentException e) {
+          return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+        } catch (ObjectNotFoundException e) {
+          return Response.status(Response.Status.NOT_FOUND).build();
+        } catch (IllegalAccessException e) {
+          return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+      }
       TaskQuery taskQuery = new TaskQuery();
+      extensionConditions.forEach(taskQuery::add);
       List<Long> allProjectIds = new ArrayList<>();
       allProjectIds.add(id);
       if (limit == 0) {

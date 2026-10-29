@@ -42,6 +42,7 @@ import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskChangeFilter;
 import org.exoplatform.task.model.TaskChanges;
 import org.exoplatform.task.model.TaskFieldChange;
+import org.exoplatform.task.model.TaskListFilter;
 import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.service.TaskPayload;
@@ -449,8 +450,70 @@ public class TaskServiceImpl implements TaskService {
         return taskStorage.countTaskStatusByProject(projectId);
     }
 
+    /**
+     * Filters a task list from its criteria given one by one, through
+     * {@link #filterTasks(TaskListFilter)}.
+     */
     @Override
+    @Deprecated(since = "7.3", forRemoval = false)
     public TasksList filterTasks(String query, long projectId, String keyword, List<Long> labels, TaskUtil.DUE dueDate, Priority priority, List<String> assignees, List<String> coworker, List<String> watchers, Long labelId, Long statusId, Identity currIdentity, String dueCategory, String space_group_id , TimeZone userTimezone, boolean isShowCompleted, boolean advanceSearch, boolean noProjPermission, boolean noLblPermission, String orderBy, String groupBy, int offset, int limit) throws Exception {
+        TaskListFilter filter = new TaskListFilter();
+        filter.setQuery(query);
+        filter.setProjectId(projectId);
+        filter.setKeyword(keyword);
+        filter.setLabels(labels);
+        filter.setDueDate(dueDate);
+        filter.setPriority(priority);
+        filter.setAssignees(assignees);
+        filter.setCoworkers(coworker);
+        filter.setWatchers(watchers);
+        filter.setLabelId(labelId);
+        filter.setStatusId(statusId);
+        filter.setCurrIdentity(currIdentity);
+        filter.setDueCategory(dueCategory);
+        filter.setSpaceGroupId(space_group_id);
+        filter.setUserTimezone(userTimezone);
+        filter.setShowCompleted(isShowCompleted);
+        filter.setAdvanceSearch(advanceSearch);
+        filter.setNoProjPermission(noProjPermission);
+        filter.setNoLblPermission(noLblPermission);
+        filter.setOrderBy(orderBy);
+        filter.setGroupBy(groupBy);
+        filter.setOffset(offset);
+        filter.setLimit(limit);
+        return filterTasks(filter);
+    }
+
+    /**
+     * Filters a task list. The extension conditions are added to the task
+     * query after its own criteria, so they are combined with them with AND,
+     * in the page and in the count alike.
+     */
+    @Override
+    public TasksList filterTasks(TaskListFilter filter) throws Exception {
+        String query = filter.getQuery();
+        long projectId = filter.getProjectId();
+        String keyword = filter.getKeyword();
+        List<Long> labels = filter.getLabels();
+        TaskUtil.DUE dueDate = filter.getDueDate();
+        Priority priority = filter.getPriority();
+        List<String> assignees = filter.getAssignees();
+        List<String> coworker = filter.getCoworkers();
+        List<String> watchers = filter.getWatchers();
+        Long labelId = filter.getLabelId();
+        Long statusId = filter.getStatusId();
+        Identity currIdentity = filter.getCurrIdentity();
+        String dueCategory = filter.getDueCategory();
+        String space_group_id = filter.getSpaceGroupId();
+        TimeZone userTimezone = filter.getUserTimezone();
+        boolean isShowCompleted = filter.isShowCompleted();
+        boolean advanceSearch = filter.isAdvanceSearch();
+        boolean noProjPermission = filter.isNoProjPermission();
+        boolean noLblPermission = filter.isNoLblPermission();
+        String orderBy = filter.getOrderBy();
+        String groupBy = filter.getGroupBy();
+        int offset = filter.getOffset();
+        int limit = filter.getLimit();
 
         List<String> defOrders;
         List<String> defGroupBys;
@@ -604,6 +667,10 @@ public class TaskServiceImpl implements TaskService {
             taskQuery.setOrderBy(Arrays.asList(order));
         }
 
+
+        if (filter.getExtensionConditions() != null) {
+            filter.getExtensionConditions().forEach(taskQuery::add);
+        }
 
         List<TaskDto> listTasks = null;
         long tasksSize = 0;

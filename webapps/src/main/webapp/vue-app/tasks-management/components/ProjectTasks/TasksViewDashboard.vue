@@ -207,6 +207,7 @@
 </template>
 <script>
 import { CHANGED_EVENT, UPDATED_EVENT, getProviderIds, getTaskIds, loadIndicators } from '../../../../js/taskCardIndicators.js';
+import { countFilterExtensions } from '../../../../js/taskFilterExtensions';
 
 export default {
   provide() {
@@ -233,6 +234,7 @@ export default {
       statusList: [],
       tasksList: [],
       allProjectTasks: [],
+      appliedLabels: false,
       groupName: null,
       filterProjectActive: true,
       filterByStatus: false,
@@ -284,6 +286,8 @@ export default {
     }
   },
   created() {
+    this.$root.$on('task-filter-extensions-updated', this.refreshForFilterExtensions);
+    document.addEventListener('task-filter-extensions-cleared', this.onFilterExtensionsCleared);
     this.$root.$on('task-added', task => {
       this.$tasksService.filterTasksList(this.tasksFilter, '', '', '', this.project.id).then(data => {
         if (Array.isArray(data.tasks[0])) {
@@ -366,6 +370,8 @@ export default {
     document.removeEventListener(CHANGED_EVENT, this.onIndicatorsChanged);
     document.removeEventListener(UPDATED_EVENT, this.scheduleIndicators);
     window.clearTimeout(this.indicatorsTimeout);
+    this.$root.$off('task-filter-extensions-updated', this.refreshForFilterExtensions);
+    document.removeEventListener('task-filter-extensions-cleared', this.onFilterExtensionsCleared);
   },
   methods: {
     scheduleIndicators(force) {
@@ -436,7 +442,48 @@ export default {
         this.getAllProjectTasks(this.project.id);
       }
     },
+    onFilterExtensionsCleared(event) {
+      // The fetch dropped a refused add-on filter and ran again: the board applies one filter less
+      if (this.project && Number(event.detail) === Number(this.project.id)) {
+        this.reportAppliedFilterNumber(this.project.id, this.appliedLabels);
+      }
+    },
+    refreshForFilterExtensions(projectId) {
+      if (!this.project || Number(projectId) !== Number(this.project.id)) {
+        return;
+      }
+      if (this.taskViewTabName === 'gantt') {
+        this.getAllProjectTasks(this.project.id);
+      } else {
+        this.getTasksByProject(this.project.id, '');
+      }
+    },
+    /**
+     * Tells the toolbar how many filters a fetch of the board applies, from
+     * what the fetch sends: the board's add-on filters and, outside the
+     * Gantt, the usual criteria, « Favorites only », « Show completed tasks »
+     * and the labels when it sends them; a keyword shows on the search field
+     * instead.
+     *
+     * @param {Number} projectId the board's project id
+     * @param {boolean} withLabels whether the fetch sends labels
+     * @returns {void}
+     */
+    reportAppliedFilterNumber(projectId, withLabels) {
+      this.appliedLabels = withLabels;
+      let count = countFilterExtensions(projectId);
+      if (this.taskViewTabName !== 'gantt') {
+        const filter = this.tasksFilter || {};
+        count += ['assignee', 'statusId', 'dueDate', 'priority', 'favorite', 'showCompletedTasks']
+          .filter(key => filter[key]).length;
+        count += withLabels ? 1 : 0;
+      }
+      this.$root.$emit('task-filter-number', {projectId, count});
+    },
     getAllProjectTasks(projectId) {
+      if (this.taskViewTabName === 'gantt') {
+        this.reportAppliedFilterNumber(projectId, false);
+      }
       return this.$tasksService.getTasksByProjectId(projectId).then(data => {
         this.allProjectTasks = [];
         this.allProjectTasks = data ? data : [];
@@ -531,6 +578,7 @@ export default {
       if (this.tasksFilter.groupBy === 'none') {
         this.filterByStatus = false;
       }
+      this.reportAppliedFilterNumber(this.project.id, !!(e.filterLabels.labels && e.filterLabels.labels.length));
       if (this.tasksFilter.groupBy === 'status') {
         this.tasksFilter.groupBy = '';
         this.filterProjectActive = false;
@@ -652,6 +700,7 @@ export default {
         tasksFilter.groupBy = '';
         this.filterProjectActive = false;
         this.filterByStatus = true;
+        this.reportAppliedFilterNumber(ProjectId, false);
         this.$tasksService.filterTasksList(this.tasksFilter, '', '', '', ProjectId).then(data => {
           this.filterProjectActive = false;
           this.tasksList = data && data.tasks || [];
@@ -665,6 +714,7 @@ export default {
           localStorage.removeItem('filtersNumber');
           localStorage.removeItem('labelsStorage');
         }      
+        this.reportAppliedFilterNumber(ProjectId, !!labelsToUse);
         this.$tasksService.filterTasksList(this.tasksFilter, '', '', labelsToUse, ProjectId).then(data => {
           this.filterByStatus = false;
           if (data.projectName) {
