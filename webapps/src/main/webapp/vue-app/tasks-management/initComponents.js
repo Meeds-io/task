@@ -56,6 +56,7 @@ import TaskViewCard from './components/ProjectTasks/TaskViewCard.vue';
 import TaskViewListItem from './components/ProjectTasks/TaskViewListItem.vue';
 import TasksViewBoardColumn from './components/ProjectTasks/TasksViewBoardColumn.vue';
 import QuickAddCard from './components/ProjectTasks/QuickAddCard.vue';
+import TaskCardIndicators from './components/ProjectTasks/TaskCardIndicators.vue';
 import TasksViewHeaderStatus from './components/ProjectTasks/TasksViewHeaderStatus.vue';
 import TasksUnscheduledDrawer from './components/ProjectTasks/TasksUnscheduledDrawer.vue';
 
@@ -102,6 +103,7 @@ const components = {
   'task-view-card': TaskViewCard,
   'task-view-list-item': TaskViewListItem,
   'quick-add-card': QuickAddCard,
+  'task-card-indicators': TaskCardIndicators,
   'tasks-view-header-status': TasksViewHeaderStatus,
   'tasks-unscheduled-drawer': TasksUnscheduledDrawer,
 };
