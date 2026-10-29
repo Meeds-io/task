@@ -1070,14 +1070,6 @@ export default {
           }
           this.enableDelete = data.managerIdentities.some(manager => manager.username === eXo.env.portal.userName);
           this.enableClone = this.enableDelete || data.participatorIdentities.some(participator => participator.username === eXo.env.portal.userName);
-          menuActions.push({
-            id: 'moveProject',
-            title: this.$t('taskDrawer.menu.moveProject'),
-            icon: 'fa-folder-open',
-            enabled: true,
-            action: this.startMovingProject,
-            rank: 5,
-          });
           this.addMenuAction(menuActions, this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask', 10);
           this.addMenuAction(menuActions, this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask', 20);
           menuActions.sort((a, b) => a.rank - b.rank);
@@ -1147,15 +1139,15 @@ export default {
      */
     startMovingProject() {
       this.movingProject = true;
-      // After the menu item's click has reached the document, whose
-      // outside-click handling would close the list it opens
+      // After the click that started the move has reached the document,
+      // whose outside-click handling would close the list it opens
       window.setTimeout(() => this.$refs.taskProjects?.openProjectsList(), 50);
     },
 
     /**
      * Once the task moved to another project, shows the Project row's link
-     * again and rebuilds the ⋯ menu from the new project: its move action and
-     * the rights its managers and participants give.
+     * again and rebuilds the ⋯ menu from the new project: the rights its
+     * managers and participants give.
      *
      * @returns {void}
      */
