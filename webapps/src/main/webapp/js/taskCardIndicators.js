@@ -63,17 +63,20 @@ export function getProviderIds() {
  *
  * @param {Number} projectId the board
  * @param {Array<Number>} taskIds the cards shown
- * @returns {Promise<Object>} task id to its markers, in provider rank order
+ * @returns {Promise<Object>} {byTask, failed}: task id to its markers, in
+ *          provider rank order, and whether a provider failed to answer
  */
 export function loadIndicators(projectId, taskIds) {
   const providers = extensionRegistry.loadExtensions(EXTENSION_APP, EXTENSION_TYPE) || [];
   if (!projectId || !taskIds.length || !providers.length) {
-    return Promise.resolve({});
+    return Promise.resolve({byTask: {}, failed: false});
   }
+  let failed = false;
   return Promise.all(providers.map(provider => Promise.resolve()
     .then(() => provider.load(projectId, taskIds))
     .catch(e => {
       console.error(`Error reading the card markers of ${provider.id}`, e);
+      failed = true;
       return [];
     })))
     .then(answers => {
@@ -85,6 +88,6 @@ export function loadIndicators(projectId, taskIds) {
           byTask[taskId].push(indicator);
         }
       });
-      return byTask;
+      return {byTask, failed};
     });
 }
