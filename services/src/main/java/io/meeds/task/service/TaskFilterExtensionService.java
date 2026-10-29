@@ -30,6 +30,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.dao.condition.Condition;
 import org.exoplatform.task.dto.ProjectDto;
@@ -55,11 +57,22 @@ public class TaskFilterExtensionService {
   /** The message code of more filters than {@link #MAX_FILTERS}. */
   public static final String                  TOO_MANY_FILTERS_CODE      = "task.extensionFilters.tooMany";
 
-  /** The message code of a filter no plugin is registered for. */
+  /**
+   * The message code of a filter no plugin is registered for, followed by
+   * {@code :<filter id>}.
+   */
   public static final String                  UNKNOWN_FILTER_CODE        = "task.extensionFilters.unknown";
+
+  /**
+   * The message code of a payload its plugin refuses, followed by
+   * {@code :<filter id>}, so the client can drop that filter only.
+   */
+  public static final String                  REFUSED_FILTER_CODE        = "task.extensionFilters.refused";
 
   /** The message code of filters sent without a project. */
   public static final String                  PROJECT_REQUIRED_CODE      = "task.extensionFilters.projectRequired";
+
+  private static final Log                    LOG                        = ExoLogger.getLogger(TaskFilterExtensionService.class);
 
   private final Map<String, TaskFilterPlugin> plugins                    = new ConcurrentHashMap<>();
 
@@ -102,8 +115,10 @@ public class TaskFilterExtensionService {
    * @param viewer the user who filters
    * @return the conditions, empty when the filters restrict nothing
    * @throws IllegalArgumentException with a message code when the filters are
-   *           not a JSON object, are too many, name an unknown plugin, come
-   *           without a project, or when a plugin refuses its payload
+   *           not a JSON object, are too many or come without a project; with
+   *           {@link #UNKNOWN_FILTER_CODE} or {@link #REFUSED_FILTER_CODE}
+   *           followed by {@code :<filter id>} when a filter names no plugin or
+   *           its plugin refuses its payload
    * @throws ObjectNotFoundException when the project does not exist
    * @throws IllegalAccessException when the viewer does not view the project
    */
@@ -125,9 +140,15 @@ public class TaskFilterExtensionService {
     for (String id : entries.keySet()) {
       TaskFilterPlugin plugin = plugins.get(id);
       if (plugin == null) {
-        throw new IllegalArgumentException(UNKNOWN_FILTER_CODE);
+        throw new IllegalArgumentException(UNKNOWN_FILTER_CODE + ":" + id);
       }
-      Condition condition = plugin.toCondition(projectId, JSONObject.valueToString(entries.get(id)), viewer);
+      Condition condition;
+      try {
+        condition = plugin.toCondition(projectId, JSONObject.valueToString(entries.get(id)), viewer);
+      } catch (IllegalArgumentException e) {
+        LOG.debug("Filter {} refused on project {}: {}", id, projectId, e.getMessage());
+        throw new IllegalArgumentException(REFUSED_FILTER_CODE + ":" + id);
+      }
       if (condition != null) {
         conditions.add(condition);
       }
