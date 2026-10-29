@@ -50,7 +50,8 @@ public interface TaskFilterPlugin {
    * place a restriction under an OR.
    *
    * @param projectId the project whose tasks are filtered
-   * @param payload the JSON value the client sent under the plugin's id
+   * @param payload the JSON value the client sent under the plugin's id, as
+   *          JSON text: a string arrives quoted
    * @param viewer the user who filters
    * @return the condition, or {@code null} when the payload restricts nothing
    * @throws IllegalArgumentException with a message code when the payload is

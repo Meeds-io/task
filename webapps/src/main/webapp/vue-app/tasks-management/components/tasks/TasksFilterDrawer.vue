@@ -415,7 +415,7 @@ export default {
     filterTasks() {
       if (this.taskViewTabName === 'gantt') {
         this.saveExtensionFilters();
-        this.getFilterNumber();
+        this.getExtensionFilterNumber();
         this.$root.$emit('task-filter-extensions-updated', this.project);
         this.$refs.filterTasksDrawer.close();
       } else {
@@ -519,6 +519,12 @@ export default {
       this.extensionFilters = {};
       this.saveExtensionFilters();
       this.extensionFiltersVersion++;
+    },
+    getExtensionFilterNumber() {
+      let filtersnumber = 0;
+      Object.values(this.extensionFilters).forEach(filter => filtersnumber += Number(filter && filter.count) || 0);
+      localStorage.setItem('filtersNumber', JSON.stringify(filtersnumber));
+      this.$emit('filter-num-changed', filtersnumber);
     },
     saveValueFilterInStorage(value) {
       localStorage.setItem('projectStorage', JSON.stringify(this.project));
