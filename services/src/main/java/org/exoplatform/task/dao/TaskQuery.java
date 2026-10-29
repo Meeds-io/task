@@ -20,6 +20,7 @@ package org.exoplatform.task.dao;
 
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.dao.condition.AggregateCondition;
+import org.exoplatform.task.dao.condition.CardConditions;
 import org.exoplatform.task.dao.condition.Condition;
 import org.exoplatform.task.dao.condition.Conditions;
 import org.exoplatform.task.domain.Priority;
@@ -292,6 +293,90 @@ public class TaskQuery extends Query implements Cloneable {
     if (statusId != null) {
       add(eq(TASK_STATUS_ID, statusId));
     }
+  }
+
+  /**
+   * Selects the tasks whose column has one of the given names, compared
+   * trimmed and ignoring case, or none of them (EXO-92467).
+   *
+   * @param names the column names, at least one
+   * @param excluded true to keep the tasks whose column has none of the names
+   */
+  public void setStatusNames(Collection<String> names, boolean excluded) {
+    add(CardConditions.statusNames(names, excluded));
+  }
+
+  /**
+   * Selects the tasks assigned to one of the given users, or with one of them
+   * as assignee or coworker (EXO-92467).
+   *
+   * @param usernames the users, at least one
+   * @param includeCoworkers true to also select the tasks one of them works on
+   *          as a coworker
+   */
+  public void setAssignedTo(Collection<String> usernames, boolean includeCoworkers) {
+    add(CardConditions.assignedTo(usernames, includeCoworkers));
+  }
+
+  /**
+   * Selects the tasks with no assignee, and no coworker when coworkers count
+   * (EXO-92467).
+   *
+   * @param includeCoworkers true to also require that the task has no coworker
+   */
+  public void setUnassigned(boolean includeCoworkers) {
+    add(CardConditions.unassigned(includeCoworkers));
+  }
+
+  /**
+   * Selects the tasks whose due date or start date falls in a range, the start
+   * included and the end excluded (EXO-92467). Unlike {@link #setStartDate} and
+   * {@link #setEndDate}, it compares the field it names.
+   *
+   * @param field {@link Conditions#TASK_DUEDATE} or
+   *          {@link Conditions#TASK_START_DATE}
+   * @param from the first instant, included; null for no start
+   * @param to the instant after the range, excluded; null for no end
+   */
+  public void setDateBetween(String field, Date from, Date to) {
+    add(CardConditions.dateBetween(field, from, to));
+  }
+
+  /**
+   * Selects the tasks with no due date or no start date (EXO-92467).
+   *
+   * @param field {@link Conditions#TASK_DUEDATE} or
+   *          {@link Conditions#TASK_START_DATE}
+   */
+  public void setNoDate(String field) {
+    add(CardConditions.noDate(field));
+  }
+
+  /**
+   * Selects the tasks that carry a label of each given name, among the labels
+   * of the task's board and the viewer's personal labels (EXO-92467).
+   *
+   * @param names the label names, at least one
+   * @param viewer the user making the query
+   */
+  public void setLabelNamesAll(Collection<String> names, String viewer) {
+    if (names == null || names.isEmpty()) {
+      throw new IllegalArgumentException("A label criterion needs at least one name");
+    }
+    names.forEach(name -> add(CardConditions.hasLabel(name, viewer)));
+  }
+
+  /**
+   * Selects the tasks that carry a label with one of the given names, or none
+   * of them, among the labels of the task's board and the viewer's personal
+   * labels (EXO-92467).
+   *
+   * @param names the label names, at least one
+   * @param viewer the user making the query
+   * @param excluded true to keep the tasks that carry none of these labels
+   */
+  public void setLabelNamesAny(Collection<String> names, String viewer, boolean excluded) {
+    add(CardConditions.hasAnyLabel(names, viewer, excluded));
   }
 
   public void setIsIncomingOf(String username) {
