@@ -206,7 +206,7 @@
   </div>
 </template>
 <script>
-import { CHANGED_EVENT, UPDATED_EVENT, getTaskIds, loadIndicators } from '../../../../js/taskCardIndicators.js';
+import { CHANGED_EVENT, UPDATED_EVENT, getProviderIds, getTaskIds, loadIndicators } from '../../../../js/taskCardIndicators.js';
 
 export default {
   provide() {
@@ -241,6 +241,7 @@ export default {
       cardIndicators: {byTask: {}},
       indicatorsGeneration: 0,
       indicatorsTimeout: null,
+      indicatorsKey: null,
     };
   },
   watch: {
@@ -366,15 +367,21 @@ export default {
     window.clearTimeout(this.indicatorsTimeout);
   },
   methods: {
-    scheduleIndicators() {
+    scheduleIndicators(force) {
       // Every list change of one tick (the board's, the Gantt's, a provider arriving) makes one request
       window.clearTimeout(this.indicatorsTimeout);
-      this.indicatorsTimeout = window.setTimeout(() => this.refreshIndicators());
+      this.indicatorsTimeout = window.setTimeout(() => this.refreshIndicators(force === true));
     },
-    refreshIndicators() {
+    refreshIndicators(force) {
       const projectId = this.project && this.project.id;
-      const generation = ++this.indicatorsGeneration;
       const taskIds = getTaskIds([...this.tasksList.flat(), ...this.allProjectTasks]);
+      // A list change that leaves the same cards, with the same providers, asks nothing again
+      const key = `${projectId}|${getProviderIds().join(',')}|${[...taskIds].sort((a, b) => a - b).join(',')}`;
+      if (!force && key === this.indicatorsKey) {
+        return Promise.resolve();
+      }
+      this.indicatorsKey = key;
+      const generation = ++this.indicatorsGeneration;
       return loadIndicators(projectId, taskIds).then(byTask => {
         if (generation === this.indicatorsGeneration && projectId === (this.project && this.project.id)) {
           this.cardIndicators.byTask = byTask;
@@ -384,7 +391,7 @@ export default {
     onIndicatorsChanged() {
       // The whole board is read again, the read a list change makes: a later read always wins, so no
       // answer started before the change can overwrite the changed card
-      this.scheduleIndicators();
+      this.scheduleIndicators(true);
     },
     onFavoriteUpdated(event) {
       const detail = event && event.detail;
