@@ -31,6 +31,7 @@ import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskChangeFilter;
 import org.exoplatform.task.model.TaskChanges;
+import org.exoplatform.task.model.TaskListFilter;
 import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.util.TaskUtil;
@@ -245,7 +246,27 @@ public interface TaskService {
 
     List<Object[]> countTaskStatusByProject(long projectId);
 
+    /* @deprecated use {@link #filterTasks(TaskListFilter)}, since 7.3, not for removal */
+    /**
+     * Filters a task list from its criteria given one by one.
+     *
+     * @deprecated use {@link #filterTasks(TaskListFilter)}, which carries the
+     *             same criteria in one object, plus the conditions other
+     *             add-ons contribute
+     */
+    @Deprecated(since = "7.3", forRemoval = false)
     public TasksList filterTasks(String query, long projectId, String keyword, List<Long> labels, TaskUtil.DUE dueDate, Priority priority, List<String> assignees, List<String> coworkers, List<String> watchers, Long labelId, Long statusId, Identity currIdentity, String dueCategory, String space_group_id , TimeZone userTimezone, boolean isShowCompleted, boolean advanceSearch, boolean noProjPermission, boolean noLblPermission, String orderBy, String groupBy, int offset, int limit) throws Exception;
+
+    /**
+     * Filters a task list: one of the personal lists or a project's tasks,
+     * with the usual criteria and the conditions other add-ons contribute,
+     * all combined with AND, grouped, ordered and paginated.
+     *
+     * @param filter the list, its criteria and its page
+     * @return the page of tasks and the number of tasks the criteria match
+     * @throws Exception when the tasks cannot be read
+     */
+    TasksList filterTasks(TaskListFilter filter) throws Exception;
     
     public boolean isExternal(String userId);
 
