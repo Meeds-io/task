@@ -363,7 +363,7 @@ export default {
       this.showCompletedTasks=false;
       this.favoritesOnly=false;
       this.restoreExtensionFilters();
-      this.getFilterNumber();
+      this.refreshFilterNumber();
       this.$root.$emit('reset-filter-task-group-sort',this.groupBy);
     },
     reset() {
@@ -382,7 +382,7 @@ export default {
       this.showCompletedTasks = false;
       this.favoritesOnly = false;
       this.clearExtensionFilters();
-      this.getFilterNumber();
+      this.refreshFilterNumber();
       const jsonToSave = {
         groupBy: this.groupBy,
         orderBy: this.orderBy,
@@ -519,6 +519,13 @@ export default {
       this.extensionFilters = {};
       this.saveExtensionFilters();
       this.extensionFiltersVersion++;
+    },
+    refreshFilterNumber(source) {
+      if (this.taskViewTabName === 'gantt') {
+        this.getExtensionFilterNumber();
+      } else {
+        this.getFilterNumber(source);
+      }
     },
     getExtensionFilterNumber() {
       let filtersnumber = 0;
