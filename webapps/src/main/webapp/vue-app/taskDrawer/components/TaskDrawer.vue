@@ -294,6 +294,7 @@
                 projectId: taskProjectId,
                 spaceId: taskSpaceId,
                 expanded,
+                creation: task.id ? null : creation,
               }"
               name="TaskDrawer"
               type="task-drawer-section"
@@ -435,6 +436,7 @@ export default {
       attachmentsVersion: 0,
       titleScrolledAway: false,
       movingProject: false,
+      creation: null,
     };
   },
   computed: {
@@ -776,7 +778,43 @@ export default {
         return Promise.all(promises).then(() => task);
       }
     },
+    /**
+     * Creates the task once every section of the drawer accepts what was
+     * entered in it, then has each section write what it holds on the task
+     * created. A section refusing keeps the drawer open and creates nothing;
+     * a section that could not write some of it keeps the task, names what
+     * was not saved, and the drawer re-opens on the task created. Once the
+     * task is being created, leaving the drawer no longer drops what the
+     * sections hold: they still write it, and the drawer is then closed or
+     * re-opened only if it shows no other card meanwhile.
+     *
+     * @returns {Promise} settled once the task is created, or not
+     */
     addTask() {
+      if (this.saving) {
+        return Promise.resolve();
+      }
+      this.saving = true;
+      const creation = this.creation;
+      return (creation ? creation.validate() : Promise.resolve(true)).then(valid => {
+        if (!valid || this.creation !== creation) {
+          // A refused value keeps the drawer open; a drawer closed or moved on meanwhile creates nothing
+          return;
+        }
+        return this.createTask(creation);
+      }).finally(() => this.saving = false);
+    },
+    /**
+     * Creates the task from the drawer's fields, its labels included, then has
+     * the sections write what they hold on it. The creation stays sealed
+     * until then. A failure before the task exists puts the labels back in
+     * the panel when it still shows that card.
+     *
+     * @param {object} creation the card's creation, or null
+     * @returns {Promise} settled once the task is created and announced, or not
+     */
+    createTask(creation) {
+      creation?.seal();
       document.dispatchEvent(new CustomEvent('onAddTask'));
       this.task.description = this.taskDescription;
       this.task.coworker = this.taskCoworkers;
@@ -784,30 +822,147 @@ export default {
       this.task.startDate = this.taskStartDate;
       this.task.dueDate = this.taskDueDate;
       this.task.priority = this.taskPriority;
-      this.$taskDrawerApi.addTask(this.task).then(task => {
-        this.labelsToAdd.forEach(item => {
-          this.$taskDrawerApi.addTaskToLabel(task.id, item);
-        });
-        const taskObject = {
-          id: task.id,
-          type: 'task'
-        };
-        this.postSaveMessage(taskObject);
-        this.$root.$emit('task-added', task);
-        this.$root.$emit('show-alert', {
-          type: 'success',
-          message: this.$t('alert.success.task.created')
-        });
+      const labels = this.labelsToAdd;
+      this.labelsToAdd = [];
+      let created = false;
+      return this.$taskDrawerApi.addTask(this.task)
+        .then(task => {
+          created = true;
+          labels.forEach(item => this.$taskDrawerApi.addTaskToLabel(task.id, item));
+          return this.writeCreated(task, creation);
+        })
+        .catch(e => {
+          console.error('Error when adding task title', e);
+          if (!created && this.creation === creation) {
+            this.labelsToAdd = labels.concat(this.labelsToAdd);
+          }
+          this.$root.$emit('show-alert', {
+            type: 'error',
+            message: this.$t('alert.error')
+          });
+        })
+        .finally(() => creation?.unseal());
+    },
+    /**
+     * Has the sections write what they hold on the task just created, then
+     * announces it.
+     *
+     * @param {object} task the task created
+     * @param {object} creation the card's creation, or null
+     * @returns {Promise} settled once the task is announced
+     */
+    writeCreated(task, creation) {
+      return (creation ? creation.commit(task.id) : Promise.resolve([]))
+        .then(notSaved => this.announceCreated(task, creation, notSaved));
+    },
+    /**
+     * Announces the task created to the page, then closes the drawer, or
+     * re-opens it on the task when a section could not write something; the
+     * drawer is closed or re-opened only when it shows no other card.
+     *
+     * @param {object} task the task created
+     * @param {object} creation the card's creation, or null
+     * @param {Array<object>} notSaved what the sections could not write, each with its label
+     * @returns {Promise|void} settled once the task is re-opened, when it is
+     */
+    announceCreated(task, creation, notSaved) {
+      this.postSaveMessage({
+        id: task.id,
+        type: 'task'
+      });
+      this.$root.$emit('task-added', task);
+      const shown = this.creation === creation;
+      const otherCard = !shown && !!(this.creation || this.task?.id);
+      if (shown) {
         this.showEditor = false;
-        this.$refs.addTaskDrawer.close();
-        this.labelsToAdd = [];
-      }).catch(e => {
-        console.error('Error when adding task title', e);
+      }
+      if (notSaved.length) {
         this.$root.$emit('show-alert', {
           type: 'error',
-          message: this.$t('alert.error')
+          message: this.$t('alert.error.task.createdValuesNotSaved', {0: notSaved.map(item => item.label).join(', ')})
         });
+        return otherCard ? null : this.$tasksService.getTaskById(task.id).then(created => this.open(created));
+      }
+      this.$root.$emit('show-alert', {
+        type: 'success',
+        message: this.$t('alert.success.task.created')
       });
+      if (shown) {
+        this.$refs.addTaskDrawer.close();
+      }
+    },
+    /**
+     * @returns {object} a card's creation, handed to the drawer's sections:
+     *          each registers what it checks before the card is created, what
+     *          it writes once the card exists, and what it gives back when the
+     *          drawer leaves the card. A section whose check fails for its
+     *          own reasons never blocks the creation. Sealed while the card is
+     *          being created, a creation writes what the sections registered
+     *          when Create was confirmed, and applies the sections leaving and
+     *          its giving back only once unsealed.
+     */
+    newCreation() {
+      const hooks = new Set();
+      let committed = null;
+      const leaving = new Set();
+      let disposeAsked = false;
+      const dispose = () => {
+        hooks.forEach(hook => hook.dispose?.());
+        hooks.clear();
+      };
+      return {
+        register: hook => {
+          hooks.add(hook);
+          return () => {
+            if (committed) {
+              leaving.add(hook);
+            } else {
+              hooks.delete(hook);
+            }
+          };
+        },
+        validate: () => Promise.all([...hooks].map(hook => Promise.resolve(hook.validate ? hook.validate() : true).catch(() => true)))
+          .then(answers => answers.every(Boolean)),
+        commit: taskId => Promise.all([...(committed || hooks)].map(hook => Promise.resolve(hook.commit ? hook.commit(taskId) : []).catch(() => [])))
+          .then(notSaved => notSaved.flat()),
+        seal: () => {
+          committed = new Set(hooks);
+        },
+        unseal: () => {
+          committed = null;
+          // A section that left while the card was created is given back now: nothing else will
+          leaving.forEach(hook => {
+            hook.dispose?.();
+            hooks.delete(hook);
+          });
+          leaving.clear();
+          if (disposeAsked) {
+            disposeAsked = false;
+            dispose();
+          }
+        },
+        dispose: () => {
+          if (committed) {
+            disposeAsked = true;
+          } else {
+            dispose();
+          }
+        },
+      };
+    },
+    /**
+     * Gives back the card's previous creation after the render of what the
+     * drawer opens next, which the caller has already asked for by changing
+     * the task: a section's own state outlives that render when it must, a
+     * card re-opened on a value not saved taking over its errors.
+     *
+     * @param {object} previous the previous creation, or null
+     * @returns {void}
+     */
+    disposeCreation(previous) {
+      if (previous) {
+        this.$nextTick(() => previous.dispose());
+      }
     },
     updateTaskAssignee(value) {
       if (this.task.id !== null && this.oldTask.assignee!==value) {
@@ -916,8 +1071,12 @@ export default {
       this.$refs.taskAssignment?.load(task);
     },
     open(task) {
+      const previousCreation = this.creation;
+      this.creation = task.id ? null : this.newCreation();
+      this.labelsToAdd = [];
       this.oldTask = task;
       this.task = JSON.parse(JSON.stringify(task));
+      this.disposeCreation(previousCreation);
       this.taskTitle = this.task.title;
       this.taskDescription = this.task.description;
       this.taskCoworkers= null;
@@ -947,6 +1106,9 @@ export default {
       this.$refs.addTaskDrawer.close();
     },
     onCloseDrawer() {
+      this.disposeCreation(this.creation);
+      this.creation = null;
+      this.labelsToAdd = [];
       this.titleScrolledAway = false;
       this.$root.$emit('task-drawer-closed', this.task);
       this.showEditor = false;
