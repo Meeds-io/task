@@ -810,6 +810,7 @@ export default {
         this.task.dueDate = this.taskDueDate;
         this.task.priority = this.taskPriority;
         const labels = this.labelsToAdd;
+        this.labelsToAdd = [];
         return this.$taskDrawerApi.addTask(this.task).then(task => {
           labels.forEach(item => {
             this.$taskDrawerApi.addTaskToLabel(task.id, item);
@@ -825,7 +826,6 @@ export default {
             const otherCard = !shown && !!(this.creation || this.task?.id);
             if (shown) {
               this.showEditor = false;
-              this.labelsToAdd = [];
             }
             if (notSaved.length) {
               this.$root.$emit('show-alert', {
@@ -844,6 +844,9 @@ export default {
           });
         }).catch(e => {
           console.error('Error when adding task title', e);
+          if (this.creation === creation) {
+            this.labelsToAdd = labels.concat(this.labelsToAdd);
+          }
           this.$root.$emit('show-alert', {
             type: 'error',
             message: this.$t('alert.error')
@@ -857,12 +860,14 @@ export default {
      *          it writes once the card exists, and what it gives back when the
      *          drawer leaves the card. A section whose check fails for its
      *          own reasons never blocks the creation. Sealed while the card is
-     *          being created, a creation keeps every section registered and
-     *          gives them back only once unsealed.
+     *          being created, a creation writes what the sections registered
+     *          when Create was confirmed, and applies the sections leaving and
+     *          its giving back only once unsealed.
      */
     newCreation() {
       const hooks = new Set();
-      let sealed = false;
+      let committed = null;
+      const leaving = new Set();
       let disposeAsked = false;
       const dispose = () => {
         hooks.forEach(hook => hook.dispose?.());
@@ -872,27 +877,35 @@ export default {
         register: hook => {
           hooks.add(hook);
           return () => {
-            if (!sealed) {
+            if (committed) {
+              leaving.add(hook);
+            } else {
               hooks.delete(hook);
             }
           };
         },
         validate: () => Promise.all([...hooks].map(hook => Promise.resolve(hook.validate ? hook.validate() : true).catch(() => true)))
           .then(answers => answers.every(Boolean)),
-        commit: taskId => Promise.all([...hooks].map(hook => Promise.resolve(hook.commit ? hook.commit(taskId) : []).catch(() => [])))
+        commit: taskId => Promise.all([...(committed || hooks)].map(hook => Promise.resolve(hook.commit ? hook.commit(taskId) : []).catch(() => [])))
           .then(notSaved => notSaved.flat()),
         seal: () => {
-          sealed = true;
+          committed = new Set(hooks);
         },
         unseal: () => {
-          sealed = false;
+          committed = null;
+          // A section that left while the card was created is given back now: nothing else will
+          leaving.forEach(hook => {
+            hook.dispose?.();
+            hooks.delete(hook);
+          });
+          leaving.clear();
           if (disposeAsked) {
             disposeAsked = false;
             dispose();
           }
         },
         dispose: () => {
-          if (sealed) {
+          if (committed) {
             disposeAsked = true;
           } else {
             dispose();
