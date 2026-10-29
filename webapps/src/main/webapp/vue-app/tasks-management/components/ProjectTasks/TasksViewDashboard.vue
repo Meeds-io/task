@@ -381,22 +381,10 @@ export default {
         }
       });
     },
-    onIndicatorsChanged(event) {
-      const taskId = Number(event && event.detail && event.detail.taskId);
-      const projectId = this.project && this.project.id;
-      if (!taskId || !projectId) {
-        return;
-      }
-      const generation = this.indicatorsGeneration;
-      loadIndicators(projectId, [taskId]).then(byTask => {
-        if (generation === this.indicatorsGeneration && projectId === (this.project && this.project.id)) {
-          if (byTask[taskId]) {
-            this.$set(this.cardIndicators.byTask, taskId, byTask[taskId]);
-          } else {
-            this.$delete(this.cardIndicators.byTask, taskId);
-          }
-        }
-      });
+    onIndicatorsChanged() {
+      // The whole board is read again, the read a list change makes: a later read always wins, so no
+      // answer started before the change can overwrite the changed card
+      this.scheduleIndicators();
     },
     onFavoriteUpdated(event) {
       const detail = event && event.detail;
