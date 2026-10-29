@@ -794,7 +794,8 @@ export default {
       this.saving = true;
       const creation = this.creation;
       return (creation ? creation.validate() : Promise.resolve(true)).then(valid => {
-        if (!valid) {
+        if (!valid || this.creation !== creation) {
+          // A refused value keeps the drawer open; a drawer closed or moved on meanwhile creates nothing
           return;
         }
         document.dispatchEvent(new CustomEvent('onAddTask'));
