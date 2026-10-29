@@ -500,10 +500,10 @@ export default {
       localStorage.setItem('filtersNumber', JSON.stringify(filtersnumber));
       this.$emit('filter-num-changed',filtersnumber,source);
     },
-    updateExtensionFilter(id, payload, count) {
+    updateExtensionFilter(id, payload, count, state) {
       this.extensionFilters = {
         ...this.extensionFilters,
-        [id]: {payload, count: Number(count) || 0},
+        [id]: {payload, count: Number(count) || 0, state},
       };
     },
     restoreExtensionFilters() {
