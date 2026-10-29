@@ -227,6 +227,45 @@ public class TestTaskDAO extends AbstractTest {
     assertEquals(0, tDAO.findTasks(query).getSize());
   }
 
+  /**
+   * The title match of the MCP task list, {@code TaskQuery#setTitleContaining},
+   * takes the text literally and ignores case: a {@code %}, a {@code _} or the
+   * escape character in it matches only itself, never any character.
+   * Mutant: the text handed to LIKE unescaped, where "100%" also matches
+   * "100 tasks" and "a_b" also matches "axb".
+   */
+  @Test
+  public void testFindTaskByTitleContainingMatchesWildcardsLiterally() throws Exception {
+    Task percent = newTaskInstance("Reach 100% coverage", "", null);
+    tDAO.create(percent);
+    Task noPercent = newTaskInstance("Reach 100 tasks", "", null);
+    tDAO.create(noPercent);
+    Task underscore = newTaskInstance("Rename a_b", "", null);
+    tDAO.create(underscore);
+    Task noUnderscore = newTaskInstance("Rename axb", "", null);
+    tDAO.create(noUnderscore);
+    Task bang = newTaskInstance("Ship it!", "", null);
+    tDAO.create(bang);
+    Task noBang = newTaskInstance("Ship items", "", null);
+    tDAO.create(noBang);
+
+    assertFoundByTitleContaining("100%", percent);
+    assertFoundByTitleContaining("A_B", underscore);
+    assertFoundByTitleContaining("it!", bang);
+    assertFoundByTitleContaining("REACH 100", percent, noPercent);
+  }
+
+  private void assertFoundByTitleContaining(String title, Task... expected) throws Exception {
+    TaskQuery query = new TaskQuery();
+    query.setTitleContaining(title);
+    Set<Long> found = Arrays.stream(ListUtil.load(tDAO.findTasks(query), 0, -1))
+                            .map(Task::getId)
+                            .collect(Collectors.toSet());
+    assertEquals(title,
+                 Arrays.stream(expected).map(Task::getId).collect(Collectors.toSet()),
+                 found);
+  }
+
   @Test
   public void testFindTaskOrderByDueDate() throws Exception {
     Calendar calendar = Calendar.getInstance();
