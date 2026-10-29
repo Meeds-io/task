@@ -16,12 +16,7 @@
     "taskCommented"
   ],
   "labels": {
-    "counted": [
-      "task.collaborativeActivity.help.counted.createTask",
-      "task.collaborativeActivity.help.counted.updateTask",
-      "task.collaborativeActivity.help.counted.changeStatus",
-      "task.collaborativeActivity.help.counted.completeTask",
-      "task.collaborativeActivity.help.counted.commentTask"
-    ]
+    "title": "task.collaborativeActivity.help.title",
+    "counted": ["task.collaborativeActivity.help.counted"]
   }
 }
