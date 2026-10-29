@@ -1,0 +1,22 @@
+{
+  "modules": ["tasks"],
+  "operations": [
+    "taskCreated",
+    "taskUpdated",
+    "taskTitleChanged",
+    "taskDescriptionChanged",
+    "taskAssigneeChanged",
+    "taskCoworderChanged",
+    "taskDueDateChanged",
+    "taskDatesChanged",
+    "taskPriorityChanged",
+    "taskProjectChanged",
+    "taskStatusChanged",
+    "taskCompleted",
+    "taskCommented"
+  ],
+  "labels": {
+    "title": "task.collaborativeActivity.help.title",
+    "counted": ["task.collaborativeActivity.help.counted"]
+  }
+}
