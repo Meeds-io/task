@@ -16,13 +16,26 @@
  */
 
 /*
- * The filters other add-ons contribute to a project's views (« task-filter-section »
- * components of the Sort & Filter drawer). They are kept per project, not per
- * view, so the board, the list and the Gantt apply the same ones and they
- * survive a view switch. This module is their only reader and writer: the
- * drawer writes them on Confirm, Reset and chip removal, and every fetch of a
- * project's tasks reads them.
+ * The filters other add-ons contribute to a project's views. They are kept per
+ * project, not per view, so the board, the list and the Gantt apply the same
+ * ones and they survive a view switch. This module is their only reader and
+ * writer: the drawer writes them on Confirm, Reset and chip removal, and every
+ * fetch of a project's tasks reads them (fetchProjectTasks).
  * Stored shape: { <filter id>: { payload: <JSON value>, count: <active conditions> } }.
+ *
+ * How an add-on contributes one:
+ * - UI: extensionRegistry.registerComponent('TasksFilterDrawer', 'task-filter-section',
+ *   {id, vueComponent, rank}). The component is shown in the drawer's Filter tab of a
+ *   project, in every view, and is created again each time the drawer opens. It
+ *   receives the props {projectId, filters, update}: filters is the stored object
+ *   above; it calls update(<filter id>, <payload>, <count>) on each change, a count
+ *   of 0 meaning the filter restricts nothing, which is then not stored.
+ * - Server: a io.meeds.task.plugin.TaskFilterPlugin whose getId() is that filter
+ *   id; it receives the payload as JSON text.
+ * A stored filter the server refuses (a 400 naming a task.extensionFilters.* or
+ * an add-on code) is dropped, the event 'task-filter-extensions-cleared' is
+ * dispatched on the document with the project id, and the fetch runs again
+ * without it, so the views never stay empty on a filter that no longer applies.
  */
 
 const STORAGE_PREFIX = 'taskFilterExtensions';
@@ -72,6 +85,32 @@ export function saveFilterExtensions(projectId, filters) {
   } catch (e) {
     // the filters then last for this page only
   }
+}
+
+/**
+ * Fetches a project's tasks with the project's filters, dropping them when the
+ * server refuses them.
+ *
+ * @param {String} url the fetch URL, without the filters
+ * @param {Number|String} projectId the project id
+ * @returns {Promise<Response>} the response of the fetch that applied
+ */
+export function fetchProjectTasks(url, projectId) {
+  const parameter = filterExtensionsParameter(projectId);
+  const options = {method: 'GET', credentials: 'include'};
+  return fetch(`${url}${parameter}`, options).then(resp => {
+    if (!parameter || !resp || resp.status !== 400) {
+      return resp;
+    }
+    return resp.clone().text().then(code => {
+      if (!/^(task\.extensionFilters\.|forms\.)/.test(code || '')) {
+        return resp;
+      }
+      saveFilterExtensions(projectId, {});
+      document.dispatchEvent(new CustomEvent('task-filter-extensions-cleared', {detail: projectId}));
+      return fetch(url, options);
+    });
+  });
 }
 
 /**

@@ -127,7 +127,7 @@ public class TaskFilterExtensionService {
       if (plugin == null) {
         throw new IllegalArgumentException(UNKNOWN_FILTER_CODE);
       }
-      Condition condition = plugin.toCondition(projectId, String.valueOf(entries.get(id)), viewer);
+      Condition condition = plugin.toCondition(projectId, JSONObject.valueToString(entries.get(id)), viewer);
       if (condition != null) {
         conditions.add(condition);
       }
