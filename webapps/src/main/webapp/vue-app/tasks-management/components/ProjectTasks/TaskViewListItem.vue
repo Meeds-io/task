@@ -37,6 +37,7 @@
         class="text-truncate"
         :title="task.task.title">{{ task.task.title }}
       </a>
+      <task-card-indicators :task-id="task.task.id" />
     </div>
     <div
       class="taskAssignee d-flex v-avatar flex-nowrap me-2 justify-start position-relative"
