@@ -801,50 +801,37 @@ export default {
           // A refused value keeps the drawer open; a drawer closed or moved on meanwhile creates nothing
           return;
         }
-        creation?.seal();
-        document.dispatchEvent(new CustomEvent('onAddTask'));
-        this.task.description = this.taskDescription;
-        this.task.coworker = this.taskCoworkers;
-        this.task.assignee = this.assignee;
-        this.task.startDate = this.taskStartDate;
-        this.task.dueDate = this.taskDueDate;
-        this.task.priority = this.taskPriority;
-        const labels = this.labelsToAdd;
-        this.labelsToAdd = [];
-        let created = false;
-        return this.$taskDrawerApi.addTask(this.task).then(task => {
+        return this.createTask(creation);
+      }).finally(() => this.saving = false);
+    },
+    /**
+     * Creates the task from the drawer's fields, its labels included, then has
+     * the sections write what they hold on it. The creation stays sealed
+     * until then. A failure before the task exists puts the labels back in
+     * the panel when it still shows that card.
+     *
+     * @param {object} creation the card's creation, or null
+     * @returns {Promise} settled once the task is created and announced, or not
+     */
+    createTask(creation) {
+      creation?.seal();
+      document.dispatchEvent(new CustomEvent('onAddTask'));
+      this.task.description = this.taskDescription;
+      this.task.coworker = this.taskCoworkers;
+      this.task.assignee = this.assignee;
+      this.task.startDate = this.taskStartDate;
+      this.task.dueDate = this.taskDueDate;
+      this.task.priority = this.taskPriority;
+      const labels = this.labelsToAdd;
+      this.labelsToAdd = [];
+      let created = false;
+      return this.$taskDrawerApi.addTask(this.task)
+        .then(task => {
           created = true;
-          labels.forEach(item => {
-            this.$taskDrawerApi.addTaskToLabel(task.id, item);
-          });
-          return (creation ? creation.commit(task.id) : Promise.resolve([])).then(notSaved => {
-            const taskObject = {
-              id: task.id,
-              type: 'task'
-            };
-            this.postSaveMessage(taskObject);
-            this.$root.$emit('task-added', task);
-            const shown = this.creation === creation;
-            const otherCard = !shown && !!(this.creation || this.task?.id);
-            if (shown) {
-              this.showEditor = false;
-            }
-            if (notSaved.length) {
-              this.$root.$emit('show-alert', {
-                type: 'error',
-                message: this.$t('alert.error.task.createdValuesNotSaved', {0: notSaved.map(item => item.label).join(', ')})
-              });
-              return otherCard ? null : this.$tasksService.getTaskById(task.id).then(created => this.open(created));
-            }
-            this.$root.$emit('show-alert', {
-              type: 'success',
-              message: this.$t('alert.success.task.created')
-            });
-            if (shown) {
-              this.$refs.addTaskDrawer.close();
-            }
-          });
-        }).catch(e => {
+          labels.forEach(item => this.$taskDrawerApi.addTaskToLabel(task.id, item));
+          return this.writeCreated(task, creation);
+        })
+        .catch(e => {
           console.error('Error when adding task title', e);
           if (!created && this.creation === creation) {
             this.labelsToAdd = labels.concat(this.labelsToAdd);
@@ -853,8 +840,56 @@ export default {
             type: 'error',
             message: this.$t('alert.error')
           });
-        }).finally(() => creation?.unseal());
-      }).finally(() => this.saving = false);
+        })
+        .finally(() => creation?.unseal());
+    },
+    /**
+     * Has the sections write what they hold on the task just created, then
+     * announces it.
+     *
+     * @param {object} task the task created
+     * @param {object} creation the card's creation, or null
+     * @returns {Promise} settled once the task is announced
+     */
+    writeCreated(task, creation) {
+      return (creation ? creation.commit(task.id) : Promise.resolve([]))
+        .then(notSaved => this.announceCreated(task, creation, notSaved));
+    },
+    /**
+     * Announces the task created to the page, then closes the drawer, or
+     * re-opens it on the task when a section could not write something; the
+     * drawer is closed or re-opened only when it shows no other card.
+     *
+     * @param {object} task the task created
+     * @param {object} creation the card's creation, or null
+     * @param {Array<object>} notSaved what the sections could not write, each with its label
+     * @returns {Promise|void} settled once the task is re-opened, when it is
+     */
+    announceCreated(task, creation, notSaved) {
+      this.postSaveMessage({
+        id: task.id,
+        type: 'task'
+      });
+      this.$root.$emit('task-added', task);
+      const shown = this.creation === creation;
+      const otherCard = !shown && !!(this.creation || this.task?.id);
+      if (shown) {
+        this.showEditor = false;
+      }
+      if (notSaved.length) {
+        this.$root.$emit('show-alert', {
+          type: 'error',
+          message: this.$t('alert.error.task.createdValuesNotSaved', {0: notSaved.map(item => item.label).join(', ')})
+        });
+        return otherCard ? null : this.$tasksService.getTaskById(task.id).then(created => this.open(created));
+      }
+      this.$root.$emit('show-alert', {
+        type: 'success',
+        message: this.$t('alert.success.task.created')
+      });
+      if (shown) {
+        this.$refs.addTaskDrawer.close();
+      }
     },
     /**
      * @returns {object} a card's creation, handed to the drawer's sections:
