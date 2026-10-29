@@ -207,6 +207,7 @@
 </template>
 <script>
 import { CHANGED_EVENT, UPDATED_EVENT, getProviderIds, getTaskIds, loadIndicators } from '../../../../js/taskCardIndicators.js';
+import { countFilterExtensions } from '../../../../js/taskFilterExtensions';
 
 export default {
   provide() {
@@ -284,6 +285,7 @@ export default {
     }
   },
   created() {
+    this.$root.$on('task-filter-extensions-updated', this.refreshForFilterExtensions);
     this.$root.$on('task-added', task => {
       this.$tasksService.filterTasksList(this.tasksFilter, '', '', '', this.project.id).then(data => {
         if (Array.isArray(data.tasks[0])) {
@@ -366,6 +368,7 @@ export default {
     document.removeEventListener(CHANGED_EVENT, this.onIndicatorsChanged);
     document.removeEventListener(UPDATED_EVENT, this.scheduleIndicators);
     window.clearTimeout(this.indicatorsTimeout);
+    this.$root.$off('task-filter-extensions-updated', this.refreshForFilterExtensions);
   },
   methods: {
     scheduleIndicators(force) {
@@ -434,6 +437,16 @@ export default {
       this.getTasksByProject(this.project.id,'');
       if ( value === 'gantt' ) {
         this.getAllProjectTasks(this.project.id);
+      }
+    },
+    refreshForFilterExtensions(projectId) {
+      if (!this.project || Number(projectId) !== Number(this.project.id)) {
+        return;
+      }
+      if (this.taskViewTabName === 'gantt') {
+        this.getAllProjectTasks(this.project.id);
+      } else {
+        this.getTasksByProject(this.project.id, '');
       }
     },
     getAllProjectTasks(projectId) {
@@ -662,7 +675,7 @@ export default {
         const labelsToUse =  Number(projectStorage) === this.project.id ? this.searchedLabels : '';
         if (labelsToUse === '') {
           localStorage.removeItem('searchedLabels');
-          localStorage.removeItem('filtersNumber');
+          localStorage.setItem('filtersNumber', JSON.stringify(countFilterExtensions(this.project.id)));
           localStorage.removeItem('labelsStorage');
         }      
         this.$tasksService.filterTasksList(this.tasksFilter, '', '', labelsToUse, ProjectId).then(data => {
