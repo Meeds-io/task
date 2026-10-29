@@ -76,11 +76,19 @@
           max-height="36"
           icon
           @click="openDrawer">
-          <v-icon
-            size="20"
-            :class="filterNumber > 0 && 'primary--text'">
-            fa-sliders-h
-          </v-icon>
+          <v-badge
+            id="projectTasksFilterCount"
+            :value="filterNumber > 0"
+            :content="filterNumber"
+            color="primary"
+            overlap
+            bordered>
+            <v-icon
+              size="20"
+              :class="filterNumber > 0 && 'primary--text'">
+              fa-sliders-h
+            </v-icon>
+          </v-badge>
         </v-btn>
       </template>
     </div>
