@@ -170,6 +170,20 @@ public class TaskRestService implements ResourceContainer {
    * @return the set of favorite task ids, never {@code null} (empty when the user identity cannot
    *         be resolved)
    */
+
+  private Set<Long> getFavoriteTaskIds(String username) {
+    org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getOrCreateUserIdentity(username);
+    if (userIdentity == null) {
+      return Collections.emptySet();
+    }
+    long userIdentityId = Long.parseLong(userIdentity.getId());
+    return favoriteService.getFavoriteItemsByCreatorAndType(TaskAclPlugin.OBJECT_TYPE, userIdentityId, 0, -1)
+                          .stream()
+                          .map(MetadataItem::getObjectId)
+                          .map(Long::parseLong)
+                          .collect(Collectors.toSet());
+  }
+
   /**
    * Returns the resolver of the filters other add-ons contribute, looked up
    * on first use: it is a Spring service, and this Kernel resource is built
@@ -191,19 +205,6 @@ public class TaskRestService implements ResourceContainer {
    */
   void setTaskFilterExtensionService(TaskFilterExtensionService taskFilterExtensionService) {
     this.taskFilterExtensionService = taskFilterExtensionService;
-  }
-
-  private Set<Long> getFavoriteTaskIds(String username) {
-    org.exoplatform.social.core.identity.model.Identity userIdentity = identityManager.getOrCreateUserIdentity(username);
-    if (userIdentity == null) {
-      return Collections.emptySet();
-    }
-    long userIdentityId = Long.parseLong(userIdentity.getId());
-    return favoriteService.getFavoriteItemsByCreatorAndType(TaskAclPlugin.OBJECT_TYPE, userIdentityId, 0, -1)
-                          .stream()
-                          .map(MetadataItem::getObjectId)
-                          .map(Long::parseLong)
-                          .collect(Collectors.toSet());
   }
 
 
@@ -328,6 +329,7 @@ public class TaskRestService implements ResourceContainer {
   @Operation(summary = "Gets  a specific task", method = "GET", description = "This returns  a specific task")
   @ApiResponses(value = {
           @ApiResponse(responseCode = "200", description = "Request ful"),
+          @ApiResponse(responseCode = "400", description = "Invalid extension filters"),
           @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "404", description = "Resource not found") })
   public Response filterTasks(@Parameter(description = "Type of task to get (all, incoming, overdue)") @QueryParam("statusDto") String status,
@@ -503,7 +505,9 @@ public class TaskRestService implements ResourceContainer {
   @RolesAllowed("users")
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Gets tasks by projectIdr", method = "GET", description = "This returns list of tasks by project")
-  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
+  @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Invalid extension filters"),
+      @ApiResponse(responseCode = "401", description = "Unauthorized operation") })
   public Response getTasksByProjectId(@Parameter(description = "Id", required = true) @Schema(defaultValue = "0") @PathParam("id") Long id,
                                       @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
                                       @Parameter(description = "Limit") @Schema(defaultValue = "0") @QueryParam("limit") int limit,

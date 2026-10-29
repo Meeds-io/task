@@ -103,6 +103,21 @@ public class TaskFilterExtensionServiceTest {
   }
 
   /**
+   * Every payload reaches its plugin as JSON text, a string one quoted, so a
+   * plugin can always parse what it receives.
+   */
+  @Test
+  public void testPayloadArrivesAsJsonText() throws Exception {
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(viewer)).thenReturn(true);
+    when(plugin.toCondition(PROJECT_ID, "\"abc\"", viewer)).thenReturn(condition);
+    when(plugin.toCondition(PROJECT_ID, "[1,2]", viewer)).thenReturn(condition);
+
+    assertEquals(List.of(condition), service.resolve(PROJECT_ID, "{\"forms.fields\":\"abc\"}", viewer));
+    assertEquals(List.of(condition), service.resolve(PROJECT_ID, "{\"forms.fields\":[1,2]}", viewer));
+  }
+
+  /**
    * A plugin answering that its payload restricts nothing adds no condition.
    */
   @Test
