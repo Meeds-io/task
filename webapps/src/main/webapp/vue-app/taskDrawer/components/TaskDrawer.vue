@@ -1052,6 +1052,7 @@ export default {
       const menuActions = extensionRegistry.loadExtensions('Task', 'task-menu');
       // Only the latest rebuild applies, when the project changes again before its read returns
       const menuActionsRequest = this.menuActionsRequest = (this.menuActionsRequest || 0) + 1;
+      menuActions.push(this.copyLinkMenuAction());
       if (task && task.status && task.status.project && task.status.project.id ) {
         this.$projectService.getProject(task.status.project.id, true).then(data => {
           if (menuActionsRequest !== this.menuActionsRequest) {
@@ -1059,7 +1060,6 @@ export default {
           }
           this.enableDelete = data.managerIdentities.some(manager => manager.username === eXo.env.portal.userName);
           this.enableClone = this.enableDelete || data.participatorIdentities.some(participator => participator.username === eXo.env.portal.userName);
-          menuActions.push(this.copyLinkMenuAction());
           menuActions.push({
             id: 'moveProject',
             title: this.$t('taskDrawer.menu.moveProject'),
@@ -1072,11 +1072,18 @@ export default {
           this.addMenuAction(menuActions, this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask', 20);
           menuActions.sort((a, b) => a.rank - b.rank);
           this.menuActions = menuActions.filter(menuAction => menuAction.enabled === true || (typeof menuAction?.enabled === 'function' && menuAction?.enabled?.(task)));
+        }).catch(() => {
+          // An assignee, coworker or mentioned user outside the project opens the task without reading its project:
+          // the entries that do not depend on the project stay offered
+          if (menuActionsRequest !== this.menuActionsRequest) {
+            return;
+          }
+          menuActions.sort((a, b) => a.rank - b.rank);
+          this.menuActions = menuActions.filter(menuAction => menuAction.enabled === true || (typeof menuAction?.enabled === 'function' && menuAction?.enabled?.(task)));
         });
       } else if ( task && task.id ) {
         this.enableDelete = task.createdBy === eXo.env.portal.userName;
         this.enableClone = task.assignee === eXo.env.portal.userName || this.task.coworker.includes(eXo.env.portal.userName);
-        menuActions.push(this.copyLinkMenuAction());
         this.addMenuAction(menuActions, this.$t('label.delete'), 'uiIconTrash', this.enableDelete, 'deleteTask', 10);
         this.addMenuAction(menuActions, this.$t('label.clone'), 'uiIconCloneNode', this.enableClone, 'cloneTask', 20);
         menuActions.sort((a, b) => a.rank - b.rank);
