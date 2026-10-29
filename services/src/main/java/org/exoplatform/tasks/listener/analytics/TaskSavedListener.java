@@ -52,6 +52,28 @@ import org.exoplatform.task.service.*;
 // NOSONAR : FIXME @Asynchronous : Not used, see description
 public class TaskSavedListener extends Listener<TaskService, TaskPayload> {
 
+  public static final String TASK_COMPLETED_OPERATION           = "taskCompleted";
+
+  public static final String TASK_DESCRIPTION_CHANGED_OPERATION = "taskDescriptionChanged";
+
+  public static final String TASK_TITLE_CHANGED_OPERATION       = "taskTitleChanged";
+
+  public static final String TASK_DUE_DATE_CHANGED_OPERATION    = "taskDueDateChanged";
+
+  public static final String TASK_PRIORITY_CHANGED_OPERATION    = "taskPriorityChanged";
+
+  public static final String TASK_RANK_CHANGED_OPERATION        = "taskRankChanged";
+
+  public static final String TASK_ASSIGNEE_CHANGED_OPERATION    = "taskAssigneeChanged";
+
+  public static final String TASK_COWORKER_CHANGED_OPERATION    = "taskCoworderChanged";
+
+  public static final String TASK_PROJECT_CHANGED_OPERATION     = "taskProjectChanged";
+
+  public static final String TASK_STATUS_CHANGED_OPERATION      = "taskStatusChanged";
+
+  public static final String TASK_DATES_CHANGED_OPERATION       = "taskDatesChanged";
+
   private static final Log LOG = ExoLogger.getLogger(TaskSavedListener.class);
 
   private PortalContainer  container;
@@ -124,37 +146,37 @@ public class TaskSavedListener extends Listener<TaskService, TaskPayload> {
     AnalyticsUtils.addStatisticData(statisticData);
   }
 
-  private String computeTaskOperation(TaskDto oldTask, TaskDto newTask) {
+  String computeTaskOperation(TaskDto oldTask, TaskDto newTask) {
     String taskOperation = operation;
     if (oldTask != null) {
       if (isDiff(oldTask.isCompleted(), newTask.isCompleted())) {
-        taskOperation = "taskCompleted";
+        taskOperation = TASK_COMPLETED_OPERATION;
       } else if (isDiff(oldTask.getDescription(), newTask.getDescription())) {
-        taskOperation = "taskDescriptionChanged";
+        taskOperation = TASK_DESCRIPTION_CHANGED_OPERATION;
       } else if (isDiff(oldTask.getTitle(), newTask.getTitle())) {
-        taskOperation = "taskTitleChanged";
+        taskOperation = TASK_TITLE_CHANGED_OPERATION;
       } else if (isDiff(oldTask.getDueDate(), newTask.getDueDate())) {
-        taskOperation = "taskDueDateChanged";
+        taskOperation = TASK_DUE_DATE_CHANGED_OPERATION;
       } else if (isDiff(oldTask.getPriority(), newTask.getPriority())) {
-        taskOperation = "taskPriorityChanged";
+        taskOperation = TASK_PRIORITY_CHANGED_OPERATION;
       } else if (isDiff(oldTask.getRank(), newTask.getRank())) {
-        taskOperation = "taskRankChanged";
+        taskOperation = TASK_RANK_CHANGED_OPERATION;
       } else if (isDiff(oldTask.getAssignee(), newTask.getAssignee())) {
-        taskOperation = "taskAssigneeChanged";
+        taskOperation = TASK_ASSIGNEE_CHANGED_OPERATION;
       } else if (isDiff(oldTask.getCoworker(), newTask.getCoworker())) {
-        taskOperation = "taskCoworderChanged";
+        taskOperation = TASK_COWORKER_CHANGED_OPERATION;
       } else if (oldTask.getStatus() != null
           && newTask.getStatus() != null
           && oldTask.getStatus().getProject() != null
           && newTask.getStatus().getProject() != null
           && isDiff(oldTask.getStatus().getProject().getId(), newTask.getStatus().getProject().getId())) {
-        taskOperation = "taskProjectChanged";
+        taskOperation = TASK_PROJECT_CHANGED_OPERATION;
       } else if (oldTask.getStatus() != null
           && newTask.getStatus() != null
           && isDiff(oldTask.getStatus().getName(), newTask.getStatus().getName())) {
-        taskOperation = "taskStatusChanged";
+        taskOperation = TASK_STATUS_CHANGED_OPERATION;
       } else if (isDiff(oldTask.getStartDate(), newTask.getStartDate()) || isDiff(oldTask.getEndDate(), newTask.getEndDate())) {
-        taskOperation = "taskDatesChanged";
+        taskOperation = TASK_DATES_CHANGED_OPERATION;
       }
     }
     return taskOperation;

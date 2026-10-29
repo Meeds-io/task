@@ -53,6 +53,8 @@ import org.exoplatform.task.service.TaskService;
 // NOSONAR : FIXME @Asynchronous : Not used, see description
 public class TaskCommentListener extends Listener<TaskService, CommentDto> {
 
+  public static final String TASK_COMMENTED_OPERATION = "taskCommented";
+
   private static final Log LOG = ExoLogger.getLogger(TaskCommentListener.class);
 
   private PortalContainer  container;
@@ -96,7 +98,7 @@ public class TaskCommentListener extends Listener<TaskService, CommentDto> {
     statisticData.setModule("tasks");
     statisticData.setSubModule("comment");
     statisticData.setUserId(userIdentityId);
-    statisticData.setOperation("taskCommented");
+    statisticData.setOperation(TASK_COMMENTED_OPERATION);
 
     Space space = getSpaceOfProject(task);
     addSpaceStatistics(statisticData, space);
