@@ -21,15 +21,18 @@
  * ones and they survive a view switch. This module is their only reader and
  * writer: the drawer writes them on Confirm, Reset and chip removal, and every
  * fetch of a project's tasks reads them (fetchProjectTasks).
- * Stored shape: { <filter id>: { payload: <JSON value>, count: <active conditions> } }.
+ * Stored shape: { <filter id>: { payload: <JSON value>, count: <active conditions>,
+ * state: <what the section shows again, never sent> } }.
  *
  * How an add-on contributes one:
  * - UI: extensionRegistry.registerComponent('TasksFilterDrawer', 'task-filter-section',
  *   {id, vueComponent, rank}). The component is shown in the drawer's Filter tab of a
  *   project, in every view, and is created again each time the drawer opens. It
  *   receives the props {projectId, filters, update}: filters is the stored object
- *   above; it calls update(<filter id>, <payload>, <count>) on each change, a count
- *   of 0 meaning the filter restricts nothing, which is then not stored.
+ *   above; it calls update(<filter id>, <payload>, <count>, <state>) on each change,
+ *   a count of 0 meaning the filter restricts nothing, which is then not stored.
+ *   Only the payload is sent with the fetches; the optional state is kept for the
+ *   section to show its rows again.
  * - Server: a io.meeds.task.plugin.TaskFilterPlugin whose getId() is that filter
  *   id; it receives the payload as JSON text.
  * When the server refuses the stored filters (a 400 with a task.extensionFilters.*
@@ -38,7 +41,7 @@
  * 'task-filter-extensions-cleared' is dispatched on the document with the project
  * id, and the fetch runs again with what is left, so the views never stay empty
  * on a filter that no longer applies. A refusal of filters that were replaced
- * while the fetch ran changes nothing.
+ * while the fetch ran drops nothing: the fetch runs again with what is stored now.
  */
 
 const STORAGE_PREFIX = 'taskFilterExtensions';
@@ -76,7 +79,7 @@ export function saveFilterExtensions(projectId, filters) {
   const active = {};
   Object.keys(filters || {}).forEach(id => {
     if (filters[id] && filters[id].count > 0) {
-      active[id] = {payload: filters[id].payload, count: filters[id].count};
+      active[id] = {payload: filters[id].payload, count: filters[id].count, state: filters[id].state};
     }
   });
   try {
@@ -107,8 +110,11 @@ export function fetchProjectTasks(url, projectId) {
     }
     return resp.clone().text().then(code => {
       const refusal = /^task\.extensionFilters\.[a-zA-Z]+(?::(.+))?$/.exec(code || '');
-      if (!refusal || filterExtensionsParameter(projectId) !== parameter) {
+      if (!refusal) {
         return resp;
+      }
+      if (filterExtensionsParameter(projectId) !== parameter) {
+        return fetch(`${url}${filterExtensionsParameter(projectId)}`, options);
       }
       const filters = getFilterExtensions(projectId);
       if (refusal[1]) {
