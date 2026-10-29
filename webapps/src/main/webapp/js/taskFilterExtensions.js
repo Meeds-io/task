@@ -32,10 +32,13 @@
  *   of 0 meaning the filter restricts nothing, which is then not stored.
  * - Server: a io.meeds.task.plugin.TaskFilterPlugin whose getId() is that filter
  *   id; it receives the payload as JSON text.
- * A stored filter the server refuses (a 400 naming a task.extensionFilters.* or
- * an add-on code) is dropped, the event 'task-filter-extensions-cleared' is
- * dispatched on the document with the project id, and the fetch runs again
- * without it, so the views never stay empty on a filter that no longer applies.
+ * When the server refuses the stored filters (a 400 with a task.extensionFilters.*
+ * code), the filter it names (task.extensionFilters.refused:<id> or .unknown:<id>)
+ * is dropped, or all of them when it names none; the event
+ * 'task-filter-extensions-cleared' is dispatched on the document with the project
+ * id, and the fetch runs again with what is left, so the views never stay empty
+ * on a filter that no longer applies. A refusal of filters that were replaced
+ * while the fetch ran changes nothing.
  */
 
 const STORAGE_PREFIX = 'taskFilterExtensions';
@@ -103,12 +106,17 @@ export function fetchProjectTasks(url, projectId) {
       return resp;
     }
     return resp.clone().text().then(code => {
-      if (!/^(task\.extensionFilters\.|forms\.)/.test(code || '')) {
+      const refusal = /^task\.extensionFilters\.[a-zA-Z]+(?::(.+))?$/.exec(code || '');
+      if (!refusal || filterExtensionsParameter(projectId) !== parameter) {
         return resp;
       }
-      saveFilterExtensions(projectId, {});
+      const filters = getFilterExtensions(projectId);
+      if (refusal[1]) {
+        delete filters[refusal[1]];
+      }
+      saveFilterExtensions(projectId, refusal[1] ? filters : {});
       document.dispatchEvent(new CustomEvent('task-filter-extensions-cleared', {detail: projectId}));
-      return fetch(url, options);
+      return fetch(`${url}${filterExtensionsParameter(projectId)}`, options);
     });
   });
 }
