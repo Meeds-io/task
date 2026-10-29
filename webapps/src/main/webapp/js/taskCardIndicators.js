@@ -51,6 +51,13 @@ export function getTaskIds(items) {
 }
 
 /**
+ * @returns {Array<String>} the ids of the registered providers, in rank order
+ */
+export function getProviderIds() {
+  return (extensionRegistry.loadExtensions(EXTENSION_APP, EXTENSION_TYPE) || []).map(provider => provider.id);
+}
+
+/**
  * Asks every registered provider, once each, for the markers of some cards
  * of a board. A provider that fails is left out; the others still answer.
  *
