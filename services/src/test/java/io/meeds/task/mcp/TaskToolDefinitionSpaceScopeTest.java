@@ -84,6 +84,7 @@ public class TaskToolDefinitionSpaceScopeTest {
                                                           "get_project_by_id",
                                                           "list_tasks",
                                                           "list_project_statuses",
+                                                          "list_project_labels",
                                                           "create_task_in_project",
                                                           "get_task_by_id",
                                                           "list_task_comments_by_id",
@@ -103,10 +104,10 @@ public class TaskToolDefinitionSpaceScopeTest {
   private static final JsonMapper  MAPPER        = JsonMapper.builder().build();
 
   /**
-   * Exactly nineteen task tools declare a space scope, each well formed for what
+   * Exactly twenty task tools declare a space scope, each well formed for what
    * it is, a read or a write: the task tools by the task they reach and the
    * {@value TaskSpaceScopeResolver#NAME} resolver, the project lookup, the
-   * project's tasks and the project's statuses by the project and the
+   * project's tasks, statuses and labels by the project and the
    * {@value ProjectSpaceScopeResolver#NAME} resolver, and the
    * project list by its space. A tool added, or one that stops declaring,
    * fails here, and every declared write keeps its approval.
@@ -131,6 +132,7 @@ public class TaskToolDefinitionSpaceScopeTest {
     TASK_WRITES.forEach(name -> assertObjectKind(declared.get(name), "task_id", TaskSpaceScopeResolver.NAME));
     assertObjectKind(declared.get("get_project_by_id"), "project_id", ProjectSpaceScopeResolver.NAME);
     assertObjectKind(declared.get("list_project_statuses"), "project_id", ProjectSpaceScopeResolver.NAME);
+    assertObjectKind(declared.get("list_project_labels"), "project_id", ProjectSpaceScopeResolver.NAME);
     assertObjectKind(declared.get("list_tasks"), "project_id", ProjectSpaceScopeResolver.NAME);
     assertObjectKind(declared.get("create_task_in_project"), "project_id", ProjectSpaceScopeResolver.NAME);
   }
@@ -180,12 +182,12 @@ public class TaskToolDefinitionSpaceScopeTest {
   }
 
   /**
-   * The project lookup and the project's statuses take no argument beside the
-   * project, and the project is a schema property.
+   * The project lookup, the project's statuses and the project's labels take
+   * no argument beside the project, and the project is a schema property.
    */
   @Test
   public void projectLookupTakesTheProjectOnly() {
-    for (String name : List.of("get_project_by_id", "list_project_statuses")) {
+    for (String name : List.of("get_project_by_id", "list_project_statuses", "list_project_labels")) {
       SimpleToolDefinition tool = declaredTools().get(name);
 
       assertEquals(name, List.of(), allowed(tool));

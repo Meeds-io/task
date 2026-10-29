@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -54,6 +55,13 @@ import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.domain.Task;
 
 public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAOJPAImpl<E, K> {  
+
+  /**
+   * The escape character of a {@link SingleCondition#CONTAINS} pattern: not
+   * a backslash, which MySQL reads as an escape inside the string literal of
+   * the {@code ESCAPE} clause too.
+   */
+  static final char LIKE_ESCAPE = '!';
   
   public Map<String, Class> clz = new ConcurrentHashMap<String, Class>();
   
@@ -253,6 +261,8 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
         return cb.isEmpty(path);
     } else if (SingleCondition.LIKE.equals(type)) {
       return cb.like(cb.lower(path), String.valueOf(value));
+    } else if (SingleCondition.CONTAINS.equals(type)) {
+      return cb.like(cb.lower(path), "%" + escapeLikePattern(String.valueOf(value).toLowerCase(Locale.ROOT)) + "%", LIKE_ESCAPE);
     } else if (SingleCondition.IN.equals(type)) {
       return path.in((Collection) value);
     } else if (SingleCondition.IS_TRUE.equals(type)) {
@@ -262,6 +272,22 @@ public abstract class CommonJPADAO<E, K extends Serializable> extends GenericDAO
     }
 
     throw new RuntimeException("Condition type " + type + " is not supported");
+  }
+
+  /**
+   * @param text a text to find as is in a LIKE pattern
+   * @return the text with the escape character, {@code %} and {@code _}
+   *         escaped by {@link #LIKE_ESCAPE}
+   */
+  static String escapeLikePattern(String text) {
+    StringBuilder escaped = new StringBuilder(text.length());
+    for (char c : text.toCharArray()) {
+      if (c == LIKE_ESCAPE || c == '%' || c == '_') {
+        escaped.append(LIKE_ESCAPE);
+      }
+      escaped.append(c);
+    }
+    return escaped.toString();
   }
 
   protected Path buildPath(SingleCondition condition, Root<E> root) {
