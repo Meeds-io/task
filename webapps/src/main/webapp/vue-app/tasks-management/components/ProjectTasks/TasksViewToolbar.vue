@@ -82,6 +82,8 @@
             :content="filterNumber"
             color="primary"
             overlap
+            offset-x="8"
+            offset-y="8"
             bordered>
             <v-icon
               size="20"
