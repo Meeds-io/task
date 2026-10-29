@@ -206,7 +206,14 @@
   </div>
 </template>
 <script>
+import { CHANGED_EVENT, UPDATED_EVENT, getTaskIds, loadIndicators } from '../../../../js/taskCardIndicators.js';
+
 export default {
+  provide() {
+    return {
+      taskCardIndicators: this.cardIndicators,
+    };
+  },
   props: {
     project: {
       type: Number,
@@ -231,9 +238,18 @@ export default {
       filterByStatus: false,
       status: null,
       showCompletedTasks: false,
+      cardIndicators: {byTask: {}},
+      indicatorsGeneration: 0,
+      indicatorsTimeout: null,
     };
   },
   watch: {
+    tasksList() {
+      this.scheduleIndicators();
+    },
+    allProjectTasks() {
+      this.scheduleIndicators();
+    },
     project() {
       if (localStorage.getItem(`filterStorage${this.project.id}+${this.taskViewTabName}`)) {
         const projectFilter = JSON.parse(localStorage.getItem(`filterStorage${this.project.id}+${this.taskViewTabName}`));
@@ -340,11 +356,48 @@ export default {
     });
 
     document.addEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
+    document.addEventListener(CHANGED_EVENT, this.onIndicatorsChanged);
+    document.addEventListener(UPDATED_EVENT, this.scheduleIndicators);
   },
   beforeDestroy() {
     document.removeEventListener('metadata.favorite.updated', this.onFavoriteUpdated);
+    document.removeEventListener(CHANGED_EVENT, this.onIndicatorsChanged);
+    document.removeEventListener(UPDATED_EVENT, this.scheduleIndicators);
+    window.clearTimeout(this.indicatorsTimeout);
   },
   methods: {
+    scheduleIndicators() {
+      // Every list change of one tick (the board's, the Gantt's, a provider arriving) makes one request
+      window.clearTimeout(this.indicatorsTimeout);
+      this.indicatorsTimeout = window.setTimeout(() => this.refreshIndicators());
+    },
+    refreshIndicators() {
+      const projectId = this.project && this.project.id;
+      const generation = ++this.indicatorsGeneration;
+      const taskIds = getTaskIds([...this.tasksList.flat(), ...this.allProjectTasks]);
+      return loadIndicators(projectId, taskIds).then(byTask => {
+        if (generation === this.indicatorsGeneration && projectId === (this.project && this.project.id)) {
+          this.cardIndicators.byTask = byTask;
+        }
+      });
+    },
+    onIndicatorsChanged(event) {
+      const taskId = Number(event && event.detail && event.detail.taskId);
+      const projectId = this.project && this.project.id;
+      if (!taskId || !projectId) {
+        return;
+      }
+      const generation = this.indicatorsGeneration;
+      loadIndicators(projectId, [taskId]).then(byTask => {
+        if (generation === this.indicatorsGeneration && projectId === (this.project && this.project.id)) {
+          if (byTask[taskId]) {
+            this.$set(this.cardIndicators.byTask, taskId, byTask[taskId]);
+          } else {
+            this.$delete(this.cardIndicators.byTask, taskId);
+          }
+        }
+      });
+    },
     onFavoriteUpdated(event) {
       const detail = event && event.detail;
       // React only to a task being un-bookmarked while the "Favorites only" filter is active:
