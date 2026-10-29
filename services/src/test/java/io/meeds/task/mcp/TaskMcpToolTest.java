@@ -1749,11 +1749,11 @@ public class TaskMcpToolTest {
 
   /**
    * A title narrows the tasks of the project: the query keeps the project
-   * condition and adds, beside it in the same conjunction, a title match on
-   * the trimmed, lower-cased title, which the store compares with the
-   * lower-cased task title. The count runs on that same query.
-   * Mutants: the title not passed to the query, passed with its case, or
-   * joined to the project by a disjunction.
+   * condition and adds, beside it in the same conjunction, a literal,
+   * case-insensitive title match on the trimmed title. The count runs on that
+   * same query.
+   * Mutants: the title not passed to the query, passed untrimmed, passed as a
+   * LIKE pattern, or joined to the project by a disjunction.
    */
   @Test
   public void listTasksNarrowsTheProjectByTitle() throws Exception { // NOSONAR
@@ -1767,7 +1767,7 @@ public class TaskMcpToolTest {
 
     List<Condition> conjunction = conjunction(query.getValue());
     assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
-    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.LIKE, "title", "%live check 2%")));
+    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.CONTAINS, "title", "Live Check 2")));
     verify(taskService).countTasks(query.getValue());
   }
 
@@ -1790,9 +1790,9 @@ public class TaskMcpToolTest {
     List<Condition> withTitle = conjunction(query.getAllValues().get(0));
     assertTrue(withTitle.stream()
                         .anyMatch(c -> c instanceof AggregateCondition aggregate && AggregateCondition.OR.equals(aggregate.getType())));
-    assertTrue(withTitle.stream().anyMatch(c -> isSingle(c, SingleCondition.LIKE, "title", "%live%")));
+    assertTrue(withTitle.stream().anyMatch(c -> isSingle(c, SingleCondition.CONTAINS, "title", "Live")));
     List<Condition> blank = conjunction(query.getAllValues().get(1));
-    assertTrue(blank.stream().noneMatch(c -> c instanceof SingleCondition<?> single && SingleCondition.LIKE.equals(single.getType())));
+    assertTrue(blank.stream().noneMatch(c -> c instanceof SingleCondition<?> single && "title".equals(single.getField())));
   }
 
   @Test(expected = IllegalAccessException.class)

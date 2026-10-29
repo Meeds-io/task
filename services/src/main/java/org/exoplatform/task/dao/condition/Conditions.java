@@ -58,6 +58,15 @@ public class Conditions {
   public static <T> SingleCondition<T> like(String fieldName, T value) {
     return new SingleCondition<T>(SingleCondition.LIKE, fieldName, value);
   }
+  /**
+   * @param fieldName a text field
+   * @param value the text the field contains, taken literally: its {@code %}
+   *          and {@code _} are characters, not wildcards
+   * @return the condition that the field contains the text, ignoring case
+   */
+  public static SingleCondition<String> contains(String fieldName, String value) {
+    return new SingleCondition<>(SingleCondition.CONTAINS, fieldName, value);
+  }
   public static <T> SingleCondition<T> gt(String fieldName, T value) {
     return new SingleCondition<T>(SingleCondition.GT, fieldName, value);
   }

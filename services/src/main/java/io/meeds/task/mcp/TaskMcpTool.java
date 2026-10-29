@@ -442,8 +442,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                        Boolean.TRUE.equals(overdueOnly),
                                        zone);
     if (StringUtils.isNotBlank(title)) {
-      // TaskQuery#setTitle compares the lower-cased title with the value as given
-      taskQuery.setTitle(title.trim().toLowerCase(Locale.ROOT));
+      // literally: a % or a _ in the title is not a wildcard
+      taskQuery.setTitleContaining(title.trim());
     }
     List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ?
                                                            findOverdueTasks(taskQuery,
