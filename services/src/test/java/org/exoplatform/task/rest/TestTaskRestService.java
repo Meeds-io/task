@@ -18,6 +18,10 @@
  */
 package org.exoplatform.task.rest;
 
+import java.util.Objects;
+import org.exoplatform.task.model.TaskListFilter;
+import io.meeds.task.service.TaskFilterExtensionService;
+
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -55,6 +59,9 @@ import org.exoplatform.task.service.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TestTaskRestService {
+
+  @Mock
+  TaskFilterExtensionService taskFilterExtensionService;
 
   @Mock
   TaskService    taskService;
@@ -188,7 +195,7 @@ public class TestTaskRestService {
     project1.setName("project1");
     when(projectService.getProject(project1.getId())).thenReturn(project1);
     // When
-    Response response = taskRestService.getTasksByProjectId(project1.getId(),0,-1,false,false, false);
+    Response response = taskRestService.getTasksByProjectId(project1.getId(),0,-1,false,false, false, null);
     // Then
     assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
 
@@ -197,7 +204,7 @@ public class TestTaskRestService {
     project1.setManager(manager);
 
     // When
-    response = taskRestService.getTasksByProjectId(project1.getId(),0,-1,false,false, false);
+    response = taskRestService.getTasksByProjectId(project1.getId(),0,-1,false,false, false, null);
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
   }
@@ -1051,9 +1058,9 @@ public class TestTaskRestService {
 
 
     TasksList tasksList = new TasksList(Collections.singletonList(task2),1);
-    when(taskService.filterTasks("exo",-2,"exo",labelIDs,null,null,assignee,coworkers, watchers,null,null,root,null,null,null,false,true,false,false,null,null,0,0)).thenReturn(tasksList);
+    when(taskService.filterTasks(argThat((TaskListFilter f) -> isListFilter(f, "root", null, null)))).thenReturn(tasksList);
     // When
-    Response response = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,false,null,null,null,null,null,null,null,0,0,false,false);
+    Response response = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,false,null,null,null,null,null,null,null,0,0,false,false, null);
 
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
@@ -1061,16 +1068,16 @@ public class TestTaskRestService {
     assertNotNull(tasks.getTasks());
     assertEquals(1, tasks.getTasksNumber());
 
-    when(taskService.filterTasks("exo",-2,"exo",labelIDs,null,null,assignee,coworkers, watchers,null,null,root,null,null,null,false,true,false,false,"priority","project",0,0)).thenReturn(tasksList);
+    when(taskService.filterTasks(argThat((TaskListFilter f) -> isListFilter(f, "root", "priority", "project")))).thenReturn(tasksList);
 
-    Response response1 = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,false,null,null,"project","priority",null,null,null,0,0,false,false);
+    Response response1 = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,false,null,null,"project","priority",null,null,null,0,0,false,false, null);
 
     assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
 
 
     Identity exo = new Identity(null);
     ConversationState.setCurrent(new ConversationState(exo));
-    Response response2 = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,false,null,null,"project","priority",null,null,null,0,0,false,false);
+    Response response2 = taskRestService.filterTasks(null, -2, "exo",null, null, null, null, null, false,false,null,null,"project","priority",null,null,null,0,0,false,false, null);
 
     // Then
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response2.getStatus());
@@ -1104,7 +1111,7 @@ public class TestTaskRestService {
     List<String> watchers = new ArrayList<>();
 
     TasksList tasksList = new TasksList(Arrays.asList(task1, task2), 2);
-    when(taskService.filterTasks("exo", -2, "exo", labelIDs, null, null, assignee, coworkers, watchers, null, null, root, null, null, null, false, true, false, false, null, null, 0, 0)).thenReturn(tasksList);
+    when(taskService.filterTasks(argThat((TaskListFilter f) -> isListFilter(f, "root", null, null)))).thenReturn(tasksList);
 
     // Current user identity id resolution
     org.exoplatform.social.core.identity.model.Identity userIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
@@ -1117,7 +1124,7 @@ public class TestTaskRestService {
     when(favoriteService.getFavoriteItemsByCreatorAndType("task", 1L, 0, -1)).thenReturn(Collections.singletonList(favoriteItem));
 
     // When favorite=true
-    Response response = taskRestService.filterTasks(null, -2, "exo", null, null, null, null, null, false, true, null, null, null, null, null, null, null, 0, 0, false, false);
+    Response response = taskRestService.filterTasks(null, -2, "exo", null, null, null, null, null, false, true, null, null, null, null, null, null, null, 0, 0, false, false, null);
 
     // Then only the favorite task is returned, and it carries favorite=true
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
@@ -1130,7 +1137,7 @@ public class TestTaskRestService {
 
     // When favorite=false, the favorite filter is not applied and both tasks are returned, but each
     // row still carries its correct favorite flag so the front-end never has to guess it
-    Response responseAll = taskRestService.filterTasks(null, -2, "exo", null, null, null, null, null, false, false, null, null, null, null, null, null, null, 0, 0, false, false);
+    Response responseAll = taskRestService.filterTasks(null, -2, "exo", null, null, null, null, null, false, false, null, null, null, null, null, null, null, 0, 0, false, false, null);
     assertEquals(Response.Status.OK.getStatusCode(), responseAll.getStatus());
     PaginatedTaskList allTasks = (PaginatedTaskList) responseAll.getEntity();
     assertEquals(2, allTasks.getTasks().size());
@@ -1164,5 +1171,133 @@ public class TestTaskRestService {
 
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+  }
+
+  /**
+   * On a project board the viewer views, the extension filters are resolved
+   * for that project and travel to the service inside the list filter.
+   */
+  @Test
+  public void testFilterTasksCarriesExtensionConditions() throws Exception {
+    TaskRestService taskRestService = newRestServiceWithExtensions();
+    Identity root = new Identity("root");
+    ConversationState.setCurrent(new ConversationState(root));
+    ProjectDto project = viewableProject(7L);
+    when(projectService.getProject(7L)).thenReturn(project);
+    org.exoplatform.task.dao.condition.Condition condition = mock(org.exoplatform.task.dao.condition.Condition.class);
+    when(taskFilterExtensionService.resolve(7L, "{\"forms.fields\":{}}", root)).thenReturn(List.of(condition));
+    when(taskService.filterTasks(any(TaskListFilter.class))).thenReturn(new TasksList(new ArrayList<>(), 0));
+
+    Response response = taskRestService.filterTasks(null, 7, null, null, null, null, null, null, false, false, null, null, null, null, null, null, null, 0, 20, false, false, "{\"forms.fields\":{}}");
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    org.mockito.ArgumentCaptor<TaskListFilter> sent = org.mockito.ArgumentCaptor.forClass(TaskListFilter.class);
+    verify(taskService).filterTasks(sent.capture());
+    assertEquals(List.of(condition), sent.getValue().getExtensionConditions());
+    assertEquals(7L, sent.getValue().getProjectId());
+  }
+
+  /**
+   * A refused extension filter answers 400 with its message code, and the
+   * tasks are not read.
+   */
+  @Test
+  public void testFilterTasksRefusesInvalidExtensionFilters() throws Exception {
+    TaskRestService taskRestService = newRestServiceWithExtensions();
+    Identity root = new Identity("root");
+    ConversationState.setCurrent(new ConversationState(root));
+    when(projectService.getProject(7L)).thenReturn(viewableProject(7L));
+    when(taskFilterExtensionService.resolve(7L, "{\"x\":{}}", root)).thenThrow(new IllegalArgumentException("task.extensionFilters.unknown"));
+
+    Response response = taskRestService.filterTasks(null, 7, null, null, null, null, null, null, false, false, null, null, null, null, null, null, null, 0, 20, false, false, "{\"x\":{}}");
+
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    assertEquals("task.extensionFilters.unknown", response.getEntity());
+    verify(taskService, never()).filterTasks(any(TaskListFilter.class));
+  }
+
+  /**
+   * On a project the viewer does not view, the extension filters are never
+   * resolved, so no plugin evaluates a payload on it; the list stays the
+   * empty one the service returns for such a project.
+   */
+  @Test
+  public void testFilterTasksSkipsExtensionsOnAProjectNotViewed() throws Exception {
+    TaskRestService taskRestService = newRestServiceWithExtensions();
+    ConversationState.setCurrent(new ConversationState(new Identity("root")));
+    ProjectDto hidden = new ProjectDto();
+    hidden.setId(8L);
+    when(projectService.getProject(8L)).thenReturn(hidden);
+    when(taskService.filterTasks(any(TaskListFilter.class))).thenReturn(new TasksList(new ArrayList<>(), 0));
+
+    Response response = taskRestService.filterTasks(null, 8, null, null, null, null, null, null, false, false, null, null, null, null, null, null, null, 0, 20, false, false, "{\"forms.fields\":{}}");
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    verifyNoInteractions(taskFilterExtensionService);
+    org.mockito.ArgumentCaptor<TaskListFilter> sent = org.mockito.ArgumentCaptor.forClass(TaskListFilter.class);
+    verify(taskService).filterTasks(sent.capture());
+    assertTrue(sent.getValue().isNoProjPermission());
+    assertTrue(sent.getValue().getExtensionConditions().isEmpty());
+  }
+
+  /**
+   * The Gantt fetch resolves the extension filters for its project and adds
+   * their conditions to its query; a refused one answers 400.
+   */
+  @Test
+  public void testGetTasksByProjectIdCarriesExtensionConditions() throws Exception {
+    TaskRestService taskRestService = newRestServiceWithExtensions();
+    Identity root = new Identity("root");
+    ConversationState.setCurrent(new ConversationState(root));
+    when(projectService.getProject(7L)).thenReturn(viewableProject(7L));
+    org.exoplatform.task.dao.condition.Condition condition = mock(org.exoplatform.task.dao.condition.Condition.class);
+    when(taskFilterExtensionService.resolve(7L, "{\"forms.fields\":{}}", root)).thenReturn(List.of(condition));
+
+    Response response = taskRestService.getTasksByProjectId(7L, 0, -1, false, false, false, "{\"forms.fields\":{}}");
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    org.mockito.ArgumentCaptor<TaskQuery> sent = org.mockito.ArgumentCaptor.forClass(TaskQuery.class);
+    verify(taskService).findTasks(sent.capture(), anyInt(), anyInt());
+    assertTrue(((org.exoplatform.task.dao.condition.AggregateCondition) sent.getValue().getCondition()).getConditions()
+                                                                                          .contains(condition));
+
+    when(taskFilterExtensionService.resolve(7L, "bad", root)).thenThrow(new IllegalArgumentException("task.extensionFilters.invalid"));
+    response = taskRestService.getTasksByProjectId(7L, 0, -1, false, false, false, "bad");
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    assertEquals("task.extensionFilters.invalid", response.getEntity());
+  }
+
+  private TaskRestService newRestServiceWithExtensions() {
+    TaskRestService taskRestService = new TaskRestService(taskService,
+                                                          commentService,
+                                                          projectService,
+                                                          statusService,
+                                                          userService,
+                                                          spaceService,
+                                                          labelService,
+                                                          favoriteService,
+                                                          identityManager);
+    taskRestService.setTaskFilterExtensionService(taskFilterExtensionService);
+    return taskRestService;
+  }
+
+  private static ProjectDto viewableProject(long id) {
+    ProjectDto project = new ProjectDto();
+    project.setId(id);
+    project.setManager(new HashSet<>(Set.of("root")));
+    return project;
+  }
+
+  /**
+   * Tells whether a task list filter is the one the filter endpoint builds for
+   * the search term {@code exo} on the personal lists, with no extension
+   * condition.
+   */
+  private static boolean isListFilter(TaskListFilter filter, String userId, String orderBy, String groupBy) {
+    return filter != null && "exo".equals(filter.getQuery()) && filter.getProjectId() == -2
+        && "exo".equals(filter.getKeyword()) && filter.getCurrIdentity() != null
+        && userId.equals(filter.getCurrIdentity().getUserId()) && filter.isAdvanceSearch()
+        && Objects.equals(orderBy, filter.getOrderBy()) && Objects.equals(groupBy, filter.getGroupBy())
+        && filter.getExtensionConditions().isEmpty();
   }
 }
