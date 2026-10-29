@@ -864,9 +864,10 @@ export default {
       };
     },
     /**
-     * Gives back the card's previous creation once the drawer shows what it
-     * opens next: a section re-opened on the card created takes over what
-     * that creation still holds before it is given back.
+     * Gives back the card's previous creation after the render of what the
+     * drawer opens next, which the caller has already asked for by changing
+     * the task: a section's own state outlives that render when it must, a
+     * card re-opened on a value not saved taking over its errors.
      *
      * @param {object} previous the previous creation, or null
      * @returns {void}
@@ -983,10 +984,11 @@ export default {
       this.$refs.taskAssignment?.load(task);
     },
     open(task) {
-      this.disposeCreation(this.creation);
+      const previousCreation = this.creation;
       this.creation = task.id ? null : this.newCreation();
       this.oldTask = task;
       this.task = JSON.parse(JSON.stringify(task));
+      this.disposeCreation(previousCreation);
       this.taskTitle = this.task.title;
       this.taskDescription = this.task.description;
       this.taskCoworkers= null;
