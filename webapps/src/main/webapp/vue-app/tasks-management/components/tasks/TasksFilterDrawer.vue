@@ -363,7 +363,7 @@ export default {
       this.showCompletedTasks=false;
       this.favoritesOnly=false;
       this.restoreExtensionFilters();
-      this.refreshFilterNumber();
+      this.getFilterNumber();
       this.$root.$emit('reset-filter-task-group-sort',this.groupBy);
     },
     reset() {
@@ -382,7 +382,7 @@ export default {
       this.showCompletedTasks = false;
       this.favoritesOnly = false;
       this.clearExtensionFilters();
-      this.refreshFilterNumber();
+      this.getFilterNumber();
       const jsonToSave = {
         groupBy: this.groupBy,
         orderBy: this.orderBy,
@@ -415,7 +415,6 @@ export default {
     filterTasks() {
       if (this.taskViewTabName === 'gantt') {
         this.saveExtensionFilters();
-        this.getExtensionFilterNumber();
         this.$root.$emit('task-filter-extensions-updated', this.project);
         this.$refs.filterTasksDrawer.close();
       } else {
@@ -519,19 +518,6 @@ export default {
       this.extensionFilters = {};
       this.saveExtensionFilters();
       this.extensionFiltersVersion++;
-    },
-    refreshFilterNumber(source) {
-      if (this.taskViewTabName === 'gantt') {
-        this.getExtensionFilterNumber();
-      } else {
-        this.getFilterNumber(source);
-      }
-    },
-    getExtensionFilterNumber() {
-      let filtersnumber = 0;
-      Object.values(this.extensionFilters).forEach(filter => filtersnumber += Number(filter && filter.count) || 0);
-      localStorage.setItem('filtersNumber', JSON.stringify(filtersnumber));
-      this.$emit('filter-num-changed', filtersnumber);
     },
     saveValueFilterInStorage(value) {
       localStorage.setItem('projectStorage', JSON.stringify(this.project));
