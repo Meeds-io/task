@@ -149,9 +149,9 @@
                         id="tasksFilterFavoritesOnly"
                         v-model="favoritesOnly"
                         :aria-label="$t('label.filter.favoritesOnly')"
-                        class="mt-0 pt-0"
-                        hide-details
-                        dense />
+                        color="primary"
+                        class="pa-0 my-auto"
+                        hide-details />
                     </div>
 
                     <div class="showCompleteTasks d-flex align-center pt-2">
@@ -162,9 +162,9 @@
                         id="tasksFilterShowCompleted"
                         v-model="showCompletedTasks"
                         :aria-label="$t('filter.task.showCompleted')"
-                        class="mt-0 pt-0"
-                        hide-details
-                        dense />
+                        color="primary"
+                        class="pa-0 my-auto"
+                        hide-details />
                     </div>
                   </form>
                   <extension-registry-components
