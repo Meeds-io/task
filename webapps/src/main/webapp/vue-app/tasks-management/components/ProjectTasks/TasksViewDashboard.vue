@@ -242,6 +242,7 @@ export default {
       indicatorsGeneration: 0,
       indicatorsTimeout: null,
       indicatorsKey: null,
+      indicatorsForced: false,
     };
   },
   watch: {
@@ -368,9 +369,15 @@ export default {
   },
   methods: {
     scheduleIndicators(force) {
-      // Every list change of one tick (the board's, the Gantt's, a provider arriving) makes one request
+      // Every list change of one tick (the board's, the Gantt's, a provider arriving) makes one request,
+      // forced when any of them was: a card's change is never absorbed by a list change landing after it
+      this.indicatorsForced = this.indicatorsForced || force === true;
       window.clearTimeout(this.indicatorsTimeout);
-      this.indicatorsTimeout = window.setTimeout(() => this.refreshIndicators(force === true));
+      this.indicatorsTimeout = window.setTimeout(() => {
+        const forced = this.indicatorsForced;
+        this.indicatorsForced = false;
+        this.refreshIndicators(forced);
+      });
     },
     refreshIndicators(force) {
       const projectId = this.project && this.project.id;
