@@ -48,6 +48,11 @@
 </template>
 <script>
 export default {
+  inject: {
+    taskCardIndicators: {
+      default: null,
+    },
+  },
   props: {
     tasksList: {
       type: Array,
@@ -77,12 +82,21 @@ export default {
     },
     hideGantt() {
       return this.tasksList && this.tasksList.length === 0 || this.ganttTasks === 0;
-    }
+    },
+    indicatorsByTask() {
+      return this.taskCardIndicators && this.taskCardIndicators.byTask || {};
+    },
   },
   watch: {
     tasksList() {
       this.ganttItems = this.getTasksToDisplay(this.tasksList);
-    }
+    },
+    indicatorsByTask() {
+      if (this.gantt && this.isGanttDisplayed) {
+        this.tasksToDisplay = this.getTasksToDisplay(this.tasks);
+        this.gantt.refresh(this.tasksToDisplay);
+      }
+    },
   },
   created() {
     this.$root.$on('update-task-project', task =>{
@@ -174,7 +188,7 @@ export default {
               task.end = this.dateFormat (item.task.dueDate.time);
             }
           }
-          task.custom_class=`bar_${item.task.priority}`;
+          task.custom_class = this.indicatorsByTask[item.task.id] ? `bar_${item.task.priority} taskCardIndicated` : `bar_${item.task.priority}`;
           if (item.task.startDate != null || item.task.dueDate != null) {
             task.progress= 100;
             ganttTasksList.push(task);
@@ -184,6 +198,12 @@ export default {
         });
       }
       return ganttTasksList;
+    },
+    popupIndicators(taskId) {
+      const escape = text => String(text || '').replace(/[&<>"']/g, character => `&#${character.charCodeAt(0)};`);
+      return (this.indicatorsByTask[taskId] || [])
+        .map(indicator => `<p class="taskCardIndicator ${escape(indicator.color || 'error')}--text text-caption mb-0">${escape(indicator.label)} · ${escape(indicator.title)}</p>`)
+        .join('');
     },
     dateFormat(date) {
       const dateValue = new Date(date);
@@ -321,6 +341,7 @@ export default {
                 <div class="avatarToDisplay"> ${avatarToDisplay}</div>
                 <div class="taskDates"> ${self.popupTaskDates(task.start, task.end)} </div>
                 </div>
+                ${self.popupIndicators(taskId)}
               </div>`;
         },
         on_click: function (task) {
