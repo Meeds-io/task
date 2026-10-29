@@ -389,9 +389,13 @@ export default {
       }
       this.indicatorsKey = key;
       const generation = ++this.indicatorsGeneration;
-      return loadIndicators(projectId, taskIds).then(byTask => {
+      return loadIndicators(projectId, taskIds).then(({byTask, failed}) => {
         if (generation === this.indicatorsGeneration && projectId === (this.project && this.project.id)) {
           this.cardIndicators.byTask = byTask;
+          if (failed) {
+            // A read a provider failed is never the current answer: the next list change asks again
+            this.indicatorsKey = null;
+          }
         }
       });
     },
