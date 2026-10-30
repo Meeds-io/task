@@ -28,7 +28,9 @@ import org.exoplatform.task.domain.ChangeLog;
 public interface TaskLogHandler extends GenericDAO<ChangeLog, Long> {
   /**
    * @param taskId the task id
-   * @return the task's change log, newest first
+   * @return the task's change log, newest first; the entries an upgrade left
+   *         undated where the database sorts a missing date: first on
+   *         PostgreSQL, Oracle and HSQLDB, last on MySQL and SQL Server
    */
   ListAccess<ChangeLog> findTaskLogs(Long taskId);
 
