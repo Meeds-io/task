@@ -51,6 +51,7 @@ import org.exoplatform.task.util.StorageUtil;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -352,6 +353,18 @@ public class TaskStorageImpl implements TaskStorage {
                 .map((ChangeLog changeLog) -> StorageUtil.changeLogToDto(changeLog,userService))
                 .collect(Collectors.toList());
 
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ChangeLogEntry> getTaskLogsBefore(long taskId, Long beforeTime, Long beforeId, int limit) {
+        return daoHandler.getTaskLogHandler()
+                         .findTaskLogsBefore(taskId, beforeTime == null ? null : new Date(beforeTime), beforeId, limit)
+                         .stream()
+                         .map(changeLog -> StorageUtil.changeLogToDto(changeLog, userService))
+                         .toList();
     }
 
     @Override
