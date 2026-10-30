@@ -18,32 +18,42 @@
   <div
     v-if="indicators.length"
     class="taskCardIndicators d-flex flex-wrap align-center">
-    <v-tooltip
-      v-for="(indicator, index) in indicators"
-      :key="index"
-      :disabled="!indicator.title"
-      bottom>
-      <template #activator="{ on, attrs }">
-        <span
-          v-bind="attrs"
-          :aria-label="indicator.title || indicator.label"
-          :class="`${indicator.color || 'error'}--text`"
-          class="taskCardIndicator d-flex align-center text-caption text-no-wrap me-2"
-          tabindex="0"
-          role="note"
-          v-on="on">
-          <v-icon
+    <template v-for="(indicator, index) in indicators">
+      <component
+        :is="indicator.component"
+        v-if="isRendered(indicator)"
+        :key="index"
+        :indicator="indicator"
+        :task-id="taskId"
+        :dense="dense"
+        class="taskCardIndicatorComponent me-2" />
+      <v-tooltip
+        v-else
+        :key="index"
+        :disabled="!indicator.title"
+        bottom>
+        <template #activator="{ on, attrs }">
+          <span
+            v-bind="attrs"
+            :aria-label="indicator.title || indicator.label"
             :class="`${indicator.color || 'error'}--text`"
-            size="6"
-            class="me-1"
-            aria-hidden="true">
-            fa-circle
-          </v-icon>
-          {{ indicator.label }}
-        </span>
-      </template>
-      <span>{{ indicator.title }}</span>
-    </v-tooltip>
+            class="taskCardIndicator d-flex align-center text-caption text-no-wrap me-2"
+            tabindex="0"
+            role="note"
+            v-on="on">
+            <v-icon
+              :class="`${indicator.color || 'error'}--text`"
+              size="6"
+              class="me-1"
+              aria-hidden="true">
+              fa-circle
+            </v-icon>
+            {{ indicator.label }}
+          </span>
+        </template>
+        <span>{{ indicator.title }}</span>
+      </v-tooltip>
+    </template>
   </div>
 </template>
 <script>
@@ -58,10 +68,24 @@ export default {
       type: [Number, String],
       default: null,
     },
+    dense: {
+      type: Boolean,
+      default: false,
+    },
   },
   computed: {
     indicators() {
       return this.taskCardIndicators && this.taskId && this.taskCardIndicators.byTask[Number(this.taskId)] || [];
+    },
+  },
+  methods: {
+    /**
+     * @param {object} indicator a provider's indicator
+     * @returns {boolean} true when it names a registered component, which
+     *          renders it; otherwise it shows as a marker with its label
+     */
+    isRendered(indicator) {
+      return !!indicator.component && !!Vue.component(indicator.component);
     },
   },
 };
