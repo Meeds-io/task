@@ -44,6 +44,9 @@ import java.util.TimeZone;
 
 public interface TaskService {
 
+    /** The most change log entries one page of {@link #getTaskLogsBefore} reads. */
+    int MAX_TASK_LOGS_PAGE = 100;
+
     /** The most hits a text search reads, the most relevant first. */
     int    TEXT_SEARCH_WINDOW  = 100;
 
@@ -157,6 +160,27 @@ public interface TaskService {
 
 
     List<ChangeLogEntry> getTaskLogs(long taskId, int offset, int limit) throws Exception;
+
+    /**
+     * Reads one page of a task's change log, newest first, after the last
+     * entry already read: entries added while a reader pages are never read
+     * twice nor skipped.
+     *
+     * @param taskId the task id
+     * @param beforeTime the date, in milliseconds, of the last entry already
+     *          read, or null to read from the newest
+     * @param beforeId the id of the last entry already read, required with
+     *          beforeTime and refused without it
+     * @param limit the maximum number of entries, from 1 to
+     *          {@link #MAX_TASK_LOGS_PAGE}
+     * @return the entries older than the last one read, or dated alike with a
+     *         lower id, newest first and, on the same date, highest id first
+     * @throws IllegalArgumentException with the code
+     *           {@code task.logs.invalidCursor} when only one of beforeTime and
+     *           beforeId is given, {@code task.logs.invalidLimit} when the
+     *           limit is out of bounds
+     */
+    List<ChangeLogEntry> getTaskLogsBefore(long taskId, Long beforeTime, Long beforeId, int limit);
 
     /**
      * Narrows a task query with the conditions of a change filter
