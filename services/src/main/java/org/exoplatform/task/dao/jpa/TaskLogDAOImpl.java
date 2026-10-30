@@ -29,12 +29,23 @@ import jakarta.persistence.TypedQuery;
 
 public class TaskLogDAOImpl extends CommonJPADAO<ChangeLog, Long> implements TaskLogHandler {
 
-  private static final String FIND_FIRST_PAGE = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId"
-      + " ORDER BY log.createdTime DESC, log.id DESC";
+  /**
+   * The order of a task's change log: the dated entries newest first, then the
+   * undated ones, an upgrade having left some without a date, as if dated 0;
+   * on the same date, highest id first. Every engine sorts the undated ones
+   * where this order puts them, whatever its own place for NULL.
+   */
+  private static final String ORDER                = " ORDER BY CASE WHEN log.createdTime IS NULL THEN 1 ELSE 0 END,"
+      + " log.createdTime DESC, log.id DESC";
 
-  private static final String FIND_PAGE_BEFORE = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId"
-      + " AND (log.createdTime < :beforeTime OR (log.createdTime = :beforeTime AND log.id < :beforeId))"
-      + " ORDER BY log.createdTime DESC, log.id DESC";
+  private static final String FIND_FIRST_PAGE      = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId" + ORDER;
+
+  private static final String FIND_PAGE_BEFORE     = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId"
+      + " AND (log.createdTime < :beforeTime OR (log.createdTime = :beforeTime AND log.id < :beforeId)"
+      + " OR log.createdTime IS NULL)" + ORDER;
+
+  private static final String FIND_UNDATED_BEFORE  = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId"
+      + " AND log.createdTime IS NULL AND log.id < :beforeId" + ORDER;
 
   /**
    * {@inheritDoc}
@@ -55,13 +66,18 @@ public class TaskLogDAOImpl extends CommonJPADAO<ChangeLog, Long> implements Tas
    */
   @Override
   public List<ChangeLog> findTaskLogsBefore(Long taskId, Date beforeTime, Long beforeId, int limit) {
-    TypedQuery<ChangeLog> query = getEntityManager().createQuery(beforeTime == null ? FIND_FIRST_PAGE : FIND_PAGE_BEFORE,
-                                                                 ChangeLog.class);
-    query.setParameter("taskId", taskId);
-    if (beforeTime != null) {
+    TypedQuery<ChangeLog> query;
+    if (beforeTime == null) {
+      query = getEntityManager().createQuery(FIND_FIRST_PAGE, ChangeLog.class);
+    } else if (beforeTime.getTime() == 0) {
+      query = getEntityManager().createQuery(FIND_UNDATED_BEFORE, ChangeLog.class);
+      query.setParameter("beforeId", beforeId);
+    } else {
+      query = getEntityManager().createQuery(FIND_PAGE_BEFORE, ChangeLog.class);
       query.setParameter("beforeTime", beforeTime);
       query.setParameter("beforeId", beforeId);
     }
+    query.setParameter("taskId", taskId);
     return query.setMaxResults(limit).getResultList();
   }
 }
