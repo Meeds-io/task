@@ -116,7 +116,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["label_id"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["label_id"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -137,7 +137,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["label_id"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["label_id"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -337,7 +337,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["title", "description", "start_date", "due_date", "priority", "status_id"] },
+      "space_scope": { "object_arg": "project_id", "resolver": "project", "allowed_args": ["title", "description", "start_date", "due_date", "priority", "status_id"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -412,7 +412,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["text"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["text"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -437,7 +437,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["title"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["title"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -463,7 +463,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["description"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["description"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -488,7 +488,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["status_id"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["status_id"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -593,7 +593,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["username"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["username"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -617,7 +617,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["username"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["username"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -645,7 +645,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["start_date", "due_date"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["start_date", "due_date"], "space_role": "member" },
       "require_approval": true
     },
     {
@@ -665,7 +665,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task" },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "space_role": "member" },
       "require_approval": true
     },
     {
@@ -685,7 +685,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task" },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "space_role": "member" },
       "require_approval": true
     },
     {
@@ -710,7 +710,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["priority"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["priority"], "space_role": "member" },
       "require_approval": true
     },
     {
