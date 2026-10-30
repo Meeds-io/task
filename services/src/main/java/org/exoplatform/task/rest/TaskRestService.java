@@ -41,6 +41,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
@@ -1040,8 +1041,10 @@ public class TaskRestService implements ResourceContainer {
    *          beforeTime
    * @param limit the maximum number of entries, 20 by default
    * @return the entries, newest first and, on the same date, highest id
-   *         first; 400 with the code of an invalid cursor or limit, 403 when
-   *         the caller may not view the task, 404 when it does not exist
+   *         first; 400 with the code of a cursor sent without one of its
+   *         parts or of a limit out of range, 403 when the caller may not
+   *         view the task, 404 when it does not exist or when a parameter is
+   *         not a number. No answer may be stored.
    */
   @GET
   @Path("logs/{id}/page")
@@ -1051,30 +1054,43 @@ public class TaskRestService implements ResourceContainer {
              description = "Newest first, the entries older than the last one read")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "Request fulfilled"),
-      @ApiResponse(responseCode = "400", description = "Invalid cursor or limit"),
+      @ApiResponse(responseCode = "400", description = "Cursor without one of its parts, or limit out of range"),
       @ApiResponse(responseCode = "403", description = "Forbidden"),
       @ApiResponse(responseCode = "404", description = "Resource not found") })
   public Response getTaskLogsPage(@Parameter(description = "Task id", required = true) @PathParam("id") long id,
                                   @Parameter(description = "Date in milliseconds of the last entry read") @QueryParam("beforeTime") Long beforeTime,
                                   @Parameter(description = "Id of the last entry read") @QueryParam("beforeId") Long beforeId,
                                   @Parameter(description = "Limit") @Schema(defaultValue = "20") @DefaultValue("20") @QueryParam("limit") int limit) {
+    Response.ResponseBuilder answer;
     try {
       TaskDto task = taskService.getTask(id);
       if (task == null) {
-        return Response.status(Response.Status.NOT_FOUND).build();
+        answer = Response.status(Response.Status.NOT_FOUND);
+      } else if (!TaskUtil.hasViewPermission(taskService, task)) {
+        answer = Response.status(Response.Status.FORBIDDEN);
+      } else {
+        answer = Response.ok(taskService.getTaskLogsBefore(id, beforeTime, beforeId, limit));
       }
-      if (!TaskUtil.hasViewPermission(taskService, task)) {
-        return Response.status(Response.Status.FORBIDDEN).build();
-      }
-      return Response.ok(taskService.getTaskLogsBefore(id, beforeTime, beforeId, limit)).build();
     } catch (IllegalArgumentException e) {
-      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+      answer = Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage());
     } catch (EntityNotFoundException e) {
-      return Response.status(Response.Status.NOT_FOUND).build();
+      answer = Response.status(Response.Status.NOT_FOUND);
     } catch (Exception e) {
       LOG.warn("Can't get a page of the logs of task {}", id, e);
-      return Response.serverError().build();
+      answer = Response.serverError();
     }
+    return answer.cacheControl(noStore()).build();
+  }
+
+  /**
+   * @return the directive that keeps an answer read for one user out of every
+   *         cache
+   */
+  private static CacheControl noStore() {
+    CacheControl cacheControl = new CacheControl();
+    cacheControl.setPrivate(true);
+    cacheControl.setNoStore(true);
+    return cacheControl;
   }
 
   @GET
