@@ -375,8 +375,7 @@
         @confirmDialogClosed="isDrawerClose = true" />
       <task-changes-drawer
         ref="taskChangesDrawer"
-        :task="task"
-        :logs="logs" />
+        :task="task" />
       <attachments-image-crop-drawer />
       <attachments-image-preview-dialog />
     </template>
