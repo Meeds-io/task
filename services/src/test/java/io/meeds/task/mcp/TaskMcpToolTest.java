@@ -19,7 +19,9 @@
 package io.meeds.task.mcp;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -66,6 +68,7 @@ import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.model.Space;
@@ -89,6 +92,7 @@ import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 
+import io.meeds.mcp.server.model.ActingIdentity;
 import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.service.PermanentLinkService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
@@ -173,6 +177,15 @@ public class TaskMcpToolTest {
   private FavoriteService         favoriteService;
 
   @Mock
+  private TaskSpaceScopeResolver  spaceScopeResolver;
+
+  private boolean                 currentSpaceScoped;
+
+  private Long                    currentScopeSpaceId;
+
+  private boolean                 scopeUnreadable;
+
+  @Mock
   private Identity                currentIdentity;
 
   private TaskMcpTool             tool;
@@ -251,6 +264,96 @@ public class TaskMcpToolTest {
 
     verify(task).setAssignee("john");
     verify(taskService).updateTask(task);
+  }
+
+  /**
+   * In a call limited to a space, a task is assigned to, or gets as a
+   * coworker, a member of that space only: a person who can access the task
+   * through the project's participants but isn't a member is refused, and so
+   * is anyone when the call's identity can't be read. A call that isn't
+   * limited keeps the task's access rule alone.
+   * Mutants: the membership check removed, applied to one tool only, run on
+   * an unlimited call, or an unreadable identity taken as unlimited.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void peopleOfACallLimitedToASpaceAreMembersOfIt() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    Identity johnIdentity = mock(Identity.class);
+    Space space = mock(Space.class);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
+    lenient().when(taskService.updateTask(task)).thenReturn(task);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+
+    currentScopeSpaceId = 12L;
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, never()).updateTask(any());
+
+    currentScopeSpaceId = 13L;
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+
+    currentScopeSpaceId = null;
+    scopeUnreadable = true;
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, never()).updateTask(any());
+
+    scopeUnreadable = false;
+    currentScopeSpaceId = 12L;
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, times(2)).updateTask(task);
+
+    currentScopeSpaceId = null;
+    lenient().when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    verify(taskService, times(3)).updateTask(task);
+  }
+
+  /**
+   * In a call limited to a space, a super manager of that space counts as one
+   * of its people, as for the platform's space rules: the task is assigned to
+   * them, they are added as a coworker and a comment may mention them,
+   * though they aren't a member.
+   * Mutant: the super-manager clause removed.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aSuperManagerOfTheScopeSpaceCountsAsOneOfItsPeople() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    Identity johnIdentity = mock(Identity.class);
+    Space space = mock(Space.class);
+    CommentDto comment = mock(CommentDto.class);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+    when(spaceService.isSuperManager(space, OTHER_USER)).thenReturn(true);
+    String mention = "Please check @" + OTHER_USER;
+    when(commentService.addComment(task, USER, mention)).thenReturn(comment);
+    when(comment.getId()).thenReturn(22L);
+    when(comment.getComment()).thenReturn(mention);
+    when(comment.getCreatedTime()).thenReturn(new Date());
+    when(comment.getAuthor()).thenReturn(USER);
+
+    currentScopeSpaceId = 12L;
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mention));
+
+    verify(taskService, times(2)).updateTask(task);
+    verify(commentService).addComment(task, USER, mention);
   }
 
   @Test
@@ -369,6 +472,54 @@ public class TaskMcpToolTest {
     when(labelService.getLabel(99L)).thenReturn(null);
 
     tool.addProjectLabelToTask(TASK_ID, 99L);
+  }
+
+  /**
+   * A label of the task's project is put on and taken off the task.
+   * Mutant: the project comparison inverted.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void labelOfTheTaskProjectIsPutOnAndTakenOffTheTask() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    LabelDto label = projectLabel(PROJECT_ID);
+    when(labelService.getLabel(99L)).thenReturn(label);
+
+    tool.addProjectLabelToTask(TASK_ID, 99L);
+    tool.removeProjectLabelFromTask(TASK_ID, 99L);
+
+    verify(labelService).addTaskToLabel(task, 99L);
+    verify(labelService).removeTaskFromLabel(task, 99L);
+  }
+
+  /**
+   * A label of another project, or a label in no project, is neither put on
+   * nor taken off a task of a project: in a call limited to the space of the
+   * task's project, the label is the only argument beside the task, and it
+   * must not reach a project of another space.
+   * Mutants: the check removed, or applied to the add or the remove only.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void labelOfAnotherProjectIsRefusedOnATaskOfAProject() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    LabelDto otherProjectLabel = projectLabel(PROJECT_ID + 1);
+    LabelDto noProjectLabel = mock(LabelDto.class);
+    when(labelService.getLabel(98L)).thenReturn(otherProjectLabel);
+    when(labelService.getLabel(97L)).thenReturn(noProjectLabel);
+
+    for (long labelId : new long[] { 98L, 97L }) {
+      assertThrows(ObjectNotFoundException.class, () -> tool.addProjectLabelToTask(TASK_ID, labelId));
+      assertThrows(ObjectNotFoundException.class, () -> tool.removeProjectLabelFromTask(TASK_ID, labelId));
+    }
+    verify(labelService, never()).addTaskToLabel(any(), anyLong());
+    verify(labelService, never()).removeTaskFromLabel(any(), anyLong());
   }
 
   @Test
@@ -665,7 +816,8 @@ public class TaskMcpToolTest {
                                                userAcl,
                                                portalConfigService,
                                                permanentLinkService,
-                                               favoriteService);
+                                               favoriteService,
+                                               spaceScopeResolver);
     ZoneId profileZone = ZoneId.systemDefault().equals(ZoneId.of("Pacific/Kiritimati")) ? ZoneId.of("Pacific/Pago_Pago")
                                                                                        : ZoneId.of("Pacific/Kiritimati");
     try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
@@ -712,7 +864,7 @@ public class TaskMcpToolTest {
     when(taskService.findTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null, null));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -734,7 +886,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(4);
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null);
 
     assertNull(findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -874,7 +1026,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(0);
 
-    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null);
 
     assertEquals(0, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
@@ -1003,6 +1155,27 @@ public class TaskMcpToolTest {
     assertEquals(OTHER_USER, created.getAllValues().get(2).getAssignee());
   }
 
+  /**
+   * A status id that isn't one of the project's statuses is refused and no
+   * task is created: the space scope relies on it to keep a creation inside
+   * the project.
+   * Mutant: the status is taken by id from anywhere.
+   */
+  @Test
+  public void createTaskInProjectRefusesAStatusOfAnotherProject() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    StatusDto own = mock(StatusDto.class);
+
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(own.getId()).thenReturn(3L);
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(Collections.singletonList(own));
+
+    assertThrows(IllegalStateException.class,
+                 () -> tool.createTaskInProject(PROJECT_ID, "Task", null, null, null, null, null, null, 99L));
+    verify(taskService, never()).createTask(any(TaskDto.class));
+  }
+
   @Test
   public void createTaskInProjectShouldUseDefaultStatusAndCreateTask() throws Exception {// NOSONAR
     ProjectDto project = mock(ProjectDto.class);
@@ -1075,6 +1248,55 @@ public class TaskMcpToolTest {
     verify(commentService).addComment(task, USER, COMMENT);
   }
 
+  /**
+   * In a call limited to a space, a comment that mentions a user who isn't a
+   * member of that space is refused, since each mention is notified; one
+   * that mentions members only, or no one, is added, the space being loaded
+   * once per comment, not per mention. A call that isn't limited may mention
+   * anyone, as before. When the call's identity can't be read, a comment that
+   * mentions someone is refused, and one that mentions no one is added.
+   * Mutants: the mention check removed, applied to the first mention only,
+   * or refusing a comment without mentions when the identity can't be read.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCommentOfACallLimitedToASpaceMentionsItsMembersOnly() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    CommentDto comment = mock(CommentDto.class);
+    Space space = mock(Space.class);
+    String mentionsAMember = "Please check @mary";
+    String mentionsAnOutsider = "Please check @mary and @" + OTHER_USER;
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(commentService.addComment(eq(task), eq(USER), anyString())).thenReturn(comment);
+    when(comment.getId()).thenReturn(22L);
+    when(comment.getComment()).thenReturn(COMMENT);
+    when(comment.getCreatedTime()).thenReturn(new Date());
+    when(comment.getAuthor()).thenReturn(USER);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+    when(spaceService.isMember(space, "mary")).thenReturn(true);
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+
+    currentScopeSpaceId = 12L;
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskComment(TASK_ID, mentionsAnOutsider));
+    verify(commentService, never()).addComment(any(), any(), any());
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mentionsAMember));
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, COMMENT));
+    verify(commentService).addComment(task, USER, mentionsAMember);
+    verify(commentService).addComment(task, USER, COMMENT);
+
+    currentScopeSpaceId = null;
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mentionsAnOutsider));
+    verify(commentService).addComment(task, USER, mentionsAnOutsider);
+    verify(spaceService, times(2)).getSpaceById(12L);
+
+    scopeUnreadable = true;
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskComment(TASK_ID, mentionsAMember));
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, COMMENT));
+    verify(commentService, times(2)).addComment(task, USER, COMMENT);
+  }
+
   @Test
   public void listTaskCommentsByIdShouldReturnFlattenedComments() throws Exception {// NOSONAR
     TaskDto task = mockTask();
@@ -1100,7 +1322,7 @@ public class TaskMcpToolTest {
   @Test
   public void removeProjectLabelFromTaskShouldDelegateToLabelService() throws Exception {// NOSONAR
     TaskDto task = mockTaskWithProject();
-    LabelDto label = mock(LabelDto.class);
+    LabelDto label = projectLabel(PROJECT_ID);
 
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
@@ -1205,6 +1427,307 @@ public class TaskMcpToolTest {
     verify(projectService).countProjects(any(), eq(null));
   }
 
+  /**
+   * In a run limited to a space, the query gets the user's roles of that space
+   * group and nothing of the user's other memberships, and only the projects
+   * the space scope resolver gives to that space are returned: the list and
+   * the project lookup agree. The scan reached the end, so the count is that
+   * of the selection.
+   * Mutant: the space is ignored and the user's own memberships are used; or
+   * a project of another space or of none is kept.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunKeepsTheProjectsTheResolverGivesToIt() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectDto inSpace = listedProject(1L, 10L);
+    ProjectDto inOtherSpace = listedProject(2L, 11L);
+    ProjectDto inNoSpace = listedProject(3L, null);
+    ProjectDto inSpaceToo = listedProject(4L, 10L);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(List.of(inSpace,
+                                                                                                                          inOtherSpace,
+                                                                                                                          inNoSpace,
+                                                                                                                          inSpaceToo));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+
+    assertEquals(List.of(1L, 4L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
+    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+    assertEquals(List.of("member:/spaces/test"), memberships.getValue());
+  }
+
+  /**
+   * An interactive or unscoped caller keeps every project of a space they
+   * belong to: the plain paged query is used, the resolver is never asked.
+   * Mutant: the resolver filter is applied to every call.
+   */
+  @Test
+  public void listProjectsOfASpaceOutsideALimitedRunIsNotNarrowed() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = false;
+    ProjectDto inSpace = listedProject(1L, 10L);
+    ProjectDto shared = listedProject(2L, null);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(List.of(inSpace, shared));
+    when(projectService.countProjects(any(), eq(null))).thenReturn(2);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+
+    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    verify(spaceScopeResolver, never()).spaceOfProject(any());
+    ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
+    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(10));
+    assertEquals(List.of("member:/spaces/test"), memberships.getValue());
+  }
+
+  /**
+   * The page is cut from the projects of the space, after the selection, and
+   * the offset and limit given back are the ones used.
+   * Mutant: the page is cut before the selection, or the offset is ignored.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunPagesTheSelection() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectDto other = listedProject(2L, 11L);
+    ProjectDto first = listedProject(1L, 10L);
+    ProjectDto second = listedProject(3L, 10L);
+    ProjectDto third = listedProject(4L, 10L);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(List.of(other,
+                                                                                                                          first,
+                                                                                                                          second,
+                                                                                                                          third));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 1, 1));
+
+    assertEquals(List.of(3L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(3L, result.getCount());
+    assertEquals(1, result.getUsedOffset());
+    assertEquals(1, result.getUsedLimit());
+
+    ProjectCollectionModel clamped = runWithDateFormatMockResult(() -> tool.listProjects(10L, -4, -2));
+    assertEquals(0, clamped.getProjects().size());
+    assertEquals(0, clamped.getUsedOffset());
+    assertEquals(0, clamped.getUsedLimit());
+  }
+
+  /**
+   * A scan stops as soon as one more project than the page asks for is kept:
+   * the second chunk is never read, projects after that one are never mapped
+   * nor asked of the resolver, and the count is the number kept, more than
+   * the page.
+   * Mutant: the whole chunk or every chunk is read.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunStopsOnceThePageIsFilled() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> chunk = new ArrayList<>();
+    for (long id = 1; id <= TaskMcpTool.SPACE_SCAN_CHUNK; id++) {
+      chunk.add(listedProject(id, 10L));
+    }
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(chunk);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2));
+
+    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(3L, result.getCount());
+    verify(projectService, times(1)).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(spaceScopeResolver, never()).spaceOfProject(chunk.get(3));
+  }
+
+  /**
+   * A scan reads the next chunk while the page isn't filled, and its count is
+   * exact once it reached the end (a chunk shorter than asked).
+   * Mutant: only the first chunk is read.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunReadsSeveralChunks() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> firstChunk = new ArrayList<>();
+    for (long id = 1; id <= TaskMcpTool.SPACE_SCAN_CHUNK; id++) {
+      firstChunk.add(listedProject(id, 11L));
+    }
+    ProjectDto mine = listedProject(100L, 10L);
+    ProjectDto minetoo = listedProject(101L, 10L);
+    ProjectDto theirs = listedProject(102L, 11L);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(firstChunk);
+    when(projectService.findProjects(any(), eq(null), any(), eq(TaskMcpTool.SPACE_SCAN_CHUNK), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                                                  .thenReturn(List.of(mine,
+                                                                                                                                                      minetoo,
+                                                                                                                                                      theirs));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+
+    assertEquals(List.of(100L, 101L), result.getProjects().stream().map(ProjectModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    verify(projectService, times(2)).findProjects(any(), any(), any(), anyInt(), anyInt());
+  }
+
+  /**
+   * A space none of whose reachable projects belong to it lists nothing in a
+   * limited run, and a space the user reaches no project of ends the scan at
+   * once.
+   */
+  @Test
+  public void listProjectsOfASpaceWithNoProjectOfItsOwnIsEmpty() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectDto other = listedProject(2L, 11L);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(List.of(other));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+    assertEquals(0, result.getProjects().size());
+    assertEquals(0L, result.getCount());
+
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(Collections.emptyList());
+    result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null));
+    assertEquals(0L, result.getCount());
+  }
+
+  /**
+   * A call is limited to a space when its acting identity carries a space
+   * scope, and also when its identity can't be read: it is then never taken
+   * for an unlimited one. Runs the real {@code isSpaceScoped}, which the
+   * other tests stub.
+   * Mutant: an unreadable identity, a null one or the scope's presence is
+   * read the other way.
+   */
+  @Test
+  public void aCallIsLimitedToASpaceWhenItsIdentityCarriesAScopeOrCantBeRead() {// NOSONAR
+    TaskMcpTool realTool = new TaskMcpTool(projectService,
+                                           statusService,
+                                           taskService,
+                                           commentService,
+                                           labelService,
+                                           spaceService,
+                                           translationService,
+                                           resourceBundleService,
+                                           identityManager,
+                                           profilePropertyService,
+                                           userAcl,
+                                           portalConfigService,
+                                           permanentLinkService,
+                                           favoriteService,
+                                           spaceScopeResolver);
+    ActingIdentity limited = mock(ActingIdentity.class);
+    when(limited.spaceScope()).thenReturn(7L);
+    ActingIdentity unlimited = mock(ActingIdentity.class);
+    when(unlimited.spaceScope()).thenReturn(null);
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(limited);
+      assertTrue(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(unlimited);
+      assertFalse(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(null);
+      assertFalse(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenThrow(new IllegalStateException("refused"));
+      assertTrue(realTool.isSpaceScoped());
+    }
+  }
+
+  /**
+   * The space a call is limited to is the one its acting identity carries,
+   * none for an identity without a scope or no identity, and an identity that
+   * can't be read fails the read rather than passing for an unlimited call.
+   * Runs the real {@code getScopeSpaceId}, which the other tests stub.
+   * Mutants: the scope not read, or the read failure swallowed.
+   */
+  @Test
+  public void theScopeSpaceIsTheOneTheActingIdentityCarries() {// NOSONAR
+    TaskMcpTool realTool = new TaskMcpTool(projectService,
+                                           statusService,
+                                           taskService,
+                                           commentService,
+                                           labelService,
+                                           spaceService,
+                                           translationService,
+                                           resourceBundleService,
+                                           identityManager,
+                                           profilePropertyService,
+                                           userAcl,
+                                           portalConfigService,
+                                           permanentLinkService,
+                                           favoriteService,
+                                           spaceScopeResolver);
+    ActingIdentity limited = mock(ActingIdentity.class);
+    when(limited.spaceScope()).thenReturn(7L);
+    ActingIdentity unlimited = mock(ActingIdentity.class);
+    when(unlimited.spaceScope()).thenReturn(null);
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(limited);
+      assertEquals(Long.valueOf(7L), realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(unlimited);
+      assertNull(realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(null);
+      assertNull(realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenThrow(new IllegalStateException("refused"));
+      assertThrows(IllegalStateException.class, realTool::getScopeSpaceId);
+    }
+  }
+
+  /**
+   * Gives a space 10 whose group the user holds the member role of.
+   */
+  private void givenSpaceTheUserIsMemberOf() {
+    Space space = mock(Space.class);
+    lenient().when(space.getGroupId()).thenReturn("/spaces/test");
+    lenient().when(space.getId()).thenReturn("10");
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(currentIdentity.getMemberships()).thenReturn(List.of(new MembershipEntry("/spaces/test", "member"),
+                                                              new MembershipEntry("/spaces/other", "manager")));
+  }
+
+  /**
+   * @param id a project id
+   * @param spaceId the space the resolver gives the project, or null
+   * @return a project the tool can render
+   */
+  private ProjectDto listedProject(long id, Long spaceId) throws Exception {
+    ProjectDto project = mock(ProjectDto.class);
+    lenient().when(project.getId()).thenReturn(id);
+    lenient().when(project.getName()).thenReturn(PROJECT_NAME);
+    lenient().when(project.getDescription()).thenReturn("");
+    lenient().when(project.getManager()).thenReturn(Collections.emptySet());
+    lenient().when(statusService.getStatuses(id)).thenReturn(Collections.emptyList());
+    lenient().when(labelService.findLabelsByProject(id, currentIdentity, 0, 100)).thenReturn(Collections.emptyList());
+    lenient().when(spaceScopeResolver.spaceOfProject(project)).thenReturn(spaceId);
+    return project;
+  }
+
+  /**
+   * Given a space the user isn't a member of, the list is empty and the
+   * project service is not asked: an empty list of memberships would select
+   * every project.
+   * Mutant: the space memberships aren't intersected with the user's.
+   */
+  @Test
+  public void listProjectsOfASpaceTheUserIsNotMemberOfIsEmpty() throws Exception { // NOSONAR
+    Space space = mock(Space.class);
+    when(space.getGroupId()).thenReturn("/spaces/test");
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(currentIdentity.getMemberships()).thenReturn(List.of(new MembershipEntry("/spaces/other", "member")));
+
+    for (boolean scoped : new boolean[] { false, true }) {
+      currentSpaceScoped = scoped;
+      assertEquals(0L, runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20)).getCount());
+    }
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20));
+
+    assertEquals(0, result.getProjects().size());
+    assertEquals(0L, result.getCount());
+    assertEquals(5, result.getUsedOffset());
+    assertEquals(20, result.getUsedLimit());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).countProjects(any(), any());
+  }
+
   @Test
   public void listTasksWithProjectShouldLoadProjectTasks() throws Exception { // NOSONAR
     ProjectDto project = mock(ProjectDto.class);
@@ -1216,12 +1739,60 @@ public class TaskMcpToolTest {
                                                                 .thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null, null));
 
     assertEquals(1, result.getTasks().size());
     assertEquals(1L, result.getCount());
     verify(projectService, atLeastOnce()).getProject(PROJECT_ID);
     verify(taskService).findLastUpdatedTasks(any(), eq(0), eq(10));
+  }
+
+  /**
+   * A title narrows the tasks of the project: the query keeps the project
+   * condition and adds, beside it in the same conjunction, a literal,
+   * case-insensitive title match on the trimmed title. The count runs on that
+   * same query.
+   * Mutants: the title not passed to the query, passed untrimmed, passed as a
+   * LIKE pattern, or joined to the project by a disjunction.
+   */
+  @Test
+  public void listTasksNarrowsTheProjectByTitle() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(PROJECT_ID, false, false, null, null, null, "  Live Check 2 ");
+
+    List<Condition> conjunction = conjunction(query.getValue());
+    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
+    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.CONTAINS, "title", "Live Check 2")));
+    verify(taskService).countTasks(query.getValue());
+  }
+
+  /**
+   * Without a project, a title narrows the tasks the user can access: the
+   * accessibility disjunction and the title match are both members of the
+   * query's conjunction, so the title never widens what is listed. A blank
+   * title adds no condition.
+   * Mutants: the title added as an alternative to the accessibility, or a
+   * blank title matching every title.
+   */
+  @Test
+  public void listTasksNarrowsTheAccessibleTasksByTitle() throws Exception { // NOSONAR
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(null, false, false, null, null, null, "Live");
+    tool.listTasks(null, false, false, null, null, null, "  ");
+
+    List<Condition> withTitle = conjunction(query.getAllValues().get(0));
+    assertTrue(withTitle.stream()
+                        .anyMatch(c -> c instanceof AggregateCondition aggregate && AggregateCondition.OR.equals(aggregate.getType())));
+    assertTrue(withTitle.stream().anyMatch(c -> isSingle(c, SingleCondition.CONTAINS, "title", "Live")));
+    List<Condition> blank = conjunction(query.getAllValues().get(1));
+    assertTrue(blank.stream().noneMatch(c -> c instanceof SingleCondition<?> single && "title".equals(single.getField())));
   }
 
   @Test(expected = IllegalAccessException.class)
@@ -1231,14 +1802,14 @@ public class TaskMcpToolTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(false);
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null);
   }
 
   @Test(expected = ObjectNotFoundException.class)
   public void listTasksWithProjectWhenProjectServiceThrowsEntityNotFoundShouldThrowObjectNotFound() throws Exception { // NOSONAR
     when(projectService.getProject(PROJECT_ID)).thenThrow(new EntityNotFoundException(PROJECT_ID, ProjectDto.class));
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null);
   }
 
   @Test
@@ -1261,6 +1832,18 @@ public class TaskMcpToolTest {
 
     assertEquals(1, result.getLastUpdatedTasks().size());
     assertEquals(1, result.getOtherUncompletedTasks().size());
+  }
+
+  /**
+   * @param projectId a project id
+   * @return a label of that project
+   */
+  private LabelDto projectLabel(long projectId) {
+    LabelDto label = mock(LabelDto.class);
+    ProjectDto project = mock(ProjectDto.class);
+    lenient().when(project.getId()).thenReturn(projectId);
+    lenient().when(label.getProject()).thenReturn(project);
+    return label;
   }
 
   @SneakyThrows
@@ -1348,7 +1931,21 @@ public class TaskMcpToolTest {
             userAcl,
             portalConfigService,
             permanentLinkService,
-            favoriteService);
+            favoriteService,
+            spaceScopeResolver);
+    }
+
+    @Override
+    protected boolean isSpaceScoped() {
+      return currentSpaceScoped;
+    }
+
+    @Override
+    protected Long getScopeSpaceId() {
+      if (scopeUnreadable) {
+        throw new IllegalStateException("No acting identity");
+      }
+      return currentScopeSpaceId;
     }
 
     @Override
@@ -1416,6 +2013,30 @@ public class TaskMcpToolTest {
       }
     }
     return false;
+  }
+
+  /**
+   * @param query a task query
+   * @return the members of its root conjunction
+   */
+  private static List<Condition> conjunction(TaskQuery query) {
+    AggregateCondition root = (AggregateCondition) query.getCondition();
+    assertEquals(AggregateCondition.AND, root.getType());
+    return root.getConditions();
+  }
+
+  /**
+   * @param condition a condition
+   * @param type the expected type
+   * @param field the expected field
+   * @param value the expected value
+   * @return whether it is a single condition of that type, field and value
+   */
+  private static boolean isSingle(Condition condition, String type, String field, Object value) {
+    return condition instanceof SingleCondition<?> single
+           && type.equals(single.getType())
+           && field.equals(single.getField())
+           && value.equals(single.getValue());
   }
 
   /**
