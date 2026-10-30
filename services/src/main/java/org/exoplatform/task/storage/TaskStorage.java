@@ -153,6 +153,21 @@ public interface TaskStorage {
 
     List<ChangeLogEntry> getTaskLogs(long taskId, int offset, int limit) throws Exception;
 
+    /**
+     * Reads one page of a task's change log, newest first, after the last
+     * entry already read.
+     *
+     * @param taskId the task id
+     * @param beforeTime the date, in milliseconds, of the last entry already
+     *          read, or null to read from the newest
+     * @param beforeId the id of the last entry already read, ignored when
+     *          beforeTime is null
+     * @param limit the maximum number of entries
+     * @return the entries older than the last one read, or dated alike with a
+     *         lower id, newest first and, on the same date, highest id first
+     */
+    List<ChangeLogEntry> getTaskLogsBefore(long taskId, Long beforeTime, Long beforeId, int limit);
+
     List<Object[]> countTaskStatusByProject(long projectId);
 
     /**
