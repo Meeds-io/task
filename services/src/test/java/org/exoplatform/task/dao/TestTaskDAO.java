@@ -1087,6 +1087,34 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   /**
+   * Entries an upgrade left without a date read after the dated ones, as if
+   * dated 0, highest id first, page after page from a cursor dated 0, whether
+   * a page boundary falls on a dated or an undated entry; the dated ones are
+   * never hidden behind them.
+   */
+  @Test
+  public void testFindTaskLogsBeforeReadsUndatedEntriesLast() {
+    Task task = newTaskInstance("upgraded", "", username);
+    tDAO.create(task);
+    ChangeLog undatedLow = addLogEntry(task, null);
+    ChangeLog older = addLogEntry(task, new Date(1_700_000_000_000L));
+    ChangeLog undatedMiddle = addLogEntry(task, null);
+    ChangeLog undatedHigh = addLogEntry(task, null);
+    ChangeLog newer = addLogEntry(task, new Date(1_700_000_060_000L));
+    TaskLogHandler logHandler = daoHandler.getTaskLogHandler();
+
+    List<ChangeLog> page1 = logHandler.findTaskLogsBefore(task.getId(), null, null, 3);
+    assertEquals(List.of(newer.getId(), older.getId(), undatedHigh.getId()), ids(page1));
+    List<ChangeLog> page2 = logHandler.findTaskLogsBefore(task.getId(), new Date(0), undatedHigh.getId(), 3);
+    assertEquals(List.of(undatedMiddle.getId(), undatedLow.getId()), ids(page2));
+
+    List<ChangeLog> dated = logHandler.findTaskLogsBefore(task.getId(), null, null, 2);
+    assertEquals(List.of(newer.getId(), older.getId()), ids(dated));
+    List<ChangeLog> next = logHandler.findTaskLogsBefore(task.getId(), older.getCreatedTime(), older.getId(), 2);
+    assertEquals(List.of(undatedHigh.getId(), undatedMiddle.getId()), ids(next));
+  }
+
+  /**
    * The service reads a page of the change log in milliseconds and refuses a
    * cursor sent half, and a limit out of 1 to its bound.
    */
