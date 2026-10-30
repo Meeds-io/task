@@ -57,6 +57,8 @@
   </div>
 </template>
 <script>
+import { isComponentIndicator } from '../../../../js/taskCardIndicators.js';
+
 export default {
   inject: {
     taskCardIndicators: {
@@ -79,14 +81,7 @@ export default {
     },
   },
   methods: {
-    /**
-     * @param {object} indicator a provider's indicator
-     * @returns {boolean} true when it names a registered component, which
-     *          renders it; otherwise it shows as a marker with its label
-     */
-    isRendered(indicator) {
-      return !!indicator.component && !!Vue.component(indicator.component);
-    },
+    isRendered: isComponentIndicator,
   },
 };
 </script>
