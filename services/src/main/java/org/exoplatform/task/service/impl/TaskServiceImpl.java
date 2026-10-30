@@ -211,6 +211,20 @@ public class TaskServiceImpl implements TaskService {
      * {@inheritDoc}
      */
     @Override
+    public List<ChangeLogEntry> getTaskLogsBefore(long taskId, Long beforeTime, Long beforeId, int limit) {
+        if ((beforeTime == null) != (beforeId == null)) {
+            throw new IllegalArgumentException("task.logs.invalidCursor");
+        }
+        if (limit < 1 || limit > MAX_TASK_LOGS_PAGE) {
+            throw new IllegalArgumentException("task.logs.invalidLimit");
+        }
+        return taskStorage.getTaskLogsBefore(taskId, beforeTime, beforeId, limit);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void addChangeFilter(TaskQuery query, TaskChangeFilter filter) {
         if (filter == null) {
             return;

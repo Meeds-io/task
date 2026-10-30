@@ -46,6 +46,7 @@ import org.exoplatform.task.dao.condition.PredicateCondition;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.domain.*;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.service.impl.TaskServiceImpl;
@@ -1023,6 +1024,97 @@ public class TestTaskDAO extends AbstractTest {
     Assert.assertEquals(1,  ListUtil.getSize(logs));
   }
   
+  /**
+   * The change log reads page after page by the last entry read: newest
+   * first, entries of the same date by highest id first, nothing read twice or
+   * skipped across a page boundary that splits entries of the same date, and
+   * an entry added between two pages neither repeats nor hides an older one.
+   * Another task's entries never show.
+   */
+  @Test
+  public void testFindTaskLogsBeforePagesByDateThenId() {
+    Task task = newTaskInstance("logged", "", username);
+    tDAO.create(task);
+    Task other = newTaskInstance("other", "", username);
+    tDAO.create(other);
+    Date oldest = new Date(1_700_000_000_000L);
+    Date tied = new Date(1_700_000_060_000L);
+    Date newest = new Date(1_700_000_120_000L);
+    ChangeLog first = addLogEntry(task, oldest);
+    ChangeLog tiedLow = addLogEntry(task, tied);
+    ChangeLog tiedMiddle = addLogEntry(task, tied);
+    addLogEntry(other, tied);
+    ChangeLog tiedHigh = addLogEntry(task, tied);
+    ChangeLog last = addLogEntry(task, newest);
+    TaskLogHandler logHandler = daoHandler.getTaskLogHandler();
+
+    List<ChangeLog> page1 = logHandler.findTaskLogsBefore(task.getId(), null, null, 2);
+    assertEquals(List.of(last.getId(), tiedHigh.getId()), ids(page1));
+
+    addLogEntry(task, new Date(1_700_000_180_000L));
+    List<ChangeLog> page2 = logHandler.findTaskLogsBefore(task.getId(), tiedHigh.getCreatedTime(), tiedHigh.getId(), 2);
+    assertEquals(List.of(tiedMiddle.getId(), tiedLow.getId()), ids(page2));
+
+    List<ChangeLog> page3 = logHandler.findTaskLogsBefore(task.getId(), tiedLow.getCreatedTime(), tiedLow.getId(), 2);
+    assertEquals(List.of(first.getId()), ids(page3));
+
+    assertEquals(List.of(), logHandler.findTaskLogsBefore(task.getId(), first.getCreatedTime(), first.getId(), 2));
+  }
+
+  /**
+   * The service reads a page of the change log in milliseconds and refuses a
+   * cursor sent half, and a limit out of 1 to its bound.
+   */
+  @Test
+  public void testGetTaskLogsBeforeChecksItsCursorAndLimit() {
+    Task task = newTaskInstance("logged", "", username);
+    tDAO.create(task);
+    ChangeLog older = addLogEntry(task, new Date(1_700_000_000_000L));
+    ChangeLog newer = addLogEntry(task, new Date(1_700_000_060_000L));
+
+    List<ChangeLogEntry> page = taskService.getTaskLogsBefore(task.getId(), newer.getCreatedTime().getTime(), newer.getId(), 1);
+    assertEquals(1, page.size());
+    assertEquals(older.getId(), page.get(0).getId());
+    assertEquals(2, taskService.getTaskLogsBefore(task.getId(), null, null, TaskService.MAX_TASK_LOGS_PAGE).size());
+
+    assertRefused("task.logs.invalidCursor", () -> taskService.getTaskLogsBefore(task.getId(), 1L, null, 1));
+    assertRefused("task.logs.invalidCursor", () -> taskService.getTaskLogsBefore(task.getId(), null, 1L, 1));
+    assertRefused("task.logs.invalidLimit", () -> taskService.getTaskLogsBefore(task.getId(), null, null, 0));
+    assertRefused("task.logs.invalidLimit",
+                  () -> taskService.getTaskLogsBefore(task.getId(), null, null, TaskService.MAX_TASK_LOGS_PAGE + 1));
+  }
+
+  /**
+   * @param code the code the call must be refused with
+   * @param call the call
+   */
+  private void assertRefused(String code, Runnable call) {
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class, call::run);
+    assertEquals(code, refusal.getMessage());
+  }
+
+  /**
+   * @param task a task
+   * @param createdTime the date of the entry
+   * @return the change log entry added to the task at that date
+   */
+  private ChangeLog addLogEntry(Task task, Date createdTime) {
+    ChangeLog log = new ChangeLog();
+    log.setTask(task);
+    log.setAuthor(username);
+    log.setActionName("edit_title");
+    log.setCreatedTime(createdTime);
+    return daoHandler.getTaskLogHandler().create(log);
+  }
+
+  /**
+   * @param logs change log entries
+   * @return their ids, in order
+   */
+  private List<Long> ids(List<ChangeLog> logs) {
+    return logs.stream().map(ChangeLog::getId).toList();
+  }
+
   @Test
   public void testTaskField() throws Exception {
     Task task = newTaskInstance("Task 1", "", null);
