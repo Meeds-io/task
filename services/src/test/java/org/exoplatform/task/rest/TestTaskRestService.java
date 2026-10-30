@@ -27,6 +27,8 @@ import static org.mockito.Mockito.*;
 
 import java.util.*;
 
+import javax.ws.rs.core.CacheControl;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
@@ -707,7 +709,9 @@ public class TestTaskRestService {
     task.setAssignee("root");
 
     ConversationState.setCurrent(new ConversationState(new Identity("root")));
-    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), taskRestService.getTaskLogsPage(1, null, null, 20).getStatus());
+    Response missing = taskRestService.getTaskLogsPage(1, null, null, 20);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), missing.getStatus());
+    assertNotStored(missing);
 
     when(taskService.getTask(1)).thenReturn(task);
     ChangeLogEntry entry = new ChangeLogEntry();
@@ -716,15 +720,29 @@ public class TestTaskRestService {
     Response page = taskRestService.getTaskLogsPage(1, 1000L, 8L, 20);
     assertEquals(Response.Status.OK.getStatusCode(), page.getStatus());
     assertEquals(List.of(entry), page.getEntity());
+    assertNotStored(page);
 
     when(taskService.getTaskLogsBefore(1, 1000L, null, 20)).thenThrow(new IllegalArgumentException("task.logs.invalidCursor"));
     Response invalid = taskRestService.getTaskLogsPage(1, 1000L, null, 20);
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), invalid.getStatus());
     assertEquals("task.logs.invalidCursor", invalid.getEntity());
+    assertNotStored(invalid);
 
     ConversationState.setCurrent(new ConversationState(new Identity("mary")));
-    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), taskRestService.getTaskLogsPage(1, 1000L, 8L, 20).getStatus());
+    Response forbidden = taskRestService.getTaskLogsPage(1, 1000L, 8L, 20);
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), forbidden.getStatus());
+    assertNotStored(forbidden);
     verify(taskService, times(1)).getTaskLogsBefore(1, 1000L, 8L, 20);
+  }
+
+  /**
+   * @param response an answer read for one user
+   */
+  private static void assertNotStored(Response response) {
+    CacheControl cacheControl = (CacheControl) response.getMetadata().getFirst(HttpHeaders.CACHE_CONTROL);
+    assertNotNull(cacheControl);
+    assertTrue(cacheControl.isNoStore());
+    assertTrue(cacheControl.isPrivate());
   }
 
   @Test
