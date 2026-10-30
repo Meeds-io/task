@@ -21,7 +21,11 @@
  * extensionRegistry.registerExtension(EXTENSION_APP, EXTENSION_TYPE, {id, rank, load})
  * where load(projectId, taskIds) resolves to an array of
  * {taskId, label, title, color}: label is shown on the card, title says why,
- * color is a Vuetify color, 'error' by default. The board asks every
+ * color is a Vuetify color, 'error' by default. An indicator may instead
+ * name a globally registered Vue component as `component`: the card and the
+ * list row render it with the props {indicator, taskId, dense}, the whole
+ * indicator passed as is, and label stays its text where no component
+ * renders, the Gantt bar's popup. The board asks every
  * provider once for the cards it shows, never once per card; a provider
  * dispatches CHANGED_EVENT on document, with {detail: {taskId}}, when a
  * card's markers change, and the board asks again for all its cards.
