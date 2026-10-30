@@ -43,7 +43,9 @@ public interface TaskLogHandler extends GenericDAO<ChangeLog, Long> {
    *          beforeTime is null
    * @param limit the maximum number of entries
    * @return the entries older than the last one read, or dated alike with a
-   *         lower id, newest first and, on the same date, highest id first
+   *         lower id, newest first and, on the same date, highest id first;
+   *         the undated entries last, as if dated 0, which a beforeTime of 0
+   *         pages through
    */
   List<ChangeLog> findTaskLogsBefore(Long taskId, Date beforeTime, Long beforeId, int limit);
 }
