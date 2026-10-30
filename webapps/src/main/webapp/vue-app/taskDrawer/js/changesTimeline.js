@@ -28,12 +28,13 @@
  * A change is given out only while every source not yet exhausted has one
  * read ahead, so that no older change of a source is given out before a newer
  * one of another source not read yet. A source whose read fails is dropped:
- * the changes of the others still come.
+ * the changes of the others still come, and the timeline tells it failed.
  *
  * @param {Array<object>} sources the sources
  * @param {number} pageSize the most changes each read of a source asks for
  * @returns {object} the timeline: next(count) gives the following changes,
- *          each as {sourceId, entry}; hasMore() tells whether any is left
+ *          each as {sourceId, entry}; hasMore() tells whether any is left;
+ *          hasFailed() whether a source could not be read
  */
 export function createTimeline(sources, pageSize) {
   const states = sources.map(source => ({
@@ -41,6 +42,7 @@ export function createTimeline(sources, pageSize) {
     buffer: [],
     cursor: null,
     exhausted: false,
+    failed: false,
   }));
 
   /**
@@ -60,6 +62,7 @@ export function createTimeline(sources, pageSize) {
       .catch(() => {
         state.buffer = [];
         state.exhausted = true;
+        state.failed = true;
       });
   }
 
@@ -124,7 +127,15 @@ export function createTimeline(sources, pageSize) {
     return states.some(state => state.buffer.length || !state.exhausted);
   }
 
-  return {next, hasMore};
+  /**
+   * @returns {boolean} whether a source could not be read, so that some of
+   *          its changes may be missing
+   */
+  function hasFailed() {
+    return states.some(state => state.failed);
+  }
+
+  return {next, hasMore, hasFailed};
 }
 
 /**

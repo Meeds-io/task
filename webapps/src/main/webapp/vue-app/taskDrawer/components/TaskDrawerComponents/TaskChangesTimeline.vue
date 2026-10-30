@@ -54,6 +54,11 @@
       indeterminate
       color="primary" />
     <div
+      v-else-if="failed"
+      class="taskChangesTimelineError text-light-color text-body-2 pa-4">
+      {{ $t('label.changes.error') }}
+    </div>
+    <div
       v-else-if="!lines.length && !hasMore"
       class="taskChangesTimelineEmpty text-light-color text-body-2 pa-4">
       {{ $t('label.changes.empty') }}
@@ -89,13 +94,17 @@ export default {
     lines: [],
     loading: false,
     hasMore: false,
+    failed: false,
     timeline: null,
     generation: 0,
     observer: null,
   }),
+  /** Reads the sources, and again when an add-on registers one late. */
   created() {
+    document.addEventListener(`component-TaskDrawer-${SOURCE_TYPE}-updated`, this.refreshSources);
     this.loadSources();
   },
+  /** Loads the following changes whenever the end of the list comes into view. */
   mounted() {
     this.observer = new IntersectionObserver(observed => {
       if (observed.some(entry => entry.isIntersecting)) {
@@ -104,7 +113,9 @@ export default {
     });
     this.observer.observe(this.$refs.end);
   },
+  /** Drops every answer still to come and stops watching the list and the registry. */
   beforeDestroy() {
+    document.removeEventListener(`component-TaskDrawer-${SOURCE_TYPE}-updated`, this.refreshSources);
     this.generation++;
     if (this.observer) {
       this.observer.disconnect();
@@ -135,6 +146,16 @@ export default {
             this.select(this.ALL);
           }
         });
+    },
+    /**
+     * Reads the sources again when one is registered after the timeline
+     * opened, while it shows no change yet, so that no line read is lost.
+     *
+     * @returns {Promise} settled once the first changes are shown, or at once
+     *          when changes already show
+     */
+    refreshSources() {
+      return this.lines.length && Promise.resolve() || this.loadSources();
     },
     /**
      * @param {object} source the options a source was registered with
@@ -190,6 +211,7 @@ export default {
       })), PAGE_SIZE);
       this.lines = [];
       this.hasMore = true;
+      this.failed = false;
       this.loading = false;
       return this.loadMore();
     },
@@ -213,6 +235,7 @@ export default {
         }
         this.lines.push(...lines);
         this.hasMore = timeline.hasMore();
+        this.failed = timeline.hasFailed();
         this.loading = false;
         // the end marker is measured once the new lines are rendered
         return this.$nextTick().then(() => this.isEndInView() && this.loadMore());
