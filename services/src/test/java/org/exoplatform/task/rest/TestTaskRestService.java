@@ -35,6 +35,8 @@ import javax.ws.rs.ext.RuntimeDelegate;
 import org.exoplatform.task.TestUtils;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
+import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.User;
 import org.exoplatform.task.rest.model.PaginatedTaskList;
 import org.exoplatform.task.rest.model.ViewState;
@@ -712,6 +714,10 @@ public class TestTaskRestService {
     Response missing = taskRestService.getTaskLogsPage(1, null, null, 20);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), missing.getStatus());
     assertNotStored(missing);
+    when(taskService.getTask(2)).thenThrow(new EntityNotFoundException(2L, Task.class));
+    Response unknown = taskRestService.getTaskLogsPage(2, null, null, 20);
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), unknown.getStatus());
+    assertNotStored(unknown);
 
     when(taskService.getTask(1)).thenReturn(task);
     ChangeLogEntry entry = new ChangeLogEntry();
