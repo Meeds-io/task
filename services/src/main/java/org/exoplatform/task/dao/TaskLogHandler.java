@@ -26,6 +26,10 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.domain.ChangeLog;
 
 public interface TaskLogHandler extends GenericDAO<ChangeLog, Long> {
+  /**
+   * @param taskId the task id
+   * @return the task's change log, newest first
+   */
   ListAccess<ChangeLog> findTaskLogs(Long taskId);
 
   /**
