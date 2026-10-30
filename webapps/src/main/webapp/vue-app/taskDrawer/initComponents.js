@@ -24,6 +24,9 @@ import TaskStatus from './components/TaskDrawerComponents/TasksStatus.vue';
 import TaskFormDatePickers from './components/TaskDrawerComponents/TaskFormDatePickers.vue';
 import TaskChangesDrawer from './components/TaskDrawerComponents/TaskChangesDrawer.vue';
 import TaskChangesLog from './components/TaskDrawerComponents/TaskChangesLog.vue';
+import TaskChangesLogItem from './components/TaskDrawerComponents/TaskChangesLogItem.vue';
+import TaskChangesTimeline from './components/TaskDrawerComponents/TaskChangesTimeline.vue';
+import TaskChangesTimelineTaskLine from './components/TaskDrawerComponents/TaskChangesTimelineTaskLine.vue';
 import TaskChangesTabs from './components/TaskDrawerComponents/TaskChangesTabs.vue';
 import TaskDrawerField from './components/TaskDrawerComponents/TaskDrawerField.vue';
 
@@ -38,6 +41,9 @@ const components = {
   'task-form-date-pickers': TaskFormDatePickers,
   'task-changes-drawer': TaskChangesDrawer,
   'task-changes-log': TaskChangesLog,
+  'task-changes-log-item': TaskChangesLogItem,
+  'task-changes-timeline': TaskChangesTimeline,
+  'task-changes-timeline-task-line': TaskChangesTimelineTaskLine,
   'task-changes-tabs': TaskChangesTabs,
   'task-drawer-field': TaskDrawerField,
 };
