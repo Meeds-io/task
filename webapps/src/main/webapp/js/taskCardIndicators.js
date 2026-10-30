@@ -24,11 +24,11 @@
  * color is a Vuetify color, 'error' by default. An indicator may instead
  * name a globally registered Vue component as `component`: the card and the
  * list row render it with the props {indicator, taskId, dense}, the whole
- * indicator passed as is, and label stays its text where no component
- * renders, the Gantt bar's popup. The board asks every
- * provider once for the cards it shows, never once per card; a provider
- * dispatches CHANGED_EVENT on document, with {detail: {taskId}}, when a
- * card's markers change, and the board asks again for all its cards.
+ * indicator passed as is, and label alone, in the default text colour, is
+ * its line in the Gantt bar's popup, where no component renders. The board
+ * asks every provider once for the cards it shows, never once per card; a
+ * provider dispatches CHANGED_EVENT on document, with {detail: {taskId}},
+ * when a card's markers change, and the board asks again for all its cards.
  */
 export const EXTENSION_APP = 'TaskCardIndicators';
 
