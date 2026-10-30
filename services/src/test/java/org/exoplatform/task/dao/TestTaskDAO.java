@@ -1348,7 +1348,8 @@ public class TestTaskDAO extends AbstractTest {
   /**
    * An assignee criterion selects the cards assigned to the given users, and,
    * when coworkers count, the cards they work on as coworkers: a card with two
-   * matching coworkers comes out once, in the page and in the count. An
+   * matching coworkers comes out once, in the page and in the count, and a
+   * card only someone else works on never comes out. An
    * unassigned card has no assignee, null or empty, and, when coworkers
    * count, no coworker either.
    */
@@ -1361,6 +1362,7 @@ public class TestTaskDAO extends AbstractTest {
     Task maryHelpsAlone = newCard("mary helps, no assignee", todo, null, "mary");
     Task nobodys = newCard("nobody's", todo, null);
     Task emptyAssignee = newCard("empty assignee", todo, "");
+    Task paulHelpsAlone = newCard("paul helps, no assignee", todo, null, "paul");
     List<Long> boards = Arrays.asList(alpha.getId());
 
     TaskQuery roots = boardsQuery(boards);
@@ -1377,7 +1379,7 @@ public class TestTaskDAO extends AbstractTest {
 
     TaskQuery unassigned = boardsQuery(boards);
     unassigned.setUnassigned(false);
-    assertCards(unassigned, emptyAssignee, nobodys, maryHelpsAlone);
+    assertCards(unassigned, paulHelpsAlone, emptyAssignee, nobodys, maryHelpsAlone);
 
     TaskQuery nobodyOn = boardsQuery(boards);
     nobodyOn.setUnassigned(true);

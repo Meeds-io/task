@@ -43,13 +43,23 @@ import org.exoplatform.task.domain.Task;
  * due or the start date, and the labels by their name (EXO-92467).
  * <p>
  * Every criterion over a collection (the coworkers, the labels) or another
- * entity (the column) is a correlated EXISTS or NOT EXISTS subquery rather
- * than a join on the query's root. The task DAO selects and counts distinct
- * tasks, so a join would not repeat a card; the subquery keeps each criterion
- * independent of the query's other joins, lets two label criteria match two
- * different labels of the same card, and states the negations (« none of »,
- * no coworker) directly. Each condition only narrows the query it is added
- * to, and is never placed under an OR.
+ * entity (the column) is a subquery rather than a join on the query's root.
+ * The task DAO selects and counts distinct tasks, so a join would not repeat
+ * a card; the subquery keeps each criterion independent of the query's other
+ * joins, lets two label criteria match two different labels of the same
+ * card, and states the negations (« none of », no coworker) directly. The
+ * column, the labels and « no coworker » are correlated EXISTS or NOT EXISTS
+ * subqueries, which PostgreSQL turns into a semi-join or an anti-join. The
+ * coworkers of « one of these users » are an uncorrelated IN over the cards'
+ * ids instead: beside the assignee, under an OR, PostgreSQL cannot turn a
+ * correlated EXISTS into a semi-join and runs it once per card, and
+ * {@code TASK_TASK_COWORKERS} has no index on its task there, so each run read
+ * the whole table (15.8 s at the forms design bound, EXO-92467); the
+ * uncorrelated set is read once, through the index on the coworker. That set
+ * stays small, the cards of at most a few users, where the set of every card
+ * with a coworker would not: past the memory PostgreSQL hashes a NOT IN's set
+ * in, it reads that set again for each card. Each condition only narrows the
+ * query it is added to, and is never placed under an OR.
  */
 public final class CardConditions {
 
@@ -96,7 +106,7 @@ public final class CardConditions {
     List<String> users = List.copyOf(usernames);
     return new PredicateCondition<>((cb, query, root) -> {
       Predicate assignee = root.get("assignee").in(users);
-      return includeCoworkers ? cb.or(assignee, cb.exists(coworkers(cb, query, root, users))) : assignee;
+      return includeCoworkers ? cb.or(assignee, root.get("id").in(coworkedCards(query, users))) : assignee;
     });
   }
 
@@ -111,7 +121,7 @@ public final class CardConditions {
     return new PredicateCondition<>((cb, query, root) -> {
       Path<String> assignee = root.get("assignee");
       Predicate noAssignee = cb.or(cb.isNull(assignee), cb.equal(assignee, ""));
-      return includeCoworkers ? cb.and(noAssignee, cb.not(cb.exists(coworkers(cb, query, root, null)))) : noAssignee;
+      return includeCoworkers ? cb.and(noAssignee, cb.not(cb.exists(coworkers(cb, query, root)))) : noAssignee;
     });
   }
 
@@ -198,21 +208,36 @@ public final class CardConditions {
   }
 
   /**
-   * Builds the subquery of a card's coworkers, all of them or only the given
-   * users.
+   * Builds the subquery of the ids of the cards some users work on as
+   * coworkers. It is not correlated with the query's card, so the database
+   * reads it once, through the index on the coworker.
+   *
+   * @param query the query the subquery belongs to
+   * @param users the coworkers to look for
+   * @return the subquery of the cards' ids
+   */
+  private static Subquery<Long> coworkedCards(CriteriaQuery<?> query, List<String> users) {
+    Subquery<Long> cards = query.subquery(Long.class);
+    Root<Task> card = cards.from(Task.class);
+    Join<Task, String> coworker = card.join("coworker");
+    cards.select(card.get("id")).where(coworker.in(users));
+    return cards;
+  }
+
+  /**
+   * Builds the subquery of a card's coworkers, correlated on the query's card,
+   * for a NOT EXISTS the database runs as an anti-join.
    *
    * @param cb the criteria builder
    * @param query the query the subquery belongs to
    * @param root the card of that query
-   * @param users the coworkers to look for; null for any
-   * @return the subquery, correlated on the card's id
+   * @return the subquery, one row per coworker of the card
    */
-  private static Subquery<Long> coworkers(CriteriaBuilder cb, CriteriaQuery<?> query, Root<Task> root, List<String> users) {
+  private static Subquery<Long> coworkers(CriteriaBuilder cb, CriteriaQuery<?> query, Root<Task> root) {
     Subquery<Long> coworkers = query.subquery(Long.class);
     Root<Task> card = coworkers.from(Task.class);
-    Join<Task, String> coworker = card.join("coworker");
-    Predicate sameCard = cb.equal(card.get("id"), root.get("id"));
-    coworkers.select(card.get("id")).where(users == null ? sameCard : cb.and(sameCard, coworker.in(users)));
+    card.join("coworker");
+    coworkers.select(card.get("id")).where(cb.equal(card.get("id"), root.get("id")));
     return coworkers;
   }
 
