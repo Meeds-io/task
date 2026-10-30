@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -64,6 +65,7 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.dao.condition.Condition;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.CommentDto;
@@ -1024,6 +1026,55 @@ public class TaskRestService implements ResourceContainer {
         LOG.error("Can't get Task {} Logs", id, e);
         return Response.serverError().entity(e.getMessage()).build();
         }
+  }
+
+  /**
+   * Reads one page of a task's change log, newest first, after the last entry
+   * the caller already read, so that the pages of a long log can be read one
+   * by one with no entry read twice or skipped.
+   *
+   * @param id the task id
+   * @param beforeTime the date, in milliseconds, of the last entry already
+   *          read; none for the first page
+   * @param beforeId the id of the last entry already read, sent with
+   *          beforeTime
+   * @param limit the maximum number of entries, 20 by default
+   * @return the entries, newest first and, on the same date, highest id
+   *         first; 400 with the code of an invalid cursor or limit, 403 when
+   *         the caller may not view the task, 404 when it does not exist
+   */
+  @GET
+  @Path("logs/{id}/page")
+  @RolesAllowed("users")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Operation(summary = "Gets a page of the logs of a specific task", method = "GET",
+             description = "Newest first, the entries older than the last one read")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "400", description = "Invalid cursor or limit"),
+      @ApiResponse(responseCode = "403", description = "Forbidden"),
+      @ApiResponse(responseCode = "404", description = "Resource not found") })
+  public Response getTaskLogsPage(@Parameter(description = "Task id", required = true) @PathParam("id") long id,
+                                  @Parameter(description = "Date in milliseconds of the last entry read") @QueryParam("beforeTime") Long beforeTime,
+                                  @Parameter(description = "Id of the last entry read") @QueryParam("beforeId") Long beforeId,
+                                  @Parameter(description = "Limit") @Schema(defaultValue = "20") @DefaultValue("20") @QueryParam("limit") int limit) {
+    try {
+      TaskDto task = taskService.getTask(id);
+      if (task == null) {
+        return Response.status(Response.Status.NOT_FOUND).build();
+      }
+      if (!TaskUtil.hasViewPermission(taskService, task)) {
+        return Response.status(Response.Status.FORBIDDEN).build();
+      }
+      return Response.ok(taskService.getTaskLogsBefore(id, beforeTime, beforeId, limit)).build();
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+    } catch (EntityNotFoundException e) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    } catch (Exception e) {
+      LOG.warn("Can't get a page of the logs of task {}", id, e);
+      return Response.serverError().build();
+    }
   }
 
   @GET
