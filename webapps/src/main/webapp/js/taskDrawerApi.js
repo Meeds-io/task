@@ -256,6 +256,34 @@ export function getTaskLogs(taskId) {
   });
 }
 
+/**
+ * Reads one page of a task's changes, newest first, after the last one read.
+ *
+ * @param {number} taskId the task id
+ * @param {object} [before] the last change read, as {time, id}; none for the first page
+ * @param {number} limit the most changes to read
+ * @returns {Promise<Array<object>>} the changes; rejected with the response status when refused
+ */
+export function getTaskLogsPage(taskId, before, limit) {
+  const params = new URLSearchParams({limit: String(limit)});
+  if (before) {
+    params.append('beforeTime', String(before.time));
+    params.append('beforeId', String(before.id));
+  }
+  return fetch(`/portal/rest/tasks/logs/${taskId}/page?${params}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      const error = new Error('Error when getting a page of task logs');
+      error.status = resp && resp.status;
+      throw error;
+    }
+  });
+}
+
 export function getTaskComments(taskId) {
   return fetch(`/portal/rest/tasks/comments/${taskId}`, {
     method: 'GET',
