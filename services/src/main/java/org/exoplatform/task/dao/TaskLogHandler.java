@@ -18,10 +18,28 @@
  */
 package org.exoplatform.task.dao;
 
+import java.util.Date;
+import java.util.List;
+
 import org.exoplatform.commons.api.persistence.GenericDAO;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.domain.ChangeLog;
 
 public interface TaskLogHandler extends GenericDAO<ChangeLog, Long> {
   ListAccess<ChangeLog> findTaskLogs(Long taskId);
+
+  /**
+   * Reads one page of a task's change log by its position, not by an offset:
+   * entries added while a reader pages are never read twice nor skipped.
+   *
+   * @param taskId the task id
+   * @param beforeTime the date of the last entry already read, or null to read
+   *          from the newest
+   * @param beforeId the id of the last entry already read, ignored when
+   *          beforeTime is null
+   * @param limit the maximum number of entries
+   * @return the entries older than the last one read, or dated alike with a
+   *         lower id, newest first and, on the same date, highest id first
+   */
+  List<ChangeLog> findTaskLogsBefore(Long taskId, Date beforeTime, Long beforeId, int limit);
 }
