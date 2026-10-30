@@ -1305,6 +1305,290 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   /**
+   * A column criterion matches the column of that name on every board, trimmed
+   * and ignoring case: « lost » finds the « Lost » card of alpha and the
+   * « LOST » card of beta, page and count alike. Excluded, it keeps every other
+   * card, including those of gamma, a board with no such column. Removing the
+   * lower-casing or the trimming loses beta's card; inverting the exclusion
+   * swaps the two results.
+   */
+  @Test
+  public void testFindTasksByStatusNamesAcrossBoards() throws Exception {
+    Project alpha = newBoard("Alpha");
+    Project beta = newBoard("Beta");
+    Project gamma = newBoard("Gamma");
+    Status alphaLost = newColumn(alpha, "Lost", 1);
+    Status alphaOpen = newColumn(alpha, "Open", 2);
+    Status betaLost = newColumn(beta, " LOST ", 1);
+    Status betaWon = newColumn(beta, "Won", 2);
+    Status gammaOpen = newColumn(gamma, "Open", 1);
+    Task lostInAlpha = newCard("lost in alpha", alphaLost, null);
+    Task openInAlpha = newCard("open in alpha", alphaOpen, null);
+    Task lostInBeta = newCard("lost in beta", betaLost, null);
+    Task wonInBeta = newCard("won in beta", betaWon, null);
+    Task openInGamma = newCard("open in gamma", gammaOpen, null);
+    List<Long> boards = Arrays.asList(alpha.getId(), beta.getId(), gamma.getId());
+
+    TaskQuery lost = boardsQuery(boards);
+    lost.setStatusNames(List.of("lost"), false);
+    assertCards(lost, lostInBeta, lostInAlpha);
+
+    TaskQuery lostOrWon = boardsQuery(boards);
+    lostOrWon.setStatusNames(List.of(" won", "Lost"), false);
+    assertCards(lostOrWon, wonInBeta, lostInBeta, lostInAlpha);
+
+    TaskQuery notLost = boardsQuery(boards);
+    notLost.setStatusNames(List.of("LOST"), true);
+    assertCards(notLost, openInGamma, wonInBeta, openInAlpha);
+
+    assertThrows(IllegalArgumentException.class, () -> new TaskQuery().setStatusNames(List.of(), false));
+    assertThrows(IllegalArgumentException.class, () -> new TaskQuery().setStatusNames(List.of(" "), false));
+  }
+
+  /**
+   * An assignee criterion selects the cards assigned to the given users, and,
+   * when coworkers count, the cards they work on as coworkers: a card with two
+   * matching coworkers comes out once, in the page and in the count, and a
+   * card only someone else works on never comes out. An
+   * unassigned card has no assignee, null or empty, and, when coworkers
+   * count, no coworker either.
+   */
+  @Test
+  public void testFindTasksByAssigneeAndCoworkers() throws Exception {
+    Project alpha = newBoard("Alpha");
+    Status todo = newColumn(alpha, "To do", 1);
+    Task rootsWithTwoCoworkers = newCard("root's, john and mary help", todo, "root", "john", "mary");
+    Task johns = newCard("john's", todo, "john");
+    Task maryHelpsAlone = newCard("mary helps, no assignee", todo, null, "mary");
+    Task nobodys = newCard("nobody's", todo, null);
+    Task emptyAssignee = newCard("empty assignee", todo, "");
+    Task paulHelpsAlone = newCard("paul helps, no assignee", todo, null, "paul");
+    List<Long> boards = Arrays.asList(alpha.getId());
+
+    TaskQuery roots = boardsQuery(boards);
+    roots.setAssignedTo(List.of("root"), false);
+    assertCards(roots, rootsWithTwoCoworkers);
+
+    TaskQuery johnsOrMarys = boardsQuery(boards);
+    johnsOrMarys.setAssignedTo(List.of("john", "mary"), false);
+    assertCards(johnsOrMarys, johns);
+
+    TaskQuery johnOrMaryWorksOn = boardsQuery(boards);
+    johnOrMaryWorksOn.setAssignedTo(List.of("john", "mary"), true);
+    assertCards(johnOrMaryWorksOn, maryHelpsAlone, johns, rootsWithTwoCoworkers);
+
+    TaskQuery unassigned = boardsQuery(boards);
+    unassigned.setUnassigned(false);
+    assertCards(unassigned, paulHelpsAlone, emptyAssignee, nobodys, maryHelpsAlone);
+
+    TaskQuery nobodyOn = boardsQuery(boards);
+    nobodyOn.setUnassigned(true);
+    assertCards(nobodyOn, emptyAssignee, nobodys);
+
+    assertThrows(IllegalArgumentException.class, () -> new TaskQuery().setAssignedTo(List.of(), true));
+  }
+
+  /**
+   * A date criterion compares the field it names, the start of the range
+   * included and its end excluded; a card with no date never falls in a range,
+   * and only the cards with no date match « is empty ». The start date is the
+   * start date, never the legacy end date, and the legacy end date is refused
+   * as a criterion.
+   */
+  @Test
+  public void testFindTasksByDueAndStartDates() throws Exception {
+    Project alpha = newBoard("Alpha");
+    Status todo = newColumn(alpha, "To do", 1);
+    Date day = Date.from(Instant.parse("2026-11-10T00:00:00Z"));
+    Date nextDay = Date.from(Instant.parse("2026-11-11T00:00:00Z"));
+    Task dueBefore = newCard("due before", todo, null);
+    dueBefore.setDueDate(Date.from(Instant.parse("2026-11-09T23:59:59Z")));
+    tDAO.update(dueBefore);
+    Task dueThatDay = newCard("due that day", todo, null);
+    dueThatDay.setDueDate(day);
+    tDAO.update(dueThatDay);
+    Task dueNextDay = newCard("due the next day", todo, null);
+    dueNextDay.setDueDate(nextDay);
+    tDAO.update(dueNextDay);
+    Task startsThatDay = newCard("starts that day, ends later", todo, null);
+    startsThatDay.setStartDate(day);
+    startsThatDay.setEndDate(nextDay);
+    tDAO.update(startsThatDay);
+    Task endsThatDay = newCard("only ends that day", todo, null);
+    endsThatDay.setEndDate(day);
+    tDAO.update(endsThatDay);
+    List<Long> boards = Arrays.asList(alpha.getId());
+
+    TaskQuery dueOnTheDay = boardsQuery(boards);
+    dueOnTheDay.setDateBetween(Conditions.TASK_DUEDATE, day, nextDay);
+    assertCards(dueOnTheDay, dueThatDay);
+
+    TaskQuery dueFromTheDay = boardsQuery(boards);
+    dueFromTheDay.setDateBetween(Conditions.TASK_DUEDATE, day, null);
+    assertCards(dueFromTheDay, dueNextDay, dueThatDay);
+
+    TaskQuery dueBeforeTheDay = boardsQuery(boards);
+    dueBeforeTheDay.setDateBetween(Conditions.TASK_DUEDATE, null, day);
+    assertCards(dueBeforeTheDay, dueBefore);
+
+    TaskQuery startsOnTheDay = boardsQuery(boards);
+    startsOnTheDay.setDateBetween(Conditions.TASK_START_DATE, day, nextDay);
+    assertCards(startsOnTheDay, startsThatDay);
+
+    TaskQuery noDueDate = boardsQuery(boards);
+    noDueDate.setNoDate(Conditions.TASK_DUEDATE);
+    assertCards(noDueDate, endsThatDay, startsThatDay);
+
+    TaskQuery noStartDate = boardsQuery(boards);
+    noStartDate.setNoDate(Conditions.TASK_START_DATE);
+    assertCards(noStartDate, endsThatDay, dueNextDay, dueThatDay, dueBefore);
+
+    assertThrows(IllegalArgumentException.class, () -> new TaskQuery().setDateBetween(Conditions.TASK_END_DATE, day, nextDay));
+    assertThrows(IllegalArgumentException.class, () -> new TaskQuery().setNoDate(Conditions.TASK_END_DATE));
+    assertThrows(IllegalArgumentException.class, () -> new TaskQuery().setDateBetween(Conditions.TASK_DUEDATE, null, null));
+  }
+
+  /**
+   * A label criterion matches a label by its name, trimmed and ignoring case,
+   * among the labels of the card's own board and the viewer's personal
+   * labels: another user's personal label and another board's label never
+   * match. A card with two matching labels comes out once. « has » with
+   * several names needs each of them; « has none of » keeps the cards with
+   * none of the names.
+   */
+  @Test
+  public void testFindTasksByLabelNames() throws Exception {
+    Project alpha = newBoard("Alpha");
+    Project beta = newBoard("Beta");
+    Status alphaTodo = newColumn(alpha, "To do", 1);
+    Status betaTodo = newColumn(beta, "To do", 1);
+    Label alphaHot = labelHandler.create(new Label("Hot", "john", alpha));
+    Label alphaCold = labelHandler.create(new Label("Cold", "john", alpha));
+    Label betaHot = labelHandler.create(new Label(" hot ", "john", beta));
+    Label johnsHot = labelHandler.create(new Label("Hot", "john", null));
+    Label rootsHot = labelHandler.create(new Label("HOT", username, null));
+    Task hotInAlpha = newLabelledCard("hot in alpha", alphaTodo, null, alphaHot);
+    Task hotInBeta = newLabelledCard("hot in beta", betaTodo, null, betaHot);
+    Task hotForJohnOnly = newLabelledCard("hot for john only", alphaTodo, null, johnsHot);
+    Task hotForRoot = newLabelledCard("hot for root", alphaTodo, null, rootsHot);
+    Task carriesBetasLabel = newLabelledCard("carries beta's label", alphaTodo, null, betaHot);
+    Task hotAndCold = newLabelledCard("hot and cold", alphaTodo, null, alphaHot, alphaCold);
+    Task unlabelled = newLabelledCard("unlabelled", betaTodo, null);
+    List<Long> boards = Arrays.asList(alpha.getId(), beta.getId());
+
+    TaskQuery hot = boardsQuery(boards);
+    hot.setLabelNamesAll(List.of("hot"), username);
+    assertCards(hot, hotAndCold, hotForRoot, hotInBeta, hotInAlpha);
+
+    TaskQuery hotOrCold = boardsQuery(boards);
+    hotOrCold.setLabelNamesAny(List.of("HOT", "cold "), username, false);
+    assertCards(hotOrCold, hotAndCold, hotForRoot, hotInBeta, hotInAlpha);
+
+    TaskQuery hotAndColdToo = boardsQuery(boards);
+    hotAndColdToo.setLabelNamesAll(List.of("Hot", "Cold"), username);
+    assertCards(hotAndColdToo, hotAndCold);
+
+    TaskQuery notHot = boardsQuery(boards);
+    notHot.setLabelNamesAny(List.of("hot"), username, true);
+    assertCards(notHot, unlabelled, carriesBetasLabel, hotForJohnOnly);
+
+    TaskQuery johnsView = boardsQuery(boards);
+    johnsView.setLabelNamesAll(List.of("hot"), "john");
+    assertCards(johnsView, hotAndCold, hotForJohnOnly, hotInBeta, hotInAlpha);
+
+    assertThrows(IllegalArgumentException.class, () -> new TaskQuery().setLabelNamesAny(List.of("hot"), null, false));
+    assertThrows(IllegalArgumentException.class, () -> new TaskQuery().setLabelNamesAll(List.of(), username));
+  }
+
+  /**
+   * Asserts that a query returns exactly the given cards, in that order, page
+   * and count alike, through the DAO and through the task service.
+   *
+   * @param query the query, ordered by id descending
+   * @param expected the cards, newest first
+   */
+  private void assertCards(TaskQuery query, Task... expected) throws Exception {
+    List<Long> expectedIds = Arrays.stream(expected).map(Task::getId).toList();
+    ListAccess<Task> found = tDAO.findTasks(query);
+    assertEquals(expectedIds.size(), found.getSize());
+    assertEquals(expectedIds, Arrays.stream(ListUtil.load(found, 0, -1)).map(Task::getId).toList());
+    assertEquals(expectedIds.size(), taskService.countTasks(query));
+    assertEquals(expectedIds, taskService.findTasks(query, 0, 50).stream().map(TaskDto::getId).toList());
+  }
+
+  /**
+   * Builds a query over the given boards, newest card first.
+   *
+   * @param boards the board ids
+   * @return the query
+   */
+  private TaskQuery boardsQuery(List<Long> boards) {
+    TaskQuery query = new TaskQuery();
+    query.setProjectIds(boards);
+    query.setOrderBy(Arrays.asList(new OrderBy.DESC("id")));
+    return query;
+  }
+
+  /**
+   * Creates a board.
+   *
+   * @param name its name
+   * @return the stored board
+   */
+  private Project newBoard(String name) {
+    Project project = new Project();
+    project.setName(name);
+    return daoHandler.getProjectHandler().create(project);
+  }
+
+  /**
+   * Creates a column of a board.
+   *
+   * @param board the board
+   * @param name the column name
+   * @param rank the column rank
+   * @return the stored column
+   */
+  private Status newColumn(Project board, String name, int rank) {
+    Status status = newStatusInstance(name, rank);
+    status.setProject(board);
+    return daoHandler.getStatusHandler().create(status);
+  }
+
+  /**
+   * Creates a card in a column, with its coworkers.
+   *
+   * @param title its title
+   * @param column its column
+   * @param assignee its assignee, null for none
+   * @param coworkers its coworkers
+   * @return the stored card
+   */
+  private Task newCard(String title, Status column, String assignee, String... coworkers) {
+    Task task = newTaskInstance(title, "", assignee);
+    task.setStatus(column);
+    task.setCoworker(new HashSet<>(Arrays.asList(coworkers)));
+    return tDAO.create(task);
+  }
+
+  /**
+   * Creates a card in a column, carrying labels.
+   *
+   * @param title its title
+   * @param column its column
+   * @param assignee its assignee, null for none
+   * @param labels its labels
+   * @return the stored card
+   */
+  private Task newLabelledCard(String title, Status column, String assignee, Label... labels) {
+    Task task = newCard(title, column, assignee, new String[0]);
+    for (Label label : labels) {
+      daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(label, task));
+    }
+    return task;
+  }
+
+  /**
    * Builds the subquery of the comments of the task at the root of a query.
    *
    * @param cb the criteria builder
