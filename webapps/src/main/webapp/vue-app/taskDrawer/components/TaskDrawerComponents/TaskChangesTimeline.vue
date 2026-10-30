@@ -99,12 +99,20 @@ export default {
     generation: 0,
     observer: null,
   }),
-  /** Reads the sources, and again when an add-on registers one late. */
+  /**
+   * Reads the sources, and again when an add-on registers one late.
+   *
+   * @returns {void}
+   */
   created() {
     document.addEventListener(`component-TaskDrawer-${SOURCE_TYPE}-updated`, this.refreshSources);
     this.loadSources();
   },
-  /** Loads the following changes whenever the end of the list comes into view. */
+  /**
+   * Loads the following changes whenever the end of the list comes into view.
+   *
+   * @returns {void}
+   */
   mounted() {
     this.observer = new IntersectionObserver(observed => {
       if (observed.some(entry => entry.isIntersecting)) {
@@ -113,7 +121,11 @@ export default {
     });
     this.observer.observe(this.$refs.end);
   },
-  /** Drops every answer still to come and stops watching the list and the registry. */
+  /**
+   * Drops every answer still to come and stops watching the list and the registry.
+   *
+   * @returns {void}
+   */
   beforeDestroy() {
     document.removeEventListener(`component-TaskDrawer-${SOURCE_TYPE}-updated`, this.refreshSources);
     this.generation++;
