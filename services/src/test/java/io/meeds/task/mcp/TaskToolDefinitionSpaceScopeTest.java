@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -102,6 +103,21 @@ public class TaskToolDefinitionSpaceScopeTest {
                                                           "add_task_coworker");
 
   private static final JsonMapper  MAPPER        = JsonMapper.builder().build();
+
+  /** The role each space-scoped write declares in {@code space_role}. */
+  private static final Map<String, String> SPACE_ROLES = Map.ofEntries(Map.entry("add_project_label_to_task", "member"),
+                                                                       Map.entry("add_task_comment", "member"),
+                                                                       Map.entry("add_task_coworker", "member"),
+                                                                       Map.entry("assign_task", "member"),
+                                                                       Map.entry("complete_task", "member"),
+                                                                       Map.entry("create_task_in_project", "member"),
+                                                                       Map.entry("remove_project_label_from_task", "member"),
+                                                                       Map.entry("reopen_task", "member"),
+                                                                       Map.entry("set_task_dates", "member"),
+                                                                       Map.entry("set_task_priority", "member"),
+                                                                       Map.entry("update_task_description", "member"),
+                                                                       Map.entry("update_task_status", "member"),
+                                                                       Map.entry("update_task_title", "member"));
 
   /**
    * Exactly twenty task tools declare a space scope, each well formed for what
@@ -457,6 +473,40 @@ public class TaskToolDefinitionSpaceScopeTest {
     } catch (Exception e) {
       throw new IllegalStateException("The task tool definitions couldn't be read", e);
     }
+  }
+
+  /**
+   * Each space-scoped write declares in {@code space_role} the role the member
+   * who asks a digital worker for it must hold in the call's space
+   * (EXO-91405), and no space-scoped read declares one: a project of a space
+   * is managed through {@code member:/spaces/<name>}, so every member of the
+   * space writes its tasks, and each of them is {@code member}.
+   * Mutants: a write's role dropped or changed, or a read given one.
+   *
+   * @throws Exception when the shipped definitions can't be read
+   */
+  @Test
+  public void spaceScopedWritesDeclareTheAskersSpaceRole() throws Exception {
+    Map<String, String> roles = new HashMap<>();
+    URL classes = TaskMcpTool.class.getProtectionDomain().getCodeSource().getLocation();
+    JsonNode definitions = MAPPER.readTree(new File(new File(classes.toURI()), "ai-tool-definitions.json"));
+    for (JsonNode tool : definitions.path("tools")) {
+      String name = tool.path("name").asString();
+      JsonNode scope = tool.path("space_scope");
+      if (!scope.isObject()) {
+        continue;
+      }
+      if (tool.path("annotations").path("readOnlyHint").asBoolean(false)) {
+        assertFalse(name, scope.has("space_role"));
+      } else {
+        assertTrue(name, scope.has("space_role"));
+        roles.put(name, scope.path("space_role").asString());
+        if (scope.path("space_admin").asBoolean(false)) {
+          assertEquals(name, "manager", roles.get(name));
+        }
+      }
+    }
+    assertEquals(SPACE_ROLES, roles);
   }
 
 }
