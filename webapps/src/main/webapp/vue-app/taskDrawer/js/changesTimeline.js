@@ -87,18 +87,34 @@ export function createTimeline(sources, pageSize) {
    * @returns {Promise<Array<object>>} the following changes, newest first,
    *          fewer than count only once no source has any left
    */
-  async function next(count) {
+  function next(count) {
     const merged = [];
-    while (merged.length < count) {
-      await Promise.all(states.filter(state => !state.buffer.length && !state.exhausted).map(fill));
-      const ready = states.filter(state => state.buffer.length);
-      if (!ready.length) {
-        break;
+
+    /**
+     * Refills every emptied buffer, then gives out the newest change read.
+     *
+     * @returns {Promise<Array<object>>} the changes given out, once count of
+     *          them are or no source has any left
+     */
+    function step() {
+      if (merged.length >= count) {
+        return Promise.resolve(merged);
       }
-      const first = ready.reduce((best, state) => compareHeads(state, best) < 0 ? state : best);
-      merged.push({sourceId: first.source.id, entry: first.buffer.shift()});
+      return Promise.all(states.filter(state => !state.buffer.length && !state.exhausted).map(fill))
+        .then(() => {
+          const ready = states.filter(state => state.buffer.length);
+          if (!ready.length) {
+            return merged;
+          }
+          const first = ready.reduce((best, state) => {
+            return compareHeads(state, best) < 0 ? state : best;
+          });
+          merged.push({sourceId: first.source.id, entry: first.buffer.shift()});
+          return step();
+        });
     }
-    return merged;
+
+    return step();
   }
 
   /**
@@ -120,5 +136,5 @@ function compareKeys(key1, key2) {
   if (typeof key1 === 'number' && typeof key2 === 'number') {
     return key1 - key2;
   }
-  return String(key1).localeCompare(String(key2), undefined, {numeric: true});
+  return String(key1).localeCompare(String(key2), [], {numeric: true});
 }
