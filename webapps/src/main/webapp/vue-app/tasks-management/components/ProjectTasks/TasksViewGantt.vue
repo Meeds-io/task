@@ -47,6 +47,8 @@
   </div>
 </template>
 <script>
+import { isComponentIndicator } from '../../../../js/taskCardIndicators.js';
+
 export default {
   inject: {
     taskCardIndicators: {
@@ -202,7 +204,7 @@ export default {
     popupIndicators(taskId) {
       const escape = text => String(text || '').replace(/[&<>"']/g, character => `&#${character.charCodeAt(0)};`);
       return (this.indicatorsByTask[taskId] || [])
-        .map(indicator => (indicator.component
+        .map(indicator => (isComponentIndicator(indicator)
           ? `<p class="taskCardIndicatorComponent text-caption mb-0">${escape(indicator.label)}</p>`
           : `<p class="taskCardIndicator ${escape(indicator.color || 'error')}--text text-caption mb-0">${escape(indicator.label)} · ${escape(indicator.title)}</p>`))
         .join('');
