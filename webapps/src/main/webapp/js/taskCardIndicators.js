@@ -21,10 +21,16 @@
  * extensionRegistry.registerExtension(EXTENSION_APP, EXTENSION_TYPE, {id, rank, load})
  * where load(projectId, taskIds) resolves to an array of
  * {taskId, label, title, color}: label is shown on the card, title says why,
- * color is a Vuetify color, 'error' by default. The board asks every
- * provider once for the cards it shows, never once per card; a provider
- * dispatches CHANGED_EVENT on document, with {detail: {taskId}}, when a
- * card's markers change, and the board asks again for all its cards.
+ * color is a Vuetify color, 'error' by default. An indicator may instead
+ * name a globally registered Vue component as `component`: the card and the
+ * list row render it with the props {indicator, taskId, dense}, the whole
+ * indicator passed as is, and label alone, in the default text colour, is
+ * its line in the Gantt bar's popup, where no component renders; an
+ * indicator naming a component the page has not registered shows as a
+ * marker everywhere (isComponentIndicator). The board
+ * asks every provider once for the cards it shows, never once per card; a
+ * provider dispatches CHANGED_EVENT on document, with {detail: {taskId}},
+ * when a card's markers change, and the board asks again for all its cards.
  */
 export const EXTENSION_APP = 'TaskCardIndicators';
 
@@ -48,6 +54,16 @@ export function getTaskIds(items) {
     }
   });
   return [...ids];
+}
+
+/**
+ * @param {object} indicator a provider's indicator
+ * @returns {boolean} true when it names a registered component, which renders
+ *          it on the card and the list row and leaves the Gantt popup its
+ *          label alone; otherwise it shows as a marker everywhere
+ */
+export function isComponentIndicator(indicator) {
+  return !!indicator?.component && !!Vue.component(indicator.component);
 }
 
 /**
