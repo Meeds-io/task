@@ -230,12 +230,10 @@ public class TaskServiceImpl implements TaskService {
     }
 
     /**
-     * The task's view rule, the one its change log was read by and its view
-     * permission grants, read for the reader given alone, never for the user
-     * of the current conversation: mentioned in a comment of the task, its
-     * assignee or a coworker, a viewer of its project, or a platform
-     * administrator. Its creator alone is not enough. The card itself is read
-     * by a narrower rule, without mentions.
+     * The task's view rule, read for the reader given alone, never for the
+     * user of the current conversation: mentioned in a comment of the task,
+     * its creator, its assignee or a coworker, a viewer of its project, or a
+     * platform administrator. Whoever may open the task may read its changes.
      *
      * @param task a task
      * @param identity a reader, whoever is signed in
@@ -248,6 +246,7 @@ public class TaskServiceImpl implements TaskService {
         String userId = identity.getUserId();
         ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
         return getMentionedUsers(task.getId()).contains(userId)
+            || userId.equals(task.getCreatedBy())
             || userId.equals(task.getAssignee())
             || TaskUtil.getCoworker(this, task.getId()).contains(userId)
             || project != null && project.canView(identity)
