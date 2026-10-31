@@ -81,10 +81,11 @@ export default {
   },
   watch: {
     /**
-     * Turns a typed label into a new label, and, before the project exists,
-     * tells the drawer which labels left the field, whether by their × or by
-     * the Backspace key, so that creating the project adds only the labels
-     * the field still shows.
+     * Turns a typed label into a new label. Before the project exists, it
+     * also tells the drawer which labels left the field, by their × or by the
+     * Backspace key, and which labels came back into it from the list, so
+     * that creating the project adds exactly the labels the field shows. A
+     * typed label is reported by addLabel instead: it is still text here.
      *
      * @param {Array} val the labels the field now holds
      * @param {Array} prev the labels the field held before
@@ -95,9 +96,11 @@ export default {
         this.search = null;
         return;
       }
-      if (val.length < prev.length && !this.project?.id) {
+      if (!this.project?.id) {
         prev.filter(label => label === Object(label) && !val.includes(label))
           .forEach(label => this.$emit('label-removed', label));
+        val.filter(label => label === Object(label) && !prev.includes(label))
+          .forEach(label => this.$emit('add-label', label));
       }
       this.model = val.map(v => {
         if (typeof v === 'string') {
@@ -135,6 +138,9 @@ export default {
         const project = event.detail;
         this.model = [];
         this.getProjectLabels(project.id);
+      } else {
+        // A new project is offered no label typed for another one
+        this.items = [];
       }
     });
   },
