@@ -23,9 +23,9 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
 
   <!--
-    A card's coworkers and labels are read by TASK_ID. MySQL (InnoDB) and HSQLDB
-    already index that column for its foreign key; PostgreSQL, Oracle and SQL
-    Server do not, so each lookup scans the whole table there. An index an
+    A card's coworkers and labels are read by TASK_ID. MySQL and MariaDB (InnoDB)
+    and HSQLDB already index that column for its foreign key; PostgreSQL, Oracle
+    and SQL Server do not, so each lookup scans the whole table there. An index an
     administrator already created on TASK_ID alone is kept.
   -->
   <changeSet id="7.3.0-exo-92610-01" author="task" dbms="postgresql,oracle,mssql">
