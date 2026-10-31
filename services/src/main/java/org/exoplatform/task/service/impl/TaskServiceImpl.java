@@ -230,16 +230,26 @@ public class TaskServiceImpl implements TaskService {
     }
 
     /**
+     * The rule the task's card is viewed by, read for the reader given alone,
+     * never for the user of the current conversation: mentioned in the task,
+     * its assignee or a coworker, a viewer of its project, or a platform
+     * administrator. Its creator alone is not enough, as on the card.
+     *
      * @param task a task
      * @param identity a reader, whoever is signed in
-     * @return whether the reader is mentioned in the task or may edit it, read
-     *         for that reader alone, never for the user of the current
-     *         conversation
+     * @return whether the reader may view the task
      */
     private boolean canView(TaskDto task, Identity identity) {
-        return identity != null
-            && (getMentionedUsers(task.getId()).contains(identity.getUserId())
-                || TaskUtil.hasEditPermission(this, task, identity));
+        if (identity == null) {
+            return false;
+        }
+        String userId = identity.getUserId();
+        ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
+        return getMentionedUsers(task.getId()).contains(userId)
+            || userId.equals(task.getAssignee())
+            || TaskUtil.getCoworker(this, task.getId()).contains(userId)
+            || project != null && project.canView(identity)
+            || UserUtil.isPlatformAdmin(identity);
     }
 
     /**
