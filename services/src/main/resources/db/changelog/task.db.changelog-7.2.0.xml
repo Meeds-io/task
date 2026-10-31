@@ -32,7 +32,7 @@
   <!-- 2.1. postgres: "postgres" is not a Liquibase database name ("postgresql" is), so this
        changeset never runs and is never recorded. It stays as it is: corrected, it would run on
        an already upgraded database, whose CREATED_TIME_TMP no longer exists. 7.2.0-exo-92620-01
-       below fills the dates on PostgreSQL, Oracle and SQL Server. -->
+       below fills the dates on PostgreSQL, MariaDB, Oracle and SQL Server. -->
   <changeSet id="7.2.0-02" author="task" dbms="postgres">
     <update tableName="TASK_CHANGE_LOGS">
       <column name="CREATED_TIME_TMP" valueComputed="TO_TIMESTAMP(CREATED_TIME / 1000)"/>
