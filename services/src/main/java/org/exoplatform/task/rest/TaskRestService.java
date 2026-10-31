@@ -1045,7 +1045,7 @@ public class TaskRestService implements ResourceContainer {
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
-    if (!TaskUtil.hasViewPermission(taskService,task) && (task.getCreatedBy() == null || !task.getCreatedBy().equals(currentUser))) {//The task creator can get comments
+    if (!TaskUtil.hasViewPermission(taskService, task)) {
       return Response.status(Response.Status.UNAUTHORIZED).build();
     }
     if (limit == 0) {
