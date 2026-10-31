@@ -292,13 +292,51 @@ public class TaskMcpToolTest {
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity("john")).thenReturn(johnIdentity);
     when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), "john")).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
 
     runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
 
     verify(task).setAssignee("john");
     verify(taskService).updateTask(task);
+  }
+
+  /**
+   * The person put on a task as assignee or coworker is judged on their own
+   * rights, never on the signed-in user's: on a project task, someone the
+   * project isn't visible to is refused by both tools and the task is left
+   * unchanged, and someone it is visible to is accepted; on a personal task,
+   * anyone is accepted.
+   * Mutants: the check made on the signed-in user, made on one tool only, or
+   * refusing a personal task.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void personPutOnATaskIsJudgedOnTheirOwnRights() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    ProjectDto project = task.getStatus().getProject();
+    Identity johnIdentity = mock(Identity.class);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    lenient().when(project.canView(currentIdentity)).thenReturn(true);
+    lenient().when(taskService.updateTask(task)).thenReturn(task);
+
+    when(project.canView(johnIdentity)).thenReturn(false);
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, never()).updateTask(any());
+
+    when(project.canView(johnIdentity)).thenReturn(true);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(task).setAssignee(OTHER_USER);
+
+    TaskDto personalTask = mockTask();
+    when(taskService.getTask(TASK_ID)).thenReturn(personalTask);
+    when(taskService.updateTask(personalTask)).thenReturn(personalTask);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    verify(personalTask).setAssignee(OTHER_USER);
   }
 
   /**
@@ -320,7 +358,6 @@ public class TaskMcpToolTest {
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
     when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
     lenient().when(taskService.updateTask(task)).thenReturn(task);
     when(spaceService.getSpaceById(12L)).thenReturn(space);
 
@@ -370,7 +407,6 @@ public class TaskMcpToolTest {
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
     when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
     when(spaceService.getSpaceById(12L)).thenReturn(space);
     when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
@@ -415,7 +451,6 @@ public class TaskMcpToolTest {
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity("john")).thenReturn(johnIdentity);
     when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), "john")).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
 
     runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
