@@ -25,17 +25,33 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+
+import jakarta.persistence.EntityManager;
+
+import org.exoplatform.task.domain.ChangeLog;
+import org.hibernate.dialect.PostgreSQLDialect;
 
 import org.junit.Test;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
+import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.mariadb.MariaDBContainer;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import liquibase.resource.DirectoryResourceAccessor;
 
 /**
  * The task changelogs on real PostgreSQL 16, MySQL 8.0 and MariaDB 11.4 (run with
@@ -46,6 +62,15 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * the index statements they would receive, not how they plan the lookups.
  */
 public class TaskChangelogIT {
+
+  /** The changelog that moves change dates to TIMESTAMP. */
+  private static final String            CHANGELOG_7_2_0 = "db/changelog/task.db.changelog-7.2.0.xml";
+
+  /** The changeset that fills the change dates on PostgreSQL, Oracle and SQL Server (EXO-92620). */
+  private static final String            FILL_DATES      = "7.2.0-exo-92620-01";
+
+  /** A card's changes before 7.2, oldest first, and their times in milliseconds. */
+  private static final Map<String, Long> CHANGE_TIMES    = changeTimesBefore72();
 
   /** Cards seeded on PostgreSQL, enough for a sequential scan to cost more than an index lookup. */
   private static final int    CARDS                 = 20000;
@@ -134,6 +159,166 @@ public class TaskChangelogIT {
         assertEquals(1, mysqlIndexesLeadingOnTaskId(connection, "TASK_TASK_COWORKERS"));
         assertEquals(1, mysqlIndexesLeadingOnTaskId(connection, "TASK_LABEL_TASK"));
       }
+    }
+  }
+
+  /**
+   * A PostgreSQL database not yet on 7.2 gets every change's date when it
+   * upgrades: 7.2.0-exo-92620-01 fills them before the old column is dropped,
+   * to the millisecond. 7.2.0-02, declared for "postgres", still never runs.
+   * Mutants: the changeset removed, or moved after 7.2.0-03 (the upgrade then
+   * fails on the dropped column).
+   *
+   * @throws Exception when the database cannot be reached
+   */
+  @Test
+  public void testDatesFilledWhenUpgradingTo72OnPostgreSql() throws Exception {
+    try (PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16")) {
+      postgres.start();
+      try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
+        TaskChangelogs.updateBefore(connection, CHANGELOG_7_2_0);
+        seedChangesBefore72(connection);
+
+        TaskChangelogs.update(connection, CHANGELOG_7_2_0);
+
+        Map<String, String> recorded = TaskChangelogs.recorded(connection, CHANGELOG_7_2_0);
+        assertEquals(recorded.toString(), "EXECUTED", recorded.get(FILL_DATES));
+        assertFalse(recorded.toString(), recorded.containsKey("7.2.0-02"));
+        assertEquals(CHANGE_TIMES, changeTimes(connection));
+        TaskChangelogs.update(connection, CHANGELOG_7_3_0);
+      }
+    }
+  }
+
+  /**
+   * A PostgreSQL database that ran 7.2.0 as shipped, with no date on its old
+   * changes, upgrades without error: 7.2.0-exo-92620-01 finds no source and is
+   * marked as run, the existing changesets keep their checksums, the old
+   * changes stay undated. A task's change log then reads its dated entries
+   * newest first and the undated ones last. Mutants: the precondition
+   * removed (the upgrade fails); the named query's NULL rule removed (the
+   * undated entries come first).
+   *
+   * @throws Exception when the database cannot be reached
+   */
+  @Test
+  public void testAlreadyUpgradedPostgreSqlKeepsItsUndatedChanges() throws Exception {
+    try (PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16")) {
+      postgres.start();
+      try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
+        TaskChangelogs.updateBefore(connection, CHANGELOG_7_2_0);
+        seedChangesBefore72(connection);
+        TaskChangelogs.update(connection, CHANGELOG_7_2_0, new DirectoryResourceAccessor(Path.of(getClass().getResource("/before-exo-92620").toURI())));
+        assertEquals(CHANGE_TIMES.size(), count(connection, "SELECT count(*) FROM TASK_CHANGE_LOGS WHERE CREATED_TIME IS NULL"));
+        execute(connection, "INSERT INTO TASK_CHANGE_LOGS (CHANGE_LOG_ID, TASK_ID, AUTHOR, ACTION_NAME, CREATED_TIME)"
+            + " VALUES (10, 1, 'root', 'after 7.2', TIMESTAMP '2026-10-01 10:00:00')");
+
+        TaskChangelogs.update(connection, CHANGELOG_7_2_0);
+        TaskChangelogs.update(connection, CHANGELOG_7_3_0);
+
+        Map<String, String> recorded = TaskChangelogs.recorded(connection, CHANGELOG_7_2_0);
+        assertEquals(recorded.toString(), "MARK_RAN", recorded.get(FILL_DATES));
+        assertEquals(CHANGE_TIMES.size(), count(connection, "SELECT count(*) FROM TASK_CHANGE_LOGS WHERE CREATED_TIME IS NULL"));
+        assertEquals(List.of("after 7.2", "edit_title", "assign", "created"), taskLogActions(postgres, 1L));
+      }
+    }
+  }
+
+  /**
+   * MySQL already had its dates from 7.2.0-02: 7.2.0-exo-92620-01 does not
+   * run there.
+   *
+   * @throws Exception when the database cannot be reached
+   */
+  @Test
+  public void testDatesUnchangedOnMySql() throws Exception {
+    try (MySQLContainer mysql = new MySQLContainer("mysql:8.0")) {
+      mysql.start();
+      try (Connection connection = DriverManager.getConnection(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+        TaskChangelogs.updateBefore(connection, CHANGELOG_7_2_0);
+        seedChangesBefore72(connection);
+
+        TaskChangelogs.update(connection, CHANGELOG_7_2_0);
+
+        Map<String, String> recorded = TaskChangelogs.recorded(connection, CHANGELOG_7_2_0);
+        assertEquals(recorded.toString(), "EXECUTED", recorded.get("7.2.0-02"));
+        assertFalse(recorded.toString(), recorded.containsKey(FILL_DATES));
+        assertEquals(0, count(connection, "SELECT count(*) FROM TASK_CHANGE_LOGS WHERE CREATED_TIME IS NULL"));
+      }
+    }
+  }
+
+  /**
+   * Seeds a board, a card and its changes as a database before 7.2 holds
+   * them: CREATED_TIME in milliseconds.
+   *
+   * @param connection the database
+   * @throws SQLException when a statement fails
+   */
+  private void seedChangesBefore72(Connection connection) throws SQLException {
+    execute(connection, "INSERT INTO TASK_PROJECTS (PROJECT_ID, NAME) VALUES (1, 'Board')");
+    execute(connection, "INSERT INTO TASK_STATUS (STATUS_ID, NAME, STATUS_RANK, PROJECT_ID) VALUES (1, 'To do', 0, 1)");
+    execute(connection, "INSERT INTO TASK_TASKS (TASK_ID, TITLE, STATUS_ID, COMPLETED) VALUES (1, 'Card', 1, false)");
+    long id = 1;
+    for (Map.Entry<String, Long> change : CHANGE_TIMES.entrySet()) {
+      execute(connection, "INSERT INTO TASK_CHANGE_LOGS (CHANGE_LOG_ID, TASK_ID, AUTHOR, ACTION_NAME, CREATED_TIME) VALUES ("
+          + id++ + ", 1, 'root', '" + change.getKey() + "', " + change.getValue() + ")");
+    }
+  }
+
+  /**
+   * Reads every change's date, in milliseconds, as the JVM reads the
+   * TIMESTAMP column (the PostgreSQL driver sets the session's time zone to
+   * the JVM's).
+   *
+   * @param connection the database
+   * @return the dates by action, null for an undated change
+   * @throws SQLException when the table cannot be read
+   */
+  private Map<String, Long> changeTimes(Connection connection) throws SQLException {
+    Map<String, Long> times = new LinkedHashMap<>();
+    try (Statement statement = connection.createStatement();
+        ResultSet result = statement.executeQuery("SELECT ACTION_NAME, CREATED_TIME FROM TASK_CHANGE_LOGS ORDER BY CHANGE_LOG_ID")) {
+      while (result.next()) {
+        Timestamp time = result.getTimestamp("CREATED_TIME");
+        times.put(result.getString("ACTION_NAME"), time == null ? null : time.getTime());
+      }
+    }
+    return times;
+  }
+
+  /**
+   * Reads a task's change log through the named query the task service uses,
+   * on Hibernate with the PostgreSQL dialect.
+   *
+   * @param container the PostgreSQL database
+   * @param taskId the task
+   * @return the actions of its entries, in the query's order
+   */
+  private List<String> taskLogActions(JdbcDatabaseContainer<?> container, long taskId) {
+    LocalContainerEntityManagerFactoryBean factory = new LocalContainerEntityManagerFactoryBean();
+    factory.setDataSource(new DriverManagerDataSource(container.getJdbcUrl(), container.getUsername(), container.getPassword()));
+    factory.setPackagesToScan("org.exoplatform.task.domain");
+    factory.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
+    Properties properties = new Properties();
+    properties.setProperty("hibernate.dialect", PostgreSQLDialect.class.getName());
+    properties.setProperty("hibernate.hbm2ddl.auto", "none");
+    factory.setJpaProperties(properties);
+    factory.afterPropertiesSet();
+    try {
+      EntityManager entityManager = factory.getObject().createEntityManager();
+      try {
+        return entityManager.createNamedQuery("TaskChangeLog.findChangeLogByTaskId", ChangeLog.class)
+                            .setParameter("taskId", taskId)
+                            .getResultList()
+                            .stream()
+                            .map(ChangeLog::getActionName)
+                            .toList();
+      } finally {
+        entityManager.close();
+      }
+    } finally {
+      factory.destroy();
     }
   }
 
@@ -282,5 +467,17 @@ public class TaskChangelogIT {
     try (Statement statement = connection.createStatement()) {
       statement.execute(sql);
     }
+  }
+
+  /**
+   * @return the changes of the card seeded before 7.2, each with its time in
+   *         milliseconds, whole seconds and a millisecond part
+   */
+  private static Map<String, Long> changeTimesBefore72() {
+    Map<String, Long> times = new LinkedHashMap<>();
+    times.put("created", 1500000000123L);
+    times.put("assign", 1600000000456L);
+    times.put("edit_title", 1700000000789L);
+    return times;
   }
 }
