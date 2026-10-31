@@ -44,98 +44,104 @@ export function createTimeline(sources, pageSize) {
     exhausted: false,
     failed: false,
   }));
+  return {
+    next: count => emit(states, pageSize, count, []),
+    hasMore: () => states.some(state => state.buffer.length || !state.exhausted),
+    hasFailed: () => states.some(state => state.failed),
+  };
+}
 
-  /**
-   * @param {object} state a source's state
-   * @returns {Promise} settled once the source's next page is buffered, or
-   *          the source dropped
-   */
-  function fill(state) {
-    return Promise.resolve()
-      .then(() => state.source.load({before: state.cursor, limit: pageSize}))
-      .then(page => {
-        const entries = page && Array.isArray(page.entries) && page.entries || [];
-        state.buffer.push(...entries);
-        state.cursor = page && page.next || null;
-        state.exhausted = !state.cursor || !entries.length;
-      })
-      .catch(() => {
-        state.buffer = [];
-        state.exhausted = true;
-        state.failed = true;
-      });
+/**
+ * Reads a source's next page into its buffer; a source whose read fails is
+ * dropped and marked failed.
+ *
+ * @param {object} state a source's state
+ * @param {number} pageSize the most changes the read asks for
+ * @returns {Promise} settled once the page is buffered, or the source dropped
+ */
+function fill(state, pageSize) {
+  return Promise.resolve()
+    .then(() => state.source.load({before: state.cursor, limit: pageSize}))
+    .then(page => {
+      const entries = Array.isArray(page?.entries) && page.entries || [];
+      state.buffer.push(...entries);
+      state.cursor = page?.next || null;
+      state.exhausted = !state.cursor || !entries.length;
+    })
+    .catch(() => {
+      state.buffer = [];
+      state.exhausted = true;
+      state.failed = true;
+    });
+}
+
+/**
+ * @param {Array<object>} states the sources' states
+ * @param {number} pageSize the most changes each read asks for
+ * @returns {Promise} settled once every emptied buffer of a source not yet
+ *          exhausted is refilled
+ */
+function refill(states, pageSize) {
+  return Promise.all(states.filter(state => !state.buffer.length && !state.exhausted)
+    .map(state => fill(state, pageSize)));
+}
+
+/**
+ * @param {object} state1 a source's state, with a change buffered
+ * @param {object} state2 another source's state, with a change buffered
+ * @returns {number} negative when the first's next change comes first
+ */
+function compareHeads(state1, state2) {
+  const entry1 = state1.buffer[0];
+  const entry2 = state2.buffer[0];
+  if (entry1.time !== entry2.time) {
+    return entry2.time - entry1.time;
   }
+  const rank1 = state1.source.rank || 0;
+  const rank2 = state2.source.rank || 0;
+  if (rank1 !== rank2) {
+    return rank1 - rank2;
+  }
+  return compareKeys(entry2.key, entry1.key);
+}
 
-  /**
-   * @param {object} state1 a source's state, with a change buffered
-   * @param {object} state2 another source's state, with a change buffered
-   * @returns {number} negative when the first's next change comes first
-   */
-  function compareHeads(state1, state2) {
-    const entry1 = state1.buffer[0];
-    const entry2 = state2.buffer[0];
-    if (entry1.time !== entry2.time) {
-      return entry2.time - entry1.time;
+/**
+ * @param {Array<object>} states the sources' states
+ * @returns {object} the state whose buffered change comes first, none when
+ *          no buffer holds a change
+ */
+function newest(states) {
+  let first = null;
+  for (const state of states) {
+    if (state.buffer.length && (!first || compareHeads(state, first) < 0)) {
+      first = state;
     }
-    const rank1 = state1.source.rank || 0;
-    const rank2 = state2.source.rank || 0;
-    if (rank1 !== rank2) {
-      return rank1 - rank2;
+  }
+  return first;
+}
+
+/**
+ * Gives out the newest change read, after refilling every emptied buffer,
+ * until count of them are given out or no source has any left.
+ *
+ * @param {Array<object>} states the sources' states
+ * @param {number} pageSize the most changes each read asks for
+ * @param {number} count the most changes to give out
+ * @param {Array<object>} merged the changes given out so far
+ * @returns {Promise<Array<object>>} the changes given out, newest first
+ */
+function emit(states, pageSize, count, merged) {
+  if (merged.length >= count) {
+    return Promise.resolve(merged);
+  }
+  return refill(states, pageSize).then(() => {
+    const first = newest(states);
+    if (!first) {
+      return Promise.resolve(merged);
     }
-    return compareKeys(entry2.key, entry1.key);
-  }
-
-  /**
-   * @param {number} count the most changes to give out
-   * @returns {Promise<Array<object>>} the following changes, newest first,
-   *          fewer than count only once no source has any left
-   */
-  function next(count) {
-    const merged = [];
-
-    /**
-     * Refills every emptied buffer, then gives out the newest change read.
-     *
-     * @returns {Promise<Array<object>>} the changes given out, once count of
-     *          them are or no source has any left
-     */
-    function step() {
-      if (merged.length >= count) {
-        return Promise.resolve(merged);
-      }
-      return Promise.all(states.filter(state => !state.buffer.length && !state.exhausted).map(fill))
-        .then(() => {
-          const ready = states.filter(state => state.buffer.length);
-          if (!ready.length) {
-            return merged;
-          }
-          const first = ready.reduce((best, state) => {
-            return compareHeads(state, best) < 0 ? state : best;
-          });
-          merged.push({sourceId: first.source.id, entry: first.buffer.shift()});
-          return step();
-        });
-    }
-
-    return step();
-  }
-
-  /**
-   * @returns {boolean} whether any change may be left to give out
-   */
-  function hasMore() {
-    return states.some(state => state.buffer.length || !state.exhausted);
-  }
-
-  /**
-   * @returns {boolean} whether a source could not be read, so that some of
-   *          its changes may be missing
-   */
-  function hasFailed() {
-    return states.some(state => state.failed);
-  }
-
-  return {next, hasMore, hasFailed};
+    merged.push({sourceId: first.source.id, entry: first.buffer.shift()});
+    return emit(states, pageSize, count, merged);
+  });
 }
 
 /**
