@@ -164,7 +164,7 @@
                 @change="updateTaskTitle" />
             </div>
             <div
-              v-if="taskId"
+              v-if="taskId && lastTaskChangesLog"
               class="lastUpdatedTask pb-3">
               <v-tooltip top>
                 <template #activator="{ on, attrs }">
@@ -467,8 +467,7 @@ export default {
       return this.logs && this.logs.length && this.logs[0].createdTime || '';
     },
     lastTaskChangesLogAuthor() {
-      // no author without a date: an entry recorded before 7.2 on some upgraded databases has none
-      return this.lastTaskChangesLog && ( this.logs[0].external ? `${this.logs[0].authorFullName} (${this.$t('label.external')})`  || '' : this.logs[0].authorFullName || '');
+      return this.logs && this.logs.length && ( this.logs[0].external ? `${this.logs[0].authorFullName} (${this.$t('label.external')})`  || '' : this.logs[0].authorFullName || '');
     },
     taskId() {
       return this.task && this.task.id;
