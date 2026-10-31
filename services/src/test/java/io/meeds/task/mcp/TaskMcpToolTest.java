@@ -3063,7 +3063,7 @@ public class TaskMcpToolTest {
 
   /**
    * A full task whose change log holds an undated entry (recorded before 7.2
-   * on an upgraded PostgreSQL, Oracle or SQL Server database) and a comment
+   * on an upgraded PostgreSQL, MariaDB, Oracle or SQL Server database) and a comment
    * lists that entry first, with no date, then the rest by date. Mutant: the
    * entries sorted by their date with no rule for a missing one, which throws.
    *
