@@ -230,10 +230,12 @@ public class TaskServiceImpl implements TaskService {
     }
 
     /**
-     * The rule the task's card is viewed by, read for the reader given alone,
-     * never for the user of the current conversation: mentioned in the task,
-     * its assignee or a coworker, a viewer of its project, or a platform
-     * administrator. Its creator alone is not enough, as on the card.
+     * The task's view rule, the one its change log was read by and its view
+     * permission grants, read for the reader given alone, never for the user
+     * of the current conversation: mentioned in a comment of the task, its
+     * assignee or a coworker, a viewer of its project, or a platform
+     * administrator. Its creator alone is not enough. The card itself is read
+     * by a narrower rule, without mentions.
      *
      * @param task a task
      * @param identity a reader, whoever is signed in
