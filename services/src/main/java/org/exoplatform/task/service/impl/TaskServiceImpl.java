@@ -211,6 +211,52 @@ public class TaskServiceImpl implements TaskService {
      * {@inheritDoc}
      */
     @Override
+    public List<ChangeLogEntry> getTaskLogsBefore(long taskId,
+                                                  Long beforeTime,
+                                                  Long beforeId,
+                                                  int limit,
+                                                  Identity identity) throws EntityNotFoundException, IllegalAccessException {
+        TaskDto task = getTask(taskId);
+        if (!canView(task, identity)) {
+            throw new IllegalAccessException("task.logs.notAccessible");
+        }
+        if ((beforeTime == null) != (beforeId == null)) {
+            throw new IllegalArgumentException("task.logs.invalidCursor");
+        }
+        if (limit < 1 || limit > MAX_TASK_LOGS_PAGE) {
+            throw new IllegalArgumentException("task.logs.invalidLimit");
+        }
+        return taskStorage.getTaskLogsBefore(taskId, beforeTime, beforeId, limit);
+    }
+
+    /**
+     * The task's view rule, read for the reader given alone, never for the
+     * user of the current conversation: mentioned in a comment of the task,
+     * its creator, its assignee or a coworker, a viewer of its project, or a
+     * platform administrator. Whoever may open the task may read its changes.
+     *
+     * @param task a task
+     * @param identity a reader, whoever is signed in
+     * @return whether the reader may view the task
+     */
+    private boolean canView(TaskDto task, Identity identity) {
+        if (identity == null) {
+            return false;
+        }
+        String userId = identity.getUserId();
+        ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
+        return getMentionedUsers(task.getId()).contains(userId)
+            || userId.equals(task.getCreatedBy())
+            || userId.equals(task.getAssignee())
+            || TaskUtil.getCoworker(this, task.getId()).contains(userId)
+            || project != null && project.canView(identity)
+            || UserUtil.isPlatformAdmin(identity);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void addChangeFilter(TaskQuery query, TaskChangeFilter filter) {
         if (filter == null) {
             return;

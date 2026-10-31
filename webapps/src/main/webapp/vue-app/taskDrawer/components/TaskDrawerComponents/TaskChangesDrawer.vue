@@ -41,22 +41,22 @@
         :key="`${selectedTab.id}-${taskId}`"
         :task-id="taskId"
         :project-id="projectId" />
-      <task-changes-log v-else :logs="logs" />
+      <task-changes-timeline
+        v-else-if="showTaskChangesDrawer"
+        :key="`timeline-${taskId}`"
+        :task-id="taskId"
+        :project-id="projectId" />
     </template>
   </exo-drawer>
 </template>
 <script>
-/** The tab showing the task's own change log, always first. */
+/** The tab showing the timeline of the task's changes, always first. */
 const TASK_TAB = 'task';
 /** The type under which another add-on registers a tab, on the TaskDrawer extension app. */
 const TAB_TYPE = 'task-changes-tab';
 
 export default {
   props: {
-    logs: {
-      type: Object,
-      default: () => ({}),
-    },
     task: {
       type: Object,
       default: null
