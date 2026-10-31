@@ -18,6 +18,7 @@
  */
 package org.exoplatform.task.util;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -151,6 +152,37 @@ public class TaskUtilViewPermissionTest {
     assertFalse(TaskUtil.hasViewPermission(taskService, task, new Identity("outsider")));
     assertTrue(TaskUtil.hasViewPermission(taskService, task, new Identity("coworker")));
     assertTrue(TaskUtil.hasViewPermission(taskService, task, projectMember()));
+  }
+
+  /**
+   * The checks made for the signed-in user answer exactly as the checks made
+   * for a given person, for each kind of person: in particular a person who
+   * is only the task's creator may see and edit it either way.
+   */
+  @Test
+  public void signedInChecksAgreeWithTheChecksForAGivenPerson() {
+    for (Identity person : new Identity[] { new Identity("assignee"), new Identity("coworker"),
+        new Identity("mentioned"), new Identity("creator"), projectMember(), new Identity("outsider") }) {
+      signIn(person);
+      String who = person.getUserId();
+      assertEquals(who, TaskUtil.hasEditPermission(taskService, task, person), TaskUtil.hasEditPermission(taskService, task));
+      assertEquals(who, TaskUtil.hasViewPermission(taskService, task, person), TaskUtil.hasViewPermission(taskService, task));
+    }
+    signIn(new Identity("creator"));
+    assertTrue(TaskUtil.hasEditPermission(taskService, task));
+    assertTrue(TaskUtil.hasViewPermission(taskService, task));
+  }
+
+  /**
+   * With nobody signed in, the checks made for the signed-in user refuse,
+   * without an error.
+   */
+  @Test
+  public void signedInChecksRefuseWithNobodySignedIn() {
+    ConversationState.setCurrent(null);
+    assertFalse(TaskUtil.hasEditPermission(taskService, task));
+    assertFalse(TaskUtil.hasViewPermission(taskService, task));
+    assertFalse(TaskUtil.hasDeletePermission(task));
   }
 
   /**
