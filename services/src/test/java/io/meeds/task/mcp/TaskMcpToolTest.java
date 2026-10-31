@@ -356,8 +356,11 @@ public class TaskMcpToolTest {
     lenient().when(taskService.updateTask(task)).thenReturn(task);
 
     when(project.canView(johnIdentity)).thenReturn(false);
-    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
-    assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    // the reason given is the project the person can't see, not an edit right
+    assertTrue(assertThrows(IllegalAccessException.class,
+                            () -> tool.assignTask(TASK_ID, OTHER_USER)).getMessage().contains("project"));
+    assertTrue(assertThrows(IllegalAccessException.class,
+                            () -> tool.addTaskCoworker(TASK_ID, OTHER_USER)).getMessage().contains("project"));
     verify(taskService, never()).updateTask(any());
 
     when(project.canView(johnIdentity)).thenReturn(true);
