@@ -1080,9 +1080,9 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, getCurrentUserName()));
     } else if (userAclIdentity == null) {
-      throw new ObjectNotFoundException("User with login '%s' wasn't found");
+      throw new ObjectNotFoundException("User with login '%s' wasn't found".formatted(username));
     } else if (!canSeeOnceOnTask(task, userAclIdentity)) {
-      throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
+      throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(getProjectId(task), username));
     }
     String person = username;
     checkScopeSpaceMembers(() -> List.of(person));
@@ -1118,9 +1118,9 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, getCurrentUserName()));
     } else if (userAclIdentity == null) {
-      throw new ObjectNotFoundException("User with login '%s' wasn't found");
+      throw new ObjectNotFoundException("User with login '%s' wasn't found".formatted(username));
     } else if (!canSeeOnceOnTask(task, userAclIdentity)) {
-      throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
+      throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(getProjectId(task), username));
     }
     String person = username;
     checkScopeSpaceMembers(() -> List.of(person));
@@ -1983,7 +1983,7 @@ public class TaskMcpTool implements McpToolPlugin {
    */
   private static Set<String> toLogins(Set<String> usernames) {
     if (usernames == null) {
-      return null; // NOSONAR the task keeps no coworker set, as before
+      return null; // NOSONAR no coworker given: the task keeps no coworker set
     }
     return usernames.stream().map(TaskMcpTool::toLogin).collect(Collectors.toCollection(HashSet::new));
   }
