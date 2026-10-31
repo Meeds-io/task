@@ -59,7 +59,8 @@ import liquibase.resource.DirectoryResourceAccessor;
  * lookups is read before and after the TASK_ID indexes, on a seeded volume;
  * on MySQL and MariaDB, the foreign-key index that makes them unnecessary is
  * checked. Oracle and SQL Server are not run: {@link TaskChangelogTest} checks
- * the index statements they would receive, not how they plan the lookups.
+ * the index statements they would receive, not how they plan the lookups;
+ * nothing checks their fill of the pre-7.2 change dates (7.2.0-exo-92620-01).
  */
 public class TaskChangelogIT {
 
