@@ -33,11 +33,12 @@ import java.sql.Statement;
 import java.util.Map;
 
 import org.junit.Test;
+import org.testcontainers.mariadb.MariaDBContainer;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * The task changelogs on real PostgreSQL 16 and MySQL 8.0 (run with
+ * The task changelogs on real PostgreSQL 16, MySQL 8.0 and MariaDB 11.4 (run with
  * {@code -Prun-its}). On PostgreSQL, the plan of a card's coworker and label
  * lookups is read before and after the TASK_ID indexes, on a seeded volume;
  * on MySQL, the foreign-key index that makes them unnecessary is checked.
@@ -135,6 +136,28 @@ public class TaskChangelogIT {
   }
 
   /**
+   * On MariaDB, which Liquibase names apart from MySQL, the changesets do not
+   * run either: InnoDB holds one index leading on TASK_ID for each table's
+   * foreign key there too.
+   *
+   * @throws Exception when the database cannot be reached
+   */
+  @Test
+  public void testForeignKeyIndexesOnMariaDb() throws Exception {
+    try (MariaDBContainer mariadb = new MariaDBContainer("mariadb:11.4")) {
+      mariadb.start();
+      try (Connection connection = DriverManager.getConnection(mariadb.getJdbcUrl(), mariadb.getUsername(), mariadb.getPassword())) {
+        TaskChangelogs.updateAll(connection);
+        Map<String, String> recorded = TaskChangelogs.recorded(connection, CHANGELOG_7_3_0);
+        assertFalse(recorded.toString(), recorded.containsKey(COWORKERS_INDEX));
+        assertFalse(recorded.toString(), recorded.containsKey(LABELS_INDEX));
+        assertEquals(1, mysqlIndexesLeadingOnTaskId(connection, "TASK_TASK_COWORKERS"));
+        assertEquals(1, mysqlIndexesLeadingOnTaskId(connection, "TASK_LABEL_TASK"));
+      }
+    }
+  }
+
+  /**
    * Seeds one board, ten labels and {@link #CARDS} cards, each with two of
    * fifty coworkers and one label, then refreshes the planner's statistics.
    *
@@ -219,7 +242,7 @@ public class TaskChangelogIT {
   }
 
   /**
-   * Counts a table's MySQL indexes whose first column is TASK_ID.
+   * Counts a table's MySQL or MariaDB indexes whose first column is TASK_ID.
    *
    * @param connection the MySQL database
    * @param table the table
