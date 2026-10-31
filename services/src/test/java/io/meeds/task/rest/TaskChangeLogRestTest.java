@@ -46,6 +46,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.task.domain.Priority;
+import org.exoplatform.task.domain.Project;
+import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -76,18 +79,36 @@ public class TaskChangeLogRestTest {
 
   /**
    * A page reaches the service with its cursor and the signed-in reader, and
-   * comes back never to be stored; with no cursor, the first page of 20.
+   * comes back never to be stored, each entry as the timeline shows it: the
+   * task's priority, never the task itself; with no cursor, the first page of
+   * 20.
    */
   @Test
   public void getTaskLogsAnswersThePageAfterTheCursor() throws Exception {
+    Project project = new Project("board", "", null, null, null);
+    Task task = new Task();
+    task.setTitle("a private title");
+    task.setDescription("a private description");
+    task.setPriority(Priority.HIGH);
+    task.setStatus(new Status(3L, "Done", 1, project));
     ChangeLogEntry entry = new ChangeLogEntry();
     entry.setId(7);
+    entry.setTask(task);
+    entry.setAuthor("john");
+    entry.setActionName("edit_priority");
+    entry.setCreatedTime(1000L);
     when(taskService.getTaskLogsBefore(eq(1L), eq(1000L), eq(8L), eq(5), any())).thenReturn(List.of(entry));
 
     mockMvc.perform(get("/tasks/1/logs").param("beforeTime", "1000").param("beforeId", "8").param("limit", "5"))
            .andExpect(status().isOk())
            .andExpect(header().string("Cache-Control", CACHE_CONTROL))
-           .andExpect(jsonPath("$[0].id").value(7));
+           .andExpect(jsonPath("$[0].id").value(7))
+           .andExpect(jsonPath("$[0].author").value("john"))
+           .andExpect(jsonPath("$[0].actionName").value("edit_priority"))
+           .andExpect(jsonPath("$[0].createdTime").value(1000))
+           .andExpect(jsonPath("$[0].task.priority").value("HIGH"))
+           .andExpect(jsonPath("$[0].task.title").doesNotExist())
+           .andExpect(jsonPath("$[0].task.status").doesNotExist());
     ArgumentCaptor<Identity> reader = ArgumentCaptor.forClass(Identity.class);
     verify(taskService).getTaskLogsBefore(eq(1L), eq(1000L), eq(8L), eq(5), reader.capture());
     assertEquals("mary", reader.getValue().getUserId());
