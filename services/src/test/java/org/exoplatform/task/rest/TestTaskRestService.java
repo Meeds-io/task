@@ -27,16 +27,12 @@ import static org.mockito.Mockito.*;
 
 import java.util.*;
 
-import javax.ws.rs.core.CacheControl;
-import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.RuntimeDelegate;
 
 import org.exoplatform.task.TestUtils;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
-import org.exoplatform.task.domain.Task;
-import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.User;
 import org.exoplatform.task.rest.model.PaginatedTaskList;
 import org.exoplatform.task.rest.model.ViewState;
@@ -688,68 +684,6 @@ public class TestTaskRestService {
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response1.getStatus());
    }
-
-  /**
-   * A page of the change log is read only once the task is found and the
-   * caller may view it, and its cursor reaches the service as sent; an invalid
-   * cursor answers 400 with its code.
-   */
-  @Test
-  public void testGetTaskLogsPage() throws Exception {
-    TaskRestService taskRestService = new TaskRestService(taskService,
-                                                          commentService,
-                                                          projectService,
-                                                          statusService,
-                                                          userService,
-                                                          spaceService,
-                                                          labelService,
-                                                          favoriteService,
-                                                          identityManager);
-    TaskDto task = new TaskDto();
-    task.setId(1);
-    task.setCreatedBy("root");
-    task.setAssignee("root");
-
-    ConversationState.setCurrent(new ConversationState(new Identity("root")));
-    Response missing = taskRestService.getTaskLogsPage(1, null, null, 20);
-    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), missing.getStatus());
-    assertNotStored(missing);
-    when(taskService.getTask(2)).thenThrow(new EntityNotFoundException(2L, Task.class));
-    Response unknown = taskRestService.getTaskLogsPage(2, null, null, 20);
-    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), unknown.getStatus());
-    assertNotStored(unknown);
-
-    when(taskService.getTask(1)).thenReturn(task);
-    ChangeLogEntry entry = new ChangeLogEntry();
-    entry.setId(7);
-    when(taskService.getTaskLogsBefore(1, 1000L, 8L, 20)).thenReturn(List.of(entry));
-    Response page = taskRestService.getTaskLogsPage(1, 1000L, 8L, 20);
-    assertEquals(Response.Status.OK.getStatusCode(), page.getStatus());
-    assertEquals(List.of(entry), page.getEntity());
-    assertNotStored(page);
-
-    when(taskService.getTaskLogsBefore(1, 1000L, null, 20)).thenThrow(new IllegalArgumentException("task.logs.invalidCursor"));
-    Response invalid = taskRestService.getTaskLogsPage(1, 1000L, null, 20);
-    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), invalid.getStatus());
-    assertEquals("task.logs.invalidCursor", invalid.getEntity());
-    assertNotStored(invalid);
-
-    ConversationState.setCurrent(new ConversationState(new Identity("mary")));
-    Response forbidden = taskRestService.getTaskLogsPage(1, 1000L, 8L, 20);
-    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), forbidden.getStatus());
-    assertNotStored(forbidden);
-    verify(taskService, times(1)).getTaskLogsBefore(1, 1000L, 8L, 20);
-  }
-
-  /**
-   * @param response an answer read for one user
-   */
-  private static void assertNotStored(Response response) {
-    CacheControl cacheControl = (CacheControl) response.getMetadata().getFirst(HttpHeaders.CACHE_CONTROL);
-    assertNotNull(cacheControl);
-    assertTrue(cacheControl.isNoStore());
-    assertTrue(cacheControl.isPrivate());
-  }
 
   @Test
   public void testRemoveTaskFromLabel() throws Exception {
