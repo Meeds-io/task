@@ -1045,11 +1045,11 @@ public class TaskMcpTool implements McpToolPlugin {
    * someone the project is visible to; in a call limited to a space,
    * the user must also be a member or a super manager of that space.
    *
-   * @param taskId the task, which the current user can access
+   * @param taskId the task, which the current user can edit
    * @param username the assignee's login, with or without a leading {@code @}
    * @return the updated task
    * @throws ObjectNotFoundException when the task or the user doesn't exist
-   * @throws IllegalAccessException when the current user can't access the
+   * @throws IllegalAccessException when the current user can't edit the
    *           task, the assignee isn't one the task's project is visible to,
    *           or, in a call limited to a space, the assignee is neither a member
    *           nor a super manager of it
@@ -1064,8 +1064,8 @@ public class TaskMcpTool implements McpToolPlugin {
     Identity userAclIdentity = userAcl.getUserIdentity(username);
     if (task == null) {
       throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
-    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
-      throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, username));
+    } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, getCurrentUserName()));
     } else if (userAclIdentity == null) {
       throw new ObjectNotFoundException("User with login '%s' wasn't found");
     } else if (!canSeeOnceOnTask(task, userAclIdentity)) {
@@ -1083,11 +1083,11 @@ public class TaskMcpTool implements McpToolPlugin {
    * someone the project is visible to; in a call limited to a space,
    * the coworker must also be a member or a super manager of that space.
    *
-   * @param taskId the task, which the current user can access
+   * @param taskId the task, which the current user can edit
    * @param username the coworker's login, with or without a leading {@code @}
    * @return the updated task
    * @throws ObjectNotFoundException when the task or the user doesn't exist
-   * @throws IllegalAccessException when the current user can't access the
+   * @throws IllegalAccessException when the current user can't edit the
    *           task, the coworker isn't one the task's project is visible to,
    *           or, in a call limited to a space, the coworker is neither a member
    *           nor a super manager of it
@@ -1102,8 +1102,8 @@ public class TaskMcpTool implements McpToolPlugin {
     Identity userAclIdentity = userAcl.getUserIdentity(username);
     if (task == null) {
       throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
-    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
-      throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, username));
+    } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, getCurrentUserName()));
     } else if (userAclIdentity == null) {
       throw new ObjectNotFoundException("User with login '%s' wasn't found");
     } else if (!canSeeOnceOnTask(task, userAclIdentity)) {
@@ -1170,10 +1170,10 @@ public class TaskMcpTool implements McpToolPlugin {
   /**
    * Adds one of the labels of the task's project to the task.
    *
-   * @param taskId the task, which the current user can access
+   * @param taskId the task, which the current user can edit
    * @param labelId a label of the task's project; for a task in no project,
    *          any existing label
-   * @throws IllegalAccessException when the current user can't access the
+   * @throws IllegalAccessException when the current user can't edit the
    *           task
    * @throws ObjectNotFoundException when the task doesn't exist, or the label
    *           doesn't exist or belongs to another project than the task's
@@ -1183,8 +1183,8 @@ public class TaskMcpTool implements McpToolPlugin {
     TaskDto task = getTask(taskId);
     if (task == null) {
       throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
-    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
-      throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
+    } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, getCurrentUserName()));
     }
     checkTaskLabel(task, labelId);
     labelService.addTaskToLabel(task, labelId);
@@ -1193,10 +1193,10 @@ public class TaskMcpTool implements McpToolPlugin {
   /**
    * Removes one of the labels of the task's project from the task.
    *
-   * @param taskId the task, which the current user can access
+   * @param taskId the task, which the current user can edit
    * @param labelId a label of the task's project; for a task in no project,
    *          any existing label
-   * @throws IllegalAccessException when the current user can't access the
+   * @throws IllegalAccessException when the current user can't edit the
    *           task
    * @throws ObjectNotFoundException when the task doesn't exist, or the label
    *           doesn't exist or belongs to another project than the task's
@@ -1206,8 +1206,8 @@ public class TaskMcpTool implements McpToolPlugin {
     TaskDto task = getTask(taskId);
     if (task == null) {
       throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
-    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
-      throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
+    } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, getCurrentUserName()));
     }
     checkTaskLabel(task, labelId);
     labelService.removeTaskFromLabel(task, labelId);
@@ -1238,13 +1238,21 @@ public class TaskMcpTool implements McpToolPlugin {
     labelService.removeLabel(labelId);
   }
 
+  /**
+   * Moves a task to another status of its project.
+   *
+   * @param taskId the task, which the current user can edit
+   * @param statusId the target status
+   * @throws IllegalAccessException when the current user can't edit the task
+   * @throws ObjectNotFoundException when the task or the status doesn't exist
+   */
   @SneakyThrows
   public void updateTaskStatus(Long taskId, Long statusId) throws IllegalAccessException, ObjectNotFoundException {
     TaskDto task = getTask(taskId);
     if (task == null) {
       throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
-    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
-      throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
+    } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
+      throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, getCurrentUserName()));
     }
     StatusDto status = statusService.getStatus(statusId);
     if (status == null || status.getProject().getId() != getProjectId(task)) {
@@ -1905,14 +1913,16 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Tells whether a person would see a task once assigned to it or added as
-   * its coworker: on a project task, only someone the project is visible to;
-   * a personal task has no audience beyond the people on it, so anyone. The
-   * person is judged on their own rights, never on the signed-in user's.
+   * Tells whether a person belongs to the audience of a task they are about
+   * to be put on as assignee or coworker: on a project task, only someone the
+   * project is visible to; a personal task has no audience beyond the people
+   * on it, so anyone. The person is judged on their own memberships, never on
+   * the signed-in user's, and a platform admin or the task's creator outside
+   * the project is not in that audience.
    *
    * @param task the task
    * @param identity the person to put on the task
-   * @return true when that person would see the task
+   * @return true when that person belongs to the task's audience
    */
   private boolean canSeeOnceOnTask(TaskDto task, Identity identity) {
     ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
