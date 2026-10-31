@@ -1117,8 +1117,9 @@ public class TestTaskDAO extends AbstractTest {
 
   /**
    * The service reads a page of the change log in milliseconds for whoever
-   * may view the task, its assignee or a user mentioned in one of its
-   * comments here, and refuses, in this order, a task
+   * may view the task, its assignee, a user mentioned in one of its comments,
+   * a member or a manager of its project, or a coworker here, and refuses, in
+   * this order, a task
    * that does not exist, a reader who may not view it, its creator alone
    * included as on the card, then a cursor sent half and a limit out of 1 to
    * its bound.
@@ -1154,6 +1155,20 @@ public class TestTaskDAO extends AbstractTest {
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), null, null, 1, null));
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(created.getId(), null, null, 1, reader));
     assertEquals(List.of(), taskService.getTaskLogsBefore(created.getId(), null, null, 1, new Identity("mentioned")));
+
+    Project board = new Project("board", "", null, new HashSet<>(Set.of("manager")), new HashSet<>(Set.of("member")));
+    board = daoHandler.getProjectHandler().create(board);
+    Status column = newStatusInstance("To do", 1);
+    column.setProject(board);
+    column = daoHandler.getStatusHandler().create(column);
+    Task onBoard = newTaskInstance("on the board", "", null);
+    onBoard.setStatus(column);
+    onBoard.setCoworker(new HashSet<>(Set.of("coworker")));
+    tDAO.create(onBoard);
+    for (String viewer : List.of("member", "manager", "coworker")) {
+      assertEquals(viewer, List.of(), taskService.getTaskLogsBefore(onBoard.getId(), null, null, 1, new Identity(viewer)));
+    }
+    assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(onBoard.getId(), null, null, 1, stranger));
     ConversationState signedIn = ConversationState.getCurrent();
     try {
       ConversationState.setCurrent(new ConversationState(reader));
