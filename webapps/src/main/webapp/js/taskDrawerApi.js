@@ -278,7 +278,7 @@ export function getTaskLogsPage(taskId, before, limit) {
       return resp.json();
     } else {
       const error = new Error('Error when getting a page of task logs');
-      error.status = resp && resp.status;
+      error.status = resp?.status;
       throw error;
     }
   });
