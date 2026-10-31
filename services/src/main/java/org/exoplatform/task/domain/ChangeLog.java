@@ -72,7 +72,7 @@ public class ChangeLog implements Comparable<ChangeLog> {
 
   /**
    * Orders entries by date, an undated one first: entries recorded before 7.2
-   * on a PostgreSQL, Oracle or SQL Server database that was already upgraded
+   * on a PostgreSQL, MariaDB, Oracle or SQL Server database that was already upgraded
    * have no date, and are older than every dated one.
    *
    * @param o the other entry
