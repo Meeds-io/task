@@ -34,7 +34,7 @@ public class ChangeLogTest {
 
   /**
    * Entries sort by date, an undated one (recorded before 7.2 on an upgraded
-   * PostgreSQL, Oracle or SQL Server database) first. Mutant: the dates
+   * PostgreSQL, MariaDB, Oracle or SQL Server database) first. Mutant: the dates
    * compared with no rule for a missing one, which throws.
    */
   @Test
