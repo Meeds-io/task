@@ -35,6 +35,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -1996,7 +1997,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                           .toList();
       taskLogs = new ArrayList<>(taskLogs);
       taskLogs.addAll(commentTaskLogs);
-      Collections.sort(taskLogs, (l1, l2) -> l1.getActionDate().compareTo(l2.getActionDate()));
+      // an undated entry (recorded before 7.2 on an upgraded PostgreSQL, Oracle or SQL Server database) is the oldest
+      taskLogs.sort(Comparator.comparing(TaskChangeLog::getActionDate, Comparator.nullsFirst(Comparator.naturalOrder())));
     }
     return taskLogs;
   }
@@ -2357,11 +2359,20 @@ public class TaskMcpTool implements McpToolPlugin {
                                                              String.valueOf(project.getId())));
   }
 
+  /**
+   * The date of a task's latest activity: its newest dated change log entry or
+   * its last comment, else its creation. The entries are read newest first,
+   * the undated ones last, and an undated entry (0, recorded before 7.2 on an
+   * upgraded PostgreSQL, Oracle or SQL Server database) dates nothing.
+   *
+   * @param task the task
+   * @return the date of its latest activity
+   */
   @SneakyThrows
   private Date getLastUpdateDate(TaskDto task) {
     Date lastUpdateDate = task.getCreatedTime();
     List<ChangeLogEntry> taskLogs = taskService.getTaskLogs(task.getId(), 0, 1);
-    if (CollectionUtils.isNotEmpty(taskLogs)) {
+    if (CollectionUtils.isNotEmpty(taskLogs) && taskLogs.get(0).getCreatedTime() > 0) {
       lastUpdateDate = new Date(taskLogs.get(0).getCreatedTime());
     }
     CommentDto lastComment = commentService.getLastComment(task.getId());
