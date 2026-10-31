@@ -254,24 +254,26 @@ export default {
      * @returns {Promise} settled once they are shown, or dropped when the
      *          choice changed meanwhile
      */
-    loadMore() {
+    async loadMore() {
       if (this.loading || !this.hasMore || !this.timeline) {
-        return Promise.resolve();
+        return;
       }
       const generation = this.generation;
       const timeline = this.timeline;
       this.loading = true;
-      return timeline.next(PAGE_SIZE).then(lines => {
-        if (generation !== this.generation) {
-          return;
-        }
-        this.lines.push(...lines);
-        this.hasMore = timeline.hasMore();
-        this.failed = timeline.hasFailed();
-        this.loading = false;
-        // the end marker is measured once the new lines are rendered
-        return this.$nextTick().then(() => this.isEndInView() && this.loadMore());
-      });
+      const lines = await timeline.next(PAGE_SIZE);
+      if (generation !== this.generation) {
+        return;
+      }
+      this.lines.push(...lines);
+      this.hasMore = timeline.hasMore();
+      this.failed = timeline.hasFailed();
+      this.loading = false;
+      // the end marker is measured once the new lines are rendered
+      await this.$nextTick();
+      if (this.isEndInView()) {
+        await this.loadMore();
+      }
     },
     /**
      * @returns {boolean} whether the end of the list shows in the window
