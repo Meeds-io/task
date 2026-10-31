@@ -30,6 +30,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -119,6 +120,36 @@ public class TaskChangelogTest {
       }
     }
     return (int) columnsByIndex.values().stream().filter(List.of("TASK_ID")::equals).count();
+  }
+
+  /**
+   * On HSQLDB, which had its change dates from 7.2.0-02, the PostgreSQL,
+   * MariaDB, Oracle and SQL Server fill does not run and every date stays as
+   * it was.
+   *
+   * @throws Exception when a changelog fails
+   */
+  @Test
+  public void testDatesFillIsNotRunOnHsqldb() throws Exception {
+    try (Connection connection = DriverManager.getConnection("jdbc:hsqldb:mem:taskChangelogDates;shutdown=true", "sa", "")) {
+      TaskChangelogs.updateBefore(connection, "db/changelog/task.db.changelog-7.2.0.xml");
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("INSERT INTO TASK_PROJECTS (PROJECT_ID, NAME) VALUES (1, 'Board')");
+        statement.execute("INSERT INTO TASK_TASKS (TASK_ID, TITLE, COMPLETED) VALUES (1, 'Card', false)");
+        statement.execute("INSERT INTO TASK_CHANGE_LOGS (CHANGE_LOG_ID, TASK_ID, AUTHOR, ACTION_NAME, CREATED_TIME)"
+            + " VALUES (1, 1, 'root', 'created', 1500000000000)");
+      }
+      TaskChangelogs.update(connection, "db/changelog/task.db.changelog-7.2.0.xml");
+
+      Map<String, String> recorded = TaskChangelogs.recorded(connection, "db/changelog/task.db.changelog-7.2.0.xml");
+      assertEquals(recorded.toString(), "EXECUTED", recorded.get("7.2.0-02"));
+      assertFalse(recorded.toString(), recorded.containsKey("7.2.0-exo-92620-01"));
+      try (Statement statement = connection.createStatement();
+          ResultSet result = statement.executeQuery("SELECT CREATED_TIME FROM TASK_CHANGE_LOGS")) {
+        assertTrue(result.next());
+        assertNotNull(result.getTimestamp(1));
+      }
+    }
   }
 
   /**

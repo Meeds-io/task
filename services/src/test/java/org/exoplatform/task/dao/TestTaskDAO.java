@@ -681,6 +681,31 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   /**
+   * A task's change log reads newest first, entries of the same date newest
+   * id first, and an undated entry (recorded before 7.2 on an upgraded
+   * PostgreSQL, MariaDB, Oracle or SQL Server database) last. HSQLDB, like
+   * PostgreSQL and Oracle, sorts a NULL first in a descending order, so this
+   * run pins the NULL rule as well as the tie; TaskChangelogIT runs the same
+   * query on PostgreSQL. Mutants: the NULL rule removed; no tie on the id.
+   */
+  @Test
+  public void testTaskLogsReadNewestFirstAndUndatedLast() throws Exception {
+    Task task = newTaskInstance("logged task", "", "root");
+    tDAO.create(task);
+    Date older = Date.from(java.time.Instant.parse("2026-10-01T10:00:00Z"));
+    Date newer = Date.from(java.time.Instant.parse("2026-10-02T10:00:00Z"));
+    addLog(task, "undated", null);
+    addLog(task, "older", older);
+    addLog(task, "newer first", newer);
+    addLog(task, "newer second", newer);
+
+    ChangeLog[] logs = daoHandler.getTaskLogHandler().findTaskLogs(task.getId()).load(0, -1);
+
+    assertEquals(Arrays.asList("newer second", "newer first", "older", "undated"),
+                 Arrays.stream(logs).map(ChangeLog::getActionName).toList());
+  }
+
+  /**
    * @param task a task
    * @param actionName the action of the change log entry added to it
    * @param createdTime the date of the entry

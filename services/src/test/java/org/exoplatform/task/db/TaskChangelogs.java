@@ -41,6 +41,7 @@ import liquibase.database.Database;
 import liquibase.database.DatabaseFactory;
 import liquibase.database.jvm.JdbcConnection;
 import liquibase.resource.ClassLoaderResourceAccessor;
+import liquibase.resource.ResourceAccessor;
 
 /**
  * Runs the task changelogs the way the platform does: each file registered in
@@ -110,8 +111,40 @@ public final class TaskChangelogs {
    * @throws Exception when a changeset fails
    */
   public static void update(Connection connection, String changelog) throws Exception {
-    liquibase(connection, changelog).update(new Contexts(), new LabelExpression());
+    update(connection, changelog, new ClassLoaderResourceAccessor());
+  }
+
+  /**
+   * Applies one changelog file read through a given accessor, under the same
+   * path, so that Liquibase records it as the platform would.
+   *
+   * @param connection the database
+   * @param changelog the path of the file
+   * @param accessor where the file is read from
+   * @throws Exception when a changeset fails
+   */
+  public static void update(Connection connection, String changelog, ResourceAccessor accessor) throws Exception {
+    liquibase(connection, changelog, accessor).update(new Contexts(), new LabelExpression());
     connection.setAutoCommit(true);
+  }
+
+  /**
+   * Applies the registered changelogs that come before a given one: the state
+   * of a database the platform has not upgraded to that file yet.
+   *
+   * @param connection the database
+   * @param changelog the first file not to apply
+   * @throws Exception when a changelog fails
+   */
+  public static void updateBefore(Connection connection, String changelog) throws Exception {
+    List<String> changelogs = registeredChangelogs();
+    int index = changelogs.indexOf(changelog);
+    if (index < 0) {
+      throw new IllegalArgumentException(changelog + " is not registered");
+    }
+    for (String before : changelogs.subList(0, index)) {
+      update(connection, before);
+    }
   }
 
   /**
@@ -123,7 +156,7 @@ public final class TaskChangelogs {
    * @throws Exception when a rollback fails
    */
   public static void rollback(Connection connection, String changelog, int count) throws Exception {
-    liquibase(connection, changelog).rollback(count, new Contexts(), new LabelExpression());
+    liquibase(connection, changelog, new ClassLoaderResourceAccessor()).rollback(count, new Contexts(), new LabelExpression());
     connection.setAutoCommit(true);
   }
 
@@ -155,13 +188,14 @@ public final class TaskChangelogs {
    * statements between two runs, a seed included, are committed as they run.
    *
    * @param connection the database
-   * @param changelog the classpath path of the file
+   * @param changelog the path of the file
+   * @param accessor where the file is read from
    * @return the Liquibase run
    * @throws Exception when the database is not recognised
    */
-  private static Liquibase liquibase(Connection connection, String changelog) throws Exception {
+  private static Liquibase liquibase(Connection connection, String changelog, ResourceAccessor accessor) throws Exception {
     Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(connection));
-    return new Liquibase(changelog, new ClassLoaderResourceAccessor(), database);
+    return new Liquibase(changelog, accessor, database);
   }
 
   /**

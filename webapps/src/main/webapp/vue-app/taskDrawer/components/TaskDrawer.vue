@@ -164,7 +164,7 @@
                 @change="updateTaskTitle" />
             </div>
             <div
-              v-if="taskId"
+              v-if="taskId && lastTaskChangesLog"
               class="lastUpdatedTask pb-3">
               <v-tooltip top>
                 <template #activator="{ on, attrs }">

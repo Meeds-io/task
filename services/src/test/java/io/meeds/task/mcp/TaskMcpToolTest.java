@@ -3061,6 +3061,92 @@ public class TaskMcpToolTest {
     }
   }
 
+  /**
+   * A full task whose change log holds an undated entry (recorded before 7.2
+   * on an upgraded PostgreSQL, MariaDB, Oracle or SQL Server database) and a comment
+   * lists that entry first, with no date, then the rest by date. Mutant: the
+   * entries sorted by their date with no rule for a missing one, which throws.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void anUndatedChangeIsTheOldestEntryOfTheChangeLog() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject();
+    CommentDto comment = new CommentDto();
+    comment.setAuthor(OTHER_USER);
+    comment.setCreatedTime(Date.from(Instant.parse("2026-10-07T10:00:00Z")));
+    comment.setSubComments(Collections.emptyList());
+    when(commentService.countComments(TASK_ID)).thenReturn(1);
+    when(commentService.getCommentsWithSubs(TASK_ID, 0, 1)).thenReturn(List.of(comment));
+    when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(List.of(log(2, "edit_status", "Done", "2026-10-05T10:00:00Z"),
+                                                                                      undatedLog(1, "edit_title")));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithInstantDates(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null));
+
+    List<TaskChangeLog> changeLogs = ((TaskWithChangeLogModel) result.getTasks().get(0)).getChangeLogs();
+    assertEquals(List.of("edit_title", "edit_status", "commented"), changeLogs.stream().map(TaskChangeLog::getActionId).toList());
+    assertNull(changeLogs.get(0).getActionDate());
+    assertEquals("2026-10-05T10:00:00Z", changeLogs.get(1).getActionDate());
+  }
+
+  /**
+   * A task whose only change log entry is undated was last updated when it
+   * was created, not on 1 January 1970. Mutant: the entry's date read
+   * whatever it is.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void anUndatedChangeDoesNotDateTheLastUpdate() throws Exception { // NOSONAR
+    Date creation = Date.from(Instant.parse("2026-09-01T08:00:00Z"));
+    TaskDto task = mockTaskWithProject();
+    when(task.getCreatedTime()).thenReturn(creation);
+    when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(List.of(undatedLog(1, "edit_title")));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithInstantDates(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null));
+
+    assertEquals("2026-09-01T08:00:00Z", ((TaskWithChangeLogModel) result.getTasks().get(0)).getUpdatedDate());
+  }
+
+  /**
+   * @param id the entry's id
+   * @param actionName its action
+   * @return a change log entry with no date, as the storage maps one: 0
+   */
+  private static ChangeLogEntry undatedLog(long id, String actionName) {
+    ChangeLogEntry entry = new ChangeLogEntry();
+    entry.setId(id);
+    entry.setAuthor(USER);
+    entry.setActionName(actionName);
+    entry.setCreatedTime(0);
+    return entry;
+  }
+
+  /**
+   * Runs with the user's time zone set to UTC, each date formatted as its
+   * instant, and a time in milliseconds formatted by the real
+   * {@link McpToolUtils#formatDate(Long)}, which gives no date for 0.
+   *
+   * @param supplier the call
+   * @return its result
+   * @param <T> its type
+   */
+  private <T> T runWithInstantDates(CheckedSupplier<T, Exception> supplier) {
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getUserTimeZone).thenReturn(TimeZone.getTimeZone("UTC"));
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> invocation.<Date> getArgument(0).toInstant().toString());
+      mocked.when(() -> McpToolUtils.formatDate(any(Long.class))).thenCallRealMethod();
+      return supplier.get();
+    } catch (Exception e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   @FunctionalInterface
   interface CheckedSupplier<T, E extends Throwable> {
     T get() throws E;
