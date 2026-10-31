@@ -683,10 +683,10 @@ public class TestTaskDAO extends AbstractTest {
   /**
    * A task's change log reads newest first, entries of the same date newest
    * id first, and an undated entry (recorded before 7.2 on an upgraded
-   * PostgreSQL, Oracle or SQL Server database) last. HSQLDB already sorts a
-   * NULL last in a descending order, so this run pins the tie on the id; the
-   * NULL rule is pinned on PostgreSQL by TaskChangelogIT. Mutant: no tie on
-   * the id.
+   * PostgreSQL, Oracle or SQL Server database) last. HSQLDB, like
+   * PostgreSQL and Oracle, sorts a NULL first in a descending order, so this
+   * run pins the NULL rule as well as the tie; TaskChangelogIT runs the same
+   * query on PostgreSQL. Mutants: the NULL rule removed; no tie on the id.
    */
   @Test
   public void testTaskLogsReadNewestFirstAndUndatedLast() throws Exception {
