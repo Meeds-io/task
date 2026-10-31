@@ -1997,7 +1997,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                                           .toList();
       taskLogs = new ArrayList<>(taskLogs);
       taskLogs.addAll(commentTaskLogs);
-      // an undated entry (recorded before 7.2 on an upgraded PostgreSQL, Oracle or SQL Server database) is the oldest
+      // an undated entry (recorded before 7.2 on an upgraded PostgreSQL, MariaDB, Oracle or SQL Server database) is the oldest
       taskLogs.sort(Comparator.comparing(TaskChangeLog::getActionDate, Comparator.nullsFirst(Comparator.naturalOrder())));
     }
     return taskLogs;
@@ -2363,7 +2363,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * The date of a task's latest activity: its newest dated change log entry or
    * its last comment, else its creation. The entries are read newest first,
    * the undated ones last, and an undated entry (0, recorded before 7.2 on an
-   * upgraded PostgreSQL, Oracle or SQL Server database) dates nothing.
+   * upgraded PostgreSQL, MariaDB, Oracle or SQL Server database) dates nothing.
    *
    * @param task the task
    * @return the date of its latest activity

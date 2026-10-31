@@ -66,7 +66,7 @@ public class TaskChangelogIT {
   /** The changelog that moves change dates to TIMESTAMP. */
   private static final String            CHANGELOG_7_2_0 = "db/changelog/task.db.changelog-7.2.0.xml";
 
-  /** The changeset that fills the change dates on PostgreSQL, Oracle and SQL Server (EXO-92620). */
+  /** The changeset that fills the change dates on PostgreSQL, MariaDB, Oracle and SQL Server (EXO-92620). */
   private static final String            FILL_DATES      = "7.2.0-exo-92620-01";
 
   /** A card's changes before 7.2, oldest first, and their times in milliseconds. */
