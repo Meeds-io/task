@@ -124,7 +124,8 @@ public class TaskChangelogTest {
 
   /**
    * On HSQLDB, which had its change dates from 7.2.0-02, the PostgreSQL,
-   * Oracle and SQL Server fill does not run and every date stays as it was.
+   * MariaDB, Oracle and SQL Server fill does not run and every date stays as
+   * it was.
    *
    * @throws Exception when a changelog fails
    */
