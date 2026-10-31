@@ -111,6 +111,7 @@ public final class TaskChangelogs {
    */
   public static void update(Connection connection, String changelog) throws Exception {
     liquibase(connection, changelog).update(new Contexts(), new LabelExpression());
+    connection.setAutoCommit(true);
   }
 
   /**
@@ -123,6 +124,7 @@ public final class TaskChangelogs {
    */
   public static void rollback(Connection connection, String changelog, int count) throws Exception {
     liquibase(connection, changelog).rollback(count, new Contexts(), new LabelExpression());
+    connection.setAutoCommit(true);
   }
 
   /**
@@ -147,7 +149,10 @@ public final class TaskChangelogs {
   }
 
   /**
-   * Builds a Liquibase run on one file, as the platform does.
+   * Builds a Liquibase run on one file, as the platform does. Liquibase turns
+   * the connection's auto-commit off, and a later run rolls back what is not
+   * committed: so every run here ends by turning it on again, and a caller's
+   * statements between two runs, a seed included, are committed as they run.
    *
    * @param connection the database
    * @param changelog the classpath path of the file
