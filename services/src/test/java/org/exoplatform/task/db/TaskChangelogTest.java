@@ -28,6 +28,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -90,7 +94,31 @@ public class TaskChangelogTest {
       Map<String, String> recorded = TaskChangelogs.recorded(connection, CHANGELOG_7_3_0);
       assertFalse(recorded.toString(), recorded.containsKey(COWORKERS_INDEX));
       assertFalse(recorded.toString(), recorded.containsKey(LABELS_INDEX));
+      assertEquals(1, indexesOnTaskIdAlone(connection, "TASK_TASK_COWORKERS"));
+      assertEquals(1, indexesOnTaskIdAlone(connection, "TASK_LABEL_TASK"));
     }
+  }
+
+  /**
+   * Counts a table's indexes made of TASK_ID alone, as the JDBC metadata
+   * reports them.
+   *
+   * @param connection the database
+   * @param table the table
+   * @return how many there are
+   * @throws SQLException when the metadata cannot be read
+   */
+  private int indexesOnTaskIdAlone(Connection connection, String table) throws SQLException {
+    Map<String, List<String>> columnsByIndex = new HashMap<>();
+    try (ResultSet indexes = connection.getMetaData().getIndexInfo(null, null, table, false, false)) {
+      while (indexes.next()) {
+        if (indexes.getString("INDEX_NAME") != null && indexes.getString("COLUMN_NAME") != null) {
+          columnsByIndex.computeIfAbsent(indexes.getString("INDEX_NAME"), name -> new ArrayList<>())
+                        .add(indexes.getString("COLUMN_NAME").toUpperCase(Locale.ROOT));
+        }
+      }
+    }
+    return (int) columnsByIndex.values().stream().filter(List.of("TASK_ID")::equals).count();
   }
 
   /**
