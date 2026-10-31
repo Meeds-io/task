@@ -276,6 +276,7 @@
                   :task="task"
                   :limit="twoColumns ? 0 : 3"
                   @labelAdded="labelsToAdd.push($event)"
+                  @labelRemoved="removeLabelToAdd($event)"
                   @labelsListOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeAssignements()" />
               </task-drawer-field>
             </div>
@@ -1055,6 +1056,21 @@ export default {
     },
     navigateTo(pagelink) {
       window.open(`${ eXo.env.portal.context }/${ eXo.env.portal.portalName }/${ pagelink }`, '_blank');
+    },
+    /**
+     * Forgets a label removed from the panel before the task exists, so that
+     * creating the task adds only the labels the panel still shows. A label
+     * is matched by its id, or by its name when it is a new one with no id.
+     *
+     * @param {object} label the label removed from the panel
+     * @returns {void}
+     */
+    removeLabelToAdd(label) {
+      const index = this.labelsToAdd.findIndex(item => item === label
+        || (label.id ? item.id === label.id : !item.id && item.name === label.name));
+      if (index >= 0) {
+        this.labelsToAdd.splice(index, 1);
+      }
     },
     /**
      * Loads the task this drawer opens into this drawer's own fields, and in
