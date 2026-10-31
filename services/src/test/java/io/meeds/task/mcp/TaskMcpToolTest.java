@@ -440,6 +440,7 @@ public class TaskMcpToolTest {
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
     when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
     when(spaceService.getSpaceById(12L)).thenReturn(space);
     when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
