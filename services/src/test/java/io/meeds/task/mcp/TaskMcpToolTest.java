@@ -319,6 +319,7 @@ public class TaskMcpToolTest {
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
     when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    lenient().when(userAcl.getUserIdentity(USER)).thenReturn(currentIdentity);
     lenient().when(project.canView(currentIdentity)).thenReturn(true);
     lenient().when(taskService.updateTask(task)).thenReturn(task);
 
