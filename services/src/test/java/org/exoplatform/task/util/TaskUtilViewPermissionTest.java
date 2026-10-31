@@ -1,0 +1,183 @@
+/**
+ * This file is part of the Meeds project (https://meeds.io/).
+ *
+ * Copyright (C) 2026 Meeds Association contact@meeds.io
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+package org.exoplatform.task.util;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mockStatic;
+
+import java.util.Collections;
+import java.util.Set;
+
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.MockitoJUnitRunner;
+
+import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.portal.config.UserACL;
+import org.exoplatform.services.security.ConversationState;
+import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
+import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
+import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.service.TaskService;
+
+/**
+ * Pins that {@link TaskUtil#hasViewPermission(TaskService, TaskDto, Identity)}
+ * judges only the identity it is given, whoever is signed in, and answers
+ * without an error when nobody is signed in.
+ */
+@RunWith(MockitoJUnitRunner.class)
+public class TaskUtilViewPermissionTest {
+
+  private static final long                TASK_ID       = 7L;
+
+  private static final String              PROJECT_GROUP = "/spaces/forms";
+
+  private static MockedStatic<CommonsUtils> commonsUtils;
+
+  @Mock
+  private TaskService                      taskService;
+
+  @Mock
+  private UserACL                          userAcl;
+
+  private TaskDto                          task;
+
+  /**
+   * Routes the platform-admin lookup to a mocked {@link UserACL}.
+   */
+  @BeforeClass
+  public static void initClassContext() {
+    commonsUtils = mockStatic(CommonsUtils.class);
+  }
+
+  /**
+   * Releases the static mock.
+   */
+  @AfterClass
+  public static void cleanClassContext() {
+    commonsUtils.close();
+  }
+
+  /**
+   * Builds a task assigned to {@code assignee}, created by {@code creator},
+   * with {@code coworker} as coworker, {@code mentioned} mentioned, in a
+   * project whose participants are the members of {@link #PROJECT_GROUP}.
+   */
+  @Before
+  public void setUp() {
+    commonsUtils.when(() -> CommonsUtils.getService(UserACL.class)).thenReturn(userAcl);
+    lenient().when(userAcl.getAdminGroups()).thenReturn("/platform/administrators");
+    lenient().when(taskService.getCoworker(anyLong())).thenReturn(Set.of("coworker"));
+    lenient().when(taskService.getMentionedUsers(anyLong())).thenReturn(Set.of("mentioned"));
+
+    ProjectDto project = new ProjectDto();
+    project.setParticipator(Set.of("*:" + PROJECT_GROUP));
+    project.setManager(Collections.emptySet());
+    StatusDto status = new StatusDto();
+    status.setProject(project);
+
+    task = new TaskDto();
+    task.setId(TASK_ID);
+    task.setAssignee("assignee");
+    task.setCreatedBy("creator");
+    task.setStatus(status);
+  }
+
+  /**
+   * Leaves no signed-in user behind for the next test.
+   */
+  @After
+  public void tearDown() {
+    ConversationState.setCurrent(null);
+  }
+
+  /**
+   * Someone who may not see the task is refused while someone who may see it
+   * is signed in.
+   */
+  @Test
+  public void refusesAnOutsiderWhileAViewerIsSignedIn() {
+    signIn(new Identity("assignee"));
+    assertFalse(TaskUtil.hasViewPermission(taskService, task, new Identity("outsider")));
+  }
+
+  /**
+   * Each kind of person who may see the task is allowed while someone who may
+   * not see it is signed in.
+   */
+  @Test
+  public void allowsEachViewerWhileAnOutsiderIsSignedIn() {
+    signIn(new Identity("outsider"));
+    assertTrue("assignee", TaskUtil.hasViewPermission(taskService, task, new Identity("assignee")));
+    assertTrue("coworker", TaskUtil.hasViewPermission(taskService, task, new Identity("coworker")));
+    assertTrue("mentioned", TaskUtil.hasViewPermission(taskService, task, new Identity("mentioned")));
+    assertTrue("creator", TaskUtil.hasViewPermission(taskService, task, new Identity("creator")));
+    assertTrue("project member", TaskUtil.hasViewPermission(taskService, task, projectMember()));
+  }
+
+  /**
+   * With nobody signed in, the check answers both ways without an error.
+   */
+  @Test
+  public void answersWithNobodySignedIn() {
+    ConversationState.setCurrent(null);
+    assertFalse(TaskUtil.hasViewPermission(taskService, task, new Identity("outsider")));
+    assertTrue(TaskUtil.hasViewPermission(taskService, task, new Identity("coworker")));
+    assertTrue(TaskUtil.hasViewPermission(taskService, task, projectMember()));
+  }
+
+  /**
+   * No identity means no view, whoever is signed in.
+   */
+  @Test
+  public void refusesANullIdentity() {
+    signIn(new Identity("assignee"));
+    assertFalse(TaskUtil.hasViewPermission(taskService, task, null));
+  }
+
+  /**
+   * Makes {@code identity} the signed-in user of the current thread.
+   *
+   * @param identity the signed-in user
+   */
+  private void signIn(Identity identity) {
+    ConversationState.setCurrent(new ConversationState(identity));
+  }
+
+  /**
+   * Builds a member of the task's project space who is none of the task's own
+   * people.
+   *
+   * @return the member's identity
+   */
+  private Identity projectMember() {
+    return new Identity("member", Set.of(new MembershipEntry(PROJECT_GROUP, "member")));
+  }
+}
