@@ -225,6 +225,42 @@ public class TaskChangelogIT {
   }
 
   /**
+   * A MariaDB database not yet on 7.2 gets every change's date when it
+   * upgrades: 7.2.0-02, declared for "mysql", does not match MariaDB, and
+   * 7.2.0-exo-92620-01 fills the dates there, to the second (the column keeps
+   * no fraction). The dates are compared in the database, where
+   * UNIX_TIMESTAMP reverses FROM_UNIXTIME in the session's time zone.
+   * Mutant: the MariaDB changeset removed.
+   *
+   * @throws Exception when the database cannot be reached
+   */
+  @Test
+  public void testDatesFilledWhenUpgradingTo72OnMariaDb() throws Exception {
+    try (MariaDBContainer mariadb = new MariaDBContainer("mariadb:11.4")) {
+      mariadb.start();
+      try (Connection connection = DriverManager.getConnection(mariadb.getJdbcUrl(), mariadb.getUsername(), mariadb.getPassword())) {
+        TaskChangelogs.updateBefore(connection, CHANGELOG_7_2_0);
+        seedChangesBefore72(connection);
+
+        TaskChangelogs.update(connection, CHANGELOG_7_2_0);
+
+        Map<String, String> recorded = TaskChangelogs.recorded(connection, CHANGELOG_7_2_0);
+        assertFalse(recorded.toString(), recorded.containsKey("7.2.0-02"));
+        assertEquals(recorded.toString(), "EXECUTED", recorded.get(FILL_DATES));
+        try (Statement statement = connection.createStatement();
+            ResultSet result = statement.executeQuery("SELECT ACTION_NAME, UNIX_TIMESTAMP(CREATED_TIME) FROM TASK_CHANGE_LOGS")) {
+          int rows = 0;
+          while (result.next()) {
+            rows++;
+            assertEquals(result.getString(1), CHANGE_TIMES.get(result.getString(1)) / 1000, result.getLong(2));
+          }
+          assertEquals(CHANGE_TIMES.size(), rows);
+        }
+      }
+    }
+  }
+
+  /**
    * MySQL already had its dates from 7.2.0-02: 7.2.0-exo-92620-01 does not
    * run there.
    *
