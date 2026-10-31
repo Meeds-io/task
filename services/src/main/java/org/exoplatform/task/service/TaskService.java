@@ -163,8 +163,8 @@ public interface TaskService {
 
     /**
      * Reads one page of a task's change log, newest first, after the last
-     * entry already read: entries added while a reader pages are never read
-     * twice nor skipped.
+     * entry already read, for whoever may view the task: entries added while
+     * a reader pages are never read twice nor skipped.
      *
      * @param taskId the task id
      * @param beforeTime the date, in milliseconds, of the last entry already
@@ -173,14 +173,22 @@ public interface TaskService {
      *          beforeTime and refused without it
      * @param limit the maximum number of entries, from 1 to
      *          {@link #MAX_TASK_LOGS_PAGE}
+     * @param identity the reader
      * @return the entries older than the last one read, or dated alike with a
-     *         lower id, newest first and, on the same date, highest id first
+     *         lower id, newest first and, on the same date, highest id first;
+     *         the undated entries last
+     * @throws EntityNotFoundException when the task does not exist
+     * @throws IllegalAccessException when the reader may not view the task
      * @throws IllegalArgumentException with the code
      *           {@code task.logs.invalidCursor} when only one of beforeTime and
      *           beforeId is given, {@code task.logs.invalidLimit} when the
      *           limit is out of bounds
      */
-    List<ChangeLogEntry> getTaskLogsBefore(long taskId, Long beforeTime, Long beforeId, int limit);
+    List<ChangeLogEntry> getTaskLogsBefore(long taskId,
+                                           Long beforeTime,
+                                           Long beforeId,
+                                           int limit,
+                                           Identity identity) throws EntityNotFoundException, IllegalAccessException;
 
     /**
      * Narrows a task query with the conditions of a change filter
