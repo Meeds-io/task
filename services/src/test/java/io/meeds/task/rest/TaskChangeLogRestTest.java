@@ -95,6 +95,10 @@ public class TaskChangeLogRestTest {
     entry.setId(7);
     entry.setTask(task);
     entry.setAuthor("john");
+    entry.setAuthorFullName("John Smith");
+    entry.setTarget("mary");
+    entry.setTargetFullName("Mary Jones");
+    entry.setIsTargetFullNameExternal(true);
     entry.setActionName("edit_priority");
     entry.setCreatedTime(1000L);
     when(taskService.getTaskLogsBefore(eq(1L), eq(1000L), eq(8L), eq(5), any())).thenReturn(List.of(entry));
@@ -104,6 +108,10 @@ public class TaskChangeLogRestTest {
            .andExpect(header().string("Cache-Control", CACHE_CONTROL))
            .andExpect(jsonPath("$[0].id").value(7))
            .andExpect(jsonPath("$[0].author").value("john"))
+           .andExpect(jsonPath("$[0].authorFullName").value("John Smith"))
+           .andExpect(jsonPath("$[0].target").value("mary"))
+           .andExpect(jsonPath("$[0].targetFullName").value("Mary Jones"))
+           .andExpect(jsonPath("$[0].isTargetFullNameExternal").value(true))
            .andExpect(jsonPath("$[0].actionName").value("edit_priority"))
            .andExpect(jsonPath("$[0].createdTime").value(1000))
            .andExpect(jsonPath("$[0].task.priority").value("HIGH"))
