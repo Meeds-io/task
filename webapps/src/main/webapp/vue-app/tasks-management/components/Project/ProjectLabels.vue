@@ -201,8 +201,8 @@ export default {
 
     /**
      * Deletes a label of an existing project. Before the project exists, the
-     * label is not saved yet: the field watcher has already told the drawer
-     * to forget it, and there is nothing to delete.
+     * label is not saved yet: the field watcher tells the drawer to forget
+     * it, and there is nothing to delete.
      *
      * @param {object} item the label removed with its ×
      * @returns {void}
