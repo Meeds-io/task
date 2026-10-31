@@ -177,9 +177,8 @@ public class TaskChangelogTest {
   private String offlineSql(String engine) throws Exception {
     Path history = Files.createTempFile("task-changelog-" + engine, ".csv");
     Files.delete(history);
-    try {
-      ClassLoaderResourceAccessor accessor = new ClassLoaderResourceAccessor();
-      OfflineConnection connection = new OfflineConnection("offline:" + engine + "?changeLogFile=" + history, accessor);
+    ClassLoaderResourceAccessor accessor = new ClassLoaderResourceAccessor();
+    try (OfflineConnection connection = new OfflineConnection("offline:" + engine + "?changeLogFile=" + history, accessor)) {
       Database database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(connection);
       StringWriter output = new StringWriter();
       new Liquibase(CHANGELOG_7_3_0, accessor, database).update(new Contexts(), new LabelExpression(), output);
