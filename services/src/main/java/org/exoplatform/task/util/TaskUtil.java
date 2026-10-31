@@ -638,23 +638,18 @@ public final class TaskUtil {
     return taskService.updateTask(task);
   }
 
-  public static boolean hasEditPermission(TaskService taskService,TaskDto task) {
-    Identity identity = ConversationState.getCurrent().getIdentity();
-    String userId = identity.getUserId();
-
-    if (task.getStatus() != null && task.getStatus().getProject() != null) {
-      ProjectDto project = task.getStatus().getProject();
-      if (project.canView(identity)) {
-        return true;
-      }
-    }
-
-    if ((task.getAssignee() != null && task.getAssignee().equals(identity.getUserId())) ||
-        getCoworker(taskService,task.getId()).contains(userId)) {
-      return true;
-    }
-
-    return UserUtil.isPlatformAdmin(identity);
+  /**
+   * Tells whether the signed-in user may edit a task, by the same rule as
+   * {@link #hasEditPermission(TaskService, TaskDto, Identity)} applied to that
+   * user, so that both answers always agree.
+   *
+   * @param taskService the service the task's coworkers are read from
+   * @param task the task
+   * @return true when the signed-in user may edit the task; false when nobody
+   *         is signed in
+   */
+  public static boolean hasEditPermission(TaskService taskService, TaskDto task) {
+    return hasEditPermission(taskService, task, getSignedInIdentity());
   }
   public static boolean hasEditPermission(TaskService taskService,Task task) {
     Identity identity = ConversationState.getCurrent().getIdentity();
@@ -697,11 +692,28 @@ public final class TaskUtil {
     return UserUtil.isPlatformAdmin(identity);
   }
 
-  public static boolean hasViewPermission(TaskService taskService,TaskDto task) {
-    Identity identity = ConversationState.getCurrent().getIdentity();
-    String userId = identity.getUserId();
+  /**
+   * Tells whether the signed-in user may see a task, by the same rule as
+   * {@link #hasViewPermission(TaskService, TaskDto, Identity)} applied to that
+   * user, so that both answers always agree.
+   *
+   * @param taskService the service the task's mentions and coworkers are read from
+   * @param task the task
+   * @return true when the signed-in user may see the task; false when nobody
+   *         is signed in
+   */
+  public static boolean hasViewPermission(TaskService taskService, TaskDto task) {
+    return hasViewPermission(taskService, task, getSignedInIdentity());
+  }
 
-    return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService,task);
+  /**
+   * Reads the identity of the user signed in on the current thread.
+   *
+   * @return that identity, or null when nobody is signed in
+   */
+  private static Identity getSignedInIdentity() {
+    ConversationState state = ConversationState.getCurrent();
+    return state == null ? null : state.getIdentity();
   }
 
   /**
@@ -752,9 +764,16 @@ public final class TaskUtil {
     return hasViewPermission(taskService,task) && !hasEditPermission(taskService,task);
   }
 
+  /**
+   * Tells whether the signed-in user may delete a task, by the same rule as
+   * {@link #hasDeletePermission(TaskDto, Identity)}.
+   *
+   * @param task the task
+   * @return true when the signed-in user may delete the task; false when
+   *         nobody is signed in
+   */
   public static boolean hasDeletePermission(TaskDto task) {
-    Identity identity = ConversationState.getCurrent().getIdentity();
-    return hasDeletePermission(task, identity);
+    return hasDeletePermission(task, getSignedInIdentity());
   }
 
   public static boolean hasDeletePermission(TaskDto task, Identity identity) {
