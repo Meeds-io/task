@@ -41,9 +41,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * The task changelogs on real PostgreSQL 16, MySQL 8.0 and MariaDB 11.4 (run with
  * {@code -Prun-its}). On PostgreSQL, the plan of a card's coworker and label
  * lookups is read before and after the TASK_ID indexes, on a seeded volume;
- * on MySQL, the foreign-key index that makes them unnecessary is checked.
- * Oracle and SQL Server are not run: {@link TaskChangelogTest} checks the SQL
- * they would receive.
+ * on MySQL and MariaDB, the foreign-key index that makes them unnecessary is
+ * checked. Oracle and SQL Server are not run: {@link TaskChangelogTest} checks
+ * the index statements they would receive, not how they plan the lookups.
  */
 public class TaskChangelogIT {
 
@@ -55,7 +55,6 @@ public class TaskChangelogIT {
 
   /** A card's labels, read by its id. */
   private static final String LABELS_OF_A_CARD      = "SELECT LABEL_ID FROM TASK_LABEL_TASK WHERE TASK_ID = 12345";
-
 
   /**
    * On PostgreSQL the indexes are created, a card's coworkers and labels are
