@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ This file is part of the Meeds project (https://meeds.io/).
+
+ Copyright (C) 2026 Meeds Association contact@meeds.io
+
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU Lesser General Public
+ License as published by the Free Software Foundation; either
+ version 3 of the License, or (at your option) any later version.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program; if not, write to the Free Software Foundation,
+ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+  <!--
+    A card's coworkers and labels are read by TASK_ID. MySQL (InnoDB) and HSQLDB
+    already index that column for its foreign key; PostgreSQL, Oracle and SQL
+    Server do not, so each lookup scans the whole table there. An index an
+    administrator already created on TASK_ID alone is kept.
+  -->
+  <changeSet id="7.3.0-exo-92610-01" author="task" dbms="postgresql,oracle,mssql">
+    <preConditions onFail="MARK_RAN">
+      <not>
+        <indexExists tableName="TASK_TASK_COWORKERS" columnNames="TASK_ID"/>
+      </not>
+    </preConditions>
+    <createIndex indexName="IDX_TASK_TASK_COWORKERS_02" tableName="TASK_TASK_COWORKERS">
+      <column name="TASK_ID"/>
+    </createIndex>
+  </changeSet>
+
+  <changeSet id="7.3.0-exo-92610-02" author="task" dbms="postgresql,oracle,mssql">
+    <preConditions onFail="MARK_RAN">
+      <not>
+        <indexExists tableName="TASK_LABEL_TASK" columnNames="TASK_ID"/>
+      </not>
+    </preConditions>
+    <createIndex indexName="IDX_TASK_LABEL_TASK_02" tableName="TASK_LABEL_TASK">
+      <column name="TASK_ID"/>
+    </createIndex>
+  </changeSet>
+
+</databaseChangeLog>
