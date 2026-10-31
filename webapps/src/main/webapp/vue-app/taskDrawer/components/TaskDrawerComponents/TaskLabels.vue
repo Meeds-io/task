@@ -265,9 +265,26 @@ export default {
         this.$emit('labelAdded', label);
       }
       this.model.push(label);
+      if (!this.task?.id) {
+        // A typed label is added while the field still holds its text: only labels are kept
+        this.modelCopy = this.model.filter(item => item === Object(item));
+      }
       this.$refs.selectLabel?.focus();
     },
+    /**
+     * Removes a label from the task. Before the task exists, nothing is saved
+     * yet: the drawer is told to forget the label instead of a call that
+     * would fail.
+     *
+     * @param {object} item the label removed from the field
+     * @returns {void}
+     */
     removeTaskFromLabel(item) {
+      if (!this.task?.id) {
+        this.$emit('labelRemoved', item);
+        this.modelCopy = this.model.slice();
+        return;
+      }
       this.$taskDrawerApi.removeTaskFromLabel(this.task.id, item.id).then( () => {
         this.$root.$emit('show-alert', {
           type: 'success',
@@ -286,9 +303,16 @@ export default {
     openLabelsList() {
       this.$emit('labelsListOpened');
     },
+    /**
+     * Removes the label the Backspace key took out of the field. A label is
+     * matched by its id, or by its name when it is a new one with no id.
+     *
+     * @returns {void}
+     */
     onDeleteKeyPress() {
       if (this.modelCopy.length > this.model.length) {
-        const deletedLabel = this.modelCopy.filter(itemA => !this.model.some(itemB => itemB.id === itemA.id));
+        const deletedLabel = this.modelCopy.filter(itemA => itemA === Object(itemA) && !this.model.some(itemB => itemB === itemA
+          || (itemA.id ? itemB.id === itemA.id : !itemB.id && itemB.name === itemA.name)));
         if (deletedLabel.length > 0) {
           this.removeTaskFromLabel(deletedLabel[0]);
           this.modelCopy = this.model;
