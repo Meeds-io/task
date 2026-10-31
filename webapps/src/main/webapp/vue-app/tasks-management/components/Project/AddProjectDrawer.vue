@@ -189,15 +189,15 @@ export default {
     /**
      * Forgets a label removed from the field before the project exists, so
      * that creating the project adds only the labels the field still shows.
-     * A label is matched as the same object, by its id, or by its name when
-     * it is a new one with no id.
+     * The field reports the very object it removed, so the label is matched
+     * as that object, and removing one of two new labels with the same name
+     * keeps the other.
      *
      * @param {object} label the label removed from the field
      * @returns {void}
      */
     removeLabelToAdd(label) {
-      const index = this.labelsToAdd.findIndex(item => item === label
-        || (label.id ? item.id === label.id : !item.id && item.name === label.name));
+      const index = this.labelsToAdd.indexOf(label);
       if (index >= 0) {
         this.labelsToAdd.splice(index, 1);
       }
