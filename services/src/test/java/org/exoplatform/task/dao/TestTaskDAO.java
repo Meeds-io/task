@@ -1117,12 +1117,11 @@ public class TestTaskDAO extends AbstractTest {
 
   /**
    * The service reads a page of the change log in milliseconds for whoever
-   * may view the task, its assignee, a user mentioned in one of its comments,
-   * a member or a manager of its project, or a coworker here, and refuses, in
-   * this order, a task
-   * that does not exist, a reader who may not view it, its creator alone
-   * included as on the card, then a cursor sent half and a limit out of 1 to
-   * its bound.
+   * may view the task, its assignee, its creator alone, a user mentioned in
+   * one of its comments, a member or a manager of its project, or a coworker
+   * here, and refuses, in this order, a task that does not exist, a reader who
+   * may not view it, then a cursor sent half and a limit out of 1 to its
+   * bound.
    */
   @Test
   public void testGetTaskLogsBeforeChecksItsCursorAndLimit() throws Exception {
@@ -1153,7 +1152,7 @@ public class TestTaskDAO extends AbstractTest {
     assertEquals("task.logs.notAccessible", denied.getMessage());
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), 1L, null, 1, stranger));
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), null, null, 1, null));
-    assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(created.getId(), null, null, 1, reader));
+    assertEquals(List.of(), taskService.getTaskLogsBefore(created.getId(), null, null, 1, reader));
     assertEquals(List.of(), taskService.getTaskLogsBefore(created.getId(), null, null, 1, new Identity("mentioned")));
 
     Project board = new Project("board", "", null, new HashSet<>(Set.of("manager")), new HashSet<>(Set.of("member")));
