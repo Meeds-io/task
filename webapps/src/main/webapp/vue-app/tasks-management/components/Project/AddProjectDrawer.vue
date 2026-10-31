@@ -97,6 +97,7 @@
           <project-labels
             :project="project"
             @add-label="addLabelOnCreate"
+            @label-removed="removeLabelToAdd"
             @edit-label-on-create="editLabelBeforeCreate" />
         </div>
         <extension-registry-components
@@ -185,6 +186,22 @@ export default {
     addLabelOnCreate(label){
       this.labelsToAdd.push(label);
     },
+    /**
+     * Forgets a label removed from the field before the project exists, so
+     * that creating the project adds only the labels the field still shows.
+     * A label is matched as the same object, or by its name when it is a new
+     * one with no id.
+     *
+     * @param {object} label the label removed from the field
+     * @returns {void}
+     */
+    removeLabelToAdd(label) {
+      const index = this.labelsToAdd.findIndex(item => item === label
+        || (label.id ? item.id === label.id : !item.id && item.name === label.name));
+      if (index >= 0) {
+        this.labelsToAdd.splice(index, 1);
+      }
+    },
     editLabelBeforeCreate(label){
       const objIndex = this.labelsToAdd.findIndex((obj => obj.name === label.name));
       this.labelsToAdd[objIndex].name = label.text;
@@ -257,6 +274,8 @@ export default {
       } else {
         this.project=project;
         this.project.spaceName=eXo.env.portal.spaceName;
+        // A new project starts with no label: neither a cancelled panel's nor the previous creation's
+        this.labelsToAdd = [];
         this.manager=[];
         this.participator=[];
         this.projectInformation={

@@ -80,10 +80,24 @@ export default {
     };
   },
   watch: {
+    /**
+     * Turns a typed label into a new label, and, before the project exists,
+     * tells the drawer which labels left the field, whether by their × or by
+     * the Backspace key, so that creating the project adds only the labels
+     * the field still shows.
+     *
+     * @param {Array} val the labels the field now holds
+     * @param {Array} prev the labels the field held before
+     * @returns {void}
+     */
     model(val, prev) {
       if (val.length === prev.length) {
         this.search = null;
         return;
+      }
+      if (val.length < prev.length && !this.project?.id) {
+        prev.filter(label => label === Object(label) && !val.includes(label))
+          .forEach(label => this.$emit('label-removed', label));
       }
       this.model = val.map(v => {
         if (typeof v === 'string') {
@@ -171,7 +185,18 @@ export default {
       document.getElementById('labelInput').focus();
     },
 
+    /**
+     * Deletes a label of an existing project. Before the project exists, the
+     * label is not saved yet: the field watcher has already told the drawer
+     * to forget it, and there is nothing to delete.
+     *
+     * @param {object} item the label removed with its ×
+     * @returns {void}
+     */
     removeLabel(item) {
+      if (!this.project?.id) {
+        return;
+      }
       this.$taskDrawerApi.removeLabel(item.id).then( () => {
         this.$root.$emit('show-alert', {
           type: 'success',
