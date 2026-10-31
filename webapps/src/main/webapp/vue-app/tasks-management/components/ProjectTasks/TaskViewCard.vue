@@ -49,7 +49,9 @@
         </div>
         <task-card-indicators
           :task-id="task.task.id"
-          class="px-1 pb-1" />
+          class="px-1 pb-1"
+          style="cursor: pointer"
+          @click.native="openTaskDrawer()" />
         <v-divider v-if="displayCardBottomSection" />
         <div
           v-if="displayCardBottomSection"
