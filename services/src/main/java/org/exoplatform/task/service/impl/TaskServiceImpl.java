@@ -211,7 +211,15 @@ public class TaskServiceImpl implements TaskService {
      * {@inheritDoc}
      */
     @Override
-    public List<ChangeLogEntry> getTaskLogsBefore(long taskId, Long beforeTime, Long beforeId, int limit) {
+    public List<ChangeLogEntry> getTaskLogsBefore(long taskId,
+                                                  Long beforeTime,
+                                                  Long beforeId,
+                                                  int limit,
+                                                  Identity identity) throws EntityNotFoundException, IllegalAccessException {
+        TaskDto task = getTask(taskId);
+        if (!TaskUtil.hasViewPermission(this, task, identity)) {
+            throw new IllegalAccessException("task.logs.notAccessible");
+        }
         if ((beforeTime == null) != (beforeId == null)) {
             throw new IllegalArgumentException("task.logs.invalidCursor");
         }
