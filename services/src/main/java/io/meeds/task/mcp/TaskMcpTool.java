@@ -1041,16 +1041,18 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Assigns a task to a user who can access it; in a call limited to a space,
+   * Assigns a task to a user who may see it once assigned: on a project task,
+   * someone the project is visible to; in a call limited to a space,
    * the user must also be a member or a super manager of that space.
    *
    * @param taskId the task, which the current user can access
    * @param username the assignee's login, with or without a leading {@code @}
    * @return the updated task
    * @throws ObjectNotFoundException when the task or the user doesn't exist
-   * @throws IllegalAccessException when the current user or the assignee
-   *           can't access the task, or, in a call limited to a space, the
-   *           assignee is neither a member nor a super manager of it
+   * @throws IllegalAccessException when the current user can't access the
+   *           task, the assignee isn't one the task's project is visible to,
+   *           or, in a call limited to a space, the assignee is neither a member
+   *           nor a super manager of it
    */
   public TaskModel assignTask(long taskId, String username) throws ObjectNotFoundException, IllegalAccessException {
     if (StringUtils.isBlank(username)) {
@@ -1066,7 +1068,7 @@ public class TaskMcpTool implements McpToolPlugin {
       throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, username));
     } else if (userAclIdentity == null) {
       throw new ObjectNotFoundException("User with login '%s' wasn't found");
-    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), username)) {
+    } else if (!canSeeOnceOnTask(task, userAclIdentity)) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
     }
     String person = username;
@@ -1077,16 +1079,18 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Adds a coworker who can access the task; in a call limited to a space,
+   * Adds a coworker who may see the task once added: on a project task,
+   * someone the project is visible to; in a call limited to a space,
    * the coworker must also be a member or a super manager of that space.
    *
    * @param taskId the task, which the current user can access
    * @param username the coworker's login, with or without a leading {@code @}
    * @return the updated task
    * @throws ObjectNotFoundException when the task or the user doesn't exist
-   * @throws IllegalAccessException when the current user or the coworker
-   *           can't access the task, or, in a call limited to a space, the
-   *           coworker is neither a member nor a super manager of it
+   * @throws IllegalAccessException when the current user can't access the
+   *           task, the coworker isn't one the task's project is visible to,
+   *           or, in a call limited to a space, the coworker is neither a member
+   *           nor a super manager of it
    */
   public TaskModel addTaskCoworker(long taskId, String username) throws ObjectNotFoundException, IllegalAccessException {
     if (StringUtils.isBlank(username)) {
@@ -1102,7 +1106,7 @@ public class TaskMcpTool implements McpToolPlugin {
       throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, username));
     } else if (userAclIdentity == null) {
       throw new ObjectNotFoundException("User with login '%s' wasn't found");
-    } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), username)) {
+    } else if (!canSeeOnceOnTask(task, userAclIdentity)) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
     }
     String person = username;
@@ -1898,6 +1902,21 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private int countTaskComments(long taskId) {
     return commentService.countCommentsWithSubs(taskId);
+  }
+
+  /**
+   * Tells whether a person would see a task once assigned to it or added as
+   * its coworker: on a project task, only someone the project is visible to;
+   * a personal task has no audience beyond the people on it, so anyone. The
+   * person is judged on their own rights, never on the signed-in user's.
+   *
+   * @param task the task
+   * @param identity the person to put on the task
+   * @return true when that person would see the task
+   */
+  private boolean canSeeOnceOnTask(TaskDto task, Identity identity) {
+    ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
+    return project == null || project.canView(identity);
   }
 
   private TaskDto getTask(Long taskId) {
