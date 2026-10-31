@@ -217,7 +217,7 @@ public class TaskServiceImpl implements TaskService {
                                                   int limit,
                                                   Identity identity) throws EntityNotFoundException, IllegalAccessException {
         TaskDto task = getTask(taskId);
-        if (!TaskUtil.hasViewPermission(this, task, identity)) {
+        if (!canView(task, identity)) {
             throw new IllegalAccessException("task.logs.notAccessible");
         }
         if ((beforeTime == null) != (beforeId == null)) {
@@ -227,6 +227,19 @@ public class TaskServiceImpl implements TaskService {
             throw new IllegalArgumentException("task.logs.invalidLimit");
         }
         return taskStorage.getTaskLogsBefore(taskId, beforeTime, beforeId, limit);
+    }
+
+    /**
+     * @param task a task
+     * @param identity a reader, whoever is signed in
+     * @return whether the reader is mentioned in the task or may edit it, read
+     *         for that reader alone, never for the user of the current
+     *         conversation
+     */
+    private boolean canView(TaskDto task, Identity identity) {
+        return identity != null
+            && (getMentionedUsers(task.getId()).contains(identity.getUserId())
+                || TaskUtil.hasEditPermission(this, task, identity));
     }
 
     /**

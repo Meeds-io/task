@@ -1116,6 +1116,15 @@ public class TestTaskDAO extends AbstractTest {
     assertEquals("task.logs.notAccessible", denied.getMessage());
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), 1L, null, 1, stranger));
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), null, null, 1, null));
+    ConversationState signedIn = ConversationState.getCurrent();
+    try {
+      ConversationState.setCurrent(new ConversationState(reader));
+      assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), null, null, 1, stranger));
+      ConversationState.setCurrent(new ConversationState(stranger));
+      assertEquals(2, taskService.getTaskLogsBefore(task.getId(), null, null, 2, reader).size());
+    } finally {
+      ConversationState.setCurrent(signedIn);
+    }
 
     assertRefused("task.logs.invalidCursor", () -> taskService.getTaskLogsBefore(task.getId(), 1L, null, 1, reader));
     assertRefused("task.logs.invalidCursor", () -> taskService.getTaskLogsBefore(task.getId(), null, 1L, 1, reader));
