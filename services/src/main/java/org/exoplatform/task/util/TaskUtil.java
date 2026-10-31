@@ -725,12 +725,22 @@ public final class TaskUtil {
                       .trim();
   }
 
+  /**
+   * Tells whether a given person may see a task: mentioned in it, or allowed
+   * to edit it. Only that person is judged, whoever is signed in, and the
+   * answer does not need anyone to be signed in.
+   *
+   * @param taskService the service the task's mentions and coworkers are read from
+   * @param task the task
+   * @param identity the person the check is made for, possibly null
+   * @return true when that person may see the task; false for a null identity
+   */
   public static boolean hasViewPermission(TaskService taskService, TaskDto task, Identity identity) {
     if (identity == null) {
       return false;
     }
     String userId = identity.getUserId();
-    return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService, task);
+    return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService, task, identity);
   }
 
   private static boolean hasMentionedUser(TaskService taskService, TaskDto task, String userId) {
