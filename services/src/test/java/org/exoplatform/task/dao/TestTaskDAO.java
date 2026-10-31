@@ -1092,9 +1092,10 @@ public class TestTaskDAO extends AbstractTest {
 
   /**
    * The service reads a page of the change log in milliseconds for whoever
-   * may view the task, and refuses, in this order, a task that does not
-   * exist, a reader who may not view it, then a cursor sent half and a limit
-   * out of 1 to its bound.
+   * may view the task, its assignee here, and refuses, in this order, a task
+   * that does not exist, a reader who may not view it, its creator alone
+   * included as on the card, then a cursor sent half and a limit out of 1 to
+   * its bound.
    */
   @Test
   public void testGetTaskLogsBeforeChecksItsCursorAndLimit() throws Exception {
@@ -1104,6 +1105,8 @@ public class TestTaskDAO extends AbstractTest {
     ChangeLog newer = addLogEntry(task, new Date(1_700_000_060_000L));
     Identity reader = new Identity(username);
     Identity stranger = new Identity("stranger");
+    Task created = newTaskInstance("created only", "", null);
+    tDAO.create(created);
 
     List<ChangeLogEntry> page = taskService.getTaskLogsBefore(task.getId(), newer.getCreatedTime().getTime(), newer.getId(), 1, reader);
     assertEquals(1, page.size());
@@ -1116,6 +1119,7 @@ public class TestTaskDAO extends AbstractTest {
     assertEquals("task.logs.notAccessible", denied.getMessage());
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), 1L, null, 1, stranger));
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), null, null, 1, null));
+    assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(created.getId(), null, null, 1, reader));
     ConversationState signedIn = ConversationState.getCurrent();
     try {
       ConversationState.setCurrent(new ConversationState(reader));

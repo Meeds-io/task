@@ -35,9 +35,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
-import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.TaskService;
+
+import io.meeds.task.rest.model.TaskChangeLogItem;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -75,8 +76,9 @@ public class TaskChangeLogRest {
    * @param beforeId the id of the last entry already read, sent with
    *          beforeTime
    * @param limit the maximum number of entries, 20 by default
-   * @return the entries, newest first and, on the same date, highest id
-   *         first, the undated ones last; 404 when the task does not exist,
+   * @return the entries as the timeline shows them, never the task itself,
+   *         newest first and, on the same date, highest id first, the undated
+   *         ones last; 404 when the task does not exist,
    *         403 when the reader may not view it, 400 with the code of a
    *         cursor sent without one of its parts or of a limit out of range,
    *         and 400 with no code when a parameter is not a number
@@ -104,7 +106,10 @@ public class TaskChangeLogRest {
                                             @RequestParam(name = "limit", defaultValue = "20")
                                             int limit) {
     try {
-      List<ChangeLogEntry> logs = taskService.getTaskLogsBefore(taskId, beforeTime, beforeId, limit, currentIdentity());
+      List<TaskChangeLogItem> logs = taskService.getTaskLogsBefore(taskId, beforeTime, beforeId, limit, currentIdentity())
+                                                .stream()
+                                                .map(TaskChangeLogItem::of)
+                                                .toList();
       return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(logs);
     } catch (EntityNotFoundException e) {
       return refusal(HttpStatus.NOT_FOUND, "task.logs.notFound");
