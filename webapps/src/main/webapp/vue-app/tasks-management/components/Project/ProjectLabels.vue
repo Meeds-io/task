@@ -117,6 +117,14 @@ export default {
     },
 
   },
+  /**
+   * Wires the field to the page: the suggestion list closes on a press
+   * outside it and on closeLabelsList, and loadAllProjectLabels loads the
+   * labels of an existing project, or, for a new project, empties the field
+   * and the suggestion list.
+   *
+   * @returns {void}
+   */
   created() {
     $(document).on('mousedown', () => {
       if (this.$refs.selectLabel && this.$refs.selectLabel.isMenuActive) {
