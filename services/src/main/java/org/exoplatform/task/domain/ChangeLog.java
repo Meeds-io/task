@@ -19,6 +19,7 @@
 package org.exoplatform.task.domain;
 
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.Date;
 
 import jakarta.persistence.Column;
@@ -36,13 +37,18 @@ import lombok.Data;
 @Entity(name = "TaskChangeLog")
 @Table(name = "TASK_CHANGE_LOGS")
 @NamedQuery(name = "TaskChangeLog.findChangeLogByTaskId",
-            query = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId ORDER BY log.createdTime DESC")
+            query = "SELECT log FROM TaskChangeLog log WHERE log.task.id = :taskId"
+                + " ORDER BY CASE WHEN log.createdTime IS NULL THEN 1 ELSE 0 END, log.createdTime DESC, log.id DESC")
 @NamedQuery(name = "TaskChangeLog.countChangeLogByTaskId",
         query = "SELECT count(log) FROM TaskChangeLog log WHERE log.task.id = :taskId")
 @NamedQuery(name = "TaskChangeLog.removeChangeLogByTaskId",
         query = "DELETE FROM TaskChangeLog log WHERE log.task.id = :taskId")
 @Data
 public class ChangeLog implements Comparable<ChangeLog> {
+
+  /** By date, the undated entries first. */
+  private static final Comparator<ChangeLog> CHRONOLOGICAL = Comparator.comparing(ChangeLog::getCreatedTime,
+                                                                                  Comparator.nullsFirst(Comparator.naturalOrder()));
 
   @Id
   @PortableSequence(name = "SEQ_TASK_CHANGE_LOG_ID")
@@ -64,9 +70,18 @@ public class ChangeLog implements Comparable<ChangeLog> {
   @Column(name = "CREATED_TIME")
   private Date   createdTime = Calendar.getInstance().getTime();
 
+  /**
+   * Orders entries by date, an undated one first: entries recorded before 7.2
+   * on a PostgreSQL, Oracle or SQL Server database that was already upgraded
+   * have no date, and are older than every dated one.
+   *
+   * @param o the other entry
+   * @return a negative number, zero or a positive number as this entry is
+   *         older than, as old as or newer than the other
+   */
   @Override
   public int compareTo(ChangeLog o) {
-    return getCreatedTime().compareTo(o.getCreatedTime());
+    return CHRONOLOGICAL.compare(this, o);
   }
 
   @Override
