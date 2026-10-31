@@ -1117,7 +1117,8 @@ public class TestTaskDAO extends AbstractTest {
 
   /**
    * The service reads a page of the change log in milliseconds for whoever
-   * may view the task, its assignee here, and refuses, in this order, a task
+   * may view the task, its assignee or a user mentioned in one of its
+   * comments here, and refuses, in this order, a task
    * that does not exist, a reader who may not view it, its creator alone
    * included as on the card, then a cursor sent half and a limit out of 1 to
    * its bound.
@@ -1132,6 +1133,13 @@ public class TestTaskDAO extends AbstractTest {
     Identity stranger = new Identity("stranger");
     Task created = newTaskInstance("created only", "", null);
     tDAO.create(created);
+    Comment mention = new Comment();
+    mention.setAuthor(username);
+    mention.setComment("a comment mentioning a reader");
+    mention.setCreatedTime(new Date());
+    mention.setTask(created);
+    mention.getMentionedUsers().add("mentioned");
+    cDAO.create(mention);
 
     List<ChangeLogEntry> page = taskService.getTaskLogsBefore(task.getId(), newer.getCreatedTime().getTime(), newer.getId(), 1, reader);
     assertEquals(1, page.size());
@@ -1145,6 +1153,7 @@ public class TestTaskDAO extends AbstractTest {
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), 1L, null, 1, stranger));
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), null, null, 1, null));
     assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(created.getId(), null, null, 1, reader));
+    assertEquals(List.of(), taskService.getTaskLogsBefore(created.getId(), null, null, 1, new Identity("mentioned")));
     ConversationState signedIn = ConversationState.getCurrent();
     try {
       ConversationState.setCurrent(new ConversationState(reader));
