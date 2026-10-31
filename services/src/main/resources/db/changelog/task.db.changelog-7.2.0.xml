@@ -29,7 +29,10 @@
     </addColumn>
   </changeSet>
   <!-- 2. Add Field Value -->
-  <!-- 2.1. postgres -->
+  <!-- 2.1. postgres: "postgres" is not a Liquibase database name ("postgresql" is), so this
+       changeset never runs and is never recorded. It stays as it is: corrected, it would run on
+       an already upgraded database, whose CREATED_TIME_TMP no longer exists. 7.2.0-exo-92620-01
+       below fills the dates on PostgreSQL, Oracle and SQL Server. -->
   <changeSet id="7.2.0-02" author="task" dbms="postgres">
     <update tableName="TASK_CHANGE_LOGS">
       <column name="CREATED_TIME_TMP" valueComputed="TO_TIMESTAMP(CREATED_TIME / 1000)"/>
@@ -46,6 +49,53 @@
     <update tableName="TASK_CHANGE_LOGS">
         <column name="CREATED_TIME_TMP" valueComputed="DATEADD('ms', CREATED_TIME, TIMESTAMP '1970-01-01 00:00:00')"/>
     </update>
+  </changeSet>
+  <!-- 2.4. postgresql, oracle, mssql (7.2.0-exo-92620-01): before the BIGINT column is dropped
+       (7.2.0-03). Where 7.2.0-04 already ran, CREATED_TIME_TMP is gone and the source of the dates
+       with it: the changeset is then marked as run and changes nothing. PostgreSQL and Oracle
+       convert to the session's time zone, as MySQL's FROM_UNIXTIME does; SQL Server, which has
+       none, to UTC. -->
+  <changeSet id="7.2.0-exo-92620-01" author="task" dbms="postgresql">
+    <preConditions onFail="MARK_RAN">
+      <columnExists tableName="TASK_CHANGE_LOGS" columnName="CREATED_TIME_TMP"/>
+    </preConditions>
+    <update tableName="TASK_CHANGE_LOGS">
+      <column name="CREATED_TIME_TMP" valueComputed="TO_TIMESTAMP(CREATED_TIME / 1000.0)"/>
+      <where>CREATED_TIME_TMP IS NULL</where>
+    </update>
+    <rollback>
+      <update tableName="TASK_CHANGE_LOGS">
+        <column name="CREATED_TIME_TMP" valueComputed="NULL"/>
+      </update>
+    </rollback>
+  </changeSet>
+  <changeSet id="7.2.0-exo-92620-01" author="task" dbms="oracle">
+    <preConditions onFail="MARK_RAN">
+      <columnExists tableName="TASK_CHANGE_LOGS" columnName="CREATED_TIME_TMP"/>
+    </preConditions>
+    <update tableName="TASK_CHANGE_LOGS">
+      <column name="CREATED_TIME_TMP" valueComputed="CAST(FROM_TZ(TIMESTAMP '1970-01-01 00:00:00' + NUMTODSINTERVAL(CREATED_TIME / 1000, 'SECOND'), 'UTC') AT TIME ZONE SESSIONTIMEZONE AS TIMESTAMP)"/>
+      <where>CREATED_TIME_TMP IS NULL</where>
+    </update>
+    <rollback>
+      <update tableName="TASK_CHANGE_LOGS">
+        <column name="CREATED_TIME_TMP" valueComputed="NULL"/>
+      </update>
+    </rollback>
+  </changeSet>
+  <changeSet id="7.2.0-exo-92620-01" author="task" dbms="mssql">
+    <preConditions onFail="MARK_RAN">
+      <columnExists tableName="TASK_CHANGE_LOGS" columnName="CREATED_TIME_TMP"/>
+    </preConditions>
+    <update tableName="TASK_CHANGE_LOGS">
+      <column name="CREATED_TIME_TMP" valueComputed="DATEADD(ms, CREATED_TIME % 1000, DATEADD(s, CREATED_TIME / 1000, CAST('1970-01-01' AS DATETIME2)))"/>
+      <where>CREATED_TIME_TMP IS NULL</where>
+    </update>
+    <rollback>
+      <update tableName="TASK_CHANGE_LOGS">
+        <column name="CREATED_TIME_TMP" valueComputed="NULL"/>
+      </update>
+    </rollback>
   </changeSet>
   <!-- 3. Drop Old Bigint Field -->
   <changeSet id="7.2.0-03" author="task">
