@@ -266,7 +266,8 @@ export default {
       }
       this.model.push(label);
       if (!this.task?.id) {
-        this.modelCopy = this.model.slice();
+        // A typed label is added while the field still holds its text: only labels are kept
+        this.modelCopy = this.model.filter(item => item === Object(item));
       }
       this.$refs.selectLabel?.focus();
     },
@@ -310,7 +311,7 @@ export default {
      */
     onDeleteKeyPress() {
       if (this.modelCopy.length > this.model.length) {
-        const deletedLabel = this.modelCopy.filter(itemA => !this.model.some(itemB => itemB === itemA
+        const deletedLabel = this.modelCopy.filter(itemA => itemA === Object(itemA) && !this.model.some(itemB => itemB === itemA
           || (itemA.id ? itemB.id === itemA.id : !itemB.id && itemB.name === itemA.name)));
         if (deletedLabel.length > 0) {
           this.removeTaskFromLabel(deletedLabel[0]);
