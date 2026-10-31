@@ -48,6 +48,7 @@ import java.util.TimeZone;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -901,18 +902,15 @@ public class TaskMcpTool implements McpToolPlugin {
                                        Priority priority,
                                        Long statusId) throws ObjectNotFoundException, IllegalAccessException {
     ProjectDto project = checkCanCreateInProject(projectId);
-    checkInProjectAudience(project, assignee);
-    if (coworkers != null) {
-      for (String coworker : coworkers) {
-        checkInProjectAudience(project, coworker);
-      }
-    }
+    String assigneeLogin = toLogin(assignee);
+    Set<String> coworkerLogins = toLogins(coworkers);
+    checkPeopleInProjectAudience(project, assigneeLogin, coworkerLogins);
     Identity aclIdentity = getCurrentUserAclIdentity();
     TaskDto task = new TaskDto();
     task.setTitle(title);
     task.setDescription(description);
-    task.setAssignee(assignee);
-    task.setCoworker(coworkers);
+    task.setAssignee(assigneeLogin);
+    task.setCoworker(coworkerLogins);
     task.setStartDate(toDate(startDate));
     task.setDueDate(toDate(dueDate));
     task.setPriority(priority == null ? Priority.NONE : priority);
@@ -957,9 +955,12 @@ public class TaskMcpTool implements McpToolPlugin {
    *                      then stored in that status's project, which the
    *                      current user must be able to view
    * @return the created task model
-   * @throws ObjectNotFoundException if the status does not exist
+   * @throws ObjectNotFoundException if the status, or, with a status, the
+   *                                   assignee or a coworker does not exist
    * @throws IllegalAccessException  if the current user cannot create tasks in
-   *                                   the project of the status
+   *                                   the project of the status, or that
+   *                                   project isn't visible to the assignee or
+   *                                   a coworker
    */
   public TaskModel createPersonalTask(String title, // NOSONAR
                                       String description,
@@ -973,8 +974,10 @@ public class TaskMcpTool implements McpToolPlugin {
     TaskDto task = new TaskDto();
     task.setTitle(title);
     task.setDescription(description);
-    task.setAssignee(StringUtils.isBlank(assignee) ? aclIdentity.getUserId() : assignee);
-    task.setCoworker(coworkers);
+    String assigneeLogin = toLogin(assignee);
+    Set<String> coworkerLogins = toLogins(coworkers);
+    task.setAssignee(StringUtils.isBlank(assigneeLogin) ? aclIdentity.getUserId() : assigneeLogin);
+    task.setCoworker(coworkerLogins);
     task.setStartDate(toDate(startDate));
     task.setDueDate(toDate(dueDate));
     task.setPriority(priority == null ? Priority.NONE : priority);
@@ -985,7 +988,8 @@ public class TaskMcpTool implements McpToolPlugin {
       if (status == null || status.getProject() == null) {
         throw new ObjectNotFoundException("Task Status with id '%s' doesn't exist".formatted(statusId));
       }
-      checkCanCreateInProject(status.getProject().getId());
+      ProjectDto project = checkCanCreateInProject(status.getProject().getId());
+      checkPeopleInProjectAudience(project, task.getAssignee(), coworkerLogins);
       task.setStatus(status);
     }
     task = taskService.createTask(task);
@@ -1936,6 +1940,52 @@ public class TaskMcpTool implements McpToolPlugin {
   private boolean canSeeOnceOnTask(TaskDto task, Identity identity) {
     ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
     return project == null || project.canView(identity);
+  }
+
+  /**
+   * Refuses to create a task of a project with an assignee or a coworker the
+   * project isn't visible to.
+   *
+   * @param project the project the task is created in
+   * @param assignee the assignee's login, possibly blank
+   * @param coworkers the coworkers' logins, possibly null
+   * @throws ObjectNotFoundException when one of these logins is unknown
+   * @throws IllegalAccessException when the project isn't visible to one of
+   *           these people
+   */
+  private void checkPeopleInProjectAudience(ProjectDto project,
+                                            String assignee,
+                                            Set<String> coworkers) throws ObjectNotFoundException, IllegalAccessException {
+    checkInProjectAudience(project, assignee);
+    if (coworkers != null) {
+      for (String coworker : coworkers) {
+        checkInProjectAudience(project, coworker);
+      }
+    }
+  }
+
+  /**
+   * Reads a login as the assignment tools do: without the leading {@code @}
+   * of a mention.
+   *
+   * @param username a login, possibly prefixed with {@code @}, possibly blank
+   * @return the login without its {@code @}, or the value itself when blank
+   */
+  private static String toLogin(String username) {
+    return StringUtils.isNotBlank(username) && username.startsWith("@") ? username.substring(1) : username;
+  }
+
+  /**
+   * Reads each login of a set as {@link #toLogin(String)} does.
+   *
+   * @param usernames logins, possibly null
+   * @return the logins without their {@code @}, or null when given null
+   */
+  private static Set<String> toLogins(Set<String> usernames) {
+    if (usernames == null) {
+      return null; // NOSONAR the task keeps no coworker set, as before
+    }
+    return usernames.stream().map(TaskMcpTool::toLogin).collect(Collectors.toCollection(HashSet::new));
   }
 
   /**
