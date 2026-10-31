@@ -19,7 +19,7 @@
     :value="selectedIndex"
     class="taskChangesTabs"
     @change="$emit('change', $event)">
-    <v-tab class="text-none">{{ $t('label.changes.tab.task') }}</v-tab>
+    <v-tab class="text-none">{{ $t('label.changes.tab.changes') }}</v-tab>
     <v-tab
       v-for="tab in tabs"
       :key="tab.id"
