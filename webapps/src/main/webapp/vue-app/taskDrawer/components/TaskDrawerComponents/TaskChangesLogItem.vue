@@ -82,7 +82,7 @@ export default {
         // the target of a creation entry is the status the task was created in, not shown
         str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))}'> ${ this.$t(this.logMsg(item)) }</p>`;
       } else if ( item.actionName === 'edit_priority' ) {
-        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${item.task.status.priority}'> ${ this.$t(this.logMsg(item)) } ${item.task.priority}</p>`;
+        str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${item.task.priority}'> ${ this.$t(this.logMsg(item)) } ${item.task.priority}</p>`;
       } else {
         str = `<p class='text-truncate my-auto text-color ms-1 subtitle-2' title='${item.authorFullName} ${this.$t(this.logMsg(item))} ${item.target}'> ${ this.$t(this.logMsg(item)) } ${item.target}</p>`;
       }
