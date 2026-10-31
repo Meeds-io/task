@@ -467,7 +467,8 @@ export default {
       return this.logs && this.logs.length && this.logs[0].createdTime || '';
     },
     lastTaskChangesLogAuthor() {
-      return this.logs && this.logs.length && ( this.logs[0].external ? `${this.logs[0].authorFullName} (${this.$t('label.external')})`  || '' : this.logs[0].authorFullName || '');
+      // no author without a date: an entry recorded before 7.2 on some upgraded databases has none
+      return this.lastTaskChangesLog && ( this.logs[0].external ? `${this.logs[0].authorFullName} (${this.$t('label.external')})`  || '' : this.logs[0].authorFullName || '');
     },
     taskId() {
       return this.task && this.task.id;
