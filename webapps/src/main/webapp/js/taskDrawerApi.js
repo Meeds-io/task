@@ -270,7 +270,7 @@ export function getTaskLogsPage(taskId, before, limit) {
     params.append('beforeTime', String(before.time));
     params.append('beforeId', String(before.id));
   }
-  return fetch(`/portal/rest/tasks/logs/${taskId}/page?${params}`, {
+  return fetch(`/task-management/rest/tasks/${taskId}/logs?${params}`, {
     method: 'GET',
     credentials: 'include',
   }).then((resp) => {

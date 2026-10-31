@@ -71,7 +71,27 @@ import {createTimeline} from '../../js/changesTimeline.js';
 
 /** The changes given out per scroll, and asked of each source per read. */
 const PAGE_SIZE = 20;
-/** The type under which another add-on feeds the timeline, on the TaskDrawer extension app. */
+/**
+ * The type under which another add-on feeds the timeline:
+ * extensionRegistry.registerComponent('TaskDrawer', 'task-changes-source', options),
+ * the options being, the last registered per id kept:
+ * - id: the source's id, unique, 'task' being the task's own changes;
+ * - labelKey, or label: the source's chip, shown once two sources apply;
+ * - rank: its order among sources, lowest first, which also orders their
+ *   changes of a same date;
+ * - isEnabled({taskId, projectId}): optional, a boolean or a promise of one,
+ *   whether the source applies to the task; a failure means it does not;
+ * - load({taskId, projectId, before, limit}): a promise of {entries, next},
+ *   entries being at most limit changes older than the cursor before (null
+ *   for the first page), newest first, each as {time, key, ...}: time in
+ *   milliseconds, key unique within the source and, among its changes of a
+ *   same time, highest first; next being the cursor the following page is
+ *   read from, given back as before, null once none is left. A page must
+ *   neither repeat nor skip a change across reads, even when changes are
+ *   added meanwhile: a cursor on (time, key) does that. A rejection drops the
+ *   source and tells the reader some changes cannot be read;
+ * - vueComponent: renders one change, given the props entry and task-id.
+ */
 const SOURCE_TYPE = 'task-changes-source';
 /** The id of the task's own changes, always shown. */
 const TASK_SOURCE = 'task';

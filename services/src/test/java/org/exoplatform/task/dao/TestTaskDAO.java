@@ -60,6 +60,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
 
 import static org.junit.Assert.*;
 
@@ -1115,34 +1116,45 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   /**
-   * The service reads a page of the change log in milliseconds and refuses a
-   * cursor sent half, and a limit out of 1 to its bound.
+   * The service reads a page of the change log in milliseconds for whoever
+   * may view the task, and refuses, in this order, a task that does not
+   * exist, a reader who may not view it, then a cursor sent half and a limit
+   * out of 1 to its bound.
    */
   @Test
-  public void testGetTaskLogsBeforeChecksItsCursorAndLimit() {
+  public void testGetTaskLogsBeforeChecksItsCursorAndLimit() throws Exception {
     Task task = newTaskInstance("logged", "", username);
     tDAO.create(task);
     ChangeLog older = addLogEntry(task, new Date(1_700_000_000_000L));
     ChangeLog newer = addLogEntry(task, new Date(1_700_000_060_000L));
+    Identity reader = new Identity(username);
+    Identity stranger = new Identity("stranger");
 
-    List<ChangeLogEntry> page = taskService.getTaskLogsBefore(task.getId(), newer.getCreatedTime().getTime(), newer.getId(), 1);
+    List<ChangeLogEntry> page = taskService.getTaskLogsBefore(task.getId(), newer.getCreatedTime().getTime(), newer.getId(), 1, reader);
     assertEquals(1, page.size());
     assertEquals(older.getId(), page.get(0).getId());
-    assertEquals(2, taskService.getTaskLogsBefore(task.getId(), null, null, TaskService.MAX_TASK_LOGS_PAGE).size());
+    assertEquals(2, taskService.getTaskLogsBefore(task.getId(), null, null, TaskService.MAX_TASK_LOGS_PAGE, reader).size());
 
-    assertRefused("task.logs.invalidCursor", () -> taskService.getTaskLogsBefore(task.getId(), 1L, null, 1));
-    assertRefused("task.logs.invalidCursor", () -> taskService.getTaskLogsBefore(task.getId(), null, 1L, 1));
-    assertRefused("task.logs.invalidLimit", () -> taskService.getTaskLogsBefore(task.getId(), null, null, 0));
+    assertThrows(EntityNotFoundException.class, () -> taskService.getTaskLogsBefore(task.getId() + 1000, null, null, 1, reader));
+    IllegalAccessException denied = assertThrows(IllegalAccessException.class,
+                                                 () -> taskService.getTaskLogsBefore(task.getId(), null, null, 1, stranger));
+    assertEquals("task.logs.notAccessible", denied.getMessage());
+    assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), 1L, null, 1, stranger));
+    assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(task.getId(), null, null, 1, null));
+
+    assertRefused("task.logs.invalidCursor", () -> taskService.getTaskLogsBefore(task.getId(), 1L, null, 1, reader));
+    assertRefused("task.logs.invalidCursor", () -> taskService.getTaskLogsBefore(task.getId(), null, 1L, 1, reader));
+    assertRefused("task.logs.invalidLimit", () -> taskService.getTaskLogsBefore(task.getId(), null, null, 0, reader));
     assertRefused("task.logs.invalidLimit",
-                  () -> taskService.getTaskLogsBefore(task.getId(), null, null, TaskService.MAX_TASK_LOGS_PAGE + 1));
+                  () -> taskService.getTaskLogsBefore(task.getId(), null, null, TaskService.MAX_TASK_LOGS_PAGE + 1, reader));
   }
 
   /**
    * @param code the code the call must be refused with
    * @param call the call
    */
-  private void assertRefused(String code, Runnable call) {
-    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class, call::run);
+  private void assertRefused(String code, ThrowingRunnable call) {
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class, call);
     assertEquals(code, refusal.getMessage());
   }
 
