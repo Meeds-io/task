@@ -77,6 +77,9 @@ public class TaskChangelogIT {
         assertIndexed(connection);
 
         TaskChangelogs.rollback(connection, CHANGELOG_7_3_0, 2);
+        assertEquals("the seed outlives the rollback", 2 * CARDS, count(connection, "SELECT count(*) FROM TASK_TASK_COWORKERS"));
+        assertEquals("the seed outlives the rollback", CARDS, count(connection, "SELECT count(*) FROM TASK_LABEL_TASK"));
+        execute(connection, "ANALYZE");
         assertNotIndexed(connection);
 
         TaskChangelogs.update(connection, CHANGELOG_7_3_0);
