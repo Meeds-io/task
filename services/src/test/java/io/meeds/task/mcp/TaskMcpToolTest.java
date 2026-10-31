@@ -1628,14 +1628,61 @@ public class TaskMcpToolTest {
     verify(taskService, never()).createTask(any(TaskDto.class));
   }
 
+  /**
+   * A task created in a project gets as assignee and coworkers only people
+   * the project is visible to, each judged on their own memberships, never on
+   * the signed-in user's: an outsider as assignee, or as one of the
+   * coworkers, refuses the creation, and nothing is created. A personal task
+   * accepts anyone.
+   * Mutants: the check removed, made on the assignee only, or made on the
+   * signed-in user.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void createTaskInProjectPutsOnItOnlyPeopleTheProjectIsVisibleTo() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    StatusDto status = mock(StatusDto.class);
+    Identity outsider = mock(Identity.class);
+    Identity member = mock(Identity.class);
+    TaskDto createdTask = mockTask();
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(userAcl.getUserIdentity("outsider")).thenReturn(outsider);
+    when(userAcl.getUserIdentity("member")).thenReturn(member);
+    when(project.canView(outsider)).thenReturn(false);
+    when(project.canView(member)).thenReturn(true);
+    lenient().when(statusService.getDefaultStatus(PROJECT_ID)).thenReturn(status);
+    when(taskService.createTask(any(TaskDto.class))).thenReturn(createdTask);
+
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.createTaskInProject(PROJECT_ID, "Task", null, "outsider", null, null, null, null, null));
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.createTaskInProject(PROJECT_ID, "Task", null, "member", Set.of("member", "outsider"),
+                                                null, null, null, null));
+    verify(taskService, never()).createTask(any(TaskDto.class));
+
+    runWithDateFormatMockResult(() -> tool.createTaskInProject(PROJECT_ID, "Task", null, "member", Set.of("member"),
+                                                               null, null, null, null));
+    verify(taskService).createTask(any(TaskDto.class));
+
+    runWithDateFormatMockResult(() -> tool.createPersonalTask("Task", null, "outsider", Set.of("outsider"),
+                                                              null, null, null, null));
+    verify(taskService, times(2)).createTask(any(TaskDto.class));
+  }
+
   @Test
   public void createTaskInProjectShouldUseDefaultStatusAndCreateTask() throws Exception {// NOSONAR
     ProjectDto project = mock(ProjectDto.class);
     StatusDto status = mock(StatusDto.class);
     TaskDto createdTask = mockTask();
 
+    Identity johnIdentity = mock(Identity.class);
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(true);
+    when(userAcl.getUserIdentity(USER)).thenReturn(currentIdentity);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(project.canView(johnIdentity)).thenReturn(true);
     when(statusService.getDefaultStatus(PROJECT_ID)).thenReturn(status);
     when(taskService.createTask(any(TaskDto.class))).thenReturn(createdTask);
 

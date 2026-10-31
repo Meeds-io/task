@@ -885,8 +885,11 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param priority    task priority (defaults to {@link Priority#NONE} when null)
    * @param statusId    id of the target status, or null for the project default status
    * @return the created task model
-   * @throws ObjectNotFoundException if the project does not exist
-   * @throws IllegalAccessException  if the current user cannot create tasks in the project
+   * @throws ObjectNotFoundException if the project, the assignee or a coworker
+   *                                   does not exist
+   * @throws IllegalAccessException  if the current user cannot create tasks in
+   *                                   the project, or the assignee or a coworker
+   *                                   isn't one the project is visible to
    */
   public TaskModel createTaskInProject(long projectId, // NOSONAR
                                        String title,
@@ -898,6 +901,12 @@ public class TaskMcpTool implements McpToolPlugin {
                                        Priority priority,
                                        Long statusId) throws ObjectNotFoundException, IllegalAccessException {
     ProjectDto project = checkCanCreateInProject(projectId);
+    checkInProjectAudience(project, assignee);
+    if (coworkers != null) {
+      for (String coworker : coworkers) {
+        checkInProjectAudience(project, coworker);
+      }
+    }
     Identity aclIdentity = getCurrentUserAclIdentity();
     TaskDto task = new TaskDto();
     task.setTitle(title);
@@ -1927,6 +1936,30 @@ public class TaskMcpTool implements McpToolPlugin {
   private boolean canSeeOnceOnTask(TaskDto task, Identity identity) {
     ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
     return project == null || project.canView(identity);
+  }
+
+  /**
+   * Refuses to put on a task of a project, as its assignee or one of its
+   * coworkers, a person the project isn't visible to, judged on that person's
+   * own memberships, never on the signed-in user's. A blank login puts no one
+   * on the task, so it passes.
+   *
+   * @param project the project the task is in
+   * @param username the login of the person to put on the task, possibly blank
+   * @throws ObjectNotFoundException when no user has that login
+   * @throws IllegalAccessException when the project isn't visible to that user
+   */
+  private void checkInProjectAudience(ProjectDto project, String username) throws ObjectNotFoundException,
+                                                                            IllegalAccessException {
+    if (StringUtils.isBlank(username)) {
+      return;
+    }
+    Identity identity = userAcl.getUserIdentity(username);
+    if (identity == null) {
+      throw new ObjectNotFoundException("User with login '%s' wasn't found".formatted(username));
+    } else if (!project.canView(identity)) {
+      throw new IllegalAccessException(MSG_TASK_PROJECT_NOT_ACCESSIBLE.formatted(project.getId(), username));
+    }
   }
 
   private TaskDto getTask(Long taskId) {
