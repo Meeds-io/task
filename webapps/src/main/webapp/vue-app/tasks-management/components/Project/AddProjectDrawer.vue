@@ -189,8 +189,8 @@ export default {
     /**
      * Forgets a label removed from the field before the project exists, so
      * that creating the project adds only the labels the field still shows.
-     * A label is matched as the same object, or by its name when it is a new
-     * one with no id.
+     * A label is matched as the same object, by its id, or by its name when
+     * it is a new one with no id.
      *
      * @param {object} label the label removed from the field
      * @returns {void}
@@ -234,6 +234,17 @@ export default {
       this.$root.$emit('update-projects-list', {});
       return Promise.all(this.saveHooks.map(hook => hook(projectId)));
     },
+    /**
+     * Opens the drawer. For an existing project, loads it with its managers,
+     * participants and labels; for a new one, starts from empty fields and
+     * an empty list of labels to add, so that nothing typed in a cancelled
+     * panel or for the previous project reaches the new one.
+     *
+     * @param {object} project the project to edit, or an object with no id
+     *          for a new one
+     * @returns {Promise|void} for an existing project, resolved once it is
+     *          loaded and the drawer open
+     */
     open(project) {
       if (project && project.id){
         return this.$projectService.getProject(project.id,true).then(project => {
