@@ -315,6 +315,8 @@ public class TaskMcpToolTest {
     TaskDto task = mockTaskWithProject();
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     lenient().when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(mock(Identity.class));
+    // the project is visible to everyone, so only the caller's edit right can refuse
+    lenient().when(task.getStatus().getProject().canView(any())).thenReturn(true);
     lenient().when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(false);
 
@@ -1575,6 +1577,7 @@ public class TaskMcpToolTest {
     when(statusService.getStatus(10L)).thenReturn(status);
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(true);
+    when(userAcl.getUserIdentity(USER)).thenReturn(currentIdentity);
     TaskDto createdTask = mockTask();
     when(taskService.createTask(any(TaskDto.class))).thenReturn(createdTask);
 
@@ -1633,9 +1636,12 @@ public class TaskMcpToolTest {
    * the project is visible to, each judged on their own memberships, never on
    * the signed-in user's: an outsider as assignee, or as one of the
    * coworkers, refuses the creation, and nothing is created. A personal task
-   * accepts anyone.
-   * Mutants: the check removed, made on the assignee only, or made on the
-   * signed-in user.
+   * with no project accepts anyone, but one created in the project of a
+   * given status is checked like a task created in that project. A login is
+   * read without the leading {@code @} of a mention, as the assignment tools
+   * read it.
+   * Mutants: the check removed, made on the assignee only, made on the
+   * signed-in user, or skipped for a personal task given a status.
    *
    * @throws Exception never
    */
@@ -1669,6 +1675,22 @@ public class TaskMcpToolTest {
     runWithDateFormatMockResult(() -> tool.createPersonalTask("Task", null, "outsider", Set.of("outsider"),
                                                               null, null, null, null));
     verify(taskService, times(2)).createTask(any(TaskDto.class));
+
+    StatusDto statusOfTheProject = mock(StatusDto.class);
+    when(statusOfTheProject.getProject()).thenReturn(project);
+    when(project.getId()).thenReturn(PROJECT_ID);
+    when(statusService.getStatus(10L)).thenReturn(statusOfTheProject);
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.createPersonalTask("Task", null, "member", Set.of("outsider"), null, null, null, 10L));
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.createPersonalTask("Task", null, "@outsider", null, null, null, null, 10L));
+    verify(taskService, times(2)).createTask(any(TaskDto.class));
+
+    runWithDateFormatMockResult(() -> tool.createTaskInProject(PROJECT_ID, "Task", null, "@member", Set.of("@member"),
+                                                               null, null, null, null));
+    // the first creation above and this one: the @ is gone from both logins
+    verify(taskService, times(2)).createTask(argThat(created -> "member".equals(created.getAssignee())
+        && Set.of("member").equals(created.getCoworker())));
   }
 
   @Test
