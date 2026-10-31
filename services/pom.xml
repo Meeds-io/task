@@ -78,7 +78,7 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-    <!-- TaskChangelogIT, run with -Prun-its: the changelogs on PostgreSQL and MySQL -->
+    <!-- TaskChangelogIT, run with -Prun-its: the changelogs on PostgreSQL, MySQL and MariaDB -->
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers-postgresql</artifactId>
@@ -97,6 +97,16 @@
     <dependency>
       <groupId>com.mysql</groupId>
       <artifactId>mysql-connector-j</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-mariadb</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mariadb.jdbc</groupId>
+      <artifactId>mariadb-java-client</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
