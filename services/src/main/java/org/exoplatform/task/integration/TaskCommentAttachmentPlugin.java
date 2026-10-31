@@ -65,8 +65,7 @@ public class TaskCommentAttachmentPlugin extends AttachmentPlugin {
   public boolean hasAccessPermission(Identity userIdentity, String entityId) throws ObjectNotFoundException {
     try {
       CommentDto comment = commentService.getComment(Long.parseLong(entityId));
-      return TaskUtil.hasViewPermission(taskService, comment.getTask(), userIdentity)
-          || (comment.getTask().getCreatedBy() != null && comment.getTask().getCreatedBy().equals(userIdentity.getUserId()));
+      return TaskUtil.hasViewPermission(taskService, comment.getTask(), userIdentity);
     } catch (Exception e) {
       throw new ObjectNotFoundException(String.format(TASK_COMMENT_NOT_FOUND_EXCEPTION_MESSAGE, entityId));
     }
