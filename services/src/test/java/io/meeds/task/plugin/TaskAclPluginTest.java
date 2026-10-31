@@ -48,8 +48,8 @@ import org.exoplatform.task.service.TaskService;
 
 /**
  * Pins that the task VIEW permission the platform asks for a person (to show
- * them a favorite, a link, or to accept them as assignee or coworker) is
- * judged on that person, whoever is signed in.
+ * them a favorite, a link or a comment) is judged on that person, whoever is
+ * signed in.
  */
 @RunWith(MockitoJUnitRunner.class)
 public class TaskAclPluginTest {
