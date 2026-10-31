@@ -278,7 +278,7 @@ public class TaskMcpToolTest {
   public void assignTaskWhenTargetUserDoesNotExistShouldThrowException() throws Exception {// NOSONAR
     TaskDto task = mockTask();
     when(taskService.getTask(TASK_ID)).thenReturn(task);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(userAcl.getUserIdentity("john")).thenReturn(null);
 
     tool.assignTask(TASK_ID, OTHER_USER);
@@ -291,8 +291,7 @@ public class TaskMcpToolTest {
 
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity("john")).thenReturn(johnIdentity);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), "john")).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
 
     runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
@@ -302,11 +301,86 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * A caller who may see a task but not edit it, such as someone only
+   * mentioned in it, changes nothing on it: assigning it, adding a coworker,
+   * putting on or taking off a label and moving it to another status are all
+   * refused, and the task is left unchanged.
+   * Mutants: any of these tools guarded by the view right instead of the edit
+   * right.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCallerWhoMayOnlySeeATaskChangesNothingOnIt() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    lenient().when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(mock(Identity.class));
+    // the project is visible to everyone, so only the caller's edit right can refuse
+    lenient().when(task.getStatus().getProject().canView(any())).thenReturn(true);
+    lenient().when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(false);
+
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+    assertThrows(IllegalAccessException.class, () -> tool.assignTaskToMe(TASK_ID));
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    assertThrows(IllegalAccessException.class, () -> tool.addProjectLabelToTask(TASK_ID, 99L));
+    assertThrows(IllegalAccessException.class, () -> tool.removeProjectLabelFromTask(TASK_ID, 99L));
+    assertThrows(IllegalAccessException.class, () -> tool.updateTaskStatus(TASK_ID, 8L));
+
+    verify(taskService, never()).updateTask(any());
+    verify(labelService, never()).addTaskToLabel(any(), anyLong());
+    verify(labelService, never()).removeTaskFromLabel(any(), anyLong());
+  }
+
+  /**
+   * The person put on a task as assignee or coworker is judged on their own
+   * rights, never on the signed-in user's: on a project task, someone the
+   * project isn't visible to is refused by both tools and the task is left
+   * unchanged, and someone it is visible to is accepted; on a personal task,
+   * anyone is accepted.
+   * Mutants: the check made on the signed-in user, made on one tool only, or
+   * refusing a personal task.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void personPutOnATaskIsJudgedOnTheirOwnRights() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    ProjectDto project = task.getStatus().getProject();
+    Identity johnIdentity = mock(Identity.class);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    lenient().when(userAcl.getUserIdentity(USER)).thenReturn(currentIdentity);
+    lenient().when(project.canView(currentIdentity)).thenReturn(true);
+    lenient().when(taskService.updateTask(task)).thenReturn(task);
+
+    when(project.canView(johnIdentity)).thenReturn(false);
+    // the reason given is the project the person can't see, not an edit right
+    assertTrue(assertThrows(IllegalAccessException.class,
+                            () -> tool.assignTask(TASK_ID, OTHER_USER)).getMessage().contains("project"));
+    assertTrue(assertThrows(IllegalAccessException.class,
+                            () -> tool.addTaskCoworker(TASK_ID, OTHER_USER)).getMessage().contains("project"));
+    verify(taskService, never()).updateTask(any());
+
+    when(project.canView(johnIdentity)).thenReturn(true);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(task).setAssignee(OTHER_USER);
+
+    TaskDto personalTask = mockTask();
+    when(taskService.getTask(TASK_ID)).thenReturn(personalTask);
+    when(taskService.updateTask(personalTask)).thenReturn(personalTask);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    verify(personalTask).setAssignee(OTHER_USER);
+  }
+
+  /**
    * In a call limited to a space, a task is assigned to, or gets as a
-   * coworker, a member of that space only: a person who can access the task
-   * through the project's participants but isn't a member is refused, and so
-   * is anyone when the call's identity can't be read. A call that isn't
-   * limited keeps the task's access rule alone.
+   * coworker, a member of that space only: on a personal task, which accepts
+   * anyone, a person who isn't a member is refused, and so is anyone when the
+   * call's identity can't be read. A call that isn't limited keeps the task's
+   * own rule alone.
    * Mutants: the membership check removed, applied to one tool only, run on
    * an unlimited call, or an unreadable identity taken as unlimited.
    *
@@ -319,8 +393,7 @@ public class TaskMcpToolTest {
     Space space = mock(Space.class);
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     lenient().when(taskService.updateTask(task)).thenReturn(task);
     when(spaceService.getSpaceById(12L)).thenReturn(space);
 
@@ -369,8 +442,8 @@ public class TaskMcpToolTest {
     CommentDto comment = mock(CommentDto.class);
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
     when(spaceService.getSpaceById(12L)).thenReturn(space);
     when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
@@ -397,7 +470,7 @@ public class TaskMcpToolTest {
 
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity(USER)).thenReturn(currentIdentity);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
 
     runWithDateFormatMockResult(() -> tool.assignTaskToMe(TASK_ID));
@@ -414,8 +487,7 @@ public class TaskMcpToolTest {
     when(task.getCoworker()).thenReturn(null);
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.getUserIdentity("john")).thenReturn(johnIdentity);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), "john")).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
 
     runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
@@ -490,7 +562,7 @@ public class TaskMcpToolTest {
     LabelDto label = mock(LabelDto.class);
 
     when(taskService.getTask(TASK_ID)).thenReturn(task);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(labelService.getLabel(99L)).thenReturn(label);
 
     tool.addProjectLabelToTask(TASK_ID, 99L);
@@ -503,7 +575,7 @@ public class TaskMcpToolTest {
     TaskDto task = mockTask();
 
     when(taskService.getTask(TASK_ID)).thenReturn(task);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(labelService.getLabel(99L)).thenReturn(null);
 
     tool.addProjectLabelToTask(TASK_ID, 99L);
@@ -519,7 +591,7 @@ public class TaskMcpToolTest {
   public void labelOfTheTaskProjectIsPutOnAndTakenOffTheTask() throws Exception {// NOSONAR
     TaskDto task = mockTaskWithProject();
     when(taskService.getTask(TASK_ID)).thenReturn(task);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     LabelDto label = projectLabel(PROJECT_ID);
     when(labelService.getLabel(99L)).thenReturn(label);
 
@@ -543,7 +615,7 @@ public class TaskMcpToolTest {
   public void labelOfAnotherProjectIsRefusedOnATaskOfAProject() throws Exception {// NOSONAR
     TaskDto task = mockTaskWithProject();
     when(taskService.getTask(TASK_ID)).thenReturn(task);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     LabelDto otherProjectLabel = projectLabel(PROJECT_ID + 1);
     LabelDto noProjectLabel = mock(LabelDto.class);
     when(labelService.getLabel(98L)).thenReturn(otherProjectLabel);
@@ -639,7 +711,7 @@ public class TaskMcpToolTest {
     when(task.getStatus()).thenReturn(currentStatus);
 
     when(taskService.getTask(TASK_ID)).thenReturn(task);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(statusService.getStatus(8L)).thenReturn(newStatus);
 
     tool.updateTaskStatus(TASK_ID, 8L);
@@ -1509,6 +1581,7 @@ public class TaskMcpToolTest {
     when(statusService.getStatus(10L)).thenReturn(status);
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(true);
+    when(userAcl.getUserIdentity(USER)).thenReturn(currentIdentity);
     TaskDto createdTask = mockTask();
     when(taskService.createTask(any(TaskDto.class))).thenReturn(createdTask);
 
@@ -1562,14 +1635,80 @@ public class TaskMcpToolTest {
     verify(taskService, never()).createTask(any(TaskDto.class));
   }
 
+  /**
+   * A task created in a project gets as assignee and coworkers only people
+   * the project is visible to, each judged on their own memberships, never on
+   * the signed-in user's: an outsider as assignee, or as one of the
+   * coworkers, refuses the creation, and nothing is created. A personal task
+   * with no project accepts anyone, but one created in the project of a
+   * given status is checked like a task created in that project. A login is
+   * read without the leading {@code @} of a mention, as the assignment tools
+   * read it.
+   * Mutants: the check removed, made on the assignee only, made on the
+   * signed-in user, or skipped for a personal task given a status.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void createTaskInProjectPutsOnItOnlyPeopleTheProjectIsVisibleTo() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    StatusDto status = mock(StatusDto.class);
+    Identity outsider = mock(Identity.class);
+    Identity member = mock(Identity.class);
+    TaskDto createdTask = mockTask();
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(userAcl.getUserIdentity("outsider")).thenReturn(outsider);
+    when(userAcl.getUserIdentity("member")).thenReturn(member);
+    when(project.canView(outsider)).thenReturn(false);
+    when(project.canView(member)).thenReturn(true);
+    lenient().when(statusService.getDefaultStatus(PROJECT_ID)).thenReturn(status);
+    when(taskService.createTask(any(TaskDto.class))).thenReturn(createdTask);
+
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.createTaskInProject(PROJECT_ID, "Task", null, "outsider", null, null, null, null, null));
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.createTaskInProject(PROJECT_ID, "Task", null, "member", Set.of("member", "outsider"),
+                                                null, null, null, null));
+    verify(taskService, never()).createTask(any(TaskDto.class));
+
+    runWithDateFormatMockResult(() -> tool.createTaskInProject(PROJECT_ID, "Task", null, "member", Set.of("member"),
+                                                               null, null, null, null));
+    verify(taskService).createTask(any(TaskDto.class));
+
+    runWithDateFormatMockResult(() -> tool.createPersonalTask("Task", null, "outsider", Set.of("outsider"),
+                                                              null, null, null, null));
+    verify(taskService, times(2)).createTask(any(TaskDto.class));
+
+    StatusDto statusOfTheProject = mock(StatusDto.class);
+    when(statusOfTheProject.getProject()).thenReturn(project);
+    when(project.getId()).thenReturn(PROJECT_ID);
+    when(statusService.getStatus(10L)).thenReturn(statusOfTheProject);
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.createPersonalTask("Task", null, "member", Set.of("outsider"), null, null, null, 10L));
+    assertThrows(IllegalAccessException.class,
+                 () -> tool.createPersonalTask("Task", null, "@outsider", null, null, null, null, 10L));
+    verify(taskService, times(2)).createTask(any(TaskDto.class));
+
+    runWithDateFormatMockResult(() -> tool.createTaskInProject(PROJECT_ID, "Task", null, "@member", Set.of("@member"),
+                                                               null, null, null, null));
+    // the first creation above and this one: the @ is gone from both logins
+    verify(taskService, times(2)).createTask(argThat(created -> "member".equals(created.getAssignee())
+        && Set.of("member").equals(created.getCoworker())));
+  }
+
   @Test
   public void createTaskInProjectShouldUseDefaultStatusAndCreateTask() throws Exception {// NOSONAR
     ProjectDto project = mock(ProjectDto.class);
     StatusDto status = mock(StatusDto.class);
     TaskDto createdTask = mockTask();
 
+    Identity johnIdentity = mock(Identity.class);
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(true);
+    when(userAcl.getUserIdentity(USER)).thenReturn(currentIdentity);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(project.canView(johnIdentity)).thenReturn(true);
     when(statusService.getDefaultStatus(PROJECT_ID)).thenReturn(status);
     when(taskService.createTask(any(TaskDto.class))).thenReturn(createdTask);
 
@@ -1711,7 +1850,7 @@ public class TaskMcpToolTest {
     LabelDto label = projectLabel(PROJECT_ID);
 
     when(taskService.getTask(TASK_ID)).thenReturn(task);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(labelService.getLabel(99L)).thenReturn(label);
 
     tool.removeProjectLabelFromTask(TASK_ID, 99L);
