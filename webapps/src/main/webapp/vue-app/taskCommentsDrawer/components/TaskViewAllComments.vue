@@ -13,13 +13,13 @@
     <div v-else class="taskCommentEmpty align-center pt-6 pb-3">
       <i class="uiIcon uiIconComment"></i>
       <span class="noCommentLabel">{{ $t('comment.message.noComment') }}</span>
-      <span
+      <button
         v-if="!readOnly"
+        type="button"
         class="ViewAllCommentText"
-        role="button"
-        tabindex="0"
-        @click="$root.$emit('displayTaskComment')"
-        @keydown.enter="$root.$emit('displayTaskComment')">{{ $t('comment.message.addYourComment') }}</span>
+        @click="$root.$emit('displayTaskComment')">
+        {{ $t('comment.message.addYourComment') }}
+      </button>
     </div>
     <div v-if="comments && comments.length" class="pe-0 ps-0 TaskCommentItem">
       <task-last-comment
