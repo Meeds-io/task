@@ -584,7 +584,7 @@ public class TaskServiceImpl implements TaskService {
             if (dueDate != null || !dueCategory.equals("")){
                 taskQuery.setAssigneeIsTodoOf(currIdentity.getUserId());
             } else {
-                taskQuery.setIsTodoOf(currIdentity.getUserId());
+                taskQuery.setIsTodoOf(currIdentity);
             }
 
             //TODO: process fiter here
