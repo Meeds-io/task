@@ -199,12 +199,20 @@ public class TaskQuery extends Query implements Cloneable {
     this.add(Conditions.or(eq(TASK_ASSIGNEE, username), in(TASK_MANAGER, memberships), in(TASK_PARTICIPATOR, memberships)));
   }
   
+  /**
+   * Selects the tasks a user may see: assigned to them, a coworker or the
+   * creator of, in a project they manage or take part in, or mentioning them
+   * in a comment, a mention counting only as
+   * {@link CardConditions#mentionedReader(Identity)} says.
+   *
+   * @param user the user, with their memberships
+   */
   public void setAccessible(Identity user) {
     this.assignee = Arrays.asList(user.getUserId());
     List<String> memberships = UserUtil.getMemberships(user);
     this.add(Conditions.or(eq(TASK_ASSIGNEE, user.getUserId()), in(TASK_COWORKER, assignee), eq(TASK_CREATOR, user.getUserId()),
                            in(TASK_MANAGER, memberships), in(TASK_PARTICIPATOR, memberships),
-                           in(TASK_MENTIONED_USERS, this.assignee)));
+                           CardConditions.mentionedReader(user)));
   }
 
   public void setAssigneeOrCoworkerOrInProject(String username, List<Long> projectIds) {
@@ -386,10 +394,18 @@ public class TaskQuery extends Query implements Cloneable {
             isNull(TASK_STATUS)));
   }
 
-  public void setIsTodoOf(String username) {
-    //setAssignee(Arrays.asList(username));
-    //add(eq(TASK_ASSIGNEE, username));
-    this.add(Conditions.or(eq(TASK_ASSIGNEE, username), in(TASK_COWORKER, Collections.singletonList(username)), in(TASK_MENTIONED_USERS, Arrays.asList(username))));
+  /**
+   * Selects the tasks a user has to do: assigned to them, a coworker of, or
+   * mentioning them in a comment, a mention counting only as
+   * {@link CardConditions#mentionedReader(Identity)} says.
+   *
+   * @param user the user, with their memberships
+   */
+  public void setIsTodoOf(Identity user) {
+    String username = user.getUserId();
+    this.add(Conditions.or(eq(TASK_ASSIGNEE, username),
+                           in(TASK_COWORKER, Collections.singletonList(username)),
+                           CardConditions.mentionedReader(user)));
     this.assignee = Arrays.asList(username);
   }
 
