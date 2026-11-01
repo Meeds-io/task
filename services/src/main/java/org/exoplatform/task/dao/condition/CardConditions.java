@@ -34,12 +34,12 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
 import org.exoplatform.services.security.Identity;
-import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.domain.LabelTaskMapping;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.util.UserUtil;
 
 /**
  * Builds the card criteria of a task query as {@link PredicateCondition}s:
@@ -67,11 +67,8 @@ import org.exoplatform.task.domain.Task;
  */
 public final class CardConditions {
 
-  /** The prefix of the group id of a space. */
-  private static final String SPACE_GROUP_PREFIX = "/spaces/";
-
   /** Matches a project permission that names a space group, whatever its role. */
-  private static final String SPACE_PERMISSION   = "%:" + SPACE_GROUP_PREFIX + "%";
+  private static final String SPACE_PERMISSION   = "%:" + UserUtil.SPACE_GROUP_PREFIX + "%";
 
   private CardConditions() {
   }
@@ -93,12 +90,7 @@ public final class CardConditions {
       throw new IllegalArgumentException("A mention criterion needs its reader");
     }
     String username = reader.getUserId();
-    List<String> spaceGroups = reader.getMemberships()
-                                     .stream()
-                                     .map(MembershipEntry::getGroup)
-                                     .filter(group -> group != null && group.startsWith(SPACE_GROUP_PREFIX))
-                                     .distinct()
-                                     .toList();
+    List<String> spaceGroups = UserUtil.getSpaceGroups(reader);
     return new PredicateCondition<>((cb, query, root) -> {
       Subquery<Long> mentions = query.subquery(Long.class);
       Root<Comment> comment = mentions.from(Comment.class);
