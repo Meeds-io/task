@@ -24,14 +24,16 @@
       :hide-no-data="!search"
       :items="items"
       :search-input.sync="search"
-      :label="$t('taskDrawer.field.add')"
+      :label="readOnly ? '' : $t('taskDrawer.field.add')"
+      :readonly="readOnly"
+      :append-icon="readOnly ? '' : '$dropdown'"
       attach
       class="pt-0 inputTaskLabel"
       hide-selected
       multiple
       small-chips
       solo
-      @click="openLabelsList()"
+      @click="!readOnly && openLabelsList()"
       @change="search = ''"
       @keyup.delete="onDeleteKeyPress()">
       <template #no-data>
@@ -67,7 +69,7 @@
             {{ item.text }}
           </span>
           <v-icon
-            v-if="item.canEdit"
+            v-if="item.canEdit && !readOnly"
             x-small
             class="pe-0"
             @click="parent.selectItem(item);removeTaskFromLabel(item)">
@@ -111,6 +113,10 @@ export default {
     limit: {
       type: Number,
       default: 0,
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
     },
   },
   data() {

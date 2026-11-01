@@ -223,10 +223,12 @@ public class TaskRestService implements ResourceContainer {
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
-    if (!TaskUtil.hasEditPermission(taskService,task)) {
+    Identity currentIdentity = ConversationState.getCurrent().getIdentity();
+    if (!TaskUtil.hasViewPermission(taskService, task, currentIdentity)) {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
-    transformHtml(task, ConversationState.getCurrent().getIdentity());
+    task.setEditable(TaskUtil.hasEditPermission(taskService, task, currentIdentity));
+    transformHtml(task, currentIdentity);
     task.setFavorite(FavoriteUtil.isFavorite(favoriteService, identityManager, TaskPermanentLinkPlugin.OBJECT_TYPE, task.getId()));
     return Response.ok(task).build();
     } catch (Exception e) {
@@ -781,6 +783,7 @@ public class TaskRestService implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Gets labels of a specific task by id", method = "GET", description = "This returns labels of a specific task by id")
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+      @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
       @ApiResponse(responseCode = "500", description = "Internal server error") })
   public Response getLabelsByTaskId(@Parameter(description = "Task id", required = true) @PathParam("id") long id) {
     try {
@@ -788,6 +791,9 @@ public class TaskRestService implements ResourceContainer {
       TaskDto task = taskService.getTask(id);
       if (task == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
+      }
+      if (!TaskUtil.hasViewPermission(taskService, task, currentUser)) {
+        return Response.status(Response.Status.FORBIDDEN).build();
       }
     List<LabelDto> labels = new ArrayList<>();
     if(task.getStatus()!=null && task.getStatus().getProject()!=null){

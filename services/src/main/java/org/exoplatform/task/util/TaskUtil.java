@@ -42,6 +42,7 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.*;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -50,6 +51,9 @@ import org.exoplatform.task.model.*;
 import org.exoplatform.web.controller.router.Router;
 
 public final class TaskUtil {
+
+  /** The prefix of the group id of a space. */
+  private static final String          SPACE_GROUP_PREFIX                              = "/spaces/";
 
   private static final Log             LOG                                             = ExoLogger.getExoLogger(TaskUtil.class.getName());
 
@@ -738,9 +742,11 @@ public final class TaskUtil {
   }
 
   /**
-   * Tells whether a given person may see a task: mentioned in it, or allowed
-   * to edit it. Only that person is judged, whoever is signed in, and the
-   * answer does not need anyone to be signed in.
+   * Tells whether a given person may see a task: allowed to edit it, or
+   * mentioned in it while a member of its project's space. A mention in a
+   * task with no project, or whose project belongs to no space, is enough on
+   * its own. Only that person is judged, whoever is signed in, and the answer
+   * does not need anyone to be signed in.
    *
    * @param taskService the service the task's mentions and coworkers are read from
    * @param task the task
@@ -751,13 +757,61 @@ public final class TaskUtil {
     if (identity == null) {
       return false;
     }
-    String userId = identity.getUserId();
-    return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService, task, identity);
+    return hasEditPermission(taskService, task, identity)
+        || hasMentionedUser(taskService, task, identity.getUserId()) && isInTaskSpace(task, identity);
   }
 
+  /**
+   * Tells whether a person is mentioned in a comment of a task.
+   *
+   * @param taskService the service the task's mentions are read from
+   * @param task the task
+   * @param userId the person's user name
+   * @return true when a comment of the task mentions that person
+   */
   private static boolean hasMentionedUser(TaskService taskService, TaskDto task, String userId) {
     Set<String> mentionedUsers = taskService.getMentionedUsers(task.getId());
     return mentionedUsers.contains(userId);
+  }
+
+  /**
+   * Tells whether a person belongs to the space of a task's project: a
+   * member, with any role, of one of the space groups its managers or
+   * participators name. A task with no project, or a project that names no
+   * space group, has no space, and anyone belongs to it.
+   *
+   * @param task the task
+   * @param identity the person, with their memberships
+   * @return false only when the project names a space the person is in none of
+   */
+  private static boolean isInTaskSpace(TaskDto task, Identity identity) {
+    ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
+    if (project == null) {
+      return true;
+    }
+    Set<String> spaceGroups = new HashSet<>();
+    addSpaceGroups(project.getManager(), spaceGroups);
+    addSpaceGroups(project.getParticipator(), spaceGroups);
+    return spaceGroups.isEmpty() || spaceGroups.stream().anyMatch(identity::isMemberOf);
+  }
+
+  /**
+   * Collects the space groups a list of project permissions names.
+   *
+   * @param permissions project permissions, {@code <role>:<group>} or user
+   *          names, possibly null
+   * @param spaceGroups the set the space group ids are added to
+   */
+  private static void addSpaceGroups(Set<String> permissions, Set<String> spaceGroups) {
+    if (permissions == null) {
+      return;
+    }
+    for (String permission : permissions) {
+      MembershipEntry entry = permission == null || permission.indexOf(':') < 0 ? null : MembershipEntry.parse(permission);
+      if (entry != null && entry.getGroup() != null && entry.getGroup().startsWith(SPACE_GROUP_PREFIX)) {
+        spaceGroups.add(entry.getGroup());
+      }
+    }
   }
 
   public static boolean hasViewOnlyPermission(TaskService taskService,TaskDto task) {
