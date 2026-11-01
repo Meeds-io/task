@@ -103,7 +103,7 @@
                     color="primary"
                     class="me-2"
                     size="18">
-                    mdi-check-circle-outline
+                    {{ task.completed ? 'mdi-checkbox-blank-circle-outline' : 'mdi-check-circle-outline' }}
                   </v-icon>
                   <span>{{ $t(task.completed ? 'message.markAsUnCompleted' : 'message.markAsCompleted') }}</span>
                 </v-list-item-title>
@@ -509,10 +509,11 @@ export default {
       return !this.taskId || !this.taskProject || this.movingProject;
     },
     /**
-     * Whether the task is shown read-only: a saved task stays read-only until
-     * the card read says its reader may edit it, so a reader who may only view
-     * it never gets an edit action or a field editor, whichever list opened
-     * it. A new task, not saved yet, is always editable.
+     * Whether the task is shown read-only: a saved task is editable only when
+     * the read that brought it, a list or board row or the card read, says its
+     * reader may edit it, so a reader who may only view it never gets an edit
+     * action or a field editor, whichever view opened it. A new task, not
+     * saved yet, is always editable.
      *
      * @returns {boolean} true unless the reader may edit the task
      */
@@ -1139,10 +1140,11 @@ export default {
       this.$refs.addTaskDrawer.open();
     },
     /**
-     * Reads, for a saved task opened from a list, a board or a search, whether
-     * its reader may edit it: only the card read answers it, so until it does
-     * the task shows read-only. The answer is applied only while the drawer
-     * still shows that task.
+     * Reads whether its reader may edit a saved task handed to the drawer
+     * without that answer: a task opened from a list or a board row, or from
+     * the card read, keeps the right that read carried, and is not read
+     * again. Until the card read answers, the task shows read-only, and the
+     * answer is applied only while the drawer still shows that task.
      *
      * @param {Object} task the task the drawer shows
      * @returns {void}
