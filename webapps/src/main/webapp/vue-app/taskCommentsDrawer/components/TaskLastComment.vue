@@ -44,6 +44,7 @@
         :preview-height="250"
         object-type="taskComment" />
       <v-btn
+        v-if="!readOnly"
         id="reply_btn"
         depressed
         text
@@ -63,6 +64,7 @@
           :comments="comment.subComments"
           :avatar-size="30"
           :reply-last-comment="true"
+          :read-only="readOnly"
           :last-comment-id="comment.comment.id" /> 
       </div>
     </div>
@@ -95,6 +97,15 @@ export default {
     };
   },
   computed: {
+    /**
+     * Whether the task is shown to a reader who may view it but not edit it,
+     * as the card read says: such a reader reads the comments and adds none.
+     *
+     * @returns {boolean} true for a read-only reader
+     */
+    readOnly() {
+      return !!this.task && this.task.editable === false;
+    },
     relativeTime() {
       return this.getRelativeTime(this.comment.comment.createdTime.time);
     },

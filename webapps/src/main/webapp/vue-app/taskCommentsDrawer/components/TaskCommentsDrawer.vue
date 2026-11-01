@@ -34,6 +34,7 @@
           </v-list-item-content>
           <v-list-item-action class="drawerIcons align-end d-flex flex-row">
             <v-btn
+              v-if="!readOnly"
               :disabled="isEditorActive"
               icon
               :title="$t('comment.message.addYourComment')"
@@ -92,6 +93,15 @@ export default {
     };
   },
   computed: {
+    /**
+     * Whether the task is shown to a reader who may view it but not edit it,
+     * as the card read says: such a reader reads the comments and adds none.
+     *
+     * @returns {boolean} true for a read-only reader
+     */
+    readOnly() {
+      return !!this.task && this.task.editable === false;
+    },
     isEditorActive() {
       return !this.comments.length;
     }
