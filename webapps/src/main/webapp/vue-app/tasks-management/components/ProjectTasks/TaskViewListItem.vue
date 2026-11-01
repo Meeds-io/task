@@ -26,6 +26,7 @@
         true-value="true"
         false-value="false" />
       <i
+        v-if="editable"
         :title="$t(getTaskCompletedTitle())"
         :class="getTaskCompleted()"
         @click.stop="updateCompleted"></i>
@@ -123,6 +124,15 @@ export default {
     };
   },
   computed: {
+    /**
+     * Whether the row's reader may change the task, as the list read says:
+     * only then does the row offer to complete it.
+     *
+     * @returns {boolean} true when the reader may edit the task
+     */
+    editable() {
+      return this.task?.task?.editable === true;
+    },
     taskDueDate() {
       return this.task && this.task.task.dueDate && this.task.task.dueDate.time;
     },

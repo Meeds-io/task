@@ -23,17 +23,6 @@
       class="taskCard taskViewCard pa-2"
       flat>
       <div class="taskTitleId  d-flex justify-space-between">
-        <div class="taskCheckBox">
-          <v-switch
-            ref="autoFocusInput2"
-            class="d-none"
-            true-value="true"
-            false-value="false" />
-          <i
-            :title="$t(getTaskCompletedTitle())"
-            :class="getTaskCompleted()"
-            @click="updateCompleted"></i>
-        </div>
         <div class="taskTitle d-flex align-start" @click="openTaskDrawer()">
           <a
             ref="tooltip"
@@ -308,45 +297,6 @@ export default {
     },
     onCloseDrawer: function(drawer){
       this.drawer = drawer;
-    },
-    getTaskCompleted() {
-      if (this.task.task.completed === true) {
-        return 'uiIconValidate';
-      } else {
-        return 'uiIconCircle';
-      }
-    },
-    getTaskCompletedTitle() {
-      if (this.task.task.completed === true) {
-        return 'message.markAsUnCompleted';
-      } else {
-        return 'message.markAsCompleted';
-      }
-    },
-    updateCompleted() {
-      const task = {
-        id: this.task.task.id,
-        isCompleted: !this.task.task.completed,
-      };
-      
-      if (task.id) {
-        return this.$tasksService.updateCompleted(task).then(updateTask => {
-          if (updateTask.completed) {
-            this.$root.$emit('show-alert', {type: 'success', message: this.$t('alert.success.task.completed')});
-          } else {
-            this.$root.$emit('show-alert', {type: 'success', message: this.$t('alert.success.task.unCompleted')});
-          }
-          this.$root.$emit('update-task-completed', updateTask);
-          this.task.task.completed = task.isCompleted;
-        }).catch(e => {
-          console.error('Error updating task completed', e);
-          this.$root.$emit('show-alert', {
-            type: 'error',
-            message: this.$t('alert.error')
-          });
-          this.postProject = false;
-        });
-      }
     },
     getTitleTaskClass() {
       if (this.task.task.completed === true) {

@@ -26,17 +26,6 @@
         class="taskCard taskViewCard pa-2"
         flat>
         <div class="taskTitleId  d-flex justify-space-between">
-          <div class="taskCheckBox">
-            <v-switch
-              ref="autoFocusInput2"
-              class="d-none"
-              true-value="true"
-              false-value="false" />
-            <i
-              :title="$t(taskCompletedTitle)"
-              :class="taskCompletedClass" 
-              @click="updateCompleted"></i>
-          </div>
           <div class="taskTitle d-flex align-start" @click="openTaskDrawer()">
             <a
               ref="tooltip"
@@ -174,12 +163,6 @@ export default {
     },
     displayCardBottomSection() {
       return this.taskDueDate || (this.task.labels && this.task.labels.length) || (this.assigneeAndCoworkerArray && this.assigneeAndCoworkerArray.length) || this.task.commentCount;
-    },
-    taskCompletedClass() {
-      return this.task.task.completed === true ? 'uiIconValidate' : 'uiIconCircle';
-    },
-    taskCompletedTitle() {
-      return this.task.task.completed === true ? 'message.markAsUnCompleted' : 'message.markAsCompleted';
     },
     taskPriorityColor() {
       switch (this.task.task.priority) {
@@ -339,33 +322,6 @@ export default {
 
     onCloseDrawer: function (drawer) {
       this.drawer = drawer;
-    },
-    updateCompleted() {
-      const task = {
-        id: this.task.task.id,
-        isCompleted: !this.task.task.completed,
-      };
-      
-      if (task.id) {
-        return this.$tasksService.updateCompleted(task).then(updatedTask => {
-          if (updatedTask.completed) {
-            this.$root.$emit('show-alert', {type: 'success', message: this.$t('alert.success.task.completed')});
-          } else {
-            this.$root.$emit('show-alert', {type: 'success', message: this.$t('alert.success.task.unCompleted')});
-          }
-          this.$emit('update-task-completed', updatedTask);
-          this.task.task.completed = task.isCompleted;
-        }).catch(e => {
-          console.error('Error updating project', e);
-          this.$root.$emit('show-alert', {
-            type: 'error',
-            message: this.$t('alert.error')
-          });
-          this.postProject = false;
-        });
-      }
-
-
     },
     getTitleTaskClass() {
       if (this.task.task.completed === true) {
