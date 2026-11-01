@@ -20,6 +20,7 @@
       id="assigneeMenu"
       v-model="globalMenu"
       :content-class="menuId"
+      :disabled="readOnly"
       :close-on-content-click="false"
       :nudge-left="0"
       :max-width="300"
@@ -52,7 +53,7 @@
             class="user-name coworkerNumber pe-2 caption font-italic lighten-2"> +{{ taskCoworkers.length }} {{ $t('label.coworker') }}
           </span>
           <span
-            v-if="!hasAssignee && !taskCoworkers.length"
+            v-if="!hasAssignee && !taskCoworkers.length && !readOnly"
             class="taskAssignBtn primary--text text-body-2">
             {{ $t('taskDrawer.field.add') }}
           </span>
@@ -115,6 +116,10 @@ export default {
     globalMenu: {
       type: Boolean,
       default: false
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
     },
   },
   data() {
