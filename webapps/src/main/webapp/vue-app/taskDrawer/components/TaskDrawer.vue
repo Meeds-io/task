@@ -206,7 +206,7 @@
                     @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
                 </div>
                 <div
-                  v-if="!projectEditable && taskProject"
+                  v-if="!projectEditable"
                   class="d-flex align-center">
                   <space-avatar
                     v-if="taskSpaceId"
