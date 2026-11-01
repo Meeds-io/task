@@ -19,7 +19,6 @@
 package org.exoplatform.task.dao.jpa;
 
 import org.exoplatform.services.security.Identity;
-import org.exoplatform.services.security.MembershipEntry;
 
 import java.util.*;
 import java.util.logging.Logger;
@@ -46,6 +45,7 @@ import org.exoplatform.task.dao.condition.Conditions;
 import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.UserSetting;
+import org.exoplatform.task.util.UserUtil;
 
 public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements ProjectHandler {
 
@@ -168,10 +168,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
   }
 
   /** The pattern of a project permission that names a space group. */
-  private static final String SPACE_PERMISSION = "'%:/spaces/%'";
-
-  /** The prefix of the group id of a space. */
-  private static final String SPACE_GROUP_PREFIX = "/spaces/";
+  private static final String SPACE_PERMISSION = "'%:" + UserUtil.SPACE_GROUP_PREFIX + "%'";
 
   /** The escape character of the patterns a space group is matched with. */
   private static final char   LIKE_ESCAPE       = '!';
@@ -237,25 +234,10 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
     }
   }
 
-  /**
-   * Reads the space groups a reader is a member of, with any role.
-   *
-   * @param user the reader, with their memberships
-   * @return the distinct space group ids
-   */
-  private static List<String> spaceGroupsOf(Identity user) {
-    return user.getMemberships()
-               .stream()
-               .map(MembershipEntry::getGroup)
-               .filter(group -> group != null && group.startsWith(SPACE_GROUP_PREFIX))
-               .distinct()
-               .toList();
-  }
-
  @Override
   public List<Project> findCollaboratedProjects(Identity user, String keyword,int offset ,int limit) {
    String userName = user.getUserId();
-   List<String> spaceGroups = spaceGroupsOf(user);
+   List<String> spaceGroups = UserUtil.getSpaceGroups(user);
    Query q = getEntityManager().createNativeQuery(
            "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
                    "where \n" +
@@ -351,7 +333,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
  @Override
   public int countCollaboratedProjects(Identity user, String keyword) {
    String userName = user.getUserId();
-   List<String> spaceGroups = spaceGroupsOf(user);
+   List<String> spaceGroups = UserUtil.getSpaceGroups(user);
    Query q = getEntityManager().createNativeQuery(
            "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
                    "where \n" +
