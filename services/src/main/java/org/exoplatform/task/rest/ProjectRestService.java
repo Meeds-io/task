@@ -146,8 +146,8 @@ public class ProjectRestService implements ResourceContainer {
         projects = projectService.findProjects(projectQuery, offset, limit);
         projectNumber = projectService.countProjects(projectQuery);
       } else if (projectsFilter != null && projectsFilter.equals("COLLABORATED")) {
-        projects = projectService.findCollaboratedProjects(identity.getUserId(), query, offset, limit);
-        projectNumber = projectService.countCollaboratedProjects(identity.getUserId(), query);
+        projects = projectService.findCollaboratedProjects(identity, query, offset, limit);
+        projectNumber = projectService.countCollaboratedProjects(identity, query);
       } else if (projectsFilter != null && projectsFilter.equals("WITH_TASKS")) {
         memberships.addAll(UserUtil.getMemberships(identity));
         projects = projectService.findNotEmptyProjects(memberships, query, offset, limit);
