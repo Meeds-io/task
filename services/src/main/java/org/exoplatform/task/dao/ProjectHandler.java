@@ -18,6 +18,8 @@
  */
 package org.exoplatform.task.dao;
 
+import org.exoplatform.services.security.Identity;
+
 import java.util.List;
 
 import org.exoplatform.commons.api.persistence.GenericDAO;
@@ -26,11 +28,11 @@ import org.exoplatform.task.domain.Project;
 
 public interface ProjectHandler extends GenericDAO<Project, Long> {
 
-    List<Project> findCollaboratedProjects(String userName, String keyword,int offset ,int limit);
+    List<Project> findCollaboratedProjects(Identity user, String keyword,int offset ,int limit);
 
     List<Project> findNotEmptyProjects(List<String> memberships, String keyword,int offset ,int limit);
 
-    int countCollaboratedProjects(String userName, String keyword);
+    int countCollaboratedProjects(Identity user, String keyword);
 
     int countNotEmptyProjects(List<String> memberships, String keyword);
 

@@ -18,6 +18,8 @@
  */
 package org.exoplatform.task.storage;
 
+import org.exoplatform.services.security.Identity;
+
 import java.util.function.LongConsumer;
 
 import org.exoplatform.commons.utils.ListAccess;
@@ -122,11 +124,11 @@ public interface ProjectStorage {
 
     List<ProjectDto> findProjects(List<String> memberships, String keyword, OrderBy order,int offset ,int limit);
 
-    List<ProjectDto> findCollaboratedProjects(String userName, String keyword,int offset ,int limit);
+    List<ProjectDto> findCollaboratedProjects(Identity user, String keyword,int offset ,int limit);
 
     List<ProjectDto> findNotEmptyProjects(List<String> memberships, String keyword,int offset ,int limit);
 
-    int countCollaboratedProjects(String userName, String keyword);
+    int countCollaboratedProjects(Identity user, String keyword);
 
     int countNotEmptyProjects(List<String> memberships, String keyword);
 

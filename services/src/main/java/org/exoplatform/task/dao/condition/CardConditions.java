@@ -33,9 +33,13 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
+import org.exoplatform.services.security.Identity;
+import org.exoplatform.task.domain.Comment;
 import org.exoplatform.task.domain.LabelTaskMapping;
+import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.util.UserUtil;
 
 /**
  * Builds the card criteria of a task query as {@link PredicateCondition}s:
@@ -63,7 +67,80 @@ import org.exoplatform.task.domain.Task;
  */
 public final class CardConditions {
 
+  /** Matches a project permission that names a space group, whatever its role. */
+  private static final String SPACE_PERMISSION   = "%:" + UserUtil.SPACE_GROUP_PREFIX + "%";
+
   private CardConditions() {
+  }
+
+  /**
+   * Selects the cards a reader may see because a comment mentions them: by
+   * the rule of {@code TaskUtil#hasViewPermission}, a mention counts on a card
+   * with no project, on a card whose project names no space group among its
+   * managers and participators, and on a card whose project names a space
+   * group the reader is a member of, with any role. A mention never opens a
+   * card to someone outside its space. Unlike the other criteria of this
+   * class, it is meant to sit under the OR of a reader's accessible cards.
+   *
+   * @param reader the reader, with their memberships
+   * @return the condition
+   */
+  public static PredicateCondition<Task> mentionedReader(Identity reader) {
+    if (reader == null || reader.getUserId() == null) {
+      throw new IllegalArgumentException("A mention criterion needs its reader");
+    }
+    String username = reader.getUserId();
+    List<String> spaceGroups = UserUtil.getSpaceGroups(reader);
+    return new PredicateCondition<>((cb, query, root) -> {
+      Subquery<Long> mentions = query.subquery(Long.class);
+      Root<Comment> comment = mentions.from(Comment.class);
+      Join<Comment, String> mentioned = comment.join("mentionedUsers");
+      mentions.select(comment.get("id"))
+              .where(cb.equal(comment.get("task").get("id"), root.get("id")), cb.equal(mentioned, username));
+
+      Path<Object> status = root.get("status");
+      Predicate inSpace = cb.or(cb.isNull(status),
+                                cb.not(cb.or(cb.exists(projectPermissions(cb, query, status, "manager", null)),
+                                             cb.exists(projectPermissions(cb, query, status, "participator", null)))));
+      if (!spaceGroups.isEmpty()) {
+        inSpace = cb.or(inSpace,
+                        cb.exists(projectPermissions(cb, query, status, "manager", spaceGroups)),
+                        cb.exists(projectPermissions(cb, query, status, "participator", spaceGroups)));
+      }
+      return cb.and(cb.exists(mentions), inSpace);
+    });
+  }
+
+  /**
+   * Builds the subquery of the space permissions of the project of a card's
+   * column, correlated on that column: the permissions of one kind that name
+   * a space group, or, when groups are given, one of those groups.
+   *
+   * @param cb the criteria builder
+   * @param query the query the subquery belongs to
+   * @param status the column of the query's card
+   * @param kind {@code manager} or {@code participator}
+   * @param groups the space groups to look for, null for any space group
+   * @return the subquery, one row per matching permission
+   */
+  private static Subquery<Long> projectPermissions(CriteriaBuilder cb,
+                                                   CriteriaQuery<?> query,
+                                                   Path<Object> status,
+                                                   String kind,
+                                                   List<String> groups) {
+    Subquery<Long> permissions = query.subquery(Long.class);
+    Root<Status> column = permissions.from(Status.class);
+    Join<Status, Project> project = column.join("project");
+    Join<Project, String> permission = project.join(kind);
+    Predicate named;
+    if (groups == null) {
+      named = cb.like(permission, SPACE_PERMISSION);
+    } else {
+      Expression<String> group = cb.substring(permission, cb.sum(cb.locate(permission, ":"), 1));
+      named = cb.and(cb.like(permission, SPACE_PERMISSION), group.in(groups));
+    }
+    permissions.select(column.get("id")).where(cb.equal(column.get("id"), status.get("id")), named);
+    return permissions;
   }
 
   /**

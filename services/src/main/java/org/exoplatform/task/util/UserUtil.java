@@ -41,6 +41,9 @@ public final class UserUtil {
 
   public static final int SEARCH_LIMIT = 10;
 
+  /** The prefix of the group id of a space. */
+  public static final String SPACE_GROUP_PREFIX = "/spaces/";
+
   private UserUtil() {
   }
 
@@ -76,6 +79,23 @@ public final class UserUtil {
       throw new IllegalArgumentException("space_group_id is null");
     }
     return memberships;
+  }
+
+  /**
+   * Reads the space groups a user is a member of, with any role: the groups
+   * the list queries match a reader's mentions and collaborated projects
+   * against (EXO-92405).
+   *
+   * @param identity the user, with their memberships
+   * @return the distinct space group ids
+   */
+  public static List<String> getSpaceGroups(Identity identity) {
+    return identity.getMemberships()
+                   .stream()
+                   .map(MembershipEntry::getGroup)
+                   .filter(group -> group != null && group.startsWith(SPACE_GROUP_PREFIX))
+                   .distinct()
+                   .toList();
   }
 
   public static List<String> getMemberships(Identity identity) {

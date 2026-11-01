@@ -18,6 +18,8 @@
  */
 package org.exoplatform.task.storage.impl;
 
+import org.exoplatform.services.security.Identity;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -175,9 +177,9 @@ public class ProjectStorageImpl implements ProjectStorage {
     }
 
     @Override
-    public List<ProjectDto> findCollaboratedProjects(String userName, String keyword,int offset ,int limit){
+    public List<ProjectDto> findCollaboratedProjects(Identity user, String keyword,int offset ,int limit){
         try {
-            return daoHandler.getProjectHandler().findCollaboratedProjects(userName,keyword,offset, limit).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).collect(Collectors.toList());
+            return daoHandler.getProjectHandler().findCollaboratedProjects(user,keyword,offset, limit).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).toList();
         } catch (Exception e) {
             return new ArrayList<>();
         }
@@ -193,9 +195,9 @@ public class ProjectStorageImpl implements ProjectStorage {
     }
 
     @Override
-    public int countCollaboratedProjects(String userName, String keyword){
+    public int countCollaboratedProjects(Identity user, String keyword){
         try {
-            return daoHandler.getProjectHandler().countCollaboratedProjects(userName,keyword);
+            return daoHandler.getProjectHandler().countCollaboratedProjects(user,keyword);
         } catch (Exception e) {
             return 0;
         }

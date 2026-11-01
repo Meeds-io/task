@@ -44,6 +44,7 @@
         :preview-height="250"
         object-type="taskComment" />
       <v-btn
+        v-if="!readOnly"
         id="reply_btn"
         depressed
         text
@@ -63,6 +64,7 @@
           :comments="comment.subComments"
           :avatar-size="30"
           :reply-last-comment="true"
+          :read-only="readOnly"
           :last-comment-id="comment.comment.id" /> 
       </div>
     </div>
@@ -95,6 +97,16 @@ export default {
     };
   },
   computed: {
+    /**
+     * Whether the task is shown read-only, as the task drawer decides: a
+     * saved task stays read-only until the card read says its reader may edit
+     * it. Such a reader reads the comments and adds none.
+     *
+     * @returns {boolean} true unless the reader may edit the task
+     */
+    readOnly() {
+      return !!this.task && !!this.task.id && this.task.editable !== true;
+    },
     relativeTime() {
       return this.getRelativeTime(this.comment.comment.createdTime.time);
     },

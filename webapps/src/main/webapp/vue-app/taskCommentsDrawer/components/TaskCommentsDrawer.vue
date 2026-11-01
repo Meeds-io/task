@@ -34,6 +34,7 @@
           </v-list-item-content>
           <v-list-item-action class="drawerIcons align-end d-flex flex-row">
             <v-btn
+              v-if="!readOnly"
               :disabled="isEditorActive"
               icon
               :title="$t('comment.message.addYourComment')"
@@ -92,6 +93,16 @@ export default {
     };
   },
   computed: {
+    /**
+     * Whether the task is shown read-only, as the task drawer decides: a
+     * saved task stays read-only until the card read says its reader may edit
+     * it. Such a reader reads the comments and adds none.
+     *
+     * @returns {boolean} true unless the reader may edit the task
+     */
+    readOnly() {
+      return !!this.task && !!this.task.id && this.task.editable !== true;
+    },
     isEditorActive() {
       return !this.comments.length;
     }

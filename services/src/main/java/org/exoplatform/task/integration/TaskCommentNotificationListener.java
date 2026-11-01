@@ -34,7 +34,9 @@ import org.exoplatform.task.integration.notification.NotificationUtils;
 import org.exoplatform.task.integration.notification.TaskCommentPlugin;
 import org.exoplatform.task.integration.notification.TaskMentionPlugin;
 import org.exoplatform.task.service.CommentService;
+import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.util.ProjectUtil;
+import org.exoplatform.task.util.TaskUtil;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -103,12 +105,14 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
     // Remove the user who create this comment, he should not receive the notification
     receiver.remove(creator);
 
-    // Get all mentioned
-    Set<String> mentioned = comment.getMentionedUsers();
-    if(mentioned==null){
-      mentioned = new HashSet<>();
-    }
+    // Get all mentioned who may read the task: a mention never reaches
+    // someone outside the task's space (EXO-92405)
+    Set<String> mentioned = comment.getMentionedUsers() == null ? new HashSet<>() : new HashSet<>(comment.getMentionedUsers());
     mentioned.remove(creator);
+    keepMentionedReaders(mentioned,
+                         task,
+                         PortalContainer.getInstance().getComponentInstanceOfType(TaskService.class),
+                         userAcl);
     if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
       receiver.removeIf(user -> !ProjectUtil.isProjectParticipant(userAcl, user, project));
@@ -117,6 +121,23 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
     ctx.append(NotificationUtils.MENTIONED, mentioned);
 
     return ctx;
+  }
+
+  /**
+   * Keeps, among the users a comment mentions, those who may read its task,
+   * by the task's view rule for a mentioned person: a mention notifies no one
+   * outside the space of the task's project, as it opens the task to no one
+   * there. A member of the space costs no read of the task, so a mention of a
+   * whole space role adds no query per member.
+   *
+   * @param mentioned the mentioned users, narrowed in place
+   * @param task the task commented
+   * @param taskService the service the task's coworkers are read from, for a
+   *          user outside the space
+   * @param userAcl the ACL the users' identities are resolved by
+   */
+  static void keepMentionedReaders(Set<String> mentioned, TaskDto task, TaskService taskService, UserACL userAcl) {
+    mentioned.removeIf(user -> !TaskUtil.hasViewPermissionAsMentioned(taskService, task, userAcl.getUserIdentity(user)));
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {

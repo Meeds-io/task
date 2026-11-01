@@ -231,26 +231,17 @@ public class TaskServiceImpl implements TaskService {
 
     /**
      * The task's view rule, read for the reader given alone, never for the
-     * user of the current conversation: mentioned in a comment of the task,
-     * its creator, its assignee or a coworker, a viewer of its project, or a
-     * platform administrator. Whoever may open the task may read its changes.
+     * user of the current conversation. It is
+     * {@link TaskUtil#hasViewPermission(TaskService, TaskDto, Identity)}, the
+     * one rule every caller shares: whoever may open the task may read its
+     * changes.
      *
      * @param task a task
      * @param identity a reader, whoever is signed in
      * @return whether the reader may view the task
      */
     private boolean canView(TaskDto task, Identity identity) {
-        if (identity == null) {
-            return false;
-        }
-        String userId = identity.getUserId();
-        ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
-        return getMentionedUsers(task.getId()).contains(userId)
-            || userId.equals(task.getCreatedBy())
-            || userId.equals(task.getAssignee())
-            || TaskUtil.getCoworker(this, task.getId()).contains(userId)
-            || project != null && project.canView(identity)
-            || UserUtil.isPlatformAdmin(identity);
+        return TaskUtil.hasViewPermission(this, task, identity);
     }
 
     /**
@@ -615,7 +606,7 @@ public class TaskServiceImpl implements TaskService {
             if (dueDate != null || !dueCategory.equals("")){
                 taskQuery.setAssigneeIsTodoOf(currIdentity.getUserId());
             } else {
-                taskQuery.setIsTodoOf(currIdentity.getUserId());
+                taskQuery.setIsTodoOf(currIdentity);
             }
 
             //TODO: process fiter here

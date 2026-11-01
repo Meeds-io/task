@@ -37,6 +37,7 @@
             :comments="comments"
             :last-comment="lastComment"
             :show-new-comment-editor="showNewCommentEditor"
+            :read-only="readOnly"
             @add-comment="addTaskComment"
             @confirmDialogOpened="$emit('confirmDialogOpened')"
             @confirmDialogClosed="$emit('confirmDialogClosed')" />
@@ -45,7 +46,7 @@
       <div v-else-if="column" class="taskCommentEmpty text-sub-title">
         {{ $t('comment.message.noComment') }}
       </div>
-      <div v-else-if="active">
+      <div v-else-if="active && !readOnly">
         <div class="editorContent commentEditorContainer newCommentEditor">
           <task-comment-editor
             ref="commentEditor"
@@ -60,7 +61,7 @@
       </div>
     </div>
     <div
-      v-if="column"
+      v-if="column && !readOnly"
       class="taskCommentsColumnComposer flex-shrink-0 pa-4">
       <div
         v-show="composerOpen"
@@ -119,6 +120,16 @@ export default {
     composerOpen: false,
   }),
   computed: {
+    /**
+     * Whether the task is shown read-only, as the task drawer decides: a
+     * saved task stays read-only until the card read says its reader may edit
+     * it. Such a reader reads the comments and adds none.
+     *
+     * @returns {boolean} true unless the reader may edit the task
+     */
+    readOnly() {
+      return !!this.task && !!this.task.id && this.task.editable !== true;
+    },
     commentsCount() {
       return this.comments?.length || 0;
     },

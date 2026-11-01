@@ -44,6 +44,7 @@
           class="d-flex align-center overflow-hidden">
           <v-btn
             :aria-label="$t(task.completed ? 'taskDrawer.header.markAsUncompleted' : 'taskDrawer.header.markAsCompleted')"
+            :disabled="readOnly"
             class="flex-shrink-0"
             icon
             @click="updateCompleted">
@@ -142,6 +143,7 @@
               class="taskTitleAndMark d-flex">
               <v-btn
                 id="check_btn"
+                :disabled="readOnly"
                 class="ms-n2"
                 icon
                 dark
@@ -155,6 +157,7 @@
                 :class="{taskCompleted: task && task.completed}"
                 :placeholder="$t('label.tapTask.name')"
                 :autofocus="!task || !task.id"
+                :readonly="readOnly"
                 type="text"
                 class="ps-0 pt-0 task-name"
                 auto-grow
@@ -189,13 +192,13 @@
               class="taskDrawerFields pb-2">
               <task-drawer-field
                 :label="$t('taskDrawer.field.project')"
-                :pencil="!projectEditable"
+                :pencil="!projectEditable && !readOnly"
                 :pencil-label="$t('taskDrawer.menu.moveProject')"
+                :editable="!readOnly"
                 name="project"
                 icon="fa-folder"
-                editable
                 @edit="startMovingProject">
-                <div v-show="projectEditable" class="taskProjectName">
+                <div v-show="projectEditable && !readOnly" class="taskProjectName">
                   <task-projects
                     ref="taskProjects"
                     :task="task"
@@ -222,44 +225,48 @@
               <task-drawer-field
                 v-show="taskProject"
                 :label="$t('taskDrawer.field.status')"
+                :editable="!readOnly"
                 name="status"
-                icon="fa-clock"
-                editable>
+                icon="fa-clock">
                 <task-status
                   ref="taskStatus"
                   :task="task"
+                  :read-only="readOnly"
                   @statusListOpened="closePriority(); closeProjectsList();closeLabelsList();closeTaskDates();closeAssignements()"
                   @updateTaskStatus="updateTaskStatus($event)" />
               </task-drawer-field>
               <task-drawer-field
                 :label="$t('taskDrawer.field.assignee')"
-                :pencil="hasAssigneeValue"
+                :pencil="hasAssigneeValue && !readOnly"
                 :pencil-label="$t('taskDrawer.field.assignee')"
+                :editable="!readOnly"
                 name="assignee"
                 icon="fa-user"
                 class="taskAssignement"
-                editable
                 @edit="$refs.taskAssignment.openMenu()">
                 <task-assignment
                   ref="taskAssignment"
                   :task="task"
+                  :read-only="readOnly"
                   @updateTaskAssignment="updateTaskAssignee($event)"
                   @updateTaskCoworker="updateTaskCoworker($event)"
                   @assignmentsOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeLabelsList()" />
               </task-drawer-field>
               <task-drawer-field
                 :label="$t('taskDrawer.field.priority')"
+                :editable="!readOnly"
                 name="priority"
-                icon="fa-flag"
-                editable>
+                icon="fa-flag">
                 <task-priority
                   ref="taskPriority"
                   :task="task"
+                  :read-only="readOnly"
                   @updateTaskPriority="updateTaskPriority($event)"
                   @PriorityListOpened="closeStatus(); closeProjectsList(); closeLabelsList();closeTaskDates();closeAssignements()" />
               </task-drawer-field>
               <task-form-date-pickers
                 :task="task"
+                :read-only="readOnly"
                 :date-picker-top="datePickerTop"
                 @startDateChanged="updateTaskStartDate($event)"
                 @dueDateChanged="updateTaskDueDate($event)" />
@@ -269,11 +276,12 @@
                 :wide="twoColumns"
                 name="labels"
                 icon="fa-tag"
-                class="taskLabelsName taskDrawerFieldWide"
-                editable>
+                :editable="!readOnly"
+                class="taskLabelsName taskDrawerFieldWide">
                 <task-labels
                   ref="taskLabels"
                   :task="task"
+                  :read-only="readOnly"
                   :limit="twoColumns ? 0 : 3"
                   @labelAdded="labelsToAdd.push($event)"
                   @labelRemoved="removeLabelToAdd($event)"
@@ -284,6 +292,7 @@
               <task-description-editor
                 v-model="taskDescription"
                 :task="task"
+                :read-only="readOnly"
                 :placeholder="$t('editinline.taskDescription.empty')"
                 @addTaskDescription="addTaskDescription($event)" />
             </div>
@@ -302,6 +311,7 @@
               element="div"
               strict-type />
             <extension-registry-components
+              v-if="!readOnly"
               :params="{
                 taskId: task && task.id,
                 spaceId: taskSpaceId,
@@ -502,6 +512,17 @@ export default {
      */
     projectEditable() {
       return !this.taskId || !this.taskProject || this.movingProject;
+    },
+    /**
+     * Whether the task is shown read-only: a saved task stays read-only until
+     * the card read says its reader may edit it, so a reader who may only view
+     * it never gets an edit action or a field editor, whichever list opened
+     * it. A new task, not saved yet, is always editable.
+     *
+     * @returns {boolean} true unless the reader may edit the task
+     */
+    readOnly() {
+      return !!this.task && !!this.task.id && this.task.editable !== true;
     },
     /**
      * The link to the page of the task's project.
@@ -1091,6 +1112,7 @@ export default {
       this.labelsToAdd = [];
       this.oldTask = task;
       this.task = JSON.parse(JSON.stringify(task));
+      this.readEditable(this.task);
       this.disposeCreation(previousCreation);
       this.taskTitle = this.task.title;
       this.taskDescription = this.task.description;
@@ -1114,6 +1136,34 @@ export default {
         });
       }
       this.$refs.addTaskDrawer.open();
+    },
+    /**
+     * Reads, for a saved task opened from a list, a board or a search, whether
+     * its reader may edit it: only the card read answers it, so until it does
+     * the task shows read-only. The answer is applied only while the drawer
+     * still shows that task.
+     *
+     * @param {Object} task the task the drawer shows
+     * @returns {void}
+     */
+    readEditable(task) {
+      if (!task.id || task.editable === true || task.editable === false) {
+        return;
+      }
+      const taskId = task.id;
+      this.$set(this.task, 'editable', null);
+      this.$tasksService.getTaskById(taskId)
+        .then(card => {
+          if (this.task && this.task.id === taskId) {
+            this.$set(this.task, 'editable', card.editable === true);
+          }
+        })
+        .catch(() => {
+          // A refused or failed read leaves the task read-only, and says so
+          if (this.task && this.task.id === taskId) {
+            this.$root.$emit('show-alert', {type: 'error', message: this.$t('alert.error')});
+          }
+        });
     },
     cancel() {
       this.$emit('updateTaskList');

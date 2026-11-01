@@ -41,13 +41,17 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
+import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
@@ -235,6 +239,58 @@ public class TestTaskRestService {
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertTrue(((TaskDto) response.getEntity()).isFavorite());
+    assertEquals(Boolean.TRUE, ((TaskDto) response.getEntity()).getEditable());
+  }
+
+  /**
+   * The card read is gated on the view rule, not on the edit one: a member
+   * of the project's space who is mentioned in a comment, but is not on the
+   * board, gets the card marked read-only, and a mentioned person outside the
+   * space is refused.
+   */
+  @Test
+  public void testGetTaskByIdOpensReadOnlyToAMentionedSpaceMemberOnly() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService,
+            commentService,
+            projectService,
+            statusService,
+            userService,
+            spaceService,
+            labelService,
+            favoriteService,
+            identityManager);
+    ProjectDto project = new ProjectDto();
+    project.setManager(new HashSet<>(Collections.singletonList("manager:/spaces/forms")));
+    project.setParticipator(new HashSet<>(Collections.singletonList("mary")));
+    StatusDto status = new StatusDto();
+    status.setProject(project);
+    TaskDto task = new TaskDto();
+    task.setId(1);
+    task.setCreatedBy("mary");
+    task.setStatus(status);
+    when(taskService.getTask(1)).thenReturn(task);
+    when(taskService.getMentionedUsers(1)).thenReturn(new HashSet<>(Collections.singletonList("john")));
+    UserACL userAcl = mock(UserACL.class);
+    lenient().when(userAcl.getAdminGroups()).thenReturn("/platform/administrators");
+    org.exoplatform.social.core.identity.model.Identity johnIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    lenient().when(johnIdentity.getId()).thenReturn("2");
+    lenient().when(identityManager.getOrCreateUserIdentity("john")).thenReturn(johnIdentity);
+    try (MockedStatic<CommonsUtils> commonsUtils = mockStatic(CommonsUtils.class)) {
+      commonsUtils.when(() -> CommonsUtils.getService(UserACL.class)).thenReturn(userAcl);
+
+      ConversationState.setCurrent(new ConversationState(new Identity("john",
+                                                                      Collections.singleton(new MembershipEntry("/spaces/forms",
+                                                                                                                "member")))));
+      Response response = taskRestService.getTaskById(1L);
+      assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+      assertEquals(Boolean.FALSE, ((TaskDto) response.getEntity()).getEditable());
+
+      ConversationState.setCurrent(new ConversationState(new Identity("john")));
+      response = taskRestService.getTaskById(1L);
+      assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+    } finally {
+      ConversationState.setCurrent(null);
+    }
   }
 
   @Test
@@ -520,6 +576,7 @@ public class TestTaskRestService {
 
     TaskDto task = new TaskDto();
     task.setId(1);
+    task.setCreatedBy("root");
     task.setStatus(status);
 
     LabelDto label1 = new LabelDto();
@@ -561,6 +618,18 @@ public class TestTaskRestService {
     List<LabelDto> labelList = (List<LabelDto>) response.getEntity();
     assertNotNull(labelList);
     assertEquals(3, labelList.size());
+
+    // A person who may not see the task does not read its labels either
+    UserACL userAcl = mock(UserACL.class);
+    when(userAcl.getAdminGroups()).thenReturn("/platform/administrators");
+    try (MockedStatic<CommonsUtils> commonsUtils = mockStatic(CommonsUtils.class)) {
+      commonsUtils.when(() -> CommonsUtils.getService(UserACL.class)).thenReturn(userAcl);
+      ConversationState.setCurrent(new ConversationState(new Identity("mary")));
+      response = taskRestService.getLabelsByTaskId(1);
+      assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+    } finally {
+      ConversationState.setCurrent(null);
+    }
   }
 
   @Test
