@@ -1502,16 +1502,16 @@ public class TestTaskDAO extends AbstractTest {
     Task personal = mentionedTask("personal", null);
 
     Identity outsider = new Identity("mentioned");
-    // "_" is a LIKE wildcard: unescaped, this other space's group would match /spaces/team
+    // A group that differs from /spaces/team by one character, so a pattern match could confuse them
     Identity otherSpace = new Identity("mentioned", Set.of(new MembershipEntry("/spaces/te_m", "member")));
     Identity member = new Identity("mentioned", Set.of(new MembershipEntry("/spaces/team", "member")));
 
     Set<Long> withoutSpace = Set.of(inPlain.getId(), personal.getId());
     Set<Long> all = Set.of(inSpace.getId(), inPlain.getId(), personal.getId());
-    for (boolean todo : new boolean[] { false, true }) {
-      assertEquals("outsider, todo=" + todo, withoutSpace, listedIds(outsider, todo));
-      assertEquals("member of another space, todo=" + todo, withoutSpace, listedIds(otherSpace, todo));
-      assertEquals("member of the space, todo=" + todo, all, listedIds(member, todo));
+    for (boolean toDoList : new boolean[] { false, true }) {
+      assertEquals("outsider, toDoList=" + toDoList, withoutSpace, listedIds(outsider, toDoList));
+      assertEquals("member of another space, toDoList=" + toDoList, withoutSpace, listedIds(otherSpace, toDoList));
+      assertEquals("member of the space, toDoList=" + toDoList, all, listedIds(member, toDoList));
     }
 
     // The collaborated projects apply the same condition to a mention
@@ -1583,12 +1583,12 @@ public class TestTaskDAO extends AbstractTest {
    * Lists the ids of the tasks a reader may see, or has to do.
    *
    * @param reader the reader
-   * @param todo true for the tasks to do, false for the accessible ones
+   * @param toDoList true for the tasks to do, false for the accessible ones
    * @return the ids listed
    */
-  private Set<Long> listedIds(Identity reader, boolean todo) {
+  private Set<Long> listedIds(Identity reader, boolean toDoList) {
     TaskQuery query = new TaskQuery();
-    if (todo) {
+    if (toDoList) {
       query.setIsTodoOf(reader);
     } else {
       query.setAccessible(reader);

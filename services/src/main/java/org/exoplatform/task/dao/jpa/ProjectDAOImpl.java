@@ -167,77 +167,53 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
     return super.buildPath(condition, root);
   }
 
-  /** The pattern of a project permission that names a space group. */
-  private static final String SPACE_PERMISSION = "'%:" + UserUtil.SPACE_GROUP_PREFIX + "%'";
-
-  /** The escape character of the patterns a space group is matched with. */
-  private static final char   LIKE_ESCAPE       = '!';
+  /**
+   * The roles a space membership is granted with, each of which a project
+   * permission on a space group may name.
+   */
+  private static final List<String> SPACE_ROLES          = List.of("*", "manager", "member", "redactor", "publisher");
 
   /**
-   * Builds the condition a mention adds to the collaborated projects, by the
-   * rule of {@code TaskUtil#hasViewPermission}: the task's project names no
-   * space group among its managers and participators, or names one of the
-   * space groups the reader is a member of (EXO-92405). The groups are bound
-   * as escaped LIKE patterns, {@code :spaceGroup0} and on, one per group.
-   *
-   * @param spaceGroups the reader's space groups
-   * @return the SQL condition, which starts with AND
+   * The condition a mention adds to the collaborated projects, by the rule of
+   * {@code TaskUtil#hasViewPermission} (EXO-92405): the task's project names
+   * no space group among its managers and participators, or names, with a
+   * space role, one of the space groups the reader is a member of. The
+   * reader's groups are bound as {@code :spacePermissions}, the permissions
+   * they match ({@link #spacePermissionsOf(Identity)}), so the statement is a
+   * constant.
    */
-  private static String mentionInsideSpaces(List<String> spaceGroups) {
-    StringBuilder sql = new StringBuilder("AND (NOT EXISTS (SELECT 1 FROM TASK_PROJECT_MANAGERS AS sman\n")
-        .append("WHERE sman.PROJECT_ID = ts.PROJECT_ID AND sman.MANAGER LIKE ").append(SPACE_PERMISSION).append(")\n")
-        .append("AND NOT EXISTS (SELECT 1 FROM TASK_PROJECT_PARTICIPATORS AS spart\n")
-        .append("WHERE spart.PROJECT_ID = ts.PROJECT_ID AND spart.PARTICIPATOR LIKE ").append(SPACE_PERMISSION).append(")\n");
-    if (!spaceGroups.isEmpty()) {
-      sql.append("OR EXISTS (SELECT 1 FROM TASK_PROJECT_MANAGERS AS gman\n")
-         .append("WHERE gman.PROJECT_ID = ts.PROJECT_ID AND (").append(groupPatterns("gman.MANAGER", spaceGroups.size())).append("))\n")
-         .append("OR EXISTS (SELECT 1 FROM TASK_PROJECT_PARTICIPATORS AS gpart\n")
-         .append("WHERE gpart.PROJECT_ID = ts.PROJECT_ID AND (").append(groupPatterns("gpart.PARTICIPATOR", spaceGroups.size())).append("))\n");
-    }
-    return sql.append(")\n").toString();
-  }
+  private static final String       MENTION_INSIDE_SPACES =
+                                                          "AND ((NOT EXISTS (SELECT 1 FROM TASK_PROJECT_MANAGERS AS sman\n" +
+                                                              "WHERE sman.PROJECT_ID = ts.PROJECT_ID AND sman.MANAGER LIKE '%:/spaces/%')\n" +
+                                                              "AND NOT EXISTS (SELECT 1 FROM TASK_PROJECT_PARTICIPATORS AS spart\n" +
+                                                              "WHERE spart.PROJECT_ID = ts.PROJECT_ID AND spart.PARTICIPATOR LIKE '%:/spaces/%'))\n" +
+                                                              "OR EXISTS (SELECT 1 FROM TASK_PROJECT_MANAGERS AS gman\n" +
+                                                              "WHERE gman.PROJECT_ID = ts.PROJECT_ID AND gman.MANAGER IN (:spacePermissions))\n" +
+                                                              "OR EXISTS (SELECT 1 FROM TASK_PROJECT_PARTICIPATORS AS gpart\n" +
+                                                              "WHERE gpart.PROJECT_ID = ts.PROJECT_ID AND gpart.PARTICIPATOR IN (:spacePermissions)))\n";
 
   /**
-   * Builds the OR of the LIKE comparisons of a permission column with the
-   * space group patterns.
+   * Lists the project permissions a reader's space memberships match: every
+   * space role on every space group the reader is a member of, with any role.
+   * A reader in no space gets a value no permission holds, as an IN list may
+   * not be empty.
    *
-   * @param column the permission column
-   * @param count how many groups
-   * @return the SQL disjunction
+   * @param user the reader, with their memberships
+   * @return the permissions, never empty
    */
-  private static String groupPatterns(String column, int count) {
-    StringJoiner patterns = new StringJoiner(" OR ");
-    for (int i = 0; i < count; i++) {
-      patterns.add(column + " LIKE :spaceGroup" + i + " ESCAPE '" + LIKE_ESCAPE + "'");
-    }
-    return patterns.toString();
-  }
-
-  /**
-   * Binds the reader's space groups, each as the pattern of a permission of
-   * any role on exactly that group.
-   *
-   * @param query the query
-   * @param spaceGroups the reader's space groups
-   */
-  private static void bindSpaceGroups(Query query, List<String> spaceGroups) {
-    for (int i = 0; i < spaceGroups.size(); i++) {
-      String group = spaceGroups.get(i);
-      StringBuilder escaped = new StringBuilder("%:");
-      for (char c : group.toCharArray()) {
-        if (c == LIKE_ESCAPE || c == '%' || c == '_') {
-          escaped.append(LIKE_ESCAPE);
-        }
-        escaped.append(c);
+  private static List<String> spacePermissionsOf(Identity user) {
+    List<String> permissions = new ArrayList<>();
+    for (String group : UserUtil.getSpaceGroups(user)) {
+      for (String role : SPACE_ROLES) {
+        permissions.add(role + ":" + group);
       }
-      query.setParameter("spaceGroup" + i, escaped.toString());
     }
+    return permissions.isEmpty() ? List.of("") : permissions;
   }
 
  @Override
   public List<Project> findCollaboratedProjects(Identity user, String keyword,int offset ,int limit) {
    String userName = user.getUserId();
-   List<String> spaceGroups = UserUtil.getSpaceGroups(user);
    Query q = getEntityManager().createNativeQuery(
            "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
                    "where \n" +
@@ -262,7 +238,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "FROM TASK_COMMENT_MENTIONED_USERS AS cmention\n" +
                    "WHERE com.COMMENT_ID = cmention.COMMENT_ID\n" +
                    "AND cmention.MENTIONED_USERS = :userName\n" +
-                   mentionInsideSpaces(spaceGroups) +
+                   MENTION_INSIDE_SPACES +
                    ")\n" +
                    ")\n" +
                    " )\n" +
@@ -277,7 +253,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "))");
      q.setParameter("keyword", keyword);
      q.setParameter("userName", userName);
-     bindSpaceGroups(q, spaceGroups);
+     q.setParameter("spacePermissions", spacePermissionsOf(user));
      if (limit > 0) {
          q.setFirstResult(offset).setMaxResults(limit);
      }
@@ -333,7 +309,6 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
  @Override
   public int countCollaboratedProjects(Identity user, String keyword) {
    String userName = user.getUserId();
-   List<String> spaceGroups = UserUtil.getSpaceGroups(user);
    Query q = getEntityManager().createNativeQuery(
            "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
                    "where \n" +
@@ -358,7 +333,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "FROM TASK_COMMENT_MENTIONED_USERS AS cmention\n" +
                    "WHERE com.COMMENT_ID = cmention.COMMENT_ID\n" +
                    "AND cmention.MENTIONED_USERS = :userName\n" +
-                   mentionInsideSpaces(spaceGroups) +
+                   MENTION_INSIDE_SPACES +
                    ")\n" +
                    ")\n" +
                    " )\n" +
@@ -373,7 +348,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "))");
      q.setParameter("keyword", keyword);
      q.setParameter("userName", userName);
-     bindSpaceGroups(q, spaceGroups);
+     q.setParameter("spacePermissions", spacePermissionsOf(user));
      int result = Integer.parseInt(q.getSingleResult().toString());
       return result ;
  }
