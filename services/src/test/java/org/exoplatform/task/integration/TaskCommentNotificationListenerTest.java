@@ -23,6 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.HashSet;
@@ -103,8 +105,8 @@ public class TaskCommentNotificationListenerTest {
     task.setCreatedBy("creator");
     task.setStatus(status);
 
-    when(userAcl.getUserIdentity("member")).thenReturn(new Identity("member", Set.of(new MembershipEntry(SPACE_GROUP, "member"))));
-    when(userAcl.getUserIdentity("outsider")).thenReturn(new Identity("outsider"));
+    lenient().when(userAcl.getUserIdentity("member")).thenReturn(new Identity("member", Set.of(new MembershipEntry(SPACE_GROUP, "member"))));
+    lenient().when(userAcl.getUserIdentity("outsider")).thenReturn(new Identity("outsider"));
   }
 
   /**
@@ -116,6 +118,31 @@ public class TaskCommentNotificationListenerTest {
     Set<String> mentioned = new HashSet<>(Set.of("member", "outsider", "gone"));
     TaskCommentNotificationListener.keepMentionedReaders(mentioned, task, taskService, userAcl);
     assertEquals(Set.of("member"), mentioned);
+  }
+
+  /**
+   * A mention of members of the space reads nothing of the task: no
+   * coworker and no mention query per member, however many the mention names.
+   */
+  @Test
+  public void readsNothingOfTheTaskForMembersOfItsSpace() {
+    Set<String> mentioned = new HashSet<>(Set.of("member"));
+    TaskCommentNotificationListener.keepMentionedReaders(mentioned, task, taskService, userAcl);
+    assertEquals(Set.of("member"), mentioned);
+    verify(taskService, never()).getCoworker(anyLong());
+    verify(taskService, never()).getMentionedUsers(anyLong());
+  }
+
+  /**
+   * Someone outside the space who may edit the task, a coworker here, is
+   * still notified of a mention.
+   */
+  @Test
+  public void notifiesAMentionedCoworkerOutsideTheSpace() {
+    when(taskService.getCoworker(anyLong())).thenReturn(Set.of("outsider"));
+    Set<String> mentioned = new HashSet<>(Set.of("outsider"));
+    TaskCommentNotificationListener.keepMentionedReaders(mentioned, task, taskService, userAcl);
+    assertEquals(Set.of("outsider"), mentioned);
   }
 
   /**
