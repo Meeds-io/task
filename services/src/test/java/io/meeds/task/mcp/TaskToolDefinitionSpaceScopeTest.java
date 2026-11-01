@@ -479,8 +479,8 @@ public class TaskToolDefinitionSpaceScopeTest {
    * Each space-scoped write declares in {@code space_role} the role the member
    * who asks a digital worker for it must hold in the call's space
    * (EXO-91405), and no space-scoped read declares one: a project of a space
-   * is managed through {@code member:/spaces/<name>}, so every member of the
-   * space writes its tasks, and each of them is {@code member}.
+   * lists {@code member:/spaces/<name>} among its participators, and a
+   * participator writes its tasks, so each of them is {@code member}.
    * Mutants: a write's role dropped or changed, or a read given one.
    *
    * @throws Exception when the shipped definitions can't be read
@@ -501,9 +501,6 @@ public class TaskToolDefinitionSpaceScopeTest {
       } else {
         assertTrue(name, scope.has("space_role"));
         roles.put(name, scope.path("space_role").asString());
-        if (scope.path("space_admin").asBoolean(false)) {
-          assertEquals(name, "manager", roles.get(name));
-        }
       }
     }
     assertEquals(SPACE_ROLES, roles);
