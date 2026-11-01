@@ -164,6 +164,20 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
     return super.buildPath(condition, root);
   }
 
+  /**
+   * The condition a mention adds to the collaborated projects: the task's
+   * project names no space group among its managers and participators. A
+   * mention never opens a card of a space project to someone outside the
+   * space (EXO-92405), and never opens a project at all, so a project is not
+   * listed on a mention once it belongs to a space; the reader's own place on
+   * its board lists it by the other queries.
+   */
+  private static final String MENTION_OUTSIDE_SPACES =
+                                                     "AND NOT EXISTS (SELECT 1 FROM TASK_PROJECT_MANAGERS AS sman\n" +
+                                                         "WHERE sman.PROJECT_ID = ts.PROJECT_ID AND sman.MANAGER LIKE '%:/spaces/%')\n" +
+                                                         "AND NOT EXISTS (SELECT 1 FROM TASK_PROJECT_PARTICIPATORS AS spart\n" +
+                                                         "WHERE spart.PROJECT_ID = ts.PROJECT_ID AND spart.PARTICIPATOR LIKE '%:/spaces/%')\n";
+
  @Override
   public List<Project> findCollaboratedProjects(String userName, String keyword,int offset ,int limit) {
    Query q = getEntityManager().createNativeQuery(
@@ -190,6 +204,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "FROM TASK_COMMENT_MENTIONED_USERS AS cmention\n" +
                    "WHERE com.COMMENT_ID = cmention.COMMENT_ID\n" +
                    "AND cmention.MENTIONED_USERS = :userName\n" +
+                   MENTION_OUTSIDE_SPACES +
                    ")\n" +
                    ")\n" +
                    " )\n" +
@@ -282,6 +297,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "FROM TASK_COMMENT_MENTIONED_USERS AS cmention\n" +
                    "WHERE com.COMMENT_ID = cmention.COMMENT_ID\n" +
                    "AND cmention.MENTIONED_USERS = :userName\n" +
+                   MENTION_OUTSIDE_SPACES +
                    ")\n" +
                    ")\n" +
                    " )\n" +
