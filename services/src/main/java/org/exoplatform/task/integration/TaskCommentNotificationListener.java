@@ -132,8 +132,8 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
    *
    * @param mentioned the mentioned users, narrowed in place
    * @param task the task commented
-   * @param taskService the service the view rule reads the task's mentions
-   *          and coworkers from
+   * @param taskService the service the task's coworkers are read from, for a
+   *          user outside the space
    * @param userAcl the ACL the users' identities are resolved by
    */
   static void keepMentionedReaders(Set<String> mentioned, TaskDto task, TaskService taskService, UserACL userAcl) {
