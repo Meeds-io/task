@@ -30,6 +30,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -40,6 +41,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.function.Supplier;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -58,6 +60,7 @@ import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
+import org.exoplatform.social.core.utils.MentionUtils;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.OrderBy;
@@ -80,6 +83,7 @@ import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 import io.meeds.mcp.server.tool.model.UserModel;
+import io.meeds.mcp.server.model.ActingIdentity;
 import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.model.PermanentLinkObject;
 import io.meeds.portal.permlink.service.PermanentLinkService;
@@ -108,10 +112,19 @@ import lombok.SneakyThrows;
 @Profile("mcp-server")
 public class TaskMcpTool implements McpToolPlugin {
 
+  /** How many projects a scan of the projects of a space reads at a time. */
+  static final int                      SPACE_SCAN_CHUNK                = 50;
+
   private static final int              MAX_TO_LOAD                     = 100;
 
   private static final String           MSG_TASK_NOT_EDITABLE           =
                                                               "Task with identifier '%s' is not editable for user '%s'";
+
+  private static final String           MSG_NOT_SCOPE_SPACE_MEMBER      =
+                                                              "User '%s' isn't a member of the space this call is limited to";
+
+  private static final String           MSG_SCOPE_UNREADABLE            =
+                                                              "The space this call is limited to can't be read, so it can't name a user";
 
   private static final String           MSG_TASK_NOT_ACCESSIBLE         =
                                                                 "Task with identifier '%s' is not accessible for user '%s'";
@@ -160,6 +173,26 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private final FavoriteService         favoriteService;
 
+  private final TaskSpaceScopeResolver  spaceScopeResolver;
+
+  /**
+   * @param projectService reads and lists the projects
+   * @param statusService reads and creates the statuses of a project
+   * @param taskService reads and creates the tasks
+   * @param commentService reads and writes the comments of a task
+   * @param labelService reads and writes the labels of a project
+   * @param spaceService reads the spaces
+   * @param translationService translates the labels given back to the model
+   * @param resourceBundleService reads the resource bundles
+   * @param identityManager reads the identities of the users
+   * @param profilePropertyService reads the profile properties of the users
+   * @param userAcl checks the permissions of the current user
+   * @param portalConfigService reads the portal configuration
+   * @param permanentLinkService builds the permanent links of the objects
+   * @param favoriteService reads and writes the favorites
+   * @param spaceScopeResolver tells the space of a project, for a run limited
+   *          to a space
+   */
   public TaskMcpTool(ProjectService projectService,
                      StatusService statusService,
                      TaskService taskService,
@@ -173,8 +206,10 @@ public class TaskMcpTool implements McpToolPlugin {
                      UserACL userAcl,
                      UserPortalConfigService portalConfigService,
                      PermanentLinkService permanentLinkService,
-                     FavoriteService favoriteService) {
+                     FavoriteService favoriteService,
+                     TaskSpaceScopeResolver spaceScopeResolver) {
     this.favoriteService = favoriteService;
+    this.spaceScopeResolver = spaceScopeResolver;
     this.projectService = projectService;
     this.statusService = statusService;
     this.taskService = taskService;
@@ -190,16 +225,158 @@ public class TaskMcpTool implements McpToolPlugin {
     this.permanentLinkService = permanentLinkService;
   }
 
+  /**
+   * Lists the task projects of the current user or, given a space, those of
+   * that space the current user holds a role of the space group for. For a
+   * user who isn't a member of the space, and for a space id that names no
+   * space (missing or deleted), the list is empty.
+   * <p>
+   * In a run limited to a space (a space scope on the call), the list is
+   * narrowed to the projects the space scope accepts for that space, those
+   * {@link TaskSpaceScopeResolver#spaceOfProject(ProjectDto)} tells it
+   * for, so that the list never holds a project the space scope refuses to
+   * get. The selection is read in chunks of {@value #SPACE_SCAN_CHUNK}
+   * projects, in the order of the plain list, and stops as soon as one more
+   * project than the page asks for is kept: it reads at most the projects
+   * the user reaches, a chunk at a time, and no more than the page needs
+   * when the space has enough of them. The count is the number of projects of
+   * the space when the scan reached the end; when it stopped earlier, it is
+   * the number kept so far, which is more than the offset and the page, and
+   * means that more exist.
+   *
+   * @param spaceId the space whose projects are listed, null or not positive
+   *          for the projects of the current user
+   * @param offset the first project returned
+   * @param limit the most projects returned
+   * @return the projects, with their count
+   */
   public ProjectCollectionModel listProjects(Long spaceId,
                                              Integer offset,
                                              Integer limit) {
-    List<String> memberships = getMemberships(spaceId);
+    boolean spaceGiven = spaceId != null && spaceId > 0;
+    Space space = spaceGiven ? spaceService.getSpaceById(spaceId) : null;
+    List<String> memberships = getMemberships(space);
+    int usedOffset = getInteger(offset, DEFAULT_OFFSET);
+    int usedLimit = getInteger(limit, DEFAULT_LIMIT);
+    if (memberships.isEmpty() || spaceGiven && space == null) {
+      return new ProjectCollectionModel(Collections.emptyList(), usedOffset, usedLimit, 0);
+    } else if (space != null && isSpaceScoped()) {
+      return listSpaceProjects(space, memberships, Math.max(usedOffset, 0), Math.max(usedLimit, 0));
+    }
     List<ProjectModel> projects = getProjectModels(memberships, offset, limit);
     long count = countProjects(memberships);
-    return new ProjectCollectionModel(projects,
-                                      getInteger(offset, DEFAULT_OFFSET),
-                                      getInteger(limit, DEFAULT_LIMIT),
-                                      count);
+    return new ProjectCollectionModel(projects, usedOffset, usedLimit, count);
+  }
+
+  /**
+   * @return the space the current call is limited to, null when it isn't
+   * @throws IllegalStateException when the call's identity can't be read
+   */
+  protected Long getScopeSpaceId() {
+    ActingIdentity identity = McpToolUtils.getCurrentActingIdentity();
+    return identity == null ? null : identity.spaceScope();
+  }
+
+  /**
+   * Checks the people a call limited to a space names, as an assignee, a
+   * coworker or the mentions of a comment, are members or super managers of
+   * that space, the people the platform's space rules count in. The
+   * space scope reads the space of the task only; people are checked here,
+   * since a project's participants may include people outside its space, and
+   * the task's access rule alone would let a call limited to the space reach
+   * them. The scope is read once, the people only for a limited call, and the
+   * space only when they name someone. A call that isn't limited is not checked;
+   * one whose identity can't be read is refused when it names anyone.
+   *
+   * @param people the logins the call names, read only when it is limited
+   * @throws IllegalAccessException when the call is limited to a space one of
+   *           them is neither a member nor a super manager of, or its identity
+   *           can't be read and it names someone
+   */
+  private void checkScopeSpaceMembers(Supplier<Collection<String>> people) throws IllegalAccessException {
+    Long spaceId;
+    try {
+      spaceId = getScopeSpaceId();
+    } catch (IllegalStateException e) {
+      if (people.get().isEmpty()) {
+        return;
+      }
+      throw new IllegalAccessException(MSG_SCOPE_UNREADABLE);
+    }
+    if (spaceId == null) {
+      return;
+    }
+    Collection<String> usernames = people.get();
+    if (usernames.isEmpty()) {
+      return;
+    }
+    Space space = spaceService.getSpaceById(spaceId);
+    for (String username : usernames) {
+      if (space == null || !(spaceService.isMember(space, username) || spaceService.isSuperManager(space, username))) {
+        throw new IllegalAccessException(MSG_NOT_SCOPE_SPACE_MEMBER.formatted(username));
+      }
+    }
+  }
+
+  /**
+   * @return true when the current call is limited to a space; also true when
+   *         its identity can't be read, which a limited call must never be
+   *         taken for the opposite of
+   */
+  protected boolean isSpaceScoped() {
+    try {
+      ActingIdentity identity = McpToolUtils.getCurrentActingIdentity();
+      return identity != null && identity.spaceScope() != null;
+    } catch (IllegalStateException e) {
+      return true;
+    }
+  }
+
+  /**
+   * @param space an existing space
+   * @param memberships the roles of the space group the current user holds
+   * @param offset the first project returned, not negative
+   * @param limit the most projects returned, not negative
+   * @return the projects of that space among those the memberships reach,
+   *         with the count described on
+   *         {@link #listProjects(Long, Integer, Integer)}
+   */
+  private ProjectCollectionModel listSpaceProjects(Space space, List<String> memberships, int offset, int limit) {
+    int wanted = offset + limit + 1;
+    List<ProjectDto> ofSpace = new ArrayList<>();
+    int from = 0;
+    boolean finished = false;
+    while (!finished && ofSpace.size() < wanted) {
+      List<ProjectDto> chunk = projectService.findProjects(memberships,
+                                                           null,
+                                                           new OrderBy.DESC("lastModifiedDate"),
+                                                           from,
+                                                           SPACE_SCAN_CHUNK);
+      int read = chunk == null ? 0 : chunk.size();
+      finished = read < SPACE_SCAN_CHUNK;
+      from += read;
+      for (int i = 0; i < read && ofSpace.size() < wanted; i++) {
+        if (isProjectOfSpace(chunk.get(i), space)) {
+          ofSpace.add(chunk.get(i));
+        }
+      }
+    }
+    List<ProjectModel> page = ofSpace.stream()
+                                     .skip(offset)
+                                     .limit(limit)
+                                     .map(this::toProjectModel)
+                                     .toList();
+    return new ProjectCollectionModel(page, offset, limit, ofSpace.size());
+  }
+
+  /**
+   * @param project a task project
+   * @param space a space
+   * @return true when the space scope would tell that space for the project
+   */
+  private boolean isProjectOfSpace(ProjectDto project, Space space) {
+    Long projectSpaceId = spaceScopeResolver.spaceOfProject(project);
+    return projectSpaceId != null && String.valueOf(projectSpaceId).equals(space.getId());
   }
 
   /**
@@ -235,7 +412,10 @@ public class TaskMcpTool implements McpToolPlugin {
    * user can access, personal tasks included; with {@code overdueOnly}, only
    * the open tasks whose due date is before today in the user's time zone
    * (EXO-91122). Each open task past its due date carries its days overdue.
-   * The count is the count of the tasks the same filters select.
+   * With {@code title}, only the tasks whose title contains it, ignoring
+   * case, among those the other filters select: the title narrows the
+   * project, or the accessible tasks, and never widens them. The count is the
+   * count of the tasks the same filters select.
    *
    * @param projectId the project, null for every accessible task
    * @param hideCompletedTasks whether the completed tasks are left out
@@ -243,6 +423,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param overdueOnly whether only the overdue tasks are listed
    * @param offset the first task returned
    * @param limit the most tasks returned
+   * @param title a part of the title of the tasks listed, blank for any
    * @return the tasks, with their count
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
@@ -252,13 +433,18 @@ public class TaskMcpTool implements McpToolPlugin {
                                        Boolean includeChangeLog,
                                        Boolean overdueOnly,
                                        Integer offset,
-                                       Integer limit) throws IllegalAccessException, ObjectNotFoundException {
+                                       Integer limit,
+                                       String title) throws IllegalAccessException, ObjectNotFoundException {
     ZoneId zone = getCurrentUserZone();
     LocalDate today = getToday(zone);
     TaskQuery taskQuery = getTaskQuery(projectId,
                                        Boolean.TRUE.equals(hideCompletedTasks),
                                        Boolean.TRUE.equals(overdueOnly),
                                        zone);
+    if (StringUtils.isNotBlank(title)) {
+      // literally: a % or a _ in the title is not a wildcard
+      taskQuery.setTitleContaining(title.trim());
+    }
     List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ?
                                                            findOverdueTasks(taskQuery,
                                                                             getInteger(offset, DEFAULT_OFFSET),
@@ -456,6 +642,19 @@ public class TaskMcpTool implements McpToolPlugin {
     return toTaskModel(task);
   }
 
+  /**
+   * Comments on a task the current user can access. Every user the text
+   * mentions is notified, so in a call limited to a space each one must be a
+   * member or a super manager of that space.
+   *
+   * @param taskId the task
+   * @param text the comment, which may mention users
+   * @return the comment
+   * @throws ObjectNotFoundException when the task doesn't exist
+   * @throws IllegalAccessException when the current user can't access the
+   *           task, or, in a call limited to a space, the text mentions a user
+   *           who is neither a member nor a super manager of it
+   */
   @SneakyThrows
   public TaskCommentModel addTaskComment(long taskId, String text) throws ObjectNotFoundException, IllegalAccessException {
     TaskDto task = getTask(taskId);
@@ -465,6 +664,7 @@ public class TaskMcpTool implements McpToolPlugin {
       throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId,
                                                                          getCurrentUserName()));
     }
+    checkScopeSpaceMembers(() -> MentionUtils.getMentionedUsernames(text));
     CommentDto taskComment = commentService.addComment(task, getCurrentUserName(), text);
     return toTaskCommentModel(taskComment, taskId, getUrl(task));
   }
@@ -499,6 +699,18 @@ public class TaskMcpTool implements McpToolPlugin {
     return assignTask(taskId, getCurrentUserName());
   }
 
+  /**
+   * Assigns a task to a user who can access it; in a call limited to a space,
+   * the user must also be a member or a super manager of that space.
+   *
+   * @param taskId the task, which the current user can access
+   * @param username the assignee's login, with or without a leading {@code @}
+   * @return the updated task
+   * @throws ObjectNotFoundException when the task or the user doesn't exist
+   * @throws IllegalAccessException when the current user or the assignee
+   *           can't access the task, or, in a call limited to a space, the
+   *           assignee is neither a member nor a super manager of it
+   */
   public TaskModel assignTask(long taskId, String username) throws ObjectNotFoundException, IllegalAccessException {
     if (StringUtils.isBlank(username)) {
       throw new IllegalArgumentException("Parameter 'username' is mandatory");
@@ -516,11 +728,25 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), username)) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
     }
+    String person = username;
+    checkScopeSpaceMembers(() -> List.of(person));
     task.setAssignee(username);
     task = taskService.updateTask(task);
     return toTaskModel(task);
   }
 
+  /**
+   * Adds a coworker who can access the task; in a call limited to a space,
+   * the coworker must also be a member or a super manager of that space.
+   *
+   * @param taskId the task, which the current user can access
+   * @param username the coworker's login, with or without a leading {@code @}
+   * @return the updated task
+   * @throws ObjectNotFoundException when the task or the user doesn't exist
+   * @throws IllegalAccessException when the current user or the coworker
+   *           can't access the task, or, in a call limited to a space, the
+   *           coworker is neither a member nor a super manager of it
+   */
   public TaskModel addTaskCoworker(long taskId, String username) throws ObjectNotFoundException, IllegalAccessException {
     if (StringUtils.isBlank(username)) {
       throw new IllegalArgumentException("Parameter 'username' is mandatory");
@@ -538,6 +764,8 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), username)) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, username));
     }
+    String person = username;
+    checkScopeSpaceMembers(() -> List.of(person));
     if (CollectionUtils.isEmpty(task.getCoworker())) {
       task.setCoworker(Collections.singleton(username));
     } else {
@@ -594,6 +822,17 @@ public class TaskMcpTool implements McpToolPlugin {
     return new ProjectLabel(label.getId(), label.getName());
   }
 
+  /**
+   * Adds one of the labels of the task's project to the task.
+   *
+   * @param taskId the task, which the current user can access
+   * @param labelId a label of the task's project; for a task in no project,
+   *          any existing label
+   * @throws IllegalAccessException when the current user can't access the
+   *           task
+   * @throws ObjectNotFoundException when the task doesn't exist, or the label
+   *           doesn't exist or belongs to another project than the task's
+   */
   @SneakyThrows
   public void addProjectLabelToTask(Long taskId, Long labelId) throws IllegalAccessException, ObjectNotFoundException {
     TaskDto task = getTask(taskId);
@@ -602,14 +841,21 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
       throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
     }
-    LabelDto label = labelService.getLabel(labelId);
-    if (label == null) {
-      throwMissingLabel(labelId,
-                        getProjectId(task));
-    }
+    checkTaskLabel(task, labelId);
     labelService.addTaskToLabel(task, labelId);
   }
 
+  /**
+   * Removes one of the labels of the task's project from the task.
+   *
+   * @param taskId the task, which the current user can access
+   * @param labelId a label of the task's project; for a task in no project,
+   *          any existing label
+   * @throws IllegalAccessException when the current user can't access the
+   *           task
+   * @throws ObjectNotFoundException when the task doesn't exist, or the label
+   *           doesn't exist or belongs to another project than the task's
+   */
   @SneakyThrows
   public void removeProjectLabelFromTask(Long taskId, Long labelId) throws IllegalAccessException, ObjectNotFoundException {
     TaskDto task = getTask(taskId);
@@ -618,11 +864,7 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (!userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
       throw new IllegalAccessException(MSG_TASK_NOT_ACCESSIBLE.formatted(taskId, getCurrentUserName()));
     }
-    LabelDto label = labelService.getLabel(labelId);
-    if (label == null) {
-      throwMissingLabel(labelId,
-                        getProjectId(task));
-    }
+    checkTaskLabel(task, labelId);
     labelService.removeTaskFromLabel(task, labelId);
   }
 
@@ -1446,15 +1688,22 @@ public class TaskMcpTool implements McpToolPlugin {
                                 getUserModel(comment.getAuthor()));
   }
 
-  private List<String> getMemberships(Long spaceId) {
-    Space space = spaceId != null && spaceId > 0 ? spaceService.getSpaceById(spaceId) : null;
-    List<String> memberships;
+  /**
+   * @param space an existing space, or null
+   * @return the memberships whose projects are listed: those of the current
+   *         user, or, for a space, those of its group the current user holds
+   *         (none when the user isn't a member, which never means "every
+   *         project" to the query)
+   */
+  private List<String> getMemberships(Space space) {
+    List<String> userMemberships = UserUtil.getMemberships(getCurrentUserAclIdentity());
     if (space == null) {
-      memberships = UserUtil.getMemberships(getCurrentUserAclIdentity());
-    } else {
-      memberships = UserUtil.getSpaceMemberships(space.getGroupId());
+      return userMemberships;
     }
-    return memberships;
+    return UserUtil.getSpaceMemberships(space.getGroupId())
+                   .stream()
+                   .filter(userMemberships::contains)
+                   .toList();
   }
 
   private UserModel getUserModel(String username) {
@@ -1555,6 +1804,27 @@ public class TaskMcpTool implements McpToolPlugin {
       return task.getStatus()
                  .getProject()
                  .getId();
+    }
+  }
+
+  /**
+   * Checks a label can be put on or taken off a task: it exists and, when the
+   * task is in a project, it is one of that project's labels. The label is
+   * the only argument of a label change beside the task, so in a call limited
+   * to the space of the task's project it can't reach a label of another
+   * project, of another space.
+   *
+   * @param task the task
+   * @param labelId the label
+   * @throws ObjectNotFoundException when the label doesn't exist or belongs
+   *           to another project than the task's, with the project's labels
+   */
+  private void checkTaskLabel(TaskDto task, Long labelId) throws ObjectNotFoundException {
+    long projectId = getProjectId(task);
+    LabelDto label = labelService.getLabel(labelId);
+    if (label == null
+        || (projectId > 0 && (label.getProject() == null || label.getProject().getId() != projectId))) {
+      throwMissingLabel(labelId, projectId);
     }
   }
 

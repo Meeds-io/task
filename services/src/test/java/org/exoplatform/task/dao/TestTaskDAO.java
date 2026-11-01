@@ -183,6 +183,89 @@ public class TestTaskDAO extends AbstractTest {
     Assert.assertEquals(1, ListUtil.load(tasks, 0, -1).length);
   }  
 
+  /**
+   * The title match the MCP task list builds: {@code TaskQuery#setTitle}
+   * compares the lower-cased task title with the value as given, so a
+   * lower-cased value matches whatever the title's case, a value with upper
+   * case matches nothing, and, beside a project condition, it only selects
+   * the tasks of that project.
+   */
+  @Test
+  public void testFindTaskByTitleWithinAProject() throws Exception {
+    Project alpha = new Project();
+    alpha.setName("Alpha");
+    alpha = daoHandler.getProjectHandler().create(alpha);
+    Project beta = new Project();
+    beta.setName("Beta");
+    beta = daoHandler.getProjectHandler().create(beta);
+    Status alphaStatus = newStatusInstance("To do", 1);
+    alphaStatus.setProject(alpha);
+    daoHandler.getStatusHandler().create(alphaStatus);
+    Status betaStatus = newStatusInstance("To do", 1);
+    betaStatus.setProject(beta);
+    daoHandler.getStatusHandler().create(betaStatus);
+    Task inAlpha = newTaskInstance("Live check 2", "", null);
+    inAlpha.setStatus(alphaStatus);
+    tDAO.create(inAlpha);
+    Task otherInAlpha = newTaskInstance("Release notes", "", null);
+    otherInAlpha.setStatus(alphaStatus);
+    tDAO.create(otherInAlpha);
+    Task inBeta = newTaskInstance("Live check 2", "", null);
+    inBeta.setStatus(betaStatus);
+    tDAO.create(inBeta);
+
+    TaskQuery query = new TaskQuery();
+    query.setProjectIds(Arrays.asList(alpha.getId()));
+    query.setTitle("live check");
+    Task[] found = ListUtil.load(tDAO.findTasks(query), 0, -1);
+    assertEquals(1, found.length);
+    assertEquals(inAlpha.getId(), found[0].getId());
+
+    query = new TaskQuery();
+    query.setProjectIds(Arrays.asList(alpha.getId()));
+    query.setTitle("Live check");
+    assertEquals(0, tDAO.findTasks(query).getSize());
+  }
+
+  /**
+   * The title match of the MCP task list, {@code TaskQuery#setTitleContaining},
+   * takes the text literally and ignores case: a {@code %}, a {@code _} or the
+   * escape character in it matches only itself, never any character.
+   * Mutant: the text handed to LIKE unescaped, where "100%" also matches
+   * "100 tasks" and "a_b" also matches "axb".
+   */
+  @Test
+  public void testFindTaskByTitleContainingMatchesWildcardsLiterally() throws Exception {
+    Task percent = newTaskInstance("Reach 100% coverage", "", null);
+    tDAO.create(percent);
+    Task noPercent = newTaskInstance("Reach 100 tasks", "", null);
+    tDAO.create(noPercent);
+    Task underscore = newTaskInstance("Rename a_b", "", null);
+    tDAO.create(underscore);
+    Task noUnderscore = newTaskInstance("Rename axb", "", null);
+    tDAO.create(noUnderscore);
+    Task bang = newTaskInstance("Ship it!", "", null);
+    tDAO.create(bang);
+    Task noBang = newTaskInstance("Ship items", "", null);
+    tDAO.create(noBang);
+
+    assertFoundByTitleContaining("100%", percent);
+    assertFoundByTitleContaining("A_B", underscore);
+    assertFoundByTitleContaining("it!", bang);
+    assertFoundByTitleContaining("REACH 100", percent, noPercent);
+  }
+
+  private void assertFoundByTitleContaining(String title, Task... expected) throws Exception {
+    TaskQuery query = new TaskQuery();
+    query.setTitleContaining(title);
+    Set<Long> found = Arrays.stream(ListUtil.load(tDAO.findTasks(query), 0, -1))
+                            .map(Task::getId)
+                            .collect(Collectors.toSet());
+    assertEquals(title,
+                 Arrays.stream(expected).map(Task::getId).collect(Collectors.toSet()),
+                 found);
+  }
+
   @Test
   public void testFindTaskOrderByDueDate() throws Exception {
     Calendar calendar = Calendar.getInstance();
