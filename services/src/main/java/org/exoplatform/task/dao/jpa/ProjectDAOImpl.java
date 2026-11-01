@@ -239,8 +239,8 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
    String userName = user.getUserId();
    List<String> spaceGroups = UserUtil.getSpaceGroups(user);
    // Only fixed placeholders vary (one per space group of the reader); every value is a bound parameter
-   Query q = getEntityManager().createNativeQuery( // NOSONAR
-           "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
+   Query q = getEntityManager().createNativeQuery(
+           "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" + // NOSONAR
                    "where \n" +
                    "lower(p.NAME) LIKE lower(concat('%', :keyword, '%'))\n" +
                    "AND\n" +
@@ -336,8 +336,8 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
    String userName = user.getUserId();
    List<String> spaceGroups = UserUtil.getSpaceGroups(user);
    // Only fixed placeholders vary (one per space group of the reader); every value is a bound parameter
-   Query q = getEntityManager().createNativeQuery( // NOSONAR
-           "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
+   Query q = getEntityManager().createNativeQuery(
+           "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" + // NOSONAR
                    "where \n" +
                    "lower(p.NAME) LIKE lower(concat('%', :keyword, '%'))\n" +
                    "AND\n" +
