@@ -311,6 +311,7 @@
               element="div"
               strict-type />
             <extension-registry-components
+              v-if="!readOnly"
               :params="{
                 taskId: task && task.id,
                 spaceId: taskSpaceId,
