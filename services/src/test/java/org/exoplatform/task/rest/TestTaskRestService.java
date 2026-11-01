@@ -1214,6 +1214,66 @@ public class TestTaskRestService {
     assertTrue(allTasks.getTasks().stream().anyMatch(t -> t.getTask().getId() == 20 && t.getTask().isFavorite()));
   }
 
+  /**
+   * Every row of a list says whether its reader may edit the task, by the
+   * card read's rule: the assignee may, and a member of the project's space
+   * who reads the task through a mention, without being on its board, may
+   * not, so the list offers that reader no completion.
+   */
+  @Test
+  public void testFilterTasksFlagsEachRowWithTheEditRight() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService,
+            commentService,
+            projectService,
+            statusService,
+            userService,
+            spaceService,
+            labelService,
+            favoriteService,
+            identityManager);
+    ProjectDto project = new ProjectDto();
+    project.setId(5);
+    project.setManager(new HashSet<>(Collections.singletonList("manager:/spaces/forms")));
+    project.setParticipator(new HashSet<>(Collections.singletonList("mary")));
+    StatusDto status = new StatusDto();
+    status.setProject(project);
+    TaskDto assigned = new TaskDto();
+    assigned.setId(10);
+    assigned.setAssignee("john");
+    assigned.setStatus(status);
+    TaskDto mentioned = new TaskDto();
+    mentioned.setId(20);
+    mentioned.setCreatedBy("mary");
+    mentioned.setStatus(status);
+    when(taskService.filterTasks(argThat((TaskListFilter f) -> isListFilter(f, "john", null, null))))
+        .thenReturn(new TasksList(Arrays.asList(assigned, mentioned), 2));
+    UserACL userAcl = mock(UserACL.class);
+    lenient().when(userAcl.getAdminGroups()).thenReturn("/platform/administrators");
+    org.exoplatform.social.core.identity.model.Identity johnIdentity = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    lenient().when(johnIdentity.getId()).thenReturn("2");
+    lenient().when(identityManager.getOrCreateUserIdentity("john")).thenReturn(johnIdentity);
+    try (MockedStatic<CommonsUtils> commonsUtils = mockStatic(CommonsUtils.class)) {
+      commonsUtils.when(() -> CommonsUtils.getService(UserACL.class)).thenReturn(userAcl);
+      commonsUtils.when(() -> CommonsUtils.getService(IdentityManager.class)).thenReturn(identityManager);
+      ConversationState.setCurrent(new ConversationState(new Identity("john",
+                                                                      Collections.singleton(new MembershipEntry("/spaces/forms",
+                                                                                                                "member")))));
+
+      Response response = taskRestService.filterTasks(null, -2, "exo", null, null, null, null, null, false, false, null, null, null, null, null, null, null, 0, 0, false, false, null);
+
+      assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+      List<org.exoplatform.task.rest.model.TaskEntity> rows = ((PaginatedTaskList) response.getEntity()).getTasks();
+      assertEquals(2, rows.size());
+      assertEquals(Boolean.TRUE, rows.get(0).getTask().getEditable());
+      assertEquals(Boolean.FALSE, rows.get(1).getTask().getEditable());
+      // The edit right costs a row at most one coworker read, none for its assignee
+      verify(taskService, never()).getCoworker(10L);
+      verify(taskService, times(1)).getCoworker(20L);
+    } finally {
+      ConversationState.setCurrent(null);
+    }
+  }
+
   @Test
   public void testUpdateCompleted() throws Exception {
     // Given
