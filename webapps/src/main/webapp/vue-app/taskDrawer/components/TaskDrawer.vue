@@ -513,15 +513,15 @@ export default {
       return !this.readOnly && (!this.taskId || !this.taskProject || this.movingProject);
     },
     /**
-     * Whether the task is shown to a reader who may view it but not edit it,
-     * as the card read says: no edit action and no field editor then. A task
-     * that did not come from the card read carries no answer and stays
-     * editable, as its reader is on its board or one of its people.
+     * Whether the task is shown read-only: a saved task stays read-only until
+     * the card read says its reader may edit it, so a reader who may only view
+     * it never gets an edit action or a field editor, whichever list opened
+     * it. A new task, not saved yet, is always editable.
      *
-     * @returns {boolean} true for a read-only reader
+     * @returns {boolean} true unless the reader may edit the task
      */
     readOnly() {
-      return !!this.task && this.task.editable === false;
+      return !!this.task && !!this.task.id && this.task.editable !== true;
     },
     /**
      * The link to the page of the task's project.
@@ -1111,6 +1111,7 @@ export default {
       this.labelsToAdd = [];
       this.oldTask = task;
       this.task = JSON.parse(JSON.stringify(task));
+      this.readEditable(this.task);
       this.disposeCreation(previousCreation);
       this.taskTitle = this.task.title;
       this.taskDescription = this.task.description;
@@ -1134,6 +1135,31 @@ export default {
         });
       }
       this.$refs.addTaskDrawer.open();
+    },
+    /**
+     * Reads, for a saved task opened from a list, a board or a search, whether
+     * its reader may edit it: only the card read answers it, so until it does
+     * the task shows read-only. The answer is applied only while the drawer
+     * still shows that task.
+     *
+     * @param {Object} task the task the drawer shows
+     * @returns {void}
+     */
+    readEditable(task) {
+      if (!task.id || task.editable === true || task.editable === false) {
+        return;
+      }
+      const taskId = task.id;
+      this.$set(this.task, 'editable', null);
+      this.$tasksService.getTaskById(taskId)
+        .then(card => {
+          if (this.task && this.task.id === taskId) {
+            this.$set(this.task, 'editable', card.editable === true);
+          }
+        })
+        .catch(() => {
+          // A refused or failed read leaves the task read-only
+        });
     },
     cancel() {
       this.$emit('updateTaskList');
