@@ -18,6 +18,8 @@
  */
 package org.exoplatform.task.service;
 
+import org.exoplatform.services.security.Identity;
+
 import java.util.List;
 import java.util.Set;
 
@@ -38,11 +40,11 @@ public interface ProjectService {
      */
     ProjectDto getProject(Long projectId) throws EntityNotFoundException;
 
-    List<ProjectDto> findCollaboratedProjects(String userName, String keyword, int offset, int limit);
+    List<ProjectDto> findCollaboratedProjects(Identity user, String keyword, int offset, int limit);
 
     List<ProjectDto> findNotEmptyProjects(List<String> memberships, String keyword, int offset, int limit);
 
-    int countCollaboratedProjects(String userName, String keyword);
+    int countCollaboratedProjects(Identity user, String keyword);
 
     int countNotEmptyProjects(List<String> memberships, String keyword);
 
