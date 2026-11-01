@@ -1502,7 +1502,7 @@ public class TestTaskDAO extends AbstractTest {
     Task personal = mentionedTask("personal", null);
 
     Identity outsider = new Identity("mentioned");
-    // A group that differs from /spaces/team by one character, so a pattern match could confuse them
+    // "_" is a LIKE wildcard: unescaped, this other space's group would match /spaces/team
     Identity otherSpace = new Identity("mentioned", Set.of(new MembershipEntry("/spaces/te_m", "member")));
     Identity member = new Identity("mentioned", Set.of(new MembershipEntry("/spaces/team", "member")));
 
