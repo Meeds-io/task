@@ -40,6 +40,7 @@ import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.task.AbstractTest;
 import org.exoplatform.task.dao.condition.Conditions;
 import org.exoplatform.task.dao.condition.PredicateCondition;
@@ -1015,7 +1016,7 @@ public class TestTaskDAO extends AbstractTest {
     TaskQuery query = new TaskQuery();
     //query.setIsTodo(Boolean.TRUE);
     //query.setUsername(username);
-    query.setIsTodoOf(username);
+    query.setIsTodoOf(new Identity(username));
     query.setCompleted(false);
     ListAccess<Task> listTasks = tDAO.findTasks(query); //tDAO.getToDoTasks(username, null, null, null, null);
     List<Task> tasks = Arrays.asList(ListUtil.load(listTasks, 0, -1)); //tDAO.getToDoTask(username, null, null, null, null);
@@ -1485,6 +1486,92 @@ public class TestTaskDAO extends AbstractTest {
     assertEquals(1, tDAO.countTasks(user));
     assertEquals(1, tDAO.countTasks("root"));
     assertEquals(0, tDAO.countTasks("mary"));
+  }
+
+  /**
+   * The lists of a reader's tasks, the accessible ones and the ones to do,
+   * apply the view rule's space condition to a mention (EXO-92405): a card of
+   * a space project is listed to a mentioned reader only when they are a
+   * member of that space, while a card of a project with no space and a
+   * personal card are listed on the mention alone.
+   */
+  @Test
+  public void testListsAMentionedReaderOnlyInsideTheSpace() {
+    Task inSpace = mentionedTask("in a space", newBoard("space board", "manager:/spaces/team"));
+    Task inPlain = mentionedTask("on a board with no space", newBoard("plain board", "owner"));
+    Task personal = mentionedTask("personal", null);
+
+    Identity outsider = new Identity("mentioned");
+    Identity otherSpace = new Identity("mentioned", Set.of(new MembershipEntry("/spaces/other", "member")));
+    Identity member = new Identity("mentioned", Set.of(new MembershipEntry("/spaces/team", "member")));
+
+    Set<Long> withoutSpace = Set.of(inPlain.getId(), personal.getId());
+    Set<Long> all = Set.of(inSpace.getId(), inPlain.getId(), personal.getId());
+    for (boolean todo : new boolean[] { false, true }) {
+      assertEquals("outsider, todo=" + todo, withoutSpace, listedIds(outsider, todo));
+      assertEquals("member of another space, todo=" + todo, withoutSpace, listedIds(otherSpace, todo));
+      assertEquals("member of the space, todo=" + todo, all, listedIds(member, todo));
+    }
+
+    // A mention lists a collaborated project only when it names no space
+    Long plainBoardId = inPlain.getStatus().getProject().getId();
+    assertEquals(List.of(plainBoardId),
+                 daoHandler.getProjectHandler().findCollaboratedProjects("mentioned", "", 0, -1).stream().map(Project::getId).toList());
+  }
+
+  /**
+   * Creates a board whose managers are the given permission and whose only
+   * participator is a user, with one column.
+   *
+   * @param name the board name
+   * @param manager the board's manager permission
+   * @return the column
+   */
+  private Status newBoard(String name, String manager) {
+    Project board = new Project(name, "", null, new HashSet<>(Set.of(manager)), new HashSet<>(Set.of("participant")));
+    board = daoHandler.getProjectHandler().create(board);
+    Status column = newStatusInstance("To do", 1);
+    column.setProject(board);
+    return daoHandler.getStatusHandler().create(column);
+  }
+
+  /**
+   * Creates a task, in a column or personal, with a comment that mentions
+   * {@code mentioned}.
+   *
+   * @param title the task title
+   * @param column its column, null for a personal task
+   * @return the task
+   */
+  private Task mentionedTask(String title, Status column) {
+    Task task = newTaskInstance(title, "", null);
+    task.setStatus(column);
+    tDAO.create(task);
+    Comment mention = new Comment();
+    mention.setAuthor(username);
+    mention.setComment("a comment mentioning a reader");
+    mention.setCreatedTime(new Date());
+    mention.setTask(task);
+    mention.getMentionedUsers().add("mentioned");
+    cDAO.create(mention);
+    return task;
+  }
+
+  /**
+   * Lists the ids of the tasks a reader may see, or has to do.
+   *
+   * @param reader the reader
+   * @param todo true for the tasks to do, false for the accessible ones
+   * @return the ids listed
+   */
+  private Set<Long> listedIds(Identity reader, boolean todo) {
+    TaskQuery query = new TaskQuery();
+    if (todo) {
+      query.setIsTodoOf(reader);
+    } else {
+      query.setAccessible(reader);
+    }
+    return Arrays.stream(ListUtil.load(tDAO.findTasks(query), 0, -1)).map(Task::getId).collect(Collectors.toSet());
   }
 
   private Task newTaskInstance(String taskTitle, String description, String assignee) {

@@ -31,6 +31,7 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
+import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.AbstractTest;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.dao.TaskHandler;
@@ -99,7 +100,7 @@ public class CommentStorageTest extends AbstractTest {
     commentStorage.addComment(task, USERNAME, "test comment @mary test");
 
     TaskQuery query = new TaskQuery();
-    query.setIsTodoOf("mary");
+    query.setIsTodoOf(new Identity("mary"));
     ListAccess<Task> tasks = taskDAO.findTasks(query);
     Assert.assertEquals(1, tasks.getSize());
 
@@ -113,7 +114,7 @@ public class CommentStorageTest extends AbstractTest {
     taskService.updateTask(task2);
 
     query = new TaskQuery();
-    query.setIsTodoOf("mary");
+    query.setIsTodoOf(new Identity("mary"));
     tasks = taskDAO.findTasks(query);
     Assert.assertEquals(2, tasks.getSize());
 
@@ -123,7 +124,7 @@ public class CommentStorageTest extends AbstractTest {
     Assert.assertEquals(2, tasks.getSize());
 
     query = new TaskQuery();
-    query.setIsTodoOf(USERNAME);
+    query.setIsTodoOf(new Identity(USERNAME));
     tasks = taskDAO.findTasks(query);
     Assert.assertEquals(1, tasks.getSize());
   }
