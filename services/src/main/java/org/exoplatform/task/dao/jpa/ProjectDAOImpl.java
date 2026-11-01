@@ -18,6 +18,9 @@
  */
 package org.exoplatform.task.dao.jpa;
 
+import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
+
 import java.util.*;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -164,22 +167,95 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
     return super.buildPath(condition, root);
   }
 
+  /** The pattern of a project permission that names a space group. */
+  private static final String SPACE_PERMISSION = "'%:/spaces/%'";
+
+  /** The prefix of the group id of a space. */
+  private static final String SPACE_GROUP_PREFIX = "/spaces/";
+
+  /** The escape character of the patterns a space group is matched with. */
+  private static final char   LIKE_ESCAPE       = '!';
+
   /**
-   * The condition a mention adds to the collaborated projects: the task's
-   * project names no space group among its managers and participators. A
-   * mention never opens a card of a space project to someone outside the
-   * space (EXO-92405), and never opens a project at all, so a project is not
-   * listed on a mention once it belongs to a space; the reader's own place on
-   * its board lists it by the other queries.
+   * Builds the condition a mention adds to the collaborated projects, by the
+   * rule of {@code TaskUtil#hasViewPermission}: the task's project names no
+   * space group among its managers and participators, or names one of the
+   * space groups the reader is a member of (EXO-92405). The groups are bound
+   * as escaped LIKE patterns, {@code :spaceGroup0} and on, one per group.
+   *
+   * @param spaceGroups the reader's space groups
+   * @return the SQL condition, which starts with AND
    */
-  private static final String MENTION_OUTSIDE_SPACES =
-                                                     "AND NOT EXISTS (SELECT 1 FROM TASK_PROJECT_MANAGERS AS sman\n" +
-                                                         "WHERE sman.PROJECT_ID = ts.PROJECT_ID AND sman.MANAGER LIKE '%:/spaces/%')\n" +
-                                                         "AND NOT EXISTS (SELECT 1 FROM TASK_PROJECT_PARTICIPATORS AS spart\n" +
-                                                         "WHERE spart.PROJECT_ID = ts.PROJECT_ID AND spart.PARTICIPATOR LIKE '%:/spaces/%')\n";
+  private static String mentionInsideSpaces(List<String> spaceGroups) {
+    StringBuilder sql = new StringBuilder("AND (NOT EXISTS (SELECT 1 FROM TASK_PROJECT_MANAGERS AS sman\n")
+        .append("WHERE sman.PROJECT_ID = ts.PROJECT_ID AND sman.MANAGER LIKE ").append(SPACE_PERMISSION).append(")\n")
+        .append("AND NOT EXISTS (SELECT 1 FROM TASK_PROJECT_PARTICIPATORS AS spart\n")
+        .append("WHERE spart.PROJECT_ID = ts.PROJECT_ID AND spart.PARTICIPATOR LIKE ").append(SPACE_PERMISSION).append(")\n");
+    if (!spaceGroups.isEmpty()) {
+      sql.append("OR EXISTS (SELECT 1 FROM TASK_PROJECT_MANAGERS AS gman\n")
+         .append("WHERE gman.PROJECT_ID = ts.PROJECT_ID AND (").append(groupPatterns("gman.MANAGER", spaceGroups.size())).append("))\n")
+         .append("OR EXISTS (SELECT 1 FROM TASK_PROJECT_PARTICIPATORS AS gpart\n")
+         .append("WHERE gpart.PROJECT_ID = ts.PROJECT_ID AND (").append(groupPatterns("gpart.PARTICIPATOR", spaceGroups.size())).append("))\n");
+    }
+    return sql.append(")\n").toString();
+  }
+
+  /**
+   * Builds the OR of the LIKE comparisons of a permission column with the
+   * space group patterns.
+   *
+   * @param column the permission column
+   * @param count how many groups
+   * @return the SQL disjunction
+   */
+  private static String groupPatterns(String column, int count) {
+    StringJoiner patterns = new StringJoiner(" OR ");
+    for (int i = 0; i < count; i++) {
+      patterns.add(column + " LIKE :spaceGroup" + i + " ESCAPE '" + LIKE_ESCAPE + "'");
+    }
+    return patterns.toString();
+  }
+
+  /**
+   * Binds the reader's space groups, each as the pattern of a permission of
+   * any role on exactly that group.
+   *
+   * @param query the query
+   * @param spaceGroups the reader's space groups
+   */
+  private static void bindSpaceGroups(Query query, List<String> spaceGroups) {
+    for (int i = 0; i < spaceGroups.size(); i++) {
+      String group = spaceGroups.get(i);
+      StringBuilder escaped = new StringBuilder("%:");
+      for (char c : group.toCharArray()) {
+        if (c == LIKE_ESCAPE || c == '%' || c == '_') {
+          escaped.append(LIKE_ESCAPE);
+        }
+        escaped.append(c);
+      }
+      query.setParameter("spaceGroup" + i, escaped.toString());
+    }
+  }
+
+  /**
+   * Reads the space groups a reader is a member of, with any role.
+   *
+   * @param user the reader, with their memberships
+   * @return the distinct space group ids
+   */
+  private static List<String> spaceGroupsOf(Identity user) {
+    return user.getMemberships()
+               .stream()
+               .map(MembershipEntry::getGroup)
+               .filter(group -> group != null && group.startsWith(SPACE_GROUP_PREFIX))
+               .distinct()
+               .toList();
+  }
 
  @Override
-  public List<Project> findCollaboratedProjects(String userName, String keyword,int offset ,int limit) {
+  public List<Project> findCollaboratedProjects(Identity user, String keyword,int offset ,int limit) {
+   String userName = user.getUserId();
+   List<String> spaceGroups = spaceGroupsOf(user);
    Query q = getEntityManager().createNativeQuery(
            "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
                    "where \n" +
@@ -204,7 +280,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "FROM TASK_COMMENT_MENTIONED_USERS AS cmention\n" +
                    "WHERE com.COMMENT_ID = cmention.COMMENT_ID\n" +
                    "AND cmention.MENTIONED_USERS = :userName\n" +
-                   MENTION_OUTSIDE_SPACES +
+                   mentionInsideSpaces(spaceGroups) +
                    ")\n" +
                    ")\n" +
                    " )\n" +
@@ -219,6 +295,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "))");
      q.setParameter("keyword", keyword);
      q.setParameter("userName", userName);
+     bindSpaceGroups(q, spaceGroups);
      if (limit > 0) {
          q.setFirstResult(offset).setMaxResults(limit);
      }
@@ -272,7 +349,9 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
   }
 
  @Override
-  public int countCollaboratedProjects(String userName, String keyword) {
+  public int countCollaboratedProjects(Identity user, String keyword) {
+   String userName = user.getUserId();
+   List<String> spaceGroups = spaceGroupsOf(user);
    Query q = getEntityManager().createNativeQuery(
            "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
                    "where \n" +
@@ -297,7 +376,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "FROM TASK_COMMENT_MENTIONED_USERS AS cmention\n" +
                    "WHERE com.COMMENT_ID = cmention.COMMENT_ID\n" +
                    "AND cmention.MENTIONED_USERS = :userName\n" +
-                   MENTION_OUTSIDE_SPACES +
+                   mentionInsideSpaces(spaceGroups) +
                    ")\n" +
                    ")\n" +
                    " )\n" +
@@ -312,6 +391,7 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
                    "))");
      q.setParameter("keyword", keyword);
      q.setParameter("userName", userName);
+     bindSpaceGroups(q, spaceGroups);
      int result = Integer.parseInt(q.getSingleResult().toString());
       return result ;
  }
