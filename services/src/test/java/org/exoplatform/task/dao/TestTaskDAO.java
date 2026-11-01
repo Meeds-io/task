@@ -1496,7 +1496,7 @@ public class TestTaskDAO extends AbstractTest {
    * personal card are listed on the mention alone.
    */
   @Test
-  public void testListsAMentionedReaderOnlyInsideTheSpace() {
+  public void testListsAMentionedReaderOnlyInsideTheSpace() throws Exception {
     Task inSpace = mentionedTask("in a space", newBoard("space board", "manager:/spaces/team"));
     Task inPlain = mentionedTask("on a board with no space", newBoard("plain board", "owner"));
     Task personal = mentionedTask("personal", null);
@@ -1520,6 +1520,11 @@ public class TestTaskDAO extends AbstractTest {
     assertEquals(Set.of(plainBoardId), collaboratedIds(outsider));
     assertEquals(Set.of(plainBoardId), collaboratedIds(otherSpace));
     assertEquals(Set.of(plainBoardId, spaceBoardId), collaboratedIds(member));
+
+    // The change log of a card follows the same rule, through the one view rule
+    assertThrows(IllegalAccessException.class, () -> taskService.getTaskLogsBefore(inSpace.getId(), null, null, 1, outsider));
+    assertEquals(List.of(), taskService.getTaskLogsBefore(inSpace.getId(), null, null, 1, member));
+    assertEquals(List.of(), taskService.getTaskLogsBefore(personal.getId(), null, null, 1, outsider));
   }
 
   /**
