@@ -74,9 +74,9 @@ public class TaskDto implements Serializable {
 
   /**
    * Whether the reader the task was read for may edit it. Set, for that
-   * reader, on the task the card read returns and on every row a list or a
-   * board reads, and null on a write's answer; never stored, never read by a
-   * write.
+   * reader, on the task the card read returns and on every row a read with
+   * details returns (the lists and boards), and null on any other read and on
+   * a write's answer; never stored, never read by a write.
    */
   private Boolean     editable;
 
