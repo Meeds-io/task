@@ -1257,9 +1257,20 @@ public class TaskRestService implements ResourceContainer {
   }
 
 
+  /**
+   * Builds the row a list or a board shows for a task: its comment count, its
+   * labels, its project's space, and whether its reader may edit it, by the
+   * same rule the card read applies, so that a list never offers an edit
+   * action the server would refuse.
+   *
+   * @param task the task the row shows
+   * @param userIdentity the identity of the reader of the list
+   * @return the row of the task
+   */
   private TaskEntity getTaskDetails(TaskDto task, Identity userIdentity) {
 
     long taskId = task.getId();
+    task.setEditable(TaskUtil.hasEditPermission(taskService, task, userIdentity));
     int commentCount;
     try {
       commentCount = commentService.countComments(taskId);
