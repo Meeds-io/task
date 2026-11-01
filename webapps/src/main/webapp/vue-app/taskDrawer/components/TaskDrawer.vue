@@ -42,15 +42,6 @@
           v-if="titleScrolledAway"
           id="taskDrawerScrolledHeader"
           class="d-flex align-center overflow-hidden">
-          <v-btn
-            :aria-label="$t(task.completed ? 'taskDrawer.header.markAsUncompleted' : 'taskDrawer.header.markAsCompleted')"
-            :disabled="readOnly"
-            class="flex-shrink-0"
-            icon
-            @click="updateCompleted">
-            <v-icon v-if="task.completed" class="markAsCompletedBtn">mdi-checkbox-marked-circle</v-icon>
-            <v-icon v-else class="markAsCompletedBtn">mdi-checkbox-blank-circle-outline</v-icon>
-          </v-btn>
           <span
             :class="task.completed && 'text-decoration-line-through'"
             class="taskDrawerScrolledTitle text-truncate text-subtitle-1 font-weight-bold">
@@ -81,7 +72,7 @@
       <template v-else-if="drawer" #title>
         <span>{{ $t('label.drawer.header.add') }}</span>
       </template>
-      <template v-if="drawer && taskId && menuActions.length" #titleIcons>
+      <template v-if="drawer && taskId && (menuActions.length || !readOnly)" #titleIcons>
         <div
           id="taskActionMenu"
           class="position-relative z-index-modal">
@@ -103,6 +94,20 @@
               </v-btn>
             </template>
             <v-list class="pa-0 transparent" dense>
+              <v-list-item
+                v-if="!readOnly"
+                class="taskActionMenu-markAsCompleted"
+                @click="updateCompleted">
+                <v-list-item-title class="subtitle-2">
+                  <v-icon
+                    color="primary"
+                    class="me-2"
+                    size="18">
+                    mdi-check-circle-outline
+                  </v-icon>
+                  <span>{{ $t(task.completed ? 'message.markAsUnCompleted' : 'message.markAsCompleted') }}</span>
+                </v-list-item-title>
+              </v-list-item>
               <template v-for="menuAction in menuActions">
                 <component
                   :is="menuAction.vueComponent || 'v-list-item'"
@@ -141,16 +146,6 @@
               v-resize="fitTitleHeight"
               v-intersect.quiet="onTitleIntersect"
               class="taskTitleAndMark d-flex">
-              <v-btn
-                id="check_btn"
-                :disabled="readOnly"
-                class="ms-n2"
-                icon
-                dark
-                @click="updateCompleted">
-                <v-icon v-if="task && task.completed" class="markAsCompletedBtn">mdi-checkbox-marked-circle</v-icon>
-                <v-icon v-else class="markAsCompletedBtn">mdi-checkbox-blank-circle-outline</v-icon>
-              </v-btn>
               <v-textarea
                 ref="autoFocusInput4"
                 v-model="taskTitle"
@@ -635,6 +630,12 @@ export default {
         this.task.title = this.oldTask.title = this.taskTitle;
       }
     },
+    /**
+     * Completes the task, or uncompletes it when it is completed, from the
+     * drawer's menu, and tells the lists and boards.
+     *
+     * @returns {Promise} the update, or nothing for a task not saved yet
+     */
     updateCompleted() {
       const task = {
         id: this.task.id,
