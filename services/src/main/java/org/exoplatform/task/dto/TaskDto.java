@@ -72,6 +72,13 @@ public class TaskDto implements Serializable {
 
   private boolean     favorite;
 
+  /**
+   * Whether the reader the task was read for may edit it. Set only on the
+   * task the card read returns, for its reader, and null on every other
+   * read; never stored, never read by a write.
+   */
+  private Boolean     editable;
+
   public TaskDto clone() { // NOSONAR
     return new TaskDto(id,
                        title,
@@ -90,7 +97,8 @@ public class TaskDto implements Serializable {
                        endDate,
                        dueDate,
                        activityId,
-                       favorite);
+                       favorite,
+                       editable);
   }
 
 }

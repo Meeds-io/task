@@ -60,6 +60,7 @@
           :preview-height="250"
           object-type="taskComment" />
         <v-btn
+          v-if="!readOnly"
           id="reply_btn"
           depressed
           text
@@ -79,6 +80,7 @@
           :comment="item"
           :comments="comment.subComments"
           :avatar-size="30"
+          :read-only="readOnly"
           @openCommentEditor="$emit('openCommentEditor',comment.comment.id)"
           @openConfirmDeleteDialog="$emit('openConfirmDeleteDialog',item.comment.id,true)" />
       </div>
@@ -93,6 +95,10 @@ export default {
       default: () => {
         return {};
       }
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
     },
     replyLastComment: {
       type: Boolean,

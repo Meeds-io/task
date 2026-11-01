@@ -17,7 +17,7 @@
 <template>
   <div class="taskDescriptionEditor position-relative">
     <v-btn
-      v-if="!showEditor && value"
+      v-if="!showEditor && value && !readOnly"
       :aria-label="$t('taskDrawer.description.edit')"
       class="taskDescriptionPen"
       icon
@@ -30,7 +30,7 @@
       class="taskDescription richEditor">
       <div class="taskDescriptionToShow">
         <button
-          v-if="!value"
+          v-if="!value && !readOnly"
           type="button"
           class="taskDescriptionInvite width-full text-start py-1 px-2"
           @click="showDescriptionEditor($event)">
@@ -105,6 +105,10 @@ export default {
     value: {
       type: String,
       default: ''
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
     },
     placeholder: {
       type: String,

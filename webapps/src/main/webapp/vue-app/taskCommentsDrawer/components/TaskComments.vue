@@ -20,6 +20,7 @@
       :comment="comment"
       :comments="comments"
       :can-delete="canDelete"
+      :read-only="readOnly"
       @openConfirmDeleteDialog="confirmCommentDelete($event)"
       @openCommentEditor="commentActions($event)" />
     <div class="editorContent commentEditorContainer" :class="comment.comment.id === lastComment && newCommentEditor && 'newCommentEditor'">
@@ -56,6 +57,10 @@ export default {
       default: () => {
         return {};
       }
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
     },
     comments: {
       type: Object,

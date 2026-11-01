@@ -26,6 +26,8 @@
         item-text="value"
         class="pt-0 selectFont"
         attach
+        :readonly="readOnly"
+        :append-icon="readOnly ? '' : '$dropdown'"
         dense
         solo
         @change="updateTaskStatus()"
@@ -41,6 +43,10 @@ export default {
       default: () => {
         return {};
       }
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
     },
   },
   data () {

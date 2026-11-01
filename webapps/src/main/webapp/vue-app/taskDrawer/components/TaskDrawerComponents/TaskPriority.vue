@@ -22,6 +22,8 @@
       :items="priorities"
       item-value="key"
       item-text="value"
+      :readonly="readOnly"
+      :append-icon="readOnly ? '' : '$dropdown'"
       attach
       solo
       dense
@@ -29,7 +31,7 @@
       @change="updateTaskPriority()"
       @click="$emit('PriorityListOpened')">
       <template #selection="{ item }">
-        <span v-if="item.key === 'NONE'" class="primary--text text-body-2">{{ $t('taskDrawer.field.add') }}</span>
+        <span v-if="item.key === 'NONE'" class="primary--text text-body-2">{{ readOnly ? '' : $t('taskDrawer.field.add') }}</span>
         <span v-else class="d-flex align-center text-body-2">
           <v-icon
             :class="priorityDefaultColor"
@@ -61,6 +63,10 @@ export default {
       default: () => {
         return {};
       }
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
     },
   },
   data() {
