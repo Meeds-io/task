@@ -198,7 +198,7 @@
                 name="project"
                 icon="fa-folder"
                 @edit="startMovingProject">
-                <div v-show="projectEditable" class="taskProjectName">
+                <div v-show="projectEditable && !readOnly" class="taskProjectName">
                   <task-projects
                     ref="taskProjects"
                     :task="task"
@@ -206,7 +206,7 @@
                     @projectsListOpened="closePriority(); closeStatus(); closeLabelsList(); closeTaskDates();closeAssignements()" />
                 </div>
                 <div
-                  v-if="!projectEditable"
+                  v-if="!projectEditable && taskProject"
                   class="d-flex align-center">
                   <space-avatar
                     v-if="taskSpaceId"
@@ -511,7 +511,7 @@ export default {
      * @returns {boolean} whether the project field shows
      */
     projectEditable() {
-      return !this.readOnly && (!this.taskId || !this.taskProject || this.movingProject);
+      return !this.taskId || !this.taskProject || this.movingProject;
     },
     /**
      * Whether the task is shown read-only: a saved task stays read-only until
