@@ -82,9 +82,9 @@ public final class UserUtil {
   }
 
   /**
-   * Reads the space groups a user is a member of, with any role: the groups a
-   * mention is judged against, in the view rule and in the list queries
-   * (EXO-92405).
+   * Reads the space groups a user is a member of, with any role: the groups
+   * the list queries match a reader's mentions and collaborated projects
+   * against (EXO-92405).
    *
    * @param identity the user, with their memberships
    * @return the distinct space group ids
