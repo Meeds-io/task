@@ -179,7 +179,7 @@ public class ProjectStorageImpl implements ProjectStorage {
     @Override
     public List<ProjectDto> findCollaboratedProjects(Identity user, String keyword,int offset ,int limit){
         try {
-            return daoHandler.getProjectHandler().findCollaboratedProjects(user,keyword,offset, limit).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).collect(Collectors.toList());
+            return daoHandler.getProjectHandler().findCollaboratedProjects(user,keyword,offset, limit).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).toList();
         } catch (Exception e) {
             return new ArrayList<>();
         }
