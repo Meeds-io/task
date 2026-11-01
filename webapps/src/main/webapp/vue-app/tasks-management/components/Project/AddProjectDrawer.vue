@@ -97,6 +97,7 @@
           <project-labels
             :project="project"
             @add-label="addLabelOnCreate"
+            @label-removed="removeLabelToAdd"
             @edit-label-on-create="editLabelBeforeCreate" />
         </div>
         <extension-registry-components
@@ -185,6 +186,22 @@ export default {
     addLabelOnCreate(label){
       this.labelsToAdd.push(label);
     },
+    /**
+     * Forgets a label removed from the field before the project exists, so
+     * that creating the project adds only the labels the field still shows.
+     * The field reports the very object it removed, so the label is matched
+     * as that object, and removing one of two new labels with the same name
+     * keeps the other.
+     *
+     * @param {object} label the label removed from the field
+     * @returns {void}
+     */
+    removeLabelToAdd(label) {
+      const index = this.labelsToAdd.indexOf(label);
+      if (index >= 0) {
+        this.labelsToAdd.splice(index, 1);
+      }
+    },
     editLabelBeforeCreate(label){
       const objIndex = this.labelsToAdd.findIndex((obj => obj.name === label.name));
       this.labelsToAdd[objIndex].name = label.text;
@@ -217,6 +234,17 @@ export default {
       this.$root.$emit('update-projects-list', {});
       return Promise.all(this.saveHooks.map(hook => hook(projectId)));
     },
+    /**
+     * Opens the drawer. For an existing project, loads it with its managers,
+     * participants and labels; for a new one, starts from empty fields and
+     * an empty list of labels to add, so that nothing typed in a cancelled
+     * panel or for the previous project reaches the new one.
+     *
+     * @param {object} project the project to edit, or an object with no id
+     *          for a new one
+     * @returns {Promise|void} for an existing project, resolved once it is
+     *          loaded and the drawer open
+     */
     open(project) {
       if (project && project.id){
         return this.$projectService.getProject(project.id,true).then(project => {
@@ -257,6 +285,8 @@ export default {
       } else {
         this.project=project;
         this.project.spaceName=eXo.env.portal.spaceName;
+        // A new project starts with no label: neither a cancelled panel's nor the previous creation's
+        this.labelsToAdd = [];
         this.manager=[];
         this.participator=[];
         this.projectInformation={

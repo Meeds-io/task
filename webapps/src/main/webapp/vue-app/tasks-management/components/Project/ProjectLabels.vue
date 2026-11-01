@@ -80,10 +80,27 @@ export default {
     };
   },
   watch: {
+    /**
+     * Turns a typed label into a new label. Before the project exists, it
+     * also tells the drawer which labels left the field, by their × or by the
+     * Backspace key, and which labels came back into it from the list, so
+     * that creating the project adds exactly the labels the field shows. A
+     * typed label is reported by addLabel instead: it is still text here.
+     *
+     * @param {Array} val the labels the field now holds
+     * @param {Array} prev the labels the field held before
+     * @returns {void}
+     */
     model(val, prev) {
       if (val.length === prev.length) {
         this.search = null;
         return;
+      }
+      if (!this.project?.id) {
+        prev.filter(label => label === Object(label) && !val.includes(label))
+          .forEach(label => this.$emit('label-removed', label));
+        val.filter(label => label === Object(label) && !prev.includes(label))
+          .forEach(label => this.$emit('add-label', label));
       }
       this.model = val.map(v => {
         if (typeof v === 'string') {
@@ -100,6 +117,14 @@ export default {
     },
 
   },
+  /**
+   * Wires the field to the page: the suggestion list closes on a press
+   * outside it and on closeLabelsList, and loadAllProjectLabels loads the
+   * labels of an existing project, or, for a new project, empties the field
+   * and the suggestion list.
+   *
+   * @returns {void}
+   */
   created() {
     $(document).on('mousedown', () => {
       if (this.$refs.selectLabel && this.$refs.selectLabel.isMenuActive) {
@@ -121,6 +146,9 @@ export default {
         const project = event.detail;
         this.model = [];
         this.getProjectLabels(project.id);
+      } else {
+        // A new project is offered no label typed for another one
+        this.items = [];
       }
     });
   },
@@ -171,7 +199,18 @@ export default {
       document.getElementById('labelInput').focus();
     },
 
+    /**
+     * Deletes a label of an existing project. Before the project exists, the
+     * label is not saved yet: the field watcher tells the drawer to forget
+     * it, and there is nothing to delete.
+     *
+     * @param {object} item the label removed with its ×
+     * @returns {void}
+     */
     removeLabel(item) {
+      if (!this.project?.id) {
+        return;
+      }
       this.$taskDrawerApi.removeLabel(item.id).then( () => {
         this.$root.$emit('show-alert', {
           type: 'success',
