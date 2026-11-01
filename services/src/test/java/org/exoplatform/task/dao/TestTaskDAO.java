@@ -1502,7 +1502,8 @@ public class TestTaskDAO extends AbstractTest {
     Task personal = mentionedTask("personal", null);
 
     Identity outsider = new Identity("mentioned");
-    Identity otherSpace = new Identity("mentioned", Set.of(new MembershipEntry("/spaces/other", "member")));
+    // "_" is a LIKE wildcard: unescaped, this other space's group would match /spaces/team
+    Identity otherSpace = new Identity("mentioned", Set.of(new MembershipEntry("/spaces/te_m", "member")));
     Identity member = new Identity("mentioned", Set.of(new MembershipEntry("/spaces/team", "member")));
 
     Set<Long> withoutSpace = Set.of(inPlain.getId(), personal.getId());
@@ -1513,10 +1514,26 @@ public class TestTaskDAO extends AbstractTest {
       assertEquals("member of the space, todo=" + todo, all, listedIds(member, todo));
     }
 
-    // A mention lists a collaborated project only when it names no space
+    // The collaborated projects apply the same condition to a mention
     Long plainBoardId = inPlain.getStatus().getProject().getId();
-    assertEquals(List.of(plainBoardId),
-                 daoHandler.getProjectHandler().findCollaboratedProjects("mentioned", "", 0, -1).stream().map(Project::getId).toList());
+    Long spaceBoardId = inSpace.getStatus().getProject().getId();
+    assertEquals(Set.of(plainBoardId), collaboratedIds(outsider));
+    assertEquals(Set.of(plainBoardId), collaboratedIds(otherSpace));
+    assertEquals(Set.of(plainBoardId, spaceBoardId), collaboratedIds(member));
+  }
+
+  /**
+   * Lists the ids of the projects a reader collaborates on.
+   *
+   * @param reader the reader
+   * @return the ids listed
+   */
+  private Set<Long> collaboratedIds(Identity reader) {
+    return daoHandler.getProjectHandler()
+                     .findCollaboratedProjects(reader, "", 0, -1)
+                     .stream()
+                     .map(Project::getId)
+                     .collect(Collectors.toSet());
   }
 
   /**
