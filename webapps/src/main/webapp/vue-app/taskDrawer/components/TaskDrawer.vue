@@ -1158,7 +1158,10 @@ export default {
           }
         })
         .catch(() => {
-          // A refused or failed read leaves the task read-only
+          // A refused or failed read leaves the task read-only, and says so
+          if (this.task && this.task.id === taskId) {
+            this.$root.$emit('show-alert', {type: 'error', message: this.$t('alert.error')});
+          }
         });
     },
     cancel() {

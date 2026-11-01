@@ -759,6 +759,23 @@ public final class TaskUtil {
   }
 
   /**
+   * Tells whether a person known to be mentioned in a comment of a task may
+   * see it: the rule of {@link #hasViewPermission(TaskService, TaskDto, Identity)}
+   * once the mention is given, so for a member of the task's space, or anyone
+   * on a task with no space, it reads nothing; only someone outside the space
+   * is judged on the edit rule. It serves a caller that has just read the
+   * mention itself, such as the notification of the comment that makes it.
+   *
+   * @param taskService the service the task's coworkers are read from
+   * @param task the task
+   * @param identity the mentioned person, possibly null
+   * @return true when that person may see the task; false for a null identity
+   */
+  public static boolean hasViewPermissionAsMentioned(TaskService taskService, TaskDto task, Identity identity) {
+    return identity != null && (isInTaskSpace(task, identity) || hasEditPermission(taskService, task, identity));
+  }
+
+  /**
    * Tells whether a person is mentioned in a comment of a task.
    *
    * @param taskService the service the task's mentions are read from
