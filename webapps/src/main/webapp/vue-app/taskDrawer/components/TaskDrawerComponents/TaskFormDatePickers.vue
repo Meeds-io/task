@@ -21,12 +21,13 @@
       name="startDate"
       icon="fa-calendar-alt"
       class="taskPlanDateCalender"
-      editable>
+      :editable="!readOnly">
       <date-picker
         ref="taskStartDate"
         v-model="startDate"
         :default-value="false"
-        :placeholder="$t('taskDrawer.field.add')"
+        :placeholder="readOnly ? '' : $t('taskDrawer.field.add')"
+        :disabled="readOnly"
         :max-value="maximumStartDate"
         width="100%"
         class="flex-grow-1 my-auto"
@@ -80,12 +81,13 @@
       name="dueDate"
       icon="fa-calendar-check"
       class="taskDueDateCalender"
-      editable>
+      :editable="!readOnly">
       <date-picker
         ref="taskDueDate"
         v-model="dueDate"
         :default-value="false"
-        :placeholder="$t('taskDrawer.field.add')"
+        :placeholder="readOnly ? '' : $t('taskDrawer.field.add')"
+        :disabled="readOnly"
         :min-value="minimumEndDate"
         width="100%"
         class="flex-grow-1 my-auto"
@@ -147,6 +149,10 @@ export default {
       default: () => {
         return {};
       }
+    },
+    readOnly: {
+      type: Boolean,
+      default: false,
     },
     taskDueDate: {
       type: String,
