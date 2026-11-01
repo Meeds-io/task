@@ -44,6 +44,7 @@
           class="d-flex align-center overflow-hidden">
           <v-btn
             :aria-label="$t(task.completed ? 'taskDrawer.header.markAsUncompleted' : 'taskDrawer.header.markAsCompleted')"
+            :disabled="readOnly"
             class="flex-shrink-0"
             icon
             @click="updateCompleted">
@@ -142,6 +143,7 @@
               class="taskTitleAndMark d-flex">
               <v-btn
                 id="check_btn"
+                :disabled="readOnly"
                 class="ms-n2"
                 icon
                 dark
@@ -155,6 +157,7 @@
                 :class="{taskCompleted: task && task.completed}"
                 :placeholder="$t('label.tapTask.name')"
                 :autofocus="!task || !task.id"
+                :readonly="readOnly"
                 type="text"
                 class="ps-0 pt-0 task-name"
                 auto-grow
@@ -189,11 +192,11 @@
               class="taskDrawerFields pb-2">
               <task-drawer-field
                 :label="$t('taskDrawer.field.project')"
-                :pencil="!projectEditable"
+                :pencil="!projectEditable && !readOnly"
                 :pencil-label="$t('taskDrawer.menu.moveProject')"
+                :editable="!readOnly"
                 name="project"
                 icon="fa-folder"
-                editable
                 @edit="startMovingProject">
                 <div v-show="projectEditable" class="taskProjectName">
                   <task-projects
@@ -222,44 +225,48 @@
               <task-drawer-field
                 v-show="taskProject"
                 :label="$t('taskDrawer.field.status')"
+                :editable="!readOnly"
                 name="status"
-                icon="fa-clock"
-                editable>
+                icon="fa-clock">
                 <task-status
                   ref="taskStatus"
                   :task="task"
+                  :read-only="readOnly"
                   @statusListOpened="closePriority(); closeProjectsList();closeLabelsList();closeTaskDates();closeAssignements()"
                   @updateTaskStatus="updateTaskStatus($event)" />
               </task-drawer-field>
               <task-drawer-field
                 :label="$t('taskDrawer.field.assignee')"
-                :pencil="hasAssigneeValue"
+                :pencil="hasAssigneeValue && !readOnly"
                 :pencil-label="$t('taskDrawer.field.assignee')"
+                :editable="!readOnly"
                 name="assignee"
                 icon="fa-user"
                 class="taskAssignement"
-                editable
                 @edit="$refs.taskAssignment.openMenu()">
                 <task-assignment
                   ref="taskAssignment"
                   :task="task"
+                  :read-only="readOnly"
                   @updateTaskAssignment="updateTaskAssignee($event)"
                   @updateTaskCoworker="updateTaskCoworker($event)"
                   @assignmentsOpened="closePriority(); closeStatus(); closeProjectsList();closeTaskDates();closeLabelsList()" />
               </task-drawer-field>
               <task-drawer-field
                 :label="$t('taskDrawer.field.priority')"
+                :editable="!readOnly"
                 name="priority"
-                icon="fa-flag"
-                editable>
+                icon="fa-flag">
                 <task-priority
                   ref="taskPriority"
                   :task="task"
+                  :read-only="readOnly"
                   @updateTaskPriority="updateTaskPriority($event)"
                   @PriorityListOpened="closeStatus(); closeProjectsList(); closeLabelsList();closeTaskDates();closeAssignements()" />
               </task-drawer-field>
               <task-form-date-pickers
                 :task="task"
+                :read-only="readOnly"
                 :date-picker-top="datePickerTop"
                 @startDateChanged="updateTaskStartDate($event)"
                 @dueDateChanged="updateTaskDueDate($event)" />
@@ -269,11 +276,12 @@
                 :wide="twoColumns"
                 name="labels"
                 icon="fa-tag"
-                class="taskLabelsName taskDrawerFieldWide"
-                editable>
+                :editable="!readOnly"
+                class="taskLabelsName taskDrawerFieldWide">
                 <task-labels
                   ref="taskLabels"
                   :task="task"
+                  :read-only="readOnly"
                   :limit="twoColumns ? 0 : 3"
                   @labelAdded="labelsToAdd.push($event)"
                   @labelRemoved="removeLabelToAdd($event)"
@@ -284,6 +292,7 @@
               <task-description-editor
                 v-model="taskDescription"
                 :task="task"
+                :read-only="readOnly"
                 :placeholder="$t('editinline.taskDescription.empty')"
                 @addTaskDescription="addTaskDescription($event)" />
             </div>
@@ -501,7 +510,18 @@ export default {
      * @returns {boolean} whether the project field shows
      */
     projectEditable() {
-      return !this.taskId || !this.taskProject || this.movingProject;
+      return !this.readOnly && (!this.taskId || !this.taskProject || this.movingProject);
+    },
+    /**
+     * Whether the task is shown to a reader who may view it but not edit it,
+     * as the card read says: no edit action and no field editor then. A task
+     * that did not come from the card read carries no answer and stays
+     * editable, as its reader is on its board or one of its people.
+     *
+     * @returns {boolean} true for a read-only reader
+     */
+    readOnly() {
+      return !!this.task && this.task.editable === false;
     },
     /**
      * The link to the page of the task's project.
