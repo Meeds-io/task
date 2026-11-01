@@ -18,6 +18,8 @@
  */
 package org.exoplatform.task.service.impl;
 
+import org.exoplatform.services.security.Identity;
+
 import java.util.*;
 
 import javax.inject.Inject;
@@ -235,8 +237,8 @@ public class ProjectServiceImpl implements ProjectService {
   }
 
   @Override
-  public List<ProjectDto> findCollaboratedProjects(String userName, String keyword, int offset, int limit) {
-    return projectStorage.findCollaboratedProjects(userName,keyword, offset, limit);
+  public List<ProjectDto> findCollaboratedProjects(Identity user, String keyword, int offset, int limit) {
+    return projectStorage.findCollaboratedProjects(user,keyword, offset, limit);
   }
 
   @Override
@@ -245,8 +247,8 @@ public class ProjectServiceImpl implements ProjectService {
   }
 
   @Override
-  public int countCollaboratedProjects(String userName, String keyword) {
-    return projectStorage.countCollaboratedProjects(userName,keyword);
+  public int countCollaboratedProjects(Identity user, String keyword) {
+    return projectStorage.countCollaboratedProjects(user,keyword);
   }
 
   @Override
