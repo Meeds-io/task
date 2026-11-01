@@ -35,37 +35,6 @@
               <span class="taskTitleEllipsis">{{ task.task.title }}</span>
             </a>
           </div>
-          <v-menu
-            v-if="editable"
-            v-model="displayActionMenu"
-            :left="!$vuetify.rtl"
-            :right="$vuetify.rtl"
-            transition="slide-x-reverse-transition"
-            content-class="taskCardMenu"
-            offset-y>
-            <template #activator="{on, attrs}">
-              <v-btn
-                v-on="on"
-                v-bind="attrs"
-                class="taskCardMenuButton flex-shrink-0"
-                icon>
-                <v-icon size="16">fa-ellipsis-v</v-icon>
-              </v-btn>
-            </template>
-            <v-list class="pa-0" dense>
-              <v-list-item class="taskCardMenu-markAsCompleted" @click="updateCompleted">
-                <v-list-item-title class="subtitle-2">
-                  <v-icon
-                    color="primary"
-                    class="me-2"
-                    size="18">
-                    {{ task.task.completed ? 'mdi-checkbox-blank-circle-outline' : 'mdi-check-circle-outline' }}
-                  </v-icon>
-                  <span>{{ $t(taskCompletedTitle) }}</span>
-                </v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-menu>
         </div>
         <task-card-indicators
           :task-id="task.task.id"
@@ -169,20 +138,10 @@ export default {
       assigneeAndCoworkerArray: [],
       isPersonnalTask: this.task.task.status === null,
       drawer: null,
-      avatarSize: 26,
-      displayActionMenu: false,
+      avatarSize: 26
     };
   },
   computed: {
-    /**
-     * Whether the card's reader may change it, as the list read says: only
-     * then does the card's menu offer to complete it.
-     *
-     * @returns {boolean} true when the reader may edit the card
-     */
-    editable() {
-      return this.task?.task?.editable === true;
-    },
     taskDueDate() { 
       if (this.task?.task?.dueDate?.time) {
         const formattedDate = `${this.task.task.dueDate.year + 1900}/${this.task.task.dueDate.month + 1}/${this.task.task.dueDate.date}`;
@@ -204,15 +163,6 @@ export default {
     },
     displayCardBottomSection() {
       return this.taskDueDate || (this.task.labels && this.task.labels.length) || (this.assigneeAndCoworkerArray && this.assigneeAndCoworkerArray.length) || this.task.commentCount;
-    },
-    /**
-     * The label of the menu entry that completes the card, or uncompletes it
-     * when it is completed.
-     *
-     * @returns {string} the i18n key of the entry
-     */
-    taskCompletedTitle() {
-      return this.task.task.completed === true ? 'message.markAsUnCompleted' : 'message.markAsCompleted';
     },
     taskPriorityColor() {
       switch (this.task.task.priority) {
@@ -372,39 +322,6 @@ export default {
 
     onCloseDrawer: function (drawer) {
       this.drawer = drawer;
-    },
-    /**
-     * Completes the card, or uncompletes it when it is completed, and tells
-     * the board and the drawer.
-     *
-     * @returns {Promise} the update, or nothing for a card not saved yet
-     */
-    updateCompleted() {
-      const task = {
-        id: this.task.task.id,
-        isCompleted: !this.task.task.completed,
-      };
-      
-      if (task.id) {
-        return this.$tasksService.updateCompleted(task).then(updatedTask => {
-          if (updatedTask.completed) {
-            this.$root.$emit('show-alert', {type: 'success', message: this.$t('alert.success.task.completed')});
-          } else {
-            this.$root.$emit('show-alert', {type: 'success', message: this.$t('alert.success.task.unCompleted')});
-          }
-          this.$emit('update-task-completed', updatedTask);
-          this.task.task.completed = task.isCompleted;
-        }).catch(e => {
-          console.error('Error updating project', e);
-          this.$root.$emit('show-alert', {
-            type: 'error',
-            message: this.$t('alert.error')
-          });
-          this.postProject = false;
-        });
-      }
-
-
     },
     getTitleTaskClass() {
       if (this.task.task.completed === true) {
