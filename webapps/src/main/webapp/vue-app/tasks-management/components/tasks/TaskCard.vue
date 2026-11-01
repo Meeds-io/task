@@ -52,6 +52,12 @@
           <v-list class="pa-0" dense>
             <v-list-item class="taskCardMenu-markAsCompleted" @click="updateCompleted">
               <v-list-item-title class="subtitle-2">
+                <v-icon
+                  color="primary"
+                  class="me-2"
+                  size="18">
+                  {{ task.task.completed ? 'mdi-checkbox-blank-circle-outline' : 'mdi-check-circle-outline' }}
+                </v-icon>
                 <span>{{ $t(getTaskCompletedTitle()) }}</span>
               </v-list-item-title>
             </v-list-item>
