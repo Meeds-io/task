@@ -125,8 +125,10 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
 
   /**
    * Keeps, among the users a comment mentions, those who may read its task,
-   * by the task's view rule: a mention notifies no one outside the space of
-   * the task's project, as it opens the task to no one there.
+   * by the task's view rule for a mentioned person: a mention notifies no one
+   * outside the space of the task's project, as it opens the task to no one
+   * there. A member of the space costs no read of the task, so a mention of a
+   * whole space role adds no query per member.
    *
    * @param mentioned the mentioned users, narrowed in place
    * @param task the task commented
@@ -135,7 +137,7 @@ public class TaskCommentNotificationListener extends Listener<TaskDto, CommentDt
    * @param userAcl the ACL the users' identities are resolved by
    */
   static void keepMentionedReaders(Set<String> mentioned, TaskDto task, TaskService taskService, UserACL userAcl) {
-    mentioned.removeIf(user -> !TaskUtil.hasViewPermission(taskService, task, userAcl.getUserIdentity(user)));
+    mentioned.removeIf(user -> !TaskUtil.hasViewPermissionAsMentioned(taskService, task, userAcl.getUserIdentity(user)));
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {
