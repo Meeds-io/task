@@ -52,9 +52,6 @@ import org.exoplatform.web.controller.router.Router;
 
 public final class TaskUtil {
 
-  /** The prefix of the group id of a space. */
-  private static final String          SPACE_GROUP_PREFIX                              = "/spaces/";
-
   private static final Log             LOG                                             = ExoLogger.getExoLogger(TaskUtil.class.getName());
 
   public static final String           URL_TASK_DETAIL                                 = "/taskDetail/";
@@ -808,7 +805,7 @@ public final class TaskUtil {
     }
     for (String permission : permissions) {
       MembershipEntry entry = permission == null || permission.indexOf(':') < 0 ? null : MembershipEntry.parse(permission);
-      if (entry != null && entry.getGroup() != null && entry.getGroup().startsWith(SPACE_GROUP_PREFIX)) {
+      if (entry != null && entry.getGroup() != null && entry.getGroup().startsWith(UserUtil.SPACE_GROUP_PREFIX)) {
         spaceGroups.add(entry.getGroup());
       }
     }
