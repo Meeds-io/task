@@ -54,7 +54,7 @@
           </span>
           <span
             v-if="!hasAssignee && !taskCoworkers.length && !readOnly"
-            class="taskAssignBtn primary--text text-body-2">
+            class="taskAssignBtn primary--text">
             {{ $t('taskDrawer.field.add') }}
           </span>
         </button>
