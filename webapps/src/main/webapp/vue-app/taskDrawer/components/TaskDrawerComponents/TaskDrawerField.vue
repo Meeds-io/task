@@ -29,7 +29,7 @@
           {{ icon }}
         </v-icon>
       </span>
-      <span class="text-body-2 text-light-color text-truncate">{{ label }}</span>
+      <span class="text-light-color text-truncate">{{ label }}</span>
     </div>
     <div class="taskDrawerFieldValue d-flex align-center flex-grow-1">
       <div class="taskDrawerFieldContent flex-grow-1">

@@ -212,7 +212,7 @@
                     extra-class="flex-shrink-0 me-2" />
                   <a
                     :href="taskProjectLink"
-                    class="taskProjectLink text-body-2 text-truncate">
+                    class="taskProjectLink text-truncate">
                     {{ taskProject.name }}
                   </a>
                 </div>
