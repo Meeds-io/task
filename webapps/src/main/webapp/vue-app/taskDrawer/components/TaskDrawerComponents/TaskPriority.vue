@@ -31,8 +31,8 @@
       @change="updateTaskPriority()"
       @click="$emit('PriorityListOpened')">
       <template #selection="{ item }">
-        <span v-if="item.key === 'NONE'" class="primary--text text-body-2">{{ readOnly ? '' : $t('taskDrawer.field.add') }}</span>
-        <span v-else class="d-flex align-center text-body-2">
+        <span v-if="item.key === 'NONE'" class="primary--text">{{ readOnly ? '' : $t('taskDrawer.field.add') }}</span>
+        <span v-else class="d-flex align-center">
           <v-icon
             :class="priorityDefaultColor"
             class="me-1"
