@@ -214,9 +214,9 @@
       padding: 0 8px;
       text-align: start;
       // One text style for every value, as the form cards' values
-      font-size: 14px;
+      font-size: @textFontSize;
       .v-select__selection, input, label, .user-name, .assigneeName a, .assigneeName p {
-        font-size: 14px!important;
+        font-size: @textFontSize!important;
         font-weight: normal!important;
       }
       input, .v-input__slot {
@@ -475,7 +475,7 @@
         min-height: auto;
         height: auto;
         line-height: 1em;
-        font-size: 14px;
+        font-size: @textFontSize;
         margin: auto 0!important;
         padding-right: 10px ~'!important; /** orientation=lt */ ';
         padding-left: 10px ~'!important; /** orientation=rt */ ';
