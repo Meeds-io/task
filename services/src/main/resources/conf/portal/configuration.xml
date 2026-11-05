@@ -81,7 +81,7 @@
           value="${task.es.index:task_alias}" />
         <property
           name="contributedBoost"
-          value="${task.search.contributed.boost:2.0}" />
+          value="${task.search.contributed.boost:5.0}" />
       </properties-param>
     </init-params>
   </component>
