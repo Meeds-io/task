@@ -23,8 +23,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -35,6 +34,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.After;
 import org.junit.Before;
@@ -46,11 +46,13 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.security.MembershipEntry;
+import org.exoplatform.task.dao.CommentHandler;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
@@ -62,7 +64,6 @@ import org.exoplatform.task.service.impl.TaskServiceImpl;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.util.TaskUtil;
 
-import io.meeds.task.plugin.TaskAclPlugin;
 
 /**
  * Pins the text search of the tasks (EXO-91903), the rules behind the
@@ -93,7 +94,7 @@ public class TaskServiceSearchTest {
   private ProjectService                      projectService;
 
   @Mock
-  private UserACL                             userAcl;
+  private CommentHandler                      commentHandler;
 
   @Mock
   private Identity                            identity;
@@ -123,10 +124,10 @@ public class TaskServiceSearchTest {
     lenient().when(project.canView(identity)).thenReturn(true);
     lenient().when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     lenient().when(otherProject.getId()).thenReturn(OTHER_PROJECT);
-    lenient().when(userAcl.hasAccessPermission(eq(TaskAclPlugin.OBJECT_TYPE), anyString(), eq(USER))).thenReturn(true);
+    lenient().when(daoHandler.getCommentHandler()).thenReturn(commentHandler);
+    lenient().when(commentHandler.findMentionedUsersOfTask(anyLong())).thenReturn(Set.of());
     containerContext = mockStatic(ExoContainerContext.class);
     containerContext.when(() -> ExoContainerContext.getService(ProjectService.class)).thenReturn(projectService);
-    containerContext.when(() -> ExoContainerContext.getService(UserACL.class)).thenReturn(userAcl);
     taskService = new TaskServiceImpl(taskStorage, daoHandler, listenerService);
   }
 
@@ -267,14 +268,22 @@ public class TaskServiceSearchTest {
    */
   @Test
   public void aHitTheUserCannotViewOrOfAnotherProjectIsNeverReturned() throws Exception {// NOSONAR
-    TaskDto hidden = task(1L, false, project);
+    ProjectDto hiddenProject = mock(ProjectDto.class);
+    lenient().when(hiddenProject.getId()).thenReturn(PROJECT_ID);
+    TaskDto hidden = task(1L, false, hiddenProject);
     TaskDto elsewhere = task(2L, false, otherProject);
+    lenient().when(otherProject.canView(identity)).thenReturn(true);
     TaskDto visible = task(3L, false, project);
-    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, "1", USER)).thenReturn(false);
     when(taskStorage.findTasks(any(TaskSearchFilter.class))).thenReturn(List.of(hidden, elsewhere, visible));
+    UserACL userAcl = mock(UserACL.class);
+    when(userAcl.getAdminGroups()).thenReturn("/platform/administrators");
 
-    assertEquals(List.of(3L), ids(taskService.searchTasks("Grand Dax", PROJECT_ID, true, 10, identity)));
-    assertEquals(List.of(2L, 3L), ids(taskService.searchTasks("Grand Dax", null, true, 10, identity)));
+    try (MockedStatic<CommonsUtils> commonsUtils = mockStatic(CommonsUtils.class)) {
+      commonsUtils.when(() -> CommonsUtils.getService(UserACL.class)).thenReturn(userAcl);
+
+      assertEquals(List.of(3L), ids(taskService.searchTasks("Grand Dax", PROJECT_ID, true, 10, identity)));
+      assertEquals(List.of(2L, 3L), ids(taskService.searchTasks("Grand Dax", null, true, 10, identity)));
+    }
   }
 
   /**
