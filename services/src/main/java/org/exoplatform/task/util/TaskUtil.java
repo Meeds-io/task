@@ -723,7 +723,7 @@ public final class TaskUtil {
       return false;
     }
     String userId = identity.getUserId();
-    return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService, task);
+    return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService, task, identity);
   }
 
   private static boolean hasMentionedUser(TaskService taskService, TaskDto task, String userId) {
