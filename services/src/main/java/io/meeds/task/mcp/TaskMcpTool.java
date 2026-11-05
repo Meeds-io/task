@@ -1747,8 +1747,9 @@ public class TaskMcpTool implements McpToolPlugin {
    *          cut plain text
    * @return their list items, each overdue one with its days overdue, each
    *         with its changes since that date when one is given, each
-   *         commented one with its comments count and latest comment, all read
-   *         in two queries, whatever the number of tasks
+   *         commented one with its comments count and latest comment: the
+   *         comments read in two queries and the changes in four, whatever
+   *         the number of tasks
    */
   private List<TaskListItemModel> toTaskListItems(List<TaskDto> tasks,
                                                   Date since,
@@ -1762,8 +1763,13 @@ public class TaskMcpTool implements McpToolPlugin {
     Map<Long, CommentsSummaryDto> commentsSummaries = commentService.getCommentsSummaries(tasks.stream()
                                                                                                .map(TaskDto::getId)
                                                                                                .toList());
+    Map<Long, List<TaskFieldChange>> changes = since == null ? null : taskService.getTasksChanges(tasks, since);
     return tasks.stream().map(task -> {
-      TaskListItemModel item = toTaskListItem(task, since, zone, today, aclIdentity);
+      TaskListItemModel item = toTaskListItem(task,
+                                              changes == null ? null : changes.getOrDefault(task.getId(), List.of()),
+                                              zone,
+                                              today,
+                                              aclIdentity);
       CommentsSummaryDto commentsSummary = commentsSummaries.get(task.getId());
       if (commentsSummary != null) {
         item.setCommentsCount((int) commentsSummary.getCount());
@@ -1786,23 +1792,23 @@ public class TaskMcpTool implements McpToolPlugin {
    * update date that the full model holds.
    *
    * @param task a task
-   * @param since the date the changes are listed from, null for none
+   * @param fieldChanges its changes since the date the listing asks for, null
+   *          when it asks for none
    * @param zone the user's time zone
    * @param today today in that zone
    * @param aclIdentity the current user, who reads the labels
    * @return its list item
    */
   @SneakyThrows
-  private TaskListItemModel toTaskListItem(TaskDto task, Date since, ZoneId zone, LocalDate today, Identity aclIdentity) {
+  private TaskListItemModel toTaskListItem(TaskDto task,
+                                           List<TaskFieldChange> fieldChanges,
+                                           ZoneId zone,
+                                           LocalDate today,
+                                           Identity aclIdentity) {
     StatusDto status = task.getStatus();
     ProjectDto project = status == null ? null : status.getProject();
     Long projectId = project == null ? null : project.getId();
-    List<TaskChange> changes = since == null ? null :
-                                             CollectionUtils.emptyIfNull(taskService.getTaskChanges(task, since, false)
-                                                                                    .getChanges())
-                                                            .stream()
-                                                            .map(this::toTaskChange)
-                                                            .toList();
+    List<TaskChange> changes = fieldChanges == null ? null : fieldChanges.stream().map(this::toTaskChange).toList();
     return new TaskListItemModel(task.getId(),
                                  task.getTitle(),
                                  getUrl(task),

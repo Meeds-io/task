@@ -56,11 +56,21 @@ import org.exoplatform.task.util.UserUtil;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.exoplatform.task.util.TaskUtil.*;
 
 @Singleton
 public class TaskServiceImpl implements TaskService {
+
+    /** The actions whose latest entry tells the status a task is in */
+    private static final List<String> STATUS_ACTIONS   = List.of("created", "edit_status", "edit_project", "remove_project");
+
+    /** The actions whose latest entry tells the project a task is in */
+    private static final List<String> PROJECT_ACTIONS  = List.of("edit_project", "remove_project");
+
+    /** The actions whose latest entry tells the assignee of a task */
+    private static final List<String> ASSIGNEE_ACTIONS = List.of("assign", "unassign");
 
     /** The most change log entries a task's changes come with (EXO-91902). */
     private static final int CHANGE_LOG_LIMIT = 100;
@@ -246,6 +256,39 @@ public class TaskServiceImpl implements TaskService {
         List<ChangeLogEntry> logs = getTaskLogs(task.getId(), 0, -1);
         List<ChangeLogEntry> changeLog = includeChangeLog ? logs.subList(0, Math.min(logs.size(), CHANGE_LOG_LIMIT)) : null;
         return new TaskChanges(getTaskChanges(task, logs, since), changeLog);
+    }
+
+    /**
+     * {@inheritDoc} The entries before the date that the changes since then
+     * read are the latest status, project and assignee entries: the status a
+     * task left is that of its latest creation, move or project change, its
+     * project that of its latest project change, its assignee that of its
+     * latest assignment. A completion or due date change since the date reads
+     * only the entries after it.
+     */
+    @Override
+    public Map<Long, List<TaskFieldChange>> getTasksChanges(List<TaskDto> tasks, Date since) {
+        if (since == null) {
+            throw new IllegalArgumentException("task.changes.noDate");
+        }
+        Map<Long, List<TaskFieldChange>> changes = new HashMap<>();
+        if (tasks == null || tasks.isEmpty()) {
+            return changes;
+        }
+        List<Long> taskIds = tasks.stream().map(TaskDto::getId).distinct().toList();
+        Map<Long, List<ChangeLogEntry>> logs = new HashMap<>();
+        Set<Long> readEntries = new HashSet<>();
+        Stream.of(taskStorage.getTaskLogsSince(taskIds, since),
+                  taskStorage.getLatestTaskLogsBefore(taskIds, since, STATUS_ACTIONS),
+                  taskStorage.getLatestTaskLogsBefore(taskIds, since, PROJECT_ACTIONS),
+                  taskStorage.getLatestTaskLogsBefore(taskIds, since, ASSIGNEE_ACTIONS))
+              .flatMap(List::stream)
+              .filter(log -> readEntries.add(log.getId()))
+              .forEach(log -> logs.computeIfAbsent(log.getTask().getId(), id -> new ArrayList<>()).add(log));
+        for (TaskDto task : tasks) {
+            changes.put(task.getId(), getTaskChanges(task, logs.get(task.getId()), since));
+        }
+        return changes;
     }
 
 
