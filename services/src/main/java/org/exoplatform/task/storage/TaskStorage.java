@@ -27,6 +27,8 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskSearchFilter;
 
+import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
@@ -152,6 +154,24 @@ public interface TaskStorage {
     ChangeLogEntry addTaskLog(ChangeLogEntry changeLogEntry) throws EntityNotFoundException;
 
     List<ChangeLogEntry> getTaskLogs(long taskId, int offset, int limit) throws Exception;
+
+    /**
+     * @param taskIds the tasks
+     * @param since the earliest date, included
+     * @return their change log entries logged at or after that date, read in
+     *         one query, in no order
+     */
+    List<ChangeLogEntry> getTaskLogsSince(Collection<Long> taskIds, Date since);
+
+    /**
+     * @param taskIds the tasks
+     * @param before the date the entries precede, excluded
+     * @param actionNames the actions of the entries
+     * @return the latest entry of each task logged before that date with one
+     *         of those actions, read in one query, in no order; two entries
+     *         logged at that same time both come
+     */
+    List<ChangeLogEntry> getLatestTaskLogsBefore(Collection<Long> taskIds, Date before, Collection<String> actionNames);
 
     List<Object[]> countTaskStatusByProject(long projectId);
 

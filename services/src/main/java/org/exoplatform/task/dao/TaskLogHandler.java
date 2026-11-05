@@ -18,10 +18,36 @@
  */
 package org.exoplatform.task.dao;
 
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
+
 import org.exoplatform.commons.api.persistence.GenericDAO;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.domain.ChangeLog;
 
 public interface TaskLogHandler extends GenericDAO<ChangeLog, Long> {
   ListAccess<ChangeLog> findTaskLogs(Long taskId);
+
+  /**
+   * Reads, in one query, the change log entries of several tasks logged at or
+   * after a date.
+   *
+   * @param taskIds the tasks
+   * @param since the earliest date, included
+   * @return their entries, in no order
+   */
+  List<ChangeLog> findTaskLogsSince(Collection<Long> taskIds, Date since);
+
+  /**
+   * Reads, in one query, the latest change log entry of each of several tasks
+   * logged before a date with one of the given actions: two entries logged at
+   * that same latest time both come back.
+   *
+   * @param taskIds the tasks
+   * @param before the date the entries precede, excluded
+   * @param actionNames the actions of the entries
+   * @return the latest entry of each task, in no order
+   */
+  List<ChangeLog> findLatestTaskLogsBefore(Collection<Long> taskIds, Date before, Collection<String> actionNames);
 }
