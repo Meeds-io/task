@@ -165,7 +165,7 @@ public class TaskSearchConnectorIT {
       List<Long> found = connector.search(filter(term, List.of("user1"), List.of(3L)));
       assertTrue(term, !found.contains(3L));
     }
-    assertEquals(Set.of(1L), new HashSet<>(connector.search(filter("say \"Northwind\"", List.of("user1"), List.of()))));
+    assertEquals(Set.of(1L), new HashSet<>(connector.search(filter("\"Northwind\"", List.of("user1"), List.of()))));
   }
 
   /**
