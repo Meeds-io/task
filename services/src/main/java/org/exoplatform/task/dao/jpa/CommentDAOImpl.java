@@ -51,10 +51,12 @@ public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements Comme
   /**
    * The comments of the given tasks created at one of the given times: the
    * latest comment of each task, with the comments of another task created
-   * at the same time as one of them, which the caller leaves out.
+   * at the same time as one of them, which the caller leaves out; the highest
+   * id first, so that of two comments created at the same time the first one
+   * read is the latest.
    */
   private static final String LATEST_COMMENTS_QUERY = "SELECT c.task.id, c.createdTime, c.author, c.id FROM TaskComment c"
-      + " WHERE c.task.id IN (:taskIds) AND c.createdTime IN (:createdTimes)";
+      + " WHERE c.task.id IN (:taskIds) AND c.createdTime IN (:createdTimes) ORDER BY c.id DESC";
 
   @Override
   public void delete(Comment entity) {
@@ -160,8 +162,7 @@ public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements Comme
     for (Object[] row : latestQuery.getResultList()) {
       CommentsSummaryDto summary = summaries.get(((Number) row[0]).longValue());
       long commentId = ((Number) row[3]).longValue();
-      if (((Date) row[1]).getTime() == summary.getLastCommentDate().getTime()
-          && (summary.getLastCommentAuthor() == null || commentId > summary.getLastCommentId())) {
+      if (((Date) row[1]).getTime() == summary.getLastCommentDate().getTime() && summary.getLastCommentAuthor() == null) {
         summary.setLastCommentAuthor((String) row[2]);
         summary.setLastCommentId(commentId);
       }
