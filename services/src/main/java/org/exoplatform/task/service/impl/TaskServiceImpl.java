@@ -21,6 +21,7 @@ package org.exoplatform.task.service.impl;
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.portal.config.UserACL;
@@ -43,6 +44,7 @@ import org.exoplatform.task.model.TaskChangeFilter;
 import org.exoplatform.task.model.TaskChanges;
 import org.exoplatform.task.model.TaskFieldChange;
 import org.exoplatform.task.model.TaskListFilter;
+import org.exoplatform.task.model.TaskKeywordSearchPage;
 import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.service.TaskPayload;
@@ -56,6 +58,10 @@ import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.task.plugin.TaskAclPlugin;
+import io.meeds.task.search.model.SearchFieldMatches;
+import io.meeds.task.search.model.TaskSearchMatchRequest;
+import io.meeds.task.search.model.TaskSearchMatches;
+import io.meeds.task.search.plugin.TaskSearchMatchPlugin;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -67,6 +73,12 @@ import static org.exoplatform.task.util.TaskUtil.*;
 public class TaskServiceImpl implements TaskService {
 
     /** The most change log entries a task's changes come with (EXO-91902). */
+    /**
+     * The most tasks all contributors together add to one keyword search: the
+     * ids are written into the search request.
+     */
+    static final int MAX_CONTRIBUTED_TASKS = 1000;
+
     private static final int CHANGE_LOG_LIMIT = 100;
 
     private static final Log LOG = ExoLogger.getExoLogger(TaskServiceImpl.class);
@@ -430,6 +442,87 @@ public class TaskServiceImpl implements TaskService {
         throw new IllegalArgumentException("query parameter is mandatory");
       }
       return taskStorage.findTasks(filter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public TaskKeywordSearchPage searchTasksByKeyword(TaskSearchFilter filter,
+                                                      Identity viewer,
+                                                      List<Long> spaceIds,
+                                                      Locale locale) {
+      if (StringUtils.isBlank(filter.getUserId())) {
+        throw new IllegalArgumentException("user parameter is mandatory");
+      }
+      if (StringUtils.isBlank(filter.getTerm())) {
+        throw new IllegalArgumentException("query parameter is mandatory");
+      }
+      TaskSearchMatchRequest request = new TaskSearchMatchRequest(viewer,
+                                                                  filter.getTerm(),
+                                                                  spaceIds == null ? List.of() : List.copyOf(spaceIds),
+                                                                  Math.max(filter.getOffset(), 0)
+                                                                      + Math.max(filter.getLimit(), 0),
+                                                                  locale);
+      TaskSearchMatches contributions = collectContributions(getSearchMatchPlugins(), request);
+      filter.setContributedIds(contributions.taskIds());
+      List<TaskDto> tasks = taskStorage.findTasks(filter);
+      // the count runs last: it resets the filter's offset and limit
+      long size = taskStorage.countTasks(filter);
+      return new TaskKeywordSearchPage(tasks, size, contributions.matches());
+    }
+
+    /**
+     * Asks every contributor once for the tasks matching a keyword, and merges
+     * their answers in the contributors' order: each task id once, at most
+     * {@value #MAX_CONTRIBUTED_TASKS} in all, its first contributor's match
+     * line kept. A contributor that throws is logged and skipped.
+     *
+     * @param plugins the contributors
+     * @param request what they are asked
+     * @return the merged answer, empty when no contributor found anything
+     */
+    TaskSearchMatches collectContributions(List<TaskSearchMatchPlugin> plugins, TaskSearchMatchRequest request) {
+      if (plugins == null || plugins.isEmpty()) {
+        return TaskSearchMatches.EMPTY;
+      }
+      LinkedHashSet<Long> taskIds = new LinkedHashSet<>();
+      Map<Long, SearchFieldMatches> matches = new HashMap<>();
+      for (TaskSearchMatchPlugin plugin : plugins) {
+        TaskSearchMatches answer;
+        try {
+          answer = plugin.search(request);
+        } catch (RuntimeException e) {
+          LOG.warn("Task search contributor {} failed, the search goes on without it: {}",
+                   plugin.getClass().getName(),
+                   e.getMessage());
+          continue;
+        }
+        if (answer == null || answer.taskIds() == null) {
+          continue;
+        }
+        for (Long taskId : answer.taskIds()) {
+          if (taskId != null && taskIds.size() < MAX_CONTRIBUTED_TASKS && taskIds.add(taskId)
+              && answer.matches() != null && answer.matches().get(taskId) != null) {
+            matches.putIfAbsent(taskId, answer.matches().get(taskId));
+          }
+        }
+      }
+      return new TaskSearchMatches(List.copyOf(taskIds), matches);
+    }
+
+    /**
+     * The task search contributors, looked up by type at each search: an
+     * add-on's Spring {@code @Service} is registered in the portal container
+     * by the Kernel-Spring bridge, whatever its add-on's boot order.
+     *
+     * @return the contributors, empty when none
+     */
+    List<TaskSearchMatchPlugin> getSearchMatchPlugins() {
+      ExoContainer container = ExoContainerContext.getCurrentContainer();
+      List<TaskSearchMatchPlugin> plugins = container == null ? null
+                                                              : container.getComponentInstancesOfType(TaskSearchMatchPlugin.class);
+      return plugins == null ? List.of() : plugins;
     }
 
     @Override

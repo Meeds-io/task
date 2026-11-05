@@ -47,6 +47,14 @@ public class TaskSearchFilter {
   private List<Long>   projectIds;
 
   /**
+   * Tasks another add-on found for the term in its own data (a
+   * {@code TaskSearchMatchPlugin}), matched as well as the term: they still
+   * pass every other clause of the search, the permissions included. None
+   * when empty.
+   */
+  private List<Long>   contributedIds;
+
+  /**
    * A filter on any project.
    *
    * @param userId the user who searches
