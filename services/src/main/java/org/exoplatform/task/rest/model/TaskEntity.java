@@ -31,6 +31,8 @@ import org.exoplatform.task.model.CommentModel;
 import org.exoplatform.task.model.User;
 import org.exoplatform.task.util.UserUtil;
 
+import io.meeds.task.search.model.SearchFieldMatches;
+
 @Data
 public class TaskEntity {
   long Id;
@@ -51,6 +53,12 @@ public class TaskEntity {
   private SpaceEntity space;
   private List<LabelDto> labels = new ArrayList<LabelDto>();
   private boolean completed;
+
+  /**
+   * What matched in other add-ons' data (form values) when unified search
+   * found the task by them, null otherwise.
+   */
+  private SearchFieldMatches fieldMatches;
 
   public TaskEntity() {
   }
