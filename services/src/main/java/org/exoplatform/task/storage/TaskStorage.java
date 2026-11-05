@@ -189,6 +189,16 @@ public interface TaskStorage {
     List<TaskDto> findTasks(TaskSearchFilter filter);
 
     /**
+     * Counts the tasks a filter's term matches, with the same permissions,
+     * projects and contributed tasks as {@link #findTasks(TaskSearchFilter)}.
+     * The filter's offset and limit are set to 0.
+     *
+     * @param filter the filter, with a term
+     * @return the number of tasks
+     */
+    long countTasks(TaskSearchFilter filter);
+
+    /**
      * Find tasks switch last update date computed from Task Logs and Task
      * Comments after applying the {@link TaskQuery} filtering
      * 
