@@ -392,4 +392,15 @@ public class TaskStorageImpl implements TaskStorage {
       }
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long countTasks(TaskSearchFilter filter) {
+      if (CollectionUtils.isEmpty(filter.getPermissions())) {
+        filter.setPermissions(Arrays.asList(filter.getUserId()));
+      }
+      return taskSearchConnector.count(filter);
+    }
+
 }
