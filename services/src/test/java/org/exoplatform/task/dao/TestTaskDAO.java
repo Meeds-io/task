@@ -971,6 +971,65 @@ public class TestTaskDAO extends AbstractTest {
     Assert.assertEquals(1,  ListUtil.getSize(logs));
   }
   
+  /**
+   * The change log entries of several tasks since a date come from one
+   * query, the earlier ones left out, and the latest entry before the date
+   * of the given actions comes per task, an entry of another action or after
+   * the date left out, and both entries of a tie. Mutants: the since bound
+   * dropped or exclusive; the latest-before bound inclusive; the subquery not
+   * correlated with the task; the action list not applied in the subquery.
+   */
+  @Test
+  public void testTaskLogsSinceAndLatestBefore() {
+    Task first = tDAO.create(newTaskInstance("Task 1", "", null));
+    Task second = tDAO.create(newTaskInstance("Task 2", "", null));
+    Task other = tDAO.create(newTaskInstance("Task 3", "", null));
+    Date since = Date.from(Instant.parse("2026-10-01T00:00:00Z"));
+    TaskLogHandler logHandler = daoHandler.getTaskLogHandler();
+    ChangeLog firstCreated = createLog(logHandler, first, "created", "2026-09-01T00:00:00Z");
+    ChangeLog firstMoved = createLog(logHandler, first, "edit_status", "2026-09-20T00:00:00Z");
+    createLog(logHandler, first, "edit_title", "2026-09-25T00:00:00Z");
+    ChangeLog firstAtSince = createLog(logHandler, first, "edit_status", "2026-10-01T00:00:00Z");
+    ChangeLog secondTieA = createLog(logHandler, second, "created", "2026-09-10T00:00:00Z");
+    ChangeLog secondTieB = createLog(logHandler, second, "edit_status", "2026-09-10T00:00:00Z");
+    ChangeLog secondAfter = createLog(logHandler, second, "assign", "2026-10-05T00:00:00Z");
+    createLog(logHandler, other, "edit_status", "2026-10-03T00:00:00Z");
+
+    List<Long> since1 = logHandler.findTaskLogsSince(List.of(first.getId(), second.getId()), since)
+                                  .stream()
+                                  .map(ChangeLog::getId)
+                                  .sorted()
+                                  .toList();
+    List<Long> before = logHandler.findLatestTaskLogsBefore(List.of(first.getId(), second.getId()),
+                                                            since,
+                                                            List.of("created", "edit_status"))
+                                  .stream()
+                                  .map(ChangeLog::getId)
+                                  .sorted()
+                                  .toList();
+
+    assertEquals(List.of(firstAtSince.getId(), secondAfter.getId()).stream().sorted().toList(), since1);
+    assertEquals(List.of(firstMoved.getId(), secondTieA.getId(), secondTieB.getId()).stream().sorted().toList(), before);
+    assertFalse(before.contains(firstCreated.getId()));
+    assertTrue(logHandler.findTaskLogsSince(List.of(), since).isEmpty());
+  }
+
+  /**
+   * @param logHandler the change log DAO
+   * @param task the task the entry is logged on
+   * @param actionName the entry's action
+   * @param date the entry's ISO 8601 instant
+   * @return the entry created
+   */
+  private ChangeLog createLog(TaskLogHandler logHandler, Task task, String actionName, String date) {
+    ChangeLog log = new ChangeLog();
+    log.setTask(task);
+    log.setAuthor("root");
+    log.setActionName(actionName);
+    log.setCreatedTime(Date.from(Instant.parse(date)));
+    return logHandler.create(log);
+  }
+
   @Test
   public void testTaskField() throws Exception {
     Task task = newTaskInstance("Task 1", "", null);
