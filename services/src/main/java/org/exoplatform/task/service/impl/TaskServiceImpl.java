@@ -72,13 +72,13 @@ import static org.exoplatform.task.util.TaskUtil.*;
 @Singleton
 public class TaskServiceImpl implements TaskService {
 
-    /** The most change log entries a task's changes come with (EXO-91902). */
     /**
      * The most tasks all contributors together add to one keyword search: the
      * ids are written into the search request.
      */
     static final int MAX_CONTRIBUTED_TASKS = 1000;
 
+    /** The most change log entries a task's changes come with (EXO-91902). */
     private static final int CHANGE_LOG_LIMIT = 100;
 
     private static final Log LOG = ExoLogger.getExoLogger(TaskServiceImpl.class);

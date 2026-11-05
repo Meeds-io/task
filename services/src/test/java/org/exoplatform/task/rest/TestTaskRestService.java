@@ -1154,6 +1154,52 @@ public class TestTaskRestService {
 
   }
 
+  /**
+   * A keyword search asked for field matches goes through the keyword search
+   * of the service, which answers the rows, their number and the lines; each
+   * line reaches only its own task. Asked without field matches, the search
+   * stays the plain one. Mutants: the fieldMatches flag ignored, the line set
+   * on every row, the number taken from the rows.
+   */
+  @Test
+  public void testKeywordSearchWithFieldMatches() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService,
+                                                          commentService,
+                                                          projectService,
+                                                          statusService,
+                                                          userService,
+                                                          spaceService,
+                                                          labelService,
+                                                          favoriteService,
+                                                          identityManager);
+    ConversationState.setCurrent(new ConversationState(new Identity("root")));
+    TaskDto matched = new TaskDto();
+    matched.setId(10);
+    TaskDto other = new TaskDto();
+    other.setId(20);
+    io.meeds.task.search.model.SearchFieldMatches line = new io.meeds.task.search.model.SearchFieldMatches("icon", "tooltip", List.of(), 0, "");
+    when(taskService.searchTasksByKeyword(argThat(filter -> filter != null && "Northwind".equals(filter.getTerm())),
+                                          any(),
+                                          any(),
+                                          any())).thenReturn(new org.exoplatform.task.model.TaskKeywordSearchPage(List.of(matched, other),
+                                                                                                                   7,
+                                                                                                                   Map.of(10L, line)));
+
+    Response response = taskRestService.getTasks("whatever", "Northwind", null, null, null, 0, 20, true, true, true);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    PaginatedTaskList page = (PaginatedTaskList) response.getEntity();
+    assertEquals(7, page.getTasksNumber());
+    assertEquals(2, page.getTasks().size());
+    assertSame(line, page.getTasks().stream().filter(row -> row.getTask().getId() == 10).findFirst().orElseThrow().getFieldMatches());
+    assertNull(page.getTasks().stream().filter(row -> row.getTask().getId() == 20).findFirst().orElseThrow().getFieldMatches());
+    verify(taskService, never()).findTasks(any(org.exoplatform.task.model.TaskSearchFilter.class));
+
+    taskRestService.getTasks("whatever", "Northwind", null, null, null, 0, 20, true, true, false);
+    verify(taskService, times(1)).searchTasksByKeyword(any(), any(), any(), any());
+    verify(taskService).findTasks(any(org.exoplatform.task.model.TaskSearchFilter.class));
+  }
+
   @Test
   public void testFilterFavoriteTasks() throws Exception {
     // Given
