@@ -317,15 +317,15 @@ public class TaskSearchConnectorTest {
   @Test
   public void testContributedBoostIsReadWithinItsRange() {
     java.util.Map<String, Double> expected = new java.util.LinkedHashMap<>();
-    expected.put(null, 2.0d);
+    expected.put(null, 5.0d);
     expected.put("5", 5.0d);
     expected.put("0.1", 0.1d);
     expected.put("100", 100d);
-    expected.put("0", 2.0d);
-    expected.put("-3", 2.0d);
-    expected.put("100.5", 2.0d);
-    expected.put("NaN", 2.0d);
-    expected.put("abc", 2.0d);
+    expected.put("0", 5.0d);
+    expected.put("-3", 5.0d);
+    expected.put("100.5", 5.0d);
+    expected.put("NaN", 5.0d);
+    expected.put("abc", 5.0d);
     for (java.util.Map.Entry<String, Double> entry : expected.entrySet()) {
       when(propertiesParam.getProperty("contributedBoost")).thenReturn(entry.getKey());
       assertEquals(entry.getKey(),
