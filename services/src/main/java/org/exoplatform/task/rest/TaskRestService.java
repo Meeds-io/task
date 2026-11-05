@@ -46,7 +46,10 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.task.model.TaskListFilter;
+import org.exoplatform.task.model.TaskKeywordSearchPage;
 import org.exoplatform.task.model.TaskSearchFilter;
+
+import io.meeds.task.search.model.SearchFieldMatches;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -56,6 +59,7 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.rest.resource.ResourceContainer;
+import org.exoplatform.portal.application.localization.LocalizationFilter;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -254,7 +258,11 @@ public class TaskRestService implements ResourceContainer {
                            @Parameter(description = "Returning All Details")
                            @Schema(defaultValue = "false")
                            @QueryParam("returnDetails")
-                           boolean returnDetails) {
+                           boolean returnDetails,
+                           @Parameter(description = "With a search term, whether other add-ons' matches (form values) are searched too and described per task, as unified search asks")
+                           @Schema(defaultValue = "false")
+                           @QueryParam("fieldMatches")
+                           boolean fieldMatches) {
 
     try {
       Identity currentId = ConversationState.getCurrent().getIdentity();
@@ -264,6 +272,7 @@ public class TaskRestService implements ResourceContainer {
 
       long tasksSize;
       List<TaskDto> tasks = null;
+      Map<Long, SearchFieldMatches> taskFieldMatches = Map.of();
       if (StringUtils.isBlank(query)) {
         TaskType taskType;
         try {
@@ -307,12 +316,25 @@ public class TaskRestService implements ResourceContainer {
         }
       } else {
         memberships = filterMembershipsBySpaceIds(spaceIds, memberships);
-        tasks = taskService.findTasks(new TaskSearchFilter(currentUser, query, memberships, sortField, sortDirection, offset, limit));
-        tasksSize = taskService.countTasks(currentUser, query, memberships);
+        TaskSearchFilter searchFilter = new TaskSearchFilter(currentUser, query, memberships, sortField, sortDirection, offset, limit);
+        if (fieldMatches) {
+          TaskKeywordSearchPage page = taskService.searchTasksByKeyword(searchFilter, currentId, spaceIds, currentLocale());
+          tasks = page.tasks();
+          tasksSize = page.size();
+          taskFieldMatches = page.matches();
+        } else {
+          tasks = taskService.findTasks(searchFilter);
+          tasksSize = taskService.countTasks(currentUser, query, memberships);
+        }
       }
       tasks.forEach(t -> transformHtml(t, currentId));
+      Map<Long, SearchFieldMatches> matchesById = taskFieldMatches;
       return Response.ok(new PaginatedTaskList(tasks.stream()
-                                                    .map(task -> getTaskDetails(task, currentId))
+                                                    .map(task -> {
+                                                      TaskEntity taskEntity = getTaskDetails(task, currentId);
+                                                      taskEntity.setFieldMatches(matchesById.get(task.getId()));
+                                                      return taskEntity;
+                                                    })
                                                     .toList(),
                                                tasksSize))
                      .build();
@@ -1319,6 +1341,17 @@ public class TaskRestService implements ResourceContainer {
     if (comment != null) {
       comment.setComment(HtmlUtils.transform(comment.getComment(), new HtmlTransformerContext(userIdentity, null)));
     }
+  }
+
+  /**
+   * The language of the current request, as the portal resolved it, English
+   * when none.
+   *
+   * @return the locale
+   */
+  private Locale currentLocale() {
+    Locale locale = LocalizationFilter.getCurrentLocale();
+    return locale == null ? Locale.ENGLISH : locale;
   }
 
   private List<String> filterMembershipsBySpaceIds(List<Long> spaceIds, List<String> memberships) {
