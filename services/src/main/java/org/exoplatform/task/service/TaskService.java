@@ -32,12 +32,14 @@ import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskChangeFilter;
 import org.exoplatform.task.model.TaskChanges;
 import org.exoplatform.task.model.TaskListFilter;
+import org.exoplatform.task.model.TaskKeywordSearchPage;
 import org.exoplatform.task.model.TaskSearchFilter;
 import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.util.TaskUtil;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
 
@@ -319,6 +321,25 @@ public interface TaskService {
      * @return a list of task IDs
      */
     public List<TaskDto> findTasks(TaskSearchFilter taskFilter);
+
+    /**
+     * Searches tasks by a keyword for unified search: as
+     * {@link #findTasks(TaskSearchFilter)}, plus the tasks other add-ons find
+     * for the keyword in their own data ({@code TaskSearchMatchPlugin}). Each
+     * contributor is asked once, before the search; the tasks it names are
+     * matched as well as the keyword, inside the same permissions and
+     * projects, so a contributed task the user may not see is never returned.
+     * The page and its count use the same contributed tasks. A contributor that
+     * fails is skipped and the search answers without it.
+     *
+     * @param filter the search: user, keyword, permissions, sort, offset and
+     *          limit
+     * @param viewer the user who searches, handed to the contributors
+     * @param spaceIds the spaces the search is restricted to, empty for all
+     * @param locale the user's language, handed to the contributors
+     * @return the page of tasks, their count, and what matched per task id
+     */
+    TaskKeywordSearchPage searchTasksByKeyword(TaskSearchFilter filter, Identity viewer, List<Long> spaceIds, Locale locale);
 
     /**
      * Searches the tasks a user can view by a text in their title or
