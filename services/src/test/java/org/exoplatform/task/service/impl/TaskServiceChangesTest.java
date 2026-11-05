@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -319,6 +320,62 @@ public class TaskServiceChangesTest {
     assertNull(older.get(0).getOldValue());
     assertNull(noCreation.get(0).getOldValue());
     assertEquals("InProgress", noCreation.get(0).getNewValue());
+  }
+
+  /**
+   * The changes of a page of tasks are rebuilt from the entries since the
+   * date and the latest status, project and assignee entries before it, read
+   * once for the whole page: the status a task left comes from an entry
+   * before the date, and a task without entries gets no change. Mutants: the
+   * whole log read per task; the entry before the date not read, leaving the
+   * old status unknown.
+   */
+  @Test
+  public void thePageChangesAreRebuiltFromOneReadForAllTasks() {
+    TaskDto moved = mock(TaskDto.class);
+    when(moved.getId()).thenReturn(TASK_ID);
+    when(moved.getCreatedTime()).thenReturn(Date.from(Instant.parse("2026-09-01T00:00:00Z")));
+    TaskDto still = mock(TaskDto.class);
+    when(still.getId()).thenReturn(13L);
+    ChangeLogEntry created = logOf(TASK_ID, 1, "created", "ToDo", "2026-09-01T00:00:00Z");
+    ChangeLogEntry move = logOf(TASK_ID, 2, "edit_status", "InProgress", "2026-10-02T09:00:00Z");
+    List<Long> taskIds = List.of(TASK_ID, 13L);
+    when(taskStorage.getTaskLogsSince(taskIds, SINCE)).thenReturn(List.of(move));
+    when(taskStorage.getLatestTaskLogsBefore(org.mockito.ArgumentMatchers.eq(taskIds),
+                                             org.mockito.ArgumentMatchers.eq(SINCE),
+                                             org.mockito.ArgumentMatchers.anyCollection()))
+        .thenReturn(List.of(created))
+        .thenReturn(List.of())
+        .thenReturn(List.of());
+
+    Map<Long, List<TaskFieldChange>> changes = taskService.getTasksChanges(List.of(moved, still), SINCE);
+
+    assertEquals(List.of("status:ToDo>InProgress@2026-10-02T09:00:00Z"),
+                 changes.get(TASK_ID).stream().map(TaskServiceChangesTest::render).toList());
+    assertEquals(List.of(), changes.get(13L));
+    verify(taskStorage).getTaskLogsSince(taskIds, SINCE);
+    verify(taskStorage, org.mockito.Mockito.times(3)).getLatestTaskLogsBefore(org.mockito.ArgumentMatchers.eq(taskIds),
+                                                                             org.mockito.ArgumentMatchers.eq(SINCE),
+                                                                             org.mockito.ArgumentMatchers.anyCollection());
+    verify(taskStorage, org.mockito.Mockito.never()).getTaskLogs(org.mockito.ArgumentMatchers.anyLong(),
+                                                                 org.mockito.ArgumentMatchers.anyInt(),
+                                                                 org.mockito.ArgumentMatchers.anyInt());
+  }
+
+  /**
+   * @param taskId the task the entry is logged on
+   * @param id the entry identifier
+   * @param actionName its action
+   * @param target its target
+   * @param date its ISO 8601 instant
+   * @return a change log entry of that task by the test user
+   */
+  private static ChangeLogEntry logOf(long taskId, long id, String actionName, String target, String date) {
+    ChangeLogEntry entry = log(id, actionName, target, date);
+    org.exoplatform.task.domain.Task task = new org.exoplatform.task.domain.Task();
+    task.setId(taskId);
+    entry.setTask(task);
+    return entry;
   }
 
   /**

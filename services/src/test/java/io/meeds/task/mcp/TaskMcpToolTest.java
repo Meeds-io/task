@@ -237,6 +237,7 @@ public class TaskMcpToolTest {
     lenient().when(taskService.getAssignedTasksQuery(anyString(), any()))
              .thenAnswer(invocation -> queryBuilder.getAssignedTasksQuery(invocation.getArgument(0), invocation.getArgument(1)));
     lenient().when(taskService.getTaskChanges(any(), any(), anyBoolean())).thenReturn(new TaskChanges(List.of(), null));
+    lenient().when(taskService.getTasksChanges(any(), any())).thenReturn(Map.of());
 
     tool = new TestableTaskMcpTool();
   }
@@ -970,14 +971,13 @@ public class TaskMcpToolTest {
     when(project.canView(currentIdentity)).thenReturn(true);
     TaskDto task = mockTaskWithProject();
     ArgumentCaptor<Date> since = ArgumentCaptor.forClass(Date.class);
-    when(taskService.getTaskChanges(eq(task), since.capture(), eq(false)))
-        .thenReturn(new TaskChanges(List.of(new TaskFieldChange(TaskFieldChange.FIELD_STATUS,
+    when(taskService.getTasksChanges(eq(List.of(task)), since.capture()))
+        .thenReturn(Map.of(TASK_ID, List.of(new TaskFieldChange(TaskFieldChange.FIELD_STATUS,
                                                                  "ToDo",
                                                                  "InProgress",
                                                                  null,
                                                                  Instant.parse("2026-10-06T10:00:00Z").toEpochMilli(),
-                                                                 USER)),
-                                    null));
+                                                                 USER))));
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(List.of(task));
     when(taskService.countTasks(any())).thenReturn(1);
@@ -1007,6 +1007,7 @@ public class TaskMcpToolTest {
     assertEquals(TaskChange.FIELD_STATUS, change.getField());
     assertEquals("ToDo", change.getOldValue());
     assertEquals("InProgress", change.getNewValue());
+    verify(taskService, never()).getTaskChanges(any(), any(), anyBoolean());
   }
 
   /**

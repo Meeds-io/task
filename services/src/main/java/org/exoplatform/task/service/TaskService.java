@@ -27,6 +27,7 @@ import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.model.TaskFieldChange;
 import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskChangeFilter;
@@ -37,6 +38,7 @@ import org.exoplatform.task.util.TaskUtil;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 
@@ -194,6 +196,22 @@ public interface TaskService {
      * @throws Exception when its change log can't be read
      */
     TaskChanges getTaskChanges(TaskDto task, Date since, boolean includeChangeLog) throws Exception;
+
+    /**
+     * Rebuilds the changes since a date of several tasks, as
+     * {@link #getTaskChanges(TaskDto, Date, boolean)} does for one, from a
+     * fixed number of queries whatever the number of tasks: their change log
+     * entries logged at or after the date, and, for each task, the latest
+     * entry before it that tells the status, the project or the assignee the
+     * first change since then left.
+     *
+     * @param tasks the tasks
+     * @param since the earliest date of the changes, included; required
+     * @return the changes of each task, oldest first, by task id; a task with
+     *         none maps to an empty list
+     * @throws IllegalArgumentException when since is null
+     */
+    Map<Long, List<TaskFieldChange>> getTasksChanges(List<TaskDto> tasks, Date since);
 
     //TODO: should use via #findTasks(TaskQuery)?
     TaskDto findTaskByActivityId(String activityId);
