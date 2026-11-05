@@ -329,9 +329,11 @@ public class TaskServiceChangesTest {
    * before the date, and a task without entries gets no change. Mutants: the
    * whole log read per task; the entry before the date not read, leaving the
    * old status unknown.
+   *
+   * @throws Exception never, the change log read declares it
    */
   @Test
-  public void thePageChangesAreRebuiltFromOneReadForAllTasks() {
+  public void thePageChangesAreRebuiltFromOneReadForAllTasks() throws Exception {
     TaskDto moved = mock(TaskDto.class);
     when(moved.getId()).thenReturn(TASK_ID);
     when(moved.getCreatedTime()).thenReturn(Date.from(Instant.parse("2026-09-01T00:00:00Z")));
