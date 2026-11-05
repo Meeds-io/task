@@ -23,8 +23,10 @@ export function formatSearchResult(results, term) {
   if (results && results.tasks && results.tasks.length) {
     results = results.tasks.map(task => {
       const commentCount = task?.commentCount;
+      const fieldMatches = task?.fieldMatches;
       task = task?.task;
       task.commentCount = commentCount;
+      task.fieldMatches = fieldMatches;
       task.descriptionExcerpt = task?.description?.replace(new RegExp(`(${term})`, 'ig'), '<span class="searchMatchExcerpt">$1</span>');
       return task;
     });
