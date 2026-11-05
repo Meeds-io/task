@@ -23,7 +23,6 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.component.RequestLifeCycle;
-import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -53,8 +52,6 @@ import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.StorageUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.util.UserUtil;
-
-import io.meeds.task.plugin.TaskAclPlugin;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -374,9 +371,9 @@ public class TaskServiceImpl implements TaskService {
       }
       List<TaskDto> hits = findTasks(filter);
       List<TaskDto> found = new ArrayList<>();
-      collectSearchHits(hits, projectId, false, identity.getUserId(), found, max + 1);
+      collectSearchHits(hits, projectId, false, identity, found, max + 1);
       if (includeCompleted) {
-        collectSearchHits(hits, projectId, true, identity.getUserId(), found, max + 1);
+        collectSearchHits(hits, projectId, true, identity, found, max + 1);
       }
       // a full window may hide matches ranked below it, whatever the filters kept
       boolean hasMore = found.size() > max || hits.size() >= TEXT_SEARCH_WINDOW;
@@ -748,24 +745,23 @@ public class TaskServiceImpl implements TaskService {
      * @param hits the search hits, the most relevant first
      * @param projectId the project searched, null for any
      * @param completed the completion state of the hits added
-     * @param username the user who searches
+     * @param identity the user who searches
      * @param found the tasks found so far, completed by this call
      * @param enough how many tasks found are enough
      */
     private void collectSearchHits(List<TaskDto> hits,
                                    Long projectId,
                                    boolean completed,
-                                   String username,
+                                   Identity identity,
                                    List<TaskDto> found,
                                    int enough) {
-      UserACL userAcl = ExoContainerContext.getService(UserACL.class);
       for (TaskDto task : hits) {
         if (found.size() >= enough) {
           return;
         }
         if (task.isCompleted() == completed
             && (projectId == null || projectId.equals(getProjectIdOrNull(task)))
-            && userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(task.getId()), username)) {
+            && TaskUtil.hasViewPermission(this, task, identity)) {
           found.add(task);
         }
       }
