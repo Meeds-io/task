@@ -41,7 +41,7 @@
               <string>task</string>
             </field>
             <field name="uri">
-              <string><![CDATA[/portal/rest/tasks?limit={limit}&q={keyword}]]></string>
+              <string><![CDATA[/portal/rest/tasks?limit={limit}&q={keyword}&fieldMatches=true]]></string>
             </field>
             <field name="enabled">
               <boolean>${exo.search.task.enabled:true}</boolean>

@@ -79,6 +79,9 @@
         <property
           name="index"
           value="${task.es.index:task_alias}" />
+        <property
+          name="contributedBoost"
+          value="${task.search.contributed.boost:2.0}" />
       </properties-param>
     </init-params>
   </component>

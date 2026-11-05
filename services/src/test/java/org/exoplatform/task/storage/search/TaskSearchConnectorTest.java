@@ -169,6 +169,173 @@ public class TaskSearchConnectorTest {
   }
 
   /**
+   * Tasks another add-on contributed for the term are an alternative to the
+   * term inside the {@code must}, beside the permissions: a contributed task
+   * still has to pass the permissions, in the search and in the count. Each id
+   * is written once, as a string, with the configured boost. Mutants: the ids
+   * clause moved out of the {@code must} (into a top-level {@code should}), or
+   * written without the term alternative.
+   */
+  @Test
+  public void testContributedIdsAreAnAlternativeToTheTermInsideTheMust() {
+    TaskSearchFilter filter = new TaskSearchFilter("user1", "Northwind", List.of("user1", "member:/spaces/sales"), null, null, 0, 10);
+    filter.setContributedIds(java.util.Arrays.asList(7L, 8L, 7L, null));
+    when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"hits\":{\"hits\":[]}}");
+    when(client.countRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"count\":0}");
+
+    taskSearchConnector.search(filter);
+    taskSearchConnector.count(filter);
+
+    ArgumentCaptor<String> search = ArgumentCaptor.forClass(String.class);
+    verify(client).sendRequest(search.capture(), eq(ES_INDEX));
+    ArgumentCaptor<String> count = ArgumentCaptor.forClass(String.class);
+    verify(client).countRequest(count.capture(), eq(ES_INDEX));
+    for (String request : List.of(search.getValue(), count.getValue())) {
+      JsonNode bool = MAPPER.readTree(request).path("query").path("bool");
+      assertFalse(bool.has("should"));
+      JsonNode must = bool.path("must");
+      assertEquals(2, must.size());
+      assertEquals(List.of("user1", "member:/spaces/sales"), terms(must, "permissions"));
+      JsonNode alternative = must.get(0).path("bool");
+      assertEquals(1, alternative.path("minimum_should_match").asInt());
+      JsonNode should = alternative.path("should");
+      assertEquals(2, should.size());
+      assertEquals("Northwind", should.get(0).path("query_string").path("query").asString());
+      JsonNode ids = should.get(1).path("ids");
+      List<String> values = new ArrayList<>();
+      ids.path("values").forEach(value -> values.add(value.asString()));
+      assertEquals(List.of("7", "8"), values);
+      assertEquals(TaskSearchConnector.DEFAULT_CONTRIBUTED_BOOST, ids.path("boost").asDouble(), 0d);
+    }
+  }
+
+  /**
+   * With no contributed task, the request is the one the connector always
+   * built: the term, then the permissions, sorted by score.
+   */
+  @Test
+  public void testNoContributedIdsKeepsTheRequest() {
+    TaskSearchFilter filter = new TaskSearchFilter("user1", "Grand Dax", List.of("user1"), null, null, 0, 20);
+    filter.setContributedIds(List.of());
+    when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"hits\":{\"hits\":[]}}");
+
+    taskSearchConnector.search(filter);
+
+    ArgumentCaptor<String> search = ArgumentCaptor.forClass(String.class);
+    verify(client).sendRequest(search.capture(), eq(ES_INDEX));
+    JsonNode expected = MAPPER.readTree("""
+        {"from":0,"size":20,"query":{"bool":{"must":[
+          {"query_string":{"fields":["title","description"],"default_operator":"AND","query":"Grand Dax"}},
+          {"terms":{"permissions":["user1"]}}]}},
+         "sort":[{"_score":{"order":"desc"}}]}
+        """);
+    assertEquals(expected, MAPPER.readTree(search.getValue()));
+  }
+
+  /**
+   * A typed term that spells a placeholder of the request template stays the
+   * text searched: the template is filled in one pass. Mutant: the chained
+   * replacements, where {@code @permission_query@} typed in the term becomes
+   * a second permissions clause.
+   */
+  @Test
+  public void testTermSpellingAPlaceholderStaysText() {
+    TaskSearchFilter filter = new TaskSearchFilter("user1",
+                                                   "@permission_query@ @project_query@ @sortQuery@ x",
+                                                   List.of("user1"),
+                                                   null,
+                                                   null,
+                                                   0,
+                                                   10);
+    when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"hits\":{\"hits\":[]}}");
+
+    taskSearchConnector.search(filter);
+
+    ArgumentCaptor<String> search = ArgumentCaptor.forClass(String.class);
+    verify(client).sendRequest(search.capture(), eq(ES_INDEX));
+    JsonNode must = must(search.getValue());
+    assertEquals(2, must.size());
+    assertEquals("@permission_query@ @project_query@ @sortQuery@ x",
+                 must.get(0).path("query_string").path("query").asString());
+  }
+
+  /**
+   * A term holding a backslash (inside or at the end), a double quote or a
+   * control character still gives one valid request: the backslash and the
+   * quote are query_string syntax and become spaces, and what is left is
+   * escaped for JSON. Mutants: the backslash kept in the stripped characters
+   * (a trailing one escapes the closing quote, the request is not JSON), and
+   * the JSON escape removed (a tab breaks the string).
+   */
+  @Test
+  public void testTermWithBackslashQuoteOrTabGivesAValidRequest() {
+    java.util.Map<String, String> expected = new java.util.LinkedHashMap<>();
+    expected.put("foo\\", "foo");
+    expected.put("a\\ b", "a  b");
+    expected.put("say \"x\"", "say  x");
+    expected.put("a\tb", "a\tb");
+    expected.put("ligne\nsuivante", "ligne\nsuivante");
+    when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"hits\":{\"hits\":[]}}");
+    for (java.util.Map.Entry<String, String> entry : expected.entrySet()) {
+      TaskSearchFilter filter = new TaskSearchFilter("user1", entry.getKey(), List.of("user1"), null, null, 0, 10);
+      taskSearchConnector.search(filter);
+    }
+
+    ArgumentCaptor<String> search = ArgumentCaptor.forClass(String.class);
+    verify(client, org.mockito.Mockito.times(expected.size())).sendRequest(search.capture(), eq(ES_INDEX));
+    List<String> requests = search.getAllValues();
+    int i = 0;
+    for (String value : expected.values()) {
+      JsonNode must = must(requests.get(i++));
+      assertEquals(value, must.get(0).path("query_string").path("query").asString());
+    }
+  }
+
+  /**
+   * The sort direction is ascending or descending, whatever the client sends:
+   * it is written into the request. Mutant: the direction written as sent.
+   */
+  @Test
+  public void testSortDirectionIsAscendingOrDescendingOnly() {
+    when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{\"hits\":{\"hits\":[]}}");
+    taskSearchConnector.search(new TaskSearchFilter("user1", "x", List.of("user1"), "date", "asc\"}},{\"x\":\"", 0, 10));
+    taskSearchConnector.search(new TaskSearchFilter("user1", "x", List.of("user1"), "date", "ASC", 0, 10));
+
+    ArgumentCaptor<String> search = ArgumentCaptor.forClass(String.class);
+    verify(client, org.mockito.Mockito.times(2)).sendRequest(search.capture(), eq(ES_INDEX));
+    assertEquals("desc",
+                 MAPPER.readTree(search.getAllValues().get(0)).path("sort").get(0).path("lastUpdatedDate").path("order").asString());
+    assertEquals("asc",
+                 MAPPER.readTree(search.getAllValues().get(1)).path("sort").get(0).path("lastUpdatedDate").path("order").asString());
+  }
+
+  /**
+   * The contributed tasks' boost is read from the configuration, from 0.1 to
+   * 100; anything else keeps the default. Mutants: the range check removed,
+   * its bounds inverted.
+   */
+  @Test
+  public void testContributedBoostIsReadWithinItsRange() {
+    java.util.Map<String, Double> expected = new java.util.LinkedHashMap<>();
+    expected.put(null, 2.0d);
+    expected.put("5", 5.0d);
+    expected.put("0.1", 0.1d);
+    expected.put("100", 100d);
+    expected.put("0", 2.0d);
+    expected.put("-3", 2.0d);
+    expected.put("100.5", 2.0d);
+    expected.put("NaN", 2.0d);
+    expected.put("abc", 2.0d);
+    for (java.util.Map.Entry<String, Double> entry : expected.entrySet()) {
+      when(propertiesParam.getProperty("contributedBoost")).thenReturn(entry.getKey());
+      assertEquals(entry.getKey(),
+                   entry.getValue(),
+                   new TaskSearchConnector(client, initParams).getContributedBoost(),
+                   0d);
+    }
+  }
+
+  /**
    * Reads a request with a strict parser: a trailing comma, which
    * Elasticsearch refuses, fails here too.
    *
