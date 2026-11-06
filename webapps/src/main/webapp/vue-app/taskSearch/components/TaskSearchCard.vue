@@ -154,6 +154,13 @@ export default {
   methods: {
     async openTaskDrawer() {
       this.taskDrawer = true;
+      // The task skins are filtered portal skins, loaded only with the Tasks
+      // portlets: the search page has none of them until the drawer asks.
+      await Promise.all([
+        this.$utils.importSkin('portal', 'tasksDrawer'),
+        this.$utils.importSkin('portal', 'taskCommentsDrawer'),
+        this.$utils.importSkin('portal', 'tasks'),
+      ]).catch(() => null);
       await this.$nextTick();
       this.$refs.taskDrawer.open(this.result);
     },
