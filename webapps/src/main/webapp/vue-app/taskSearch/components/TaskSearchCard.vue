@@ -70,16 +70,15 @@
                 </span>
               </span>
               <div
-                class="pt-2 text-wrap text-body-2 text-color text-break"
-                :class="isMobile && 'text-truncate-2' || 'text-truncate-3'"
+                class="search-excerpt pt-2 text-wrap text-body-2 text-color text-break text-truncate-2"
                 v-sanitized-html="excerptHtml"></div>
               <div
                 v-if="fieldMatchItems.length"
-                class="search-field-matches d-flex flex-row flex-wrap align-center pt-1 text-body-2 text-color">
+                class="search-field-matches d-flex flex-row flex-nowrap align-center overflow-hidden pt-1 text-body-2 text-color">
                 <v-icon
                   :title="fieldMatches.tooltip"
                   size="14"
-                  class="icon-default-color me-2">
+                  class="icon-default-color flex-shrink-0 me-2">
                   {{ fieldMatches.icon }}
                 </v-icon>
                 <span
@@ -88,7 +87,13 @@
                   class="search-field-match text-truncate">
                   <span v-if="index" class="mx-1">·</span>{{ item.label }}: <span v-sanitized-html="item.valueHtml"></span>
                 </span>
-                <span v-if="fieldMatches.more > 0" class="ms-2">{{ fieldMatches.moreLabel }}</span>
+                <v-chip
+                  v-if="fieldMatches.more > 0"
+                  class="search-field-more flex-shrink-0 ms-2"
+                  x-small
+                  outlined>
+                  {{ fieldMatches.moreLabel }}
+                </v-chip>
               </div>
             </v-list-item-subtitle>
           </v-list-item-content>
@@ -127,7 +132,7 @@ export default {
       return this.fieldMatches?.items || [];
     },
     excerptHtml() {
-      return this.result && this.result.descriptionExcerpt || this.result.description || '';
+      return this.joinExcerptLines(this.result?.descriptionExcerpt || this.result?.description || '');
     },
     taskDueDate() {
       return this.result?.dueDate?.time;
@@ -155,6 +160,23 @@ export default {
     }
   },
   methods: {
+    /**
+     * Joins the lines and paragraphs of an excerpt with « · », so that the
+     * excerpt reads as one run of fields within its two lines. A blank line,
+     * written as a space entity, adds no field.
+     *
+     * @param {string} html the excerpt, as HTML or text
+     * @returns {string} the excerpt on one line
+     */
+    joinExcerptLines(html) {
+      return (html || '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(p|div|li|h[1-6]|ul|ol|blockquote)>/gi, '\n')
+        .replace(/<(p|div|li|h[1-6]|ul|ol|blockquote)(\s[^>]*)?>/gi, '')
+        .split(/\s*\n+\s*/)
+        .filter(line => line.replace(/&nbsp;/gi, '').trim().length)
+        .join(' · ');
+    },
     async openTaskDrawer() {
       this.taskDrawer = true;
       // The task skins are filtered portal skins, loaded only with the Tasks
