@@ -51,6 +51,12 @@
   &.taskDrawerPanel .drawerHeader > .v-list-item {
     position: relative;
     align-items: flex-start;
+    // The go back arrow, when shown, stays on the name's line
+    > .drawerIcons:not(.align-end) {
+      align-self: flex-start;
+      margin-top: 8px;
+      margin-bottom: 0;
+    }
     // Only the buttons on the right: the go back arrow also carries drawerIcons
     > .drawerIcons.align-end {
       position: absolute;
