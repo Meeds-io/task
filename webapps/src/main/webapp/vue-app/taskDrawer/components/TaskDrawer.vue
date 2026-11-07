@@ -670,12 +670,22 @@ export default {
     closeAssignements() {
       document.dispatchEvent(new CustomEvent('closeAssignments'));
     },
+    /**
+     * Saves the title typed in the side panel's header or in the body. A new
+     * task only keeps it until it is created. For a saved task, a refused or
+     * failed save puts the stored title back, so the header never shows a
+     * name the task does not have.
+     *
+     * @returns {void}
+     */
     updateTaskTitle() {
       if (this.task.id && this.oldTask.title !== this.taskTitle) {
         if (!this.taskTitle || !this.taskTitle.length) {
           this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.mandatory')});
+          this.taskTitle = this.oldTask.title;
         } else if (!this.taskTitleValid) {
           this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.length')});
+          this.taskTitle = this.oldTask.title;
         } else {
           const task = JSON.parse(JSON.stringify(this.task));
           task.title = this.taskTitle;
@@ -689,6 +699,7 @@ export default {
               this.$root.$emit('task-updated', JSON.parse(JSON.stringify(this.task)));
             }).catch(e => {
               console.error('Error when updating task\'s title', e);
+              this.taskTitle = this.oldTask.title;
               this.$root.$emit('show-alert', {
                 type: 'error',
                 message: this.$t('alert.error')
