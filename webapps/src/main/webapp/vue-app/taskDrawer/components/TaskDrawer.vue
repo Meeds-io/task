@@ -31,6 +31,7 @@
       v-model="drawer"
       :temporary="confirmDrawerClose"
       :go-back-button="addBackArrow"
+      :class="taskId && !twoColumns && 'taskDrawerPanel'"
       class="taskDrawer"
       body-classes="hide-scroll decrease-z-index-more"
       right
@@ -39,7 +40,46 @@
       @closed="onCloseDrawer">
       <template v-if="drawer && taskId" #title>
         <div
-          v-if="titleScrolledAway"
+          v-if="!twoColumns"
+          id="taskDrawerPanelHeader"
+          class="d-flex flex-column overflow-hidden">
+          <input
+            v-model="taskTitle"
+            :title="taskTitle"
+            :readonly="readOnly"
+            :aria-label="$t('label.tapTask.name')"
+            :class="{
+              'text-decoration-line-through': task.completed,
+              'taskDrawerPanelTitleEditable': !readOnly,
+            }"
+            type="text"
+            class="taskDrawerPanelTitle text-truncate text-subtitle-1 font-weight-bold"
+            @keydown.enter.prevent="$event.target.blur()"
+            @change="updateTaskTitle">
+          <div class="taskDrawerPanelSubtitle d-flex align-center overflow-hidden">
+            <v-chip
+              v-if="taskStatusLabel"
+              class="taskDrawerPanelStatus flex-shrink-0 me-2"
+              color="primary"
+              text-color="white"
+              x-small>
+              {{ taskStatusLabel }}
+            </v-chip>
+            <button
+              v-if="lastTaskChangesLog"
+              :title="$t('tooltip.viewAllChanges')"
+              type="button"
+              class="taskDrawerPanelUpdate text-truncate text-body-2 text-light-color"
+              @click="$root.$emit('displayTaskChanges')">
+              {{ $t('label.task.lastUpdate') }}
+              {{ displayedDate(lastTaskChangesLog) }}
+              {{ $t('label.task.lastUpdateBy') }}
+              {{ lastTaskChangesLogAuthor }}
+            </button>
+          </div>
+        </div>
+        <div
+          v-else-if="titleScrolledAway"
           id="taskDrawerScrolledHeader"
           class="d-flex align-center overflow-hidden">
           <span
@@ -143,6 +183,7 @@
             :class="twoColumns && 'flex-grow-1 overflow-y-auto'"
             class="taskDrawerDetails pa-4">
             <div
+              v-if="bodyTitleShown"
               v-resize="fitTitleHeight"
               v-intersect.quiet="onTitleIntersect"
               class="taskTitleAndMark d-flex">
@@ -162,7 +203,7 @@
                 @change="updateTaskTitle" />
             </div>
             <div
-              v-if="taskId && lastTaskChangesLog"
+              v-if="twoColumns && lastTaskChangesLog"
               class="lastUpdatedTask pb-3">
               <v-tooltip top>
                 <template #activator="{ on, attrs }">
@@ -451,6 +492,16 @@ export default {
     twoColumns() {
       return this.expanded && !!this.task?.id && !this.$vuetify.breakpoint.smAndDown;
     },
+    /**
+     * Whether the body shows the title field: for a new task, and in full
+     * screen. An opened task in the side panel shows its title in the header
+     * instead, so it is not repeated in the body.
+     *
+     * @returns {boolean} whether the body shows the title field
+     */
+    bodyTitleShown() {
+      return !this.taskId || this.twoColumns;
+    },
     taskLink() {
       if (this.task == null || this.task.id == null) {
         return '';
@@ -529,7 +580,8 @@ export default {
       return this.taskProjectId && `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/projectDetail/${this.taskProjectId}`;
     },
     /**
-     * The translated name of the task's status, shown in the header once the title scrolled away.
+     * The translated name of the task's status, shown in the side panel's
+     * header, and in the full screen header once the title scrolled away.
      *
      * @returns {string} the status name, null without a status
      */
@@ -560,6 +612,8 @@ export default {
       this.fitTitleHeight();
     },
     twoColumns() {
+      // The body title comes back in view when the drawer switches layout
+      this.titleScrolledAway = false;
       this.fitTitleHeight();
     },
   },
@@ -1348,9 +1402,10 @@ export default {
       this.fitTitleHeightTimeout = window.setTimeout(() => this.$refs.autoFocusInput4?.calculateInputHeight?.(), 300);
     },
     /**
-     * Shows the task's title, completion and status in the drawer's header
-     * while the title is scrolled out of view, and the header's own title
-     * while the title is in view.
+     * Shows the task's title, completion and status in the full screen
+     * drawer's header while the title is scrolled out of view, and the
+     * header's own title while the title is in view. The side panel always
+     * shows them in its header, so its body has no title to observe.
      *
      * @param {IntersectionObserverEntry[]} entries the observed changes
      * @param {IntersectionObserver} observer the observer of the title
