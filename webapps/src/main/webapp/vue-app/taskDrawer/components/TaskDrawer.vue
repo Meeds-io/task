@@ -183,25 +183,26 @@
           <div
             :class="twoColumns && 'flex-grow-1 overflow-y-auto'"
             class="taskDrawerDetails pa-4">
-            <div
-              v-show="bodyTitleShown"
-              v-resize="fitTitleHeight"
-              v-intersect.quiet="onTitleIntersect"
-              class="taskTitleAndMark d-flex">
-              <v-textarea
-                ref="autoFocusInput4"
-                v-model="taskTitle"
-                :class="{taskCompleted: task && task.completed}"
-                :placeholder="$t('label.tapTask.name')"
-                :autofocus="!task || !task.id"
-                :readonly="readOnly"
-                type="text"
-                class="ps-0 pt-0 task-name"
-                auto-grow
-                rows="1"
-                row-height="13"
-                required
-                @change="updateTaskTitle" />
+            <div v-show="bodyTitleShown" class="taskTitleWrapper">
+              <div
+                v-resize="fitTitleHeight"
+                v-intersect.quiet="onTitleIntersect"
+                class="taskTitleAndMark d-flex">
+                <v-textarea
+                  ref="autoFocusInput4"
+                  v-model="taskTitle"
+                  :class="{taskCompleted: task && task.completed}"
+                  :placeholder="$t('label.tapTask.name')"
+                  :autofocus="!task || !task.id"
+                  :readonly="readOnly"
+                  type="text"
+                  class="ps-0 pt-0 task-name"
+                  auto-grow
+                  rows="1"
+                  row-height="13"
+                  required
+                  @change="updateTaskTitle" />
+              </div>
             </div>
             <div
               v-if="taskId && lastTaskChangesLog"
