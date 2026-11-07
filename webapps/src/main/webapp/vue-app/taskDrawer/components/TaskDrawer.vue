@@ -484,6 +484,7 @@ export default {
       taskDescription: null,
       attachmentsVersion: 0,
       titleScrolledAway: false,
+      titleSaving: null,
       movingProject: false,
       creation: null,
     };
@@ -524,7 +525,7 @@ export default {
       return `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/taskDetail/${this.task.id}`;
     },
     taskTitleValid() {
-      return  this.taskTitle?.trim().length >= 3 && this.taskTitle.length < 1024;
+      return this.isValidTitle(this.taskTitle);
     },
     taskDescriptionValid() {
       const taskDescriptionText = this.$utils.htmlToText(this.taskDescription);
@@ -676,54 +677,95 @@ export default {
      * task only keeps it until it is created. When the side panel's header
      * saves a saved task's title, a refused or failed save puts the stored
      * title back, so the header never shows a name the task does not have;
-     * the body field keeps what was typed, so it can be corrected.
+     * the body field keeps what was typed, so it can be corrected. The saves
+     * of a saved task run one after the other, each with the title typed
+     * when it was asked, so a change made while an earlier save is pending
+     * is checked against the title that save stored.
      *
      * @param {boolean} fromHeader whether the side panel's header saves it
-     * @returns {void}
+     * @returns {Promise|void} the queued save of a saved task's title
      */
     updateTaskTitle(fromHeader) {
-      if (this.task.id && this.oldTask.title !== this.taskTitle) {
-        if (!this.taskTitle || !this.taskTitle.length) {
-          this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.mandatory')});
-          this.restoreHeaderTitle(fromHeader);
-        } else if (!this.taskTitleValid) {
-          this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.length')});
-          this.restoreHeaderTitle(fromHeader);
-        } else {
-          const task = JSON.parse(JSON.stringify(this.task));
-          task.title = this.taskTitle;
-          this.$taskDrawerApi.updateTask(this.task.id, task)
-            .then(() => {
-              this.task.title = this.oldTask.title = this.taskTitle;
-              this.$root.$emit('show-alert', {
-                type: 'success',
-                message: this.$t('alert.success.task.title')
-              });
-              this.$root.$emit('task-updated', JSON.parse(JSON.stringify(this.task)));
-            }).catch(e => {
-              console.error('Error when updating task\'s title', e);
-              this.restoreHeaderTitle(fromHeader);
-              this.$root.$emit('show-alert', {
-                type: 'error',
-                message: this.$t('alert.error')
-              });
-            });
-        }
-      } else if (!this.task.id) {
+      if (!this.task.id) {
         this.task.title = this.oldTask.title = this.taskTitle;
+        return;
       }
+      const title = this.taskTitle;
+      const task = this.task;
+      const oldTask = this.oldTask;
+      this.titleSaving = (this.titleSaving || Promise.resolve())
+        .then(() => this.saveTaskTitle(task, oldTask, title, fromHeader));
+      return this.titleSaving;
+    },
+    /**
+     * Saves one title of a saved task, once the saves asked before it are
+     * done. It records the title it sent, never what the field holds when
+     * the response arrives, on the task that was open when it was asked.
+     *
+     * @param {object} task the task open when the save was asked
+     * @param {object} oldTask its stored state, holding its stored title
+     * @param {string} title the title typed when the save was asked
+     * @param {boolean} fromHeader whether the side panel's header saves it
+     * @returns {Promise|void} the update, or nothing when no request is sent
+     */
+    saveTaskTitle(task, oldTask, title, fromHeader) {
+      if (oldTask.title === title) {
+        return;
+      }
+      if (!title || !title.length) {
+        this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.mandatory')});
+        this.restoreHeaderTitle(task, oldTask, title, fromHeader);
+        return;
+      }
+      if (!this.isValidTitle(title)) {
+        this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.length')});
+        this.restoreHeaderTitle(task, oldTask, title, fromHeader);
+        return;
+      }
+      const taskToSave = JSON.parse(JSON.stringify(task));
+      taskToSave.title = title;
+      return this.$taskDrawerApi.updateTask(task.id, taskToSave)
+        .then(() => {
+          task.title = oldTask.title = title;
+          this.$root.$emit('show-alert', {
+            type: 'success',
+            message: this.$t('alert.success.task.title')
+          });
+          this.$root.$emit('task-updated', JSON.parse(JSON.stringify(task)));
+        }).catch(e => {
+          console.error('Error when updating task\'s title', e);
+          this.restoreHeaderTitle(task, oldTask, title, fromHeader);
+          this.$root.$emit('show-alert', {
+            type: 'error',
+            message: this.$t('alert.error')
+          });
+        });
+    },
+    /**
+     * Whether a title may be saved: 3 characters at least once trimmed, and
+     * fewer than 1024.
+     *
+     * @param {string} title the title to check
+     * @returns {boolean} whether the title may be saved
+     */
+    isValidTitle(title) {
+      return title?.trim().length >= 3 && title.length < 1024;
     },
     /**
      * Puts the task's stored title back after a refused or failed save from
-     * the side panel's header. The body field passes its typed value, never
+     * the side panel's header, unless the field was changed again since or
+     * another task is open. The body field passes its typed value, never
      * true, so it keeps what was typed.
      *
+     * @param {object} task the task whose save was refused or failed
+     * @param {object} oldTask its stored state, holding its stored title
+     * @param {string} title the title whose save was refused or failed
      * @param {boolean} fromHeader whether the side panel's header saved it
      * @returns {void}
      */
-    restoreHeaderTitle(fromHeader) {
-      if (fromHeader === true) {
-        this.taskTitle = this.oldTask.title;
+    restoreHeaderTitle(task, oldTask, title, fromHeader) {
+      if (fromHeader === true && this.task === task && this.taskTitle === title) {
+        this.taskTitle = oldTask.title;
       }
     },
     /**
