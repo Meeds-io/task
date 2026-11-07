@@ -183,7 +183,7 @@
             :class="twoColumns && 'flex-grow-1 overflow-y-auto'"
             class="taskDrawerDetails pa-4">
             <div
-              v-if="bodyTitleShown"
+              v-show="bodyTitleShown"
               v-resize="fitTitleHeight"
               v-intersect.quiet="onTitleIntersect"
               class="taskTitleAndMark d-flex">
@@ -203,7 +203,8 @@
                 @change="updateTaskTitle" />
             </div>
             <div
-              v-if="twoColumns && lastTaskChangesLog"
+              v-if="taskId && lastTaskChangesLog"
+              v-show="twoColumns"
               class="lastUpdatedTask pb-3">
               <v-tooltip top>
                 <template #activator="{ on, attrs }">
@@ -495,7 +496,9 @@ export default {
     /**
      * Whether the body shows the title field: for a new task, and in full
      * screen. An opened task in the side panel shows its title in the header
-     * instead, so it is not repeated in the body.
+     * instead, so it is not repeated in the body. The field is hidden, not
+     * removed, so that switching layout keeps the fields below it mounted
+     * with the values they loaded when the task opened.
      *
      * @returns {boolean} whether the body shows the title field
      */
@@ -1405,7 +1408,8 @@ export default {
      * Shows the task's title, completion and status in the full screen
      * drawer's header while the title is scrolled out of view, and the
      * header's own title while the title is in view. The side panel always
-     * shows them in its header, so its body has no title to observe.
+     * shows them in its header and hides the body title, so what this reports
+     * there is never shown.
      *
      * @param {IntersectionObserverEntry[]} entries the observed changes
      * @param {IntersectionObserver} observer the observer of the title
