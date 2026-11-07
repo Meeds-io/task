@@ -46,13 +46,33 @@
       }
     }
   }
-  // Side panel: the header's buttons stay on the right of the name's line
+  // Side panel: the header's buttons sit over the end of the name's line, so
+  // the status and last update line below runs the panel's full width
   &.taskDrawerPanel .drawerHeader > .v-list-item {
+    position: relative;
     align-items: flex-start;
     > .drawerIcons {
-      align-self: flex-start;
+      position: absolute;
+      top: 0;
+      right: 0 ~'; /** orientation=lt */ ';
+      left: 0 ~'; /** orientation=rt */ ';
+      left: auto ~'; /** orientation=lt */ ';
+      right: auto ~'; /** orientation=rt */ ';
       margin-top: 8px;
       margin-bottom: 0;
+    }
+    #taskDrawerPanelHeader {
+      // Room for the close and full screen buttons, and the menu when shown
+      .taskDrawerPanelTitle {
+        width: calc(100% - 84px);
+      }
+      &.taskDrawerPanelWithMenu .taskDrawerPanelTitle {
+        width: calc(100% - 120px);
+      }
+      .taskDrawerPanelSubtitle {
+        padding-right: 16px ~'; /** orientation=lt */ ';
+        padding-left: 16px ~'; /** orientation=rt */ ';
+      }
     }
   }
   .drawerHeader {
