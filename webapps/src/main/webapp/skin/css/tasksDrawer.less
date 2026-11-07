@@ -46,6 +46,15 @@
       }
     }
   }
+  // Side panel: the header's buttons stay on the right of the name's line
+  &.taskDrawerPanel .drawerHeader > .v-list-item {
+    align-items: flex-start;
+    > .drawerIcons {
+      align-self: flex-start;
+      margin-top: 8px;
+      margin-bottom: 0;
+    }
+  }
   .drawerHeader {
     .drawerTitle {
       justify-content: space-between!important;
@@ -79,6 +88,42 @@
           .v-list-item {
             min-height: 40px!important;
             cursor: pointer;
+          }
+        }
+      }
+      // Side panel: the name on the first line, status and last update below
+      #taskDrawerPanelHeader {
+        min-width: 0;
+        max-width: 100%;
+        margin-top: 4px;
+        .taskDrawerPanelTitle {
+          width: 100%;
+          min-width: 0;
+          height: 32px;
+          padding: 0 4px;
+          border: 1px solid transparent;
+          border-radius: 4px;
+          background: transparent;
+          color: @textColor;
+          outline: none;
+          &.taskDrawerPanelTitleEditable {
+            &:hover {
+              border-color: @borderColor;
+            }
+            &:focus {
+              border-color: @primaryColor;
+            }
+          }
+          &:read-only {
+            cursor: default;
+          }
+        }
+        .taskDrawerPanelSubtitle {
+          min-width: 0;
+          padding: 0 4px 6px;
+          .taskDrawerPanelUpdate {
+            min-width: 0;
+            text-align: start;
           }
         }
       }
