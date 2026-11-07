@@ -42,6 +42,7 @@
         <div
           v-if="!twoColumns"
           id="taskDrawerPanelHeader"
+          :class="headerMenuShown && 'taskDrawerPanelWithMenu'"
           class="d-flex flex-column overflow-hidden">
           <input
             v-model="taskTitle"
@@ -112,7 +113,7 @@
       <template v-else-if="drawer" #title>
         <span>{{ $t('label.drawer.header.add') }}</span>
       </template>
-      <template v-if="drawer && taskId && (menuActions.length || !readOnly)" #titleIcons>
+      <template v-if="drawer && headerMenuShown" #titleIcons>
         <div
           id="taskActionMenu"
           class="position-relative z-index-modal">
@@ -504,6 +505,16 @@ export default {
      */
     bodyTitleShown() {
       return !this.taskId || this.twoColumns;
+    },
+    /**
+     * Whether the header shows the task's ⋮ menu: for a saved task that has
+     * an action, or that the reader may edit. The side panel's name leaves
+     * room for it when it shows.
+     *
+     * @returns {boolean} whether the header shows the menu
+     */
+    headerMenuShown() {
+      return !!this.taskId && (this.menuActions.length > 0 || !this.readOnly);
     },
     taskLink() {
       if (this.task == null || this.task.id == null) {
