@@ -51,7 +51,8 @@
   &.taskDrawerPanel .drawerHeader > .v-list-item {
     position: relative;
     align-items: flex-start;
-    > .drawerIcons {
+    // Only the buttons on the right: the go back arrow also carries drawerIcons
+    > .drawerIcons.align-end {
       position: absolute;
       top: 0;
       right: 0 ~'; /** orientation=lt */ ';
