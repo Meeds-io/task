@@ -31,7 +31,6 @@
       v-model="drawer"
       :temporary="confirmDrawerClose"
       :go-back-button="addBackArrow"
-      :class="taskId && !twoColumns && 'taskDrawerPanel'"
       class="taskDrawer"
       body-classes="hide-scroll decrease-z-index-more"
       right
@@ -40,47 +39,7 @@
       @closed="onCloseDrawer">
       <template v-if="drawer && taskId" #title>
         <div
-          v-if="!twoColumns"
-          id="taskDrawerPanelHeader"
-          :class="headerMenuShown && 'taskDrawerPanelWithMenu'"
-          class="d-flex flex-column overflow-hidden">
-          <input
-            v-model="taskTitle"
-            :title="taskTitle"
-            :readonly="readOnly"
-            :aria-label="$t('label.tapTask.name')"
-            :class="{
-              'text-decoration-line-through': task.completed,
-              'taskDrawerPanelTitleEditable': !readOnly,
-            }"
-            type="text"
-            class="taskDrawerPanelTitle text-truncate text-subtitle-1 font-weight-bold"
-            @keydown.enter.prevent="$event.target.blur()"
-            @change="updateTaskTitle(true)">
-          <div class="taskDrawerPanelSubtitle d-flex align-center overflow-hidden">
-            <v-chip
-              v-if="taskStatusLabel"
-              class="taskDrawerPanelStatus flex-shrink-0 me-2"
-              color="primary"
-              text-color="white"
-              x-small>
-              {{ taskStatusLabel }}
-            </v-chip>
-            <button
-              v-if="lastTaskChangesLog"
-              :title="$t('tooltip.viewAllChanges')"
-              type="button"
-              class="taskDrawerPanelUpdate text-truncate text-body-2 text-light-color"
-              @click="$root.$emit('displayTaskChanges')">
-              {{ $t('label.task.lastUpdate') }}
-              {{ displayedDate(lastTaskChangesLog) }}
-              {{ $t('label.task.lastUpdateBy') }}
-              {{ lastTaskChangesLogAuthor }}
-            </button>
-          </div>
-        </div>
-        <div
-          v-else-if="titleScrolledAway"
+          v-if="titleScrolledAway"
           id="taskDrawerScrolledHeader"
           class="d-flex align-center overflow-hidden">
           <span
@@ -113,7 +72,7 @@
       <template v-else-if="drawer" #title>
         <span>{{ $t('label.drawer.header.add') }}</span>
       </template>
-      <template v-if="drawer && headerMenuShown" #titleIcons>
+      <template v-if="drawer && taskId && (menuActions.length || !readOnly)" #titleIcons>
         <div
           id="taskActionMenu"
           class="position-relative z-index-modal">
@@ -183,30 +142,27 @@
           <div
             :class="twoColumns && 'flex-grow-1 overflow-y-auto'"
             class="taskDrawerDetails pa-4">
-            <div v-show="bodyTitleShown" class="taskTitleWrapper">
-              <div
-                v-resize="fitTitleHeight"
-                v-intersect.quiet="onTitleIntersect"
-                class="taskTitleAndMark d-flex">
-                <v-textarea
-                  ref="autoFocusInput4"
-                  v-model="taskTitle"
-                  :class="{taskCompleted: task && task.completed}"
-                  :placeholder="$t('label.tapTask.name')"
-                  :autofocus="!task || !task.id"
-                  :readonly="readOnly"
-                  type="text"
-                  class="ps-0 pt-0 task-name"
-                  auto-grow
-                  rows="1"
-                  row-height="13"
-                  required
-                  @change="updateTaskTitle" />
-              </div>
+            <div
+              v-resize="fitTitleHeight"
+              v-intersect.quiet="onTitleIntersect"
+              class="taskTitleAndMark d-flex">
+              <v-textarea
+                ref="autoFocusInput4"
+                v-model="taskTitle"
+                :class="{taskCompleted: task && task.completed}"
+                :placeholder="$t('label.tapTask.name')"
+                :autofocus="!task || !task.id"
+                :readonly="readOnly"
+                type="text"
+                class="ps-0 pt-0 task-name"
+                auto-grow
+                rows="1"
+                row-height="13"
+                required
+                @change="updateTaskTitle" />
             </div>
             <div
               v-if="taskId && lastTaskChangesLog"
-              v-show="twoColumns"
               class="lastUpdatedTask pb-3">
               <v-tooltip top>
                 <template #activator="{ on, attrs }">
@@ -484,7 +440,6 @@ export default {
       taskDescription: null,
       attachmentsVersion: 0,
       titleScrolledAway: false,
-      titleSaving: null,
       movingProject: false,
       creation: null,
     };
@@ -496,28 +451,6 @@ export default {
     twoColumns() {
       return this.expanded && !!this.task?.id && !this.$vuetify.breakpoint.smAndDown;
     },
-    /**
-     * Whether the body shows the title field: for a new task, and in full
-     * screen. An opened task in the side panel shows its title in the header
-     * instead, so it is not repeated in the body. The field is hidden, not
-     * removed, so that switching layout keeps the fields below it mounted
-     * with the values they loaded when the task opened.
-     *
-     * @returns {boolean} whether the body shows the title field
-     */
-    bodyTitleShown() {
-      return !this.taskId || this.twoColumns;
-    },
-    /**
-     * Whether the header shows the task's ⋮ menu: for a saved task that has
-     * an action, or that the reader may edit. The side panel's name leaves
-     * room for it when it shows.
-     *
-     * @returns {boolean} whether the header shows the menu
-     */
-    headerMenuShown() {
-      return !!this.taskId && (this.menuActions.length > 0 || !this.readOnly);
-    },
     taskLink() {
       if (this.task == null || this.task.id == null) {
         return '';
@@ -525,7 +458,7 @@ export default {
       return `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/taskDetail/${this.task.id}`;
     },
     taskTitleValid() {
-      return this.isValidTitle(this.taskTitle);
+      return  this.taskTitle?.trim().length >= 3 && this.taskTitle.length < 1024;
     },
     taskDescriptionValid() {
       const taskDescriptionText = this.$utils.htmlToText(this.taskDescription);
@@ -596,8 +529,7 @@ export default {
       return this.taskProjectId && `${eXo.env.portal.context}/${eXo.env.portal.metaPortalName}/tasks/projectDetail/${this.taskProjectId}`;
     },
     /**
-     * The translated name of the task's status, shown in the side panel's
-     * header, and in the full screen header once the title scrolled away.
+     * The translated name of the task's status, shown in the header once the title scrolled away.
      *
      * @returns {string} the status name, null without a status
      */
@@ -628,8 +560,6 @@ export default {
       this.fitTitleHeight();
     },
     twoColumns() {
-      // The body title comes back in view when the drawer switches layout
-      this.titleScrolledAway = false;
       this.fitTitleHeight();
     },
   },
@@ -672,100 +602,33 @@ export default {
     closeAssignements() {
       document.dispatchEvent(new CustomEvent('closeAssignments'));
     },
-    /**
-     * Saves the title typed in the side panel's header or in the body. A new
-     * task only keeps it until it is created. When the side panel's header
-     * saves a saved task's title, a refused or failed save puts the stored
-     * title back, so the header never shows a name the task does not have;
-     * the body field keeps what was typed, so it can be corrected. The saves
-     * of a saved task run one after the other, each with the title typed
-     * when it was asked, so a change made while an earlier save is pending
-     * is checked against the title that save stored.
-     *
-     * @param {boolean} fromHeader whether the side panel's header saves it
-     * @returns {Promise|void} the queued save of a saved task's title
-     */
-    updateTaskTitle(fromHeader) {
-      if (!this.task.id) {
+    updateTaskTitle() {
+      if (this.task.id && this.oldTask.title !== this.taskTitle) {
+        if (!this.taskTitle || !this.taskTitle.length) {
+          this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.mandatory')});
+        } else if (!this.taskTitleValid) {
+          this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.length')});
+        } else {
+          const task = JSON.parse(JSON.stringify(this.task));
+          task.title = this.taskTitle;
+          this.$taskDrawerApi.updateTask(this.task.id, task)
+            .then(() => {
+              this.task.title = this.oldTask.title = this.taskTitle;
+              this.$root.$emit('show-alert', {
+                type: 'success',
+                message: this.$t('alert.success.task.title')
+              });
+              this.$root.$emit('task-updated', JSON.parse(JSON.stringify(this.task)));
+            }).catch(e => {
+              console.error('Error when updating task\'s title', e);
+              this.$root.$emit('show-alert', {
+                type: 'error',
+                message: this.$t('alert.error')
+              });
+            });
+        }
+      } else if (!this.task.id) {
         this.task.title = this.oldTask.title = this.taskTitle;
-        return;
-      }
-      const title = this.taskTitle;
-      const task = this.task;
-      const oldTask = this.oldTask;
-      this.titleSaving = (this.titleSaving || Promise.resolve())
-        .then(() => this.saveTaskTitle(task, oldTask, title, fromHeader));
-      return this.titleSaving;
-    },
-    /**
-     * Saves one title of a saved task, once the saves asked before it are
-     * done. It records the title it sent, never what the field holds when
-     * the response arrives, on the task that was open when it was asked.
-     *
-     * @param {object} task the task open when the save was asked
-     * @param {object} oldTask its stored state, holding its stored title
-     * @param {string} title the title typed when the save was asked
-     * @param {boolean} fromHeader whether the side panel's header saves it
-     * @returns {Promise|void} the update, or nothing when no request is sent
-     */
-    saveTaskTitle(task, oldTask, title, fromHeader) {
-      if (oldTask.title === title) {
-        return;
-      }
-      if (!title || !title.length) {
-        this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.mandatory')});
-        this.restoreHeaderTitle(task, oldTask, title, fromHeader);
-        return;
-      }
-      if (!this.isValidTitle(title)) {
-        this.$root.$emit('show-alert', {type: 'error',message: this.$t('alert.error.title.length')});
-        this.restoreHeaderTitle(task, oldTask, title, fromHeader);
-        return;
-      }
-      const taskToSave = JSON.parse(JSON.stringify(task));
-      taskToSave.title = title;
-      return this.$taskDrawerApi.updateTask(task.id, taskToSave)
-        .then(() => {
-          task.title = oldTask.title = title;
-          this.$root.$emit('show-alert', {
-            type: 'success',
-            message: this.$t('alert.success.task.title')
-          });
-          this.$root.$emit('task-updated', JSON.parse(JSON.stringify(task)));
-        }).catch(e => {
-          console.error('Error when updating task\'s title', e);
-          this.restoreHeaderTitle(task, oldTask, title, fromHeader);
-          this.$root.$emit('show-alert', {
-            type: 'error',
-            message: this.$t('alert.error')
-          });
-        });
-    },
-    /**
-     * Whether a title may be saved: 3 characters at least once trimmed, and
-     * fewer than 1024.
-     *
-     * @param {string} title the title to check
-     * @returns {boolean} whether the title may be saved
-     */
-    isValidTitle(title) {
-      return title?.trim().length >= 3 && title.length < 1024;
-    },
-    /**
-     * Puts the task's stored title back after a refused or failed save from
-     * the side panel's header, unless the field was changed again since or
-     * another task is open. The body field passes its typed value, never
-     * true, so it keeps what was typed.
-     *
-     * @param {object} task the task whose save was refused or failed
-     * @param {object} oldTask its stored state, holding its stored title
-     * @param {string} title the title whose save was refused or failed
-     * @param {boolean} fromHeader whether the side panel's header saved it
-     * @returns {void}
-     */
-    restoreHeaderTitle(task, oldTask, title, fromHeader) {
-      if (fromHeader === true && this.task === task && this.taskTitle === title) {
-        this.taskTitle = oldTask.title;
       }
     },
     /**
@@ -1485,11 +1348,9 @@ export default {
       this.fitTitleHeightTimeout = window.setTimeout(() => this.$refs.autoFocusInput4?.calculateInputHeight?.(), 300);
     },
     /**
-     * Shows the task's title, completion and status in the full screen
-     * drawer's header while the title is scrolled out of view, and the
-     * header's own title while the title is in view. The side panel always
-     * shows them in its header and hides the body title, so what this reports
-     * there is never shown.
+     * Shows the task's title, completion and status in the drawer's header
+     * while the title is scrolled out of view, and the header's own title
+     * while the title is in view.
      *
      * @param {IntersectionObserverEntry[]} entries the observed changes
      * @param {IntersectionObserver} observer the observer of the title
