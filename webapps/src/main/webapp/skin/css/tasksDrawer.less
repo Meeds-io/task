@@ -46,42 +46,6 @@
       }
     }
   }
-  // Side panel: the header's buttons sit over the end of the name's line, so
-  // the status and last update line below runs the panel's full width
-  &.taskDrawerPanel .drawerHeader > .v-list-item {
-    position: relative;
-    align-items: flex-start;
-    // The go back arrow, when shown, stays on the name's line
-    > .drawerIcons:not(.align-end) {
-      align-self: flex-start;
-      margin-top: 8px;
-      margin-bottom: 0;
-    }
-    // Only the buttons on the right: the go back arrow also carries drawerIcons
-    > .drawerIcons.align-end {
-      position: absolute;
-      top: 0;
-      right: 0 ~'; /** orientation=lt */ ';
-      left: 0 ~'; /** orientation=rt */ ';
-      left: auto ~'; /** orientation=lt */ ';
-      right: auto ~'; /** orientation=rt */ ';
-      margin-top: 8px;
-      margin-bottom: 0;
-    }
-    #taskDrawerPanelHeader {
-      // Room for the close and full screen buttons, and the menu when shown
-      .taskDrawerPanelTitle {
-        width: calc(~"100% - 84px");
-      }
-      &.taskDrawerPanelWithMenu .taskDrawerPanelTitle {
-        width: calc(~"100% - 120px");
-      }
-      .taskDrawerPanelSubtitle {
-        padding-right: 16px ~'; /** orientation=lt */ ';
-        padding-left: 16px ~'; /** orientation=rt */ ';
-      }
-    }
-  }
   .drawerHeader {
     .drawerTitle {
       justify-content: space-between!important;
@@ -115,43 +79,6 @@
           .v-list-item {
             min-height: 40px!important;
             cursor: pointer;
-          }
-        }
-      }
-      // Side panel: the name on the first line, status and last update below
-      #taskDrawerPanelHeader {
-        min-width: 0;
-        max-width: 100%;
-        margin-top: 4px;
-        .taskDrawerPanelTitle {
-          box-sizing: border-box;
-          width: 100%;
-          min-width: 0;
-          height: 32px;
-          padding: 0 4px;
-          border: 1px solid transparent;
-          border-radius: 4px;
-          background: transparent;
-          color: @textColor;
-          outline: none;
-          &.taskDrawerPanelTitleEditable {
-            &:hover {
-              border-color: @borderColor;
-            }
-            &:focus {
-              border-color: @primaryColor;
-            }
-          }
-          &:read-only {
-            cursor: default;
-          }
-        }
-        .taskDrawerPanelSubtitle {
-          min-width: 0;
-          padding: 0 4px 6px;
-          .taskDrawerPanelUpdate {
-            min-width: 0;
-            text-align: start;
           }
         }
       }
