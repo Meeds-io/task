@@ -21,6 +21,34 @@
 @taskCardParentMargin: 22px;
 @taskCardParentMaxHeight: @taskCardParentMargin + @taskCardMaxHeight;
 
+/*---------------------- My Tasks widget ---------------------*/
+
+/* The header actions replace the 'See All' text while the card is hovered, and
+   while the keyboard focus is on one of them: hidden, they keep their place in
+   the tab order, so the keyboard reaches them as the mouse does. */
+.my-tasks-widget-actions {
+  position: relative;
+  .my-tasks-widget-hover-actions {
+    display: flex;
+    position: absolute;
+    top: 0;
+    inset-inline-end: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+.my-tasks-widget:hover .my-tasks-widget-actions,
+.my-tasks-widget-actions:focus-within {
+  .my-tasks-widget-see-all {
+    display: none;
+  }
+  .my-tasks-widget-hover-actions {
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 /*----------------------Tasks Management ---------------------*/
 
 /* The shared application-toolbar keeps a 16px .v-toolbar__content padding even
