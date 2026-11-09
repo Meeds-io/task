@@ -16,7 +16,7 @@
 -->
 <template>
   <v-app>
-    <v-hover v-slot="{ hover }">
+    <div class="my-tasks-widget">
       <widget-wrapper
         :loading="loadingTasks"
         extra-class="application-body">
@@ -26,22 +26,27 @@
           </span>
         </template>
         <template #action>
-          <div>
+          <!-- the hover actions show on the card's hover and on the keyboard focus of one of them (tasks.less):
+               the 'See All' text they replace is the mouse's, the keyboard reaches the same link among them -->
+          <div class="my-tasks-widget-actions">
             <v-btn
-              v-if="!hover"
               color="primary"
-              class="pa-0 text-font-size"
+              class="my-tasks-widget-see-all pa-0 text-font-size"
+              tabindex="-1"
+              aria-hidden="true"
               small
               text
-              link>
+              link
+              @click="openSeeAll">
               <span class="primary--text text-none">
                 {{ $t('label.seeAll') }}
               </span>
             </v-btn>
-            <div v-else>
+            <div class="my-tasks-widget-hover-actions">
               <v-btn
                 v-if="tasksSize"
                 :title="$t('label.addTask')"
+                :aria-label="$t('label.addTask')"
                 small
                 link
                 icon
@@ -53,6 +58,7 @@
               </v-btn>
               <v-btn
                 :title="$t('label.seeAll')"
+                :aria-label="$t('label.seeAll')"
                 color="primary"
                 class="text-font-size"
                 small
@@ -67,6 +73,7 @@
               <v-btn
                 v-if="$root.canEdit"
                 :title="$t('label.editSettings')"
+                :aria-label="$t('label.editSettings')"
                 class="text-font-size"
                 small
                 link
@@ -145,7 +152,7 @@
             :project="project" />
         </v-card>
       </widget-wrapper>
-    </v-hover>
+    </div>
     <task-drawer
       ref="taskDrawer"
       :task="task" />
