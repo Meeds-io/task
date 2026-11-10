@@ -21,6 +21,7 @@ package io.meeds.task.mcp;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -625,6 +626,70 @@ public class TaskMcpToolTest {
   @Test(expected = IllegalArgumentException.class)
   public void moveTasksToProjectWhenATaskIdIsNullShouldThrowException() throws Exception {// NOSONAR
     tool.moveTasksToProject(Collections.singletonList(null), TARGET_PROJECT_ID, null);
+  }
+
+  @Test
+  public void unassignMeFromTasksShouldUnassignEveryTaskInOneServiceCall() throws Exception {// NOSONAR
+    long otherTaskId = 13L;
+    TaskDto task = mockTaskWithProject();
+    TaskDto otherTask = mockTaskWithProject(otherTaskId, new Date());
+    when(taskService.unassignTasks(List.of(TASK_ID, otherTaskId), currentIdentity)).thenReturn(List.of(task, otherTask));
+
+    List<TaskModel> updated = tool.unassignMeFromTasks(List.of(TASK_ID, otherTaskId));
+
+    verify(taskService).unassignTasks(List.of(TASK_ID, otherTaskId), currentIdentity);
+    verify(taskService, never()).updateTask(any());
+    assertEquals(2, updated.size());
+    assertEquals(TASK_ID, updated.get(0).getId());
+    assertEquals(otherTaskId, updated.get(1).getId());
+  }
+
+  @Test
+  public void unassignMeFromTasksShouldUnassignADuplicatedTaskIdOnce() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.unassignTasks(List.of(TASK_ID), currentIdentity)).thenReturn(List.of(task));
+
+    tool.unassignMeFromTasks(List.of(TASK_ID, TASK_ID));
+
+    verify(taskService).unassignTasks(List.of(TASK_ID), currentIdentity);
+  }
+
+  @Test
+  public void unassignMeFromTasksWhenNoTaskIdShouldUnassignNothing() throws Exception {// NOSONAR
+    assertThrows(IllegalArgumentException.class, () -> tool.unassignMeFromTasks(Collections.emptyList()));
+    verify(taskService, never()).unassignTasks(any(), any());
+  }
+
+  @Test
+  public void unassignMeFromTasksWhenATaskIdIsNullShouldUnassignNothing() throws Exception {// NOSONAR
+    assertThrows(IllegalArgumentException.class, () -> tool.unassignMeFromTasks(Collections.singletonList(null)));
+    verify(taskService, never()).unassignTasks(any(), any());
+  }
+
+  @Test
+  public void unassignMeFromTasksWhenMoreThanAHundredTasksShouldUnassignNothing() throws Exception {// NOSONAR
+    List<Long> taskIds = new ArrayList<>();
+    for (long id = 1; id <= 101; id++) {
+      taskIds.add(id);
+    }
+    assertThrows(IllegalArgumentException.class, () -> tool.unassignMeFromTasks(taskIds));
+    verify(taskService, never()).unassignTasks(any(), any());
+  }
+
+  /**
+   * Unassigning overwrites the assignee and the coworkers, so the tool is
+   * declared as the single-task assignment is, and asks for an approval; a
+   * second call is refused, so it is not idempotent.
+   */
+  @Test
+  public void unassignMeFromTasksDefinitionShouldBeDeclaredDestructiveWithApproval() throws Exception {
+    JSONObject definition = toolDefinition("unassign_me_from_tasks");
+    assertTrue(definition.getBoolean("require_approval"));
+    JSONObject annotations = definition.getJSONObject("annotations");
+    assertTrue(annotations.getBoolean("destructiveHint"));
+    assertFalse(annotations.getBoolean("readOnlyHint"));
+    assertFalse(annotations.getBoolean("idempotentHint"));
+    assertEquals(100, definition.getJSONObject("input_schema").getJSONObject("properties").getJSONObject("task_ids").getInt("maxItems"));
   }
 
   /**

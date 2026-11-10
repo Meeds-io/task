@@ -696,13 +696,7 @@ public class TaskMcpTool implements McpToolPlugin {
   public List<TaskModel> moveTasksToProject(List<Long> taskIds,
                                             long projectId,
                                             Long statusId) throws ObjectNotFoundException, IllegalAccessException {
-    if (CollectionUtils.isEmpty(taskIds) || taskIds.stream().anyMatch(Objects::isNull)) {
-      throw new IllegalArgumentException("Parameter 'task_ids' is mandatory and holds task identifiers only");
-    }
-    Set<Long> uniqueTaskIds = new LinkedHashSet<>(taskIds);
-    if (uniqueTaskIds.size() > MAX_TO_LOAD) {
-      throw new IllegalArgumentException("Parameter 'task_ids' holds more than %s tasks".formatted(MAX_TO_LOAD));
-    }
+    Set<Long> uniqueTaskIds = toUniqueTaskIds(taskIds);
     ProjectDto project = checkCanCreateInProject(projectId);
     for (Long taskId : uniqueTaskIds) {
       getEditableTask(taskId);
@@ -710,6 +704,24 @@ public class TaskMcpTool implements McpToolPlugin {
     StatusDto status = getTargetStatus(project, statusId);
     List<TaskDto> movedTasks = taskService.moveTasks(new ArrayList<>(uniqueTaskIds), status.getId(), getCurrentUserAclIdentity());
     return movedTasks.stream().map(this::toTaskModel).toList();
+  }
+
+  /**
+   * Removes the current user from tasks, all or none: on each task the user is
+   * no longer its assignee nor one of its coworkers, the two roles
+   * {@link #listAssignedTasks} counts; the other coworkers stay. A task the
+   * current user is neither the assignee nor a coworker of is refused, and the
+   * change is one transaction ({@link TaskService#unassignTasks}), so a refusal
+   * changes nothing.
+   *
+   * @param taskIds ids of the tasks, at most {@link #MAX_TO_LOAD}
+   * @return the updated tasks
+   * @throws ObjectNotFoundException when a task is not found
+   */
+  public List<TaskModel> unassignMeFromTasks(List<Long> taskIds) throws ObjectNotFoundException {
+    Set<Long> uniqueTaskIds = toUniqueTaskIds(taskIds);
+    List<TaskDto> updatedTasks = taskService.unassignTasks(new ArrayList<>(uniqueTaskIds), getCurrentUserAclIdentity());
+    return updatedTasks.stream().map(this::toTaskModel).toList();
   }
 
   /**
@@ -1248,6 +1260,17 @@ public class TaskMcpTool implements McpToolPlugin {
                             getProjectLabels(project.getId()),
                             space == null ? null : space.getSpaceId(),
                             formatDate(project.getDueDate()));
+  }
+
+  private Set<Long> toUniqueTaskIds(List<Long> taskIds) {
+    if (CollectionUtils.isEmpty(taskIds) || taskIds.stream().anyMatch(Objects::isNull)) {
+      throw new IllegalArgumentException("Parameter 'task_ids' is mandatory and holds task identifiers only");
+    }
+    Set<Long> uniqueTaskIds = new LinkedHashSet<>(taskIds);
+    if (uniqueTaskIds.size() > MAX_TO_LOAD) {
+      throw new IllegalArgumentException("Parameter 'task_ids' holds more than %s tasks".formatted(MAX_TO_LOAD));
+    }
+    return uniqueTaskIds;
   }
 
   private StatusDto getTargetStatus(ProjectDto project, Long statusId) throws ObjectNotFoundException {
