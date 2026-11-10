@@ -16,7 +16,7 @@
 -->
 <template>
   <v-app>
-    <div class="my-tasks-widget">
+    <div class="my-tasks-widget hover-swap-trigger">
       <widget-wrapper
         :loading="loadingTasks"
         extra-class="application-body">
@@ -26,12 +26,12 @@
           </span>
         </template>
         <template #action>
-          <!-- the hover actions show on the card's hover and on the keyboard focus of one of them (tasks.less):
-               the 'See All' text they replace is the mouse's, the keyboard reaches the same link among them -->
-          <div class="my-tasks-widget-actions">
+          <!-- the hover actions replace the 'See All' text on hover and on keyboard focus (hover-swap helper):
+               the text is the mouse's, the keyboard reaches the same link among the actions -->
+          <div class="hover-swap-parent">
             <v-btn
               color="primary"
-              class="my-tasks-widget-see-all pa-0 text-font-size"
+              class="hover-swap-default pa-0 text-font-size"
               tabindex="-1"
               aria-hidden="true"
               small
@@ -42,7 +42,7 @@
                 {{ $t('label.seeAll') }}
               </span>
             </v-btn>
-            <div class="my-tasks-widget-hover-actions">
+            <div class="hover-swap-alt">
               <v-btn
                 v-if="tasksSize"
                 :title="$t('label.addTask')"
