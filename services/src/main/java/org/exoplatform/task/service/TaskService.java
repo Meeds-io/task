@@ -71,6 +71,26 @@ public interface TaskService {
      */
     TaskDto updateTask(long taskId, TaskDto task, Identity identity) throws ObjectNotFoundException, IllegalAccessException;
 
+    /**
+     * Moves tasks to the given status, all or none: each task is authorized as
+     * {@link #updateTask(long, TaskDto, Identity)} does, in one transaction, so
+     * a task refused after others were written rolls those writes back. The
+     * update events are broadcast once the move is committed, when no
+     * transaction is active on the caller's thread; called inside one, the
+     * move joins it and the events are broadcast before its commit.
+     *
+     * @param taskIds ids of the tasks to move
+     * @param statusId id of the status the tasks take
+     * @param identity the user moving the tasks
+     * @return the moved tasks
+     * @throws ObjectNotFoundException when a task is not found.
+     * @throws IllegalAccessException when the user cannot edit a task, or
+     *           cannot view the project of the given status.
+     * @throws IllegalArgumentException when the given status is not found.
+     */
+    List<TaskDto> moveTasks(List<Long> taskIds, long statusId, Identity identity) throws ObjectNotFoundException,
+                                                                                  IllegalAccessException;
+
     void updateTaskOrder(long currentTaskId, Status newStatus, long[] orders);
 
     /**

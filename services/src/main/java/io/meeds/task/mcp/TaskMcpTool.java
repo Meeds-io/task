@@ -34,12 +34,16 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
+
+import jakarta.persistence.NoResultException;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -131,6 +135,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                       "Task project with identifier '%s' is not editable by the user '%s'";
 
   private static final String           MSG_TASK_PROJECT_NOT_FOUND      = "Task project with identifier '%s' is not found";
+
+  private static final String           MSG_PROJECT_WITHOUT_STATUS      = "Task project with identifier '%s' has no status";
 
   private final ProjectService          projectService;
 
@@ -669,6 +675,44 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
+   * Moves tasks to another project, all or none: every task, the target
+   * project and the status are checked first, and the move itself is one
+   * transaction ({@link TaskService#moveTasks}), so a refusal moves nothing.
+   * Each task takes the given status of the target project, or its default
+   * status. A task keeps its labels, as a move from the task drawer does; the
+   * source project's labels are not shown in the target project.
+   *
+   * @param taskIds   ids of the tasks to move, at most {@link #MAX_TO_LOAD}
+   * @param projectId id of the target project
+   * @param statusId  id of a status of the target project, or null for its
+   *          default status
+   * @return the moved tasks
+   * @throws ObjectNotFoundException when a task, the project or the status is
+   *           not found
+   * @throws IllegalAccessException when the current user cannot edit one of
+   *           the tasks or cannot view the target project
+   */
+  @SneakyThrows
+  public List<TaskModel> moveTasksToProject(List<Long> taskIds,
+                                            long projectId,
+                                            Long statusId) throws ObjectNotFoundException, IllegalAccessException {
+    if (CollectionUtils.isEmpty(taskIds) || taskIds.stream().anyMatch(Objects::isNull)) {
+      throw new IllegalArgumentException("Parameter 'task_ids' is mandatory and holds task identifiers only");
+    }
+    Set<Long> uniqueTaskIds = new LinkedHashSet<>(taskIds);
+    if (uniqueTaskIds.size() > MAX_TO_LOAD) {
+      throw new IllegalArgumentException("Parameter 'task_ids' holds more than %s tasks".formatted(MAX_TO_LOAD));
+    }
+    ProjectDto project = checkCanCreateInProject(projectId);
+    for (Long taskId : uniqueTaskIds) {
+      getEditableTask(taskId);
+    }
+    StatusDto status = getTargetStatus(project, statusId);
+    List<TaskDto> movedTasks = taskService.moveTasks(new ArrayList<>(uniqueTaskIds), status.getId(), getCurrentUserAclIdentity());
+    return movedTasks.stream().map(this::toTaskModel).toList();
+  }
+
+  /**
    * Patches a task's start and due dates. This is a partial update: only the
    * dates actually passed (non-blank) are updated, so setting one date (e.g.
    * the due date) never wipes the other one that was set before. These are the
@@ -1204,6 +1248,40 @@ public class TaskMcpTool implements McpToolPlugin {
                             getProjectLabels(project.getId()),
                             space == null ? null : space.getSpaceId(),
                             formatDate(project.getDueDate()));
+  }
+
+  private StatusDto getTargetStatus(ProjectDto project, Long statusId) throws ObjectNotFoundException {
+    long projectId = project.getId();
+    if (statusId == null) {
+      StatusDto status = findDefaultStatus(projectId);
+      if (status == null) {
+        statusService.createInitialStatuses(project);
+        RequestLifeCycle.restartTransaction();
+        status = findDefaultStatus(projectId);
+      }
+      if (status == null) {
+        throw new ObjectNotFoundException(MSG_PROJECT_WITHOUT_STATUS.formatted(projectId));
+      }
+      return status;
+    }
+    StatusDto status = statusService.getStatus(statusId);
+    if (status == null || status.getProject() == null || status.getProject().getId() != projectId) {
+      throw new ObjectNotFoundException(MSG_STATUS_NOT_FOUND.formatted(statusId,
+                                                                       JsonUtils.toJsonString(getProjectStatuses(projectId))));
+    }
+    return status;
+  }
+
+  /**
+   * @return the project's default status, or null for a project without any
+   *         status, which the lowest-rank query reports by throwing
+   */
+  private StatusDto findDefaultStatus(long projectId) {
+    try {
+      return statusService.getDefaultStatus(projectId);
+    } catch (NoResultException e) {
+      return null;
+    }
   }
 
   private List<ProjectStatus> getProjectStatuses(Long projectId) {

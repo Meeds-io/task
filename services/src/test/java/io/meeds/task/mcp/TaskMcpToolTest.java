@@ -19,6 +19,7 @@
 package io.meeds.task.mcp;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -37,6 +38,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -53,6 +56,10 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.TimeZone;
 
+import jakarta.persistence.NoResultException;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -117,6 +124,7 @@ public class TaskMcpToolTest {
   private static final long       PROJECT_ID   = 45L;
 
   private static final long       TASK_ID      = 12L;
+  private static final long       TARGET_PROJECT_ID = 46L;
 
   private static final String     TASK_TITLE   = "New title";
 
@@ -460,6 +468,212 @@ public class TaskMcpToolTest {
 
     verify(task).setStatus(newStatus);
     verify(taskService).updateTask(task);
+  }
+
+  @Test
+  public void moveTasksToProjectShouldMoveEveryTaskToTheDefaultStatus() throws Exception {// NOSONAR
+    long otherTaskId = 13L;
+    TaskDto task = mockTaskWithProject();
+    TaskDto otherTask = mockTaskWithProject(otherTaskId, new Date());
+    ProjectDto target = mockViewableProject(TARGET_PROJECT_ID);
+    StatusDto defaultStatus = mockStatusOf(target, 21L);
+    when(statusService.getDefaultStatus(TARGET_PROJECT_ID)).thenReturn(defaultStatus);
+    mockEditableTask(TASK_ID, task);
+    mockEditableTask(otherTaskId, otherTask);
+    when(taskService.moveTasks(List.of(TASK_ID, otherTaskId), 21L, currentIdentity)).thenReturn(List.of(task, otherTask));
+
+    List<TaskModel> moved = tool.moveTasksToProject(List.of(TASK_ID, otherTaskId), TARGET_PROJECT_ID, null);
+
+    verify(taskService).moveTasks(List.of(TASK_ID, otherTaskId), 21L, currentIdentity);
+    verify(taskService, never()).updateTask(any());
+    assertEquals(2, moved.size());
+    assertEquals(TASK_ID, moved.get(0).getId());
+    assertEquals(otherTaskId, moved.get(1).getId());
+    verify(statusService, never()).createInitialStatuses(any());
+  }
+
+  @Test
+  public void moveTasksToProjectWithStatusShouldUseThatStatus() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    ProjectDto target = mockViewableProject(TARGET_PROJECT_ID);
+    StatusDto status = mockStatusOf(target, 22L);
+    when(statusService.getStatus(22L)).thenReturn(status);
+    mockEditableTask(TASK_ID, task);
+    when(taskService.moveTasks(List.of(TASK_ID), 22L, currentIdentity)).thenReturn(List.of(task));
+
+    tool.moveTasksToProject(List.of(TASK_ID), TARGET_PROJECT_ID, 22L);
+
+    verify(taskService).moveTasks(List.of(TASK_ID), 22L, currentIdentity);
+    verify(statusService, never()).getDefaultStatus(anyLong());
+  }
+
+  @Test
+  public void moveTasksToProjectShouldMoveADuplicatedTaskIdOnce() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    ProjectDto target = mockViewableProject(TARGET_PROJECT_ID);
+    StatusDto defaultStatus = mockStatusOf(target, 21L);
+    when(statusService.getDefaultStatus(TARGET_PROJECT_ID)).thenReturn(defaultStatus);
+    mockEditableTask(TASK_ID, task);
+    when(taskService.moveTasks(List.of(TASK_ID), 21L, currentIdentity)).thenReturn(List.of(task));
+
+    List<TaskModel> moved = tool.moveTasksToProject(List.of(TASK_ID, TASK_ID), TARGET_PROJECT_ID, null);
+
+    assertEquals(1, moved.size());
+    verify(taskService).moveTasks(List.of(TASK_ID), 21L, currentIdentity);
+  }
+
+  @Test
+  public void moveTasksToProjectWhenTheProjectHasNoStatusShouldCreateTheInitialOnes() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    ProjectDto target = mockViewableProject(TARGET_PROJECT_ID);
+    StatusDto createdStatus = mockStatusOf(target, 23L);
+    when(statusService.getDefaultStatus(TARGET_PROJECT_ID)).thenThrow(new NoResultException("no status")).thenReturn(createdStatus);
+    mockEditableTask(TASK_ID, task);
+    when(taskService.moveTasks(List.of(TASK_ID), 23L, currentIdentity)).thenReturn(List.of(task));
+
+    tool.moveTasksToProject(List.of(TASK_ID), TARGET_PROJECT_ID, null);
+
+    verify(statusService).createInitialStatuses(target);
+    verify(taskService).moveTasks(List.of(TASK_ID), 23L, currentIdentity);
+  }
+
+  @Test
+  public void moveTasksToProjectWhenTheStatusIsOfAnotherProjectShouldMoveNothing() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    mockViewableProject(TARGET_PROJECT_ID);
+    ProjectDto otherProject = mock(ProjectDto.class);
+    when(otherProject.getId()).thenReturn(PROJECT_ID);
+    StatusDto status = mockStatusOf(otherProject, 8L);
+    when(statusService.getStatus(8L)).thenReturn(status);
+    when(statusService.getStatuses(TARGET_PROJECT_ID)).thenReturn(Collections.emptyList());
+    lenient().when(taskService.getTask(TASK_ID)).thenReturn(task);
+    lenient().when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    lenient().when(taskService.moveTasks(any(), anyLong(), any())).thenReturn(List.of(task));
+
+    try {
+      tool.moveTasksToProject(List.of(TASK_ID), TARGET_PROJECT_ID, 8L);
+      fail("a status of another project must be refused");
+    } catch (ObjectNotFoundException e) {
+      verify(taskService, never()).moveTasks(any(), anyLong(), any());
+    }
+  }
+
+  @Test
+  public void moveTasksToProjectWhenOneTaskIsNotEditableShouldMoveNone() throws Exception {// NOSONAR
+    long otherTaskId = 13L;
+    TaskDto task = mockTaskWithProject();
+    TaskDto otherTask = mockTaskWithProject(otherTaskId, new Date());
+    ProjectDto target = mockViewableProject(TARGET_PROJECT_ID);
+    StatusDto defaultStatus = mockStatusOf(target, 21L);
+    lenient().when(statusService.getDefaultStatus(TARGET_PROJECT_ID)).thenReturn(defaultStatus);
+    lenient().when(taskService.moveTasks(any(), anyLong(), any())).thenReturn(List.of(task));
+    mockEditableTask(TASK_ID, task);
+    when(taskService.getTask(otherTaskId)).thenReturn(otherTask);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(otherTaskId), USER)).thenReturn(false);
+
+    try {
+      tool.moveTasksToProject(List.of(TASK_ID, otherTaskId), TARGET_PROJECT_ID, null);
+      fail("a task the user cannot edit must be refused");
+    } catch (IllegalAccessException e) {
+      verify(taskService, never()).moveTasks(any(), anyLong(), any());
+      verify(statusService, never()).getDefaultStatus(anyLong());
+      verify(statusService, never()).createInitialStatuses(any());
+    }
+  }
+
+  @Test(expected = ObjectNotFoundException.class)
+  public void moveTasksToProjectWhenATaskDoesNotExistShouldThrowException() throws Exception {// NOSONAR
+    mockViewableProject(TARGET_PROJECT_ID);
+    when(taskService.getTask(TASK_ID)).thenReturn(null);
+
+    tool.moveTasksToProject(List.of(TASK_ID), TARGET_PROJECT_ID, null);
+  }
+
+  @Test
+  public void moveTasksToProjectWhenTheProjectIsNotViewableShouldMoveNothing() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    ProjectDto target = mock(ProjectDto.class);
+    lenient().when(target.getId()).thenReturn(TARGET_PROJECT_ID);
+    when(projectService.getProject(TARGET_PROJECT_ID)).thenReturn(target);
+    when(target.canView(currentIdentity)).thenReturn(false);
+    StatusDto defaultStatus = mockStatusOf(target, 21L);
+    lenient().when(statusService.getDefaultStatus(TARGET_PROJECT_ID)).thenReturn(defaultStatus);
+    lenient().when(taskService.getTask(TASK_ID)).thenReturn(task);
+    lenient().when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    lenient().when(taskService.moveTasks(any(), anyLong(), any())).thenReturn(List.of(task));
+
+    try {
+      tool.moveTasksToProject(List.of(TASK_ID), TARGET_PROJECT_ID, null);
+      fail("a project the user cannot view must be refused");
+    } catch (IllegalAccessException e) {
+      verify(taskService, never()).moveTasks(any(), anyLong(), any());
+    }
+  }
+
+  @Test(expected = ObjectNotFoundException.class)
+  public void moveTasksToProjectWhenTheProjectDoesNotExistShouldThrowException() throws Exception {// NOSONAR
+    when(projectService.getProject(TARGET_PROJECT_ID)).thenReturn(null);
+
+    tool.moveTasksToProject(List.of(TASK_ID), TARGET_PROJECT_ID, null);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void moveTasksToProjectWhenNoTaskIdShouldThrowException() throws Exception {// NOSONAR
+    tool.moveTasksToProject(Collections.emptyList(), TARGET_PROJECT_ID, null);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void moveTasksToProjectWhenATaskIdIsNullShouldThrowException() throws Exception {// NOSONAR
+    tool.moveTasksToProject(Collections.singletonList(null), TARGET_PROJECT_ID, null);
+  }
+
+  /**
+   * The hints are passed on to the MCP clients, which confirm a call by them:
+   * a bulk move overwrites each task's status and project, so it is declared
+   * as the single-task status change is, and asks for an approval.
+   */
+  @Test
+  public void moveTasksToProjectDefinitionShouldBeDeclaredDestructiveWithApproval() throws Exception {
+    JSONObject definition = toolDefinition("move_tasks_to_project");
+    assertTrue(definition.getBoolean("require_approval"));
+    JSONObject annotations = definition.getJSONObject("annotations");
+    assertTrue(annotations.getBoolean("destructiveHint"));
+    assertFalse(annotations.getBoolean("readOnlyHint"));
+    assertEquals(100, definition.getJSONObject("input_schema").getJSONObject("properties").getJSONObject("task_ids").getInt("maxItems"));
+  }
+
+  private JSONObject toolDefinition(String name) throws Exception {
+    try (InputStream stream = getClass().getResourceAsStream("/ai-tool-definitions.json")) {
+      JSONArray tools = new JSONObject(new String(stream.readAllBytes(), StandardCharsets.UTF_8)).getJSONArray("tools");
+      for (int i = 0; i < tools.length(); i++) {
+        if (name.equals(tools.getJSONObject(i).getString("name"))) {
+          return tools.getJSONObject(i);
+        }
+      }
+    }
+    fail("Tool " + name + " is not declared");
+    return null;
+  }
+
+  /**
+   * Without the cap the tool goes on to read the target project, which this
+   * test leaves unstubbed: the mutant dies on that read, the evidence that
+   * the refusal no longer comes first.
+   */
+  @Test
+  public void moveTasksToProjectWhenMoreThanAHundredTasksShouldRefuseBeforeReadingAnything() throws Exception {// NOSONAR
+    List<Long> taskIds = new ArrayList<>();
+    for (long i = 1; i <= 101; i++) {
+      taskIds.add(i);
+    }
+
+    try {
+      tool.moveTasksToProject(taskIds, TARGET_PROJECT_ID, null);
+      fail("more than a hundred tasks must be refused");
+    } catch (IllegalArgumentException e) {
+      verify(projectService, never()).getProject(anyLong());
+      verify(taskService, never()).getTask(anyLong());
+    }
   }
 
   @Test(expected = IllegalAccessException.class)
@@ -1261,6 +1475,32 @@ public class TaskMcpToolTest {
 
     assertEquals(1, result.getLastUpdatedTasks().size());
     assertEquals(1, result.getOtherUncompletedTasks().size());
+  }
+
+  @SneakyThrows
+  private ProjectDto mockViewableProject(long projectId) {
+    ProjectDto project = mock(ProjectDto.class);
+    lenient().when(project.getId()).thenReturn(projectId);
+    lenient().when(project.getName()).thenReturn("Target project");
+    lenient().when(project.getManager()).thenReturn(Collections.emptySet());
+    when(projectService.getProject(projectId)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    return project;
+  }
+
+  private StatusDto mockStatusOf(ProjectDto project, long statusId) {
+    StatusDto status = mock(StatusDto.class);
+    lenient().when(status.getId()).thenReturn(statusId);
+    lenient().when(status.getName()).thenReturn("status " + statusId);
+    lenient().when(status.getRank()).thenReturn(1);
+    lenient().when(status.getProject()).thenReturn(project);
+    return status;
+  }
+
+  @SneakyThrows
+  private void mockEditableTask(long taskId, TaskDto task) {
+    when(taskService.getTask(taskId)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), USER)).thenReturn(true);
   }
 
   @SneakyThrows
