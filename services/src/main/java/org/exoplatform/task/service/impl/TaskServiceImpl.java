@@ -117,6 +117,13 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    public List<TaskDto> unassignTasks(List<Long> taskIds, Identity identity) throws ObjectNotFoundException {
+      List<TaskPayload> events = unassignTasksAtomically(taskIds, identity);
+      events.forEach(this::broadcastUpdate);
+      return events.stream().map(TaskPayload::after).toList();
+    }
+
+    @Override
     public void updateTaskOrder(long currentTaskId, Status newStatus, long[] orders) {
         taskStorage.updateTaskOrder(currentTaskId, newStatus, orders);
     }
@@ -550,6 +557,37 @@ public class TaskServiceImpl implements TaskService {
         status.setId(statusId);
         storedTask.setStatus(status);
         events.add(persistUpdate(authorizeUpdate(taskId, storedTask, identity)));
+      }
+      return events;
+    }
+
+    /**
+     * One transaction for the whole change, as {@link #moveTasksAtomically}:
+     * the events are left to the caller.
+     */
+    @ContainerTransactional(atomic = true)
+    protected List<TaskPayload> unassignTasksAtomically(List<Long> taskIds, Identity identity) throws ObjectNotFoundException {
+      if (identity == null) {
+        throw new IllegalArgumentException("Identity must not be NULL");
+      }
+      String username = identity.getUserId();
+      List<TaskPayload> events = new ArrayList<>();
+      for (Long taskId : taskIds) {
+        TaskDto task = taskStorage.getTaskById(taskId);
+        if (task == null) {
+          throw new ObjectNotFoundException("Task " + taskId + " not found");
+        }
+        Set<String> coworkers = task.getCoworker() == null ? new HashSet<>() : new HashSet<>(task.getCoworker());
+        boolean coworker = coworkers.remove(username);
+        boolean assignee = username.equals(task.getAssignee());
+        if (!assignee && !coworker) {
+          throw new IllegalArgumentException("Task " + taskId + " is not assigned to " + username);
+        }
+        if (assignee) {
+          task.setAssignee(null);
+        }
+        task.setCoworker(coworkers);
+        events.add(persistUpdate(task));
       }
       return events;
     }

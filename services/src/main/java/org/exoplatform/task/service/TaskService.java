@@ -95,6 +95,29 @@ public interface TaskService {
     List<TaskDto> moveTasks(List<Long> taskIds, long statusId, Identity identity) throws ObjectNotFoundException,
                                                                                   IllegalAccessException;
 
+    /**
+     * Removes a user from tasks, all or none: on each task the user is no
+     * longer its assignee nor one of its coworkers, the other coworkers stay.
+     * A task the user is neither the assignee nor a coworker of is refused, and
+     * the change is one transaction, so a task refused after others were written
+     * rolls those writes back. The update events are broadcast once the change
+     * is committed, when no transaction is active on the caller's thread; called
+     * inside one, the change joins it and the events are broadcast before its
+     * commit. Each task of a board sends that board's modification event with
+     * the board as read during the change, so an edit of the board's name,
+     * description, colour, due date, managers or participants committed in the
+     * meantime can be undone by the event's listener, as for
+     * {@link #updateTask(TaskDto)}.
+     *
+     * @param taskIds ids of the tasks to remove the user from
+     * @param identity the user to remove
+     * @return the updated tasks
+     * @throws ObjectNotFoundException when a task is not found.
+     * @throws IllegalArgumentException when the user is neither the assignee nor
+     *           a coworker of a task.
+     */
+    List<TaskDto> unassignTasks(List<Long> taskIds, Identity identity) throws ObjectNotFoundException;
+
     void updateTaskOrder(long currentTaskId, Status newStatus, long[] orders);
 
     /**
