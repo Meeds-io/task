@@ -18,7 +18,7 @@
   <v-hover v-slot="{ hover }">
     <v-card
       flat
-      class="search-result-card pa-0">
+      class="transparent pa-0">
       <v-list class="pa-0" :class="hover && 'light-grey-background-color no-border-radius' || ''">
         <v-list-item>
           <v-list-item-icon class="me-2">
@@ -30,7 +30,7 @@
               <h1 class="flex-grow-1 title primary--text pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate">
                 <a
                   :href="taskUrl"
-                  class="search-result-link"
+                  class="stretched-link"
                   v-sanitized-html="taskTitle"
                   @click.stop.prevent="openTaskDrawer"></a>
               </h1>
@@ -45,7 +45,7 @@
                     size="3"
                     class="icon-default-color mx-3">fas fa-circle</v-icon>
                 </span>
-                <span class="search-result-interactive d-flex flex-row align-center" v-if="taskAssign && !isMobile">
+                <span class="stretched-link-above d-flex flex-row align-center" v-if="taskAssign && !isMobile">
                   <exo-user-avatar
                     :profile-id="taskAssign"
                     :size="18"
