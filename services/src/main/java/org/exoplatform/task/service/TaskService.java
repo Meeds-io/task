@@ -77,7 +77,11 @@ public interface TaskService {
      * a task refused after others were written rolls those writes back. The
      * update events are broadcast once the move is committed, when no
      * transaction is active on the caller's thread; called inside one, the
-     * move joins it and the events are broadcast before its commit.
+     * move joins it and the events are broadcast before its commit. Each task
+     * sends its destination board's modification event with the board as read
+     * during the move, so an edit of the board's name, description, colour, due
+     * date, managers or participants committed in the meantime can be undone by
+     * the event's listener, as for {@link #updateTask(TaskDto)}.
      *
      * @param taskIds ids of the tasks to move
      * @param statusId id of the status the tasks take
