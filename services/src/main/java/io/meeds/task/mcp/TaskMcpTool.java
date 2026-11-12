@@ -80,6 +80,7 @@ import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.ProjectTaskCountDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -118,6 +119,7 @@ import io.meeds.task.mcp.model.TaskCommentCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentModel;
 import io.meeds.task.mcp.model.TaskListItemModel;
 import io.meeds.task.mcp.util.TaskDescriptionText;
+import io.meeds.task.mcp.model.ProjectTaskCountModel;
 import io.meeds.task.mcp.model.TaskModel;
 import io.meeds.task.mcp.model.TaskSearchCollectionModel;
 import io.meeds.task.mcp.model.TaskSearchResultModel;
@@ -133,6 +135,13 @@ import lombok.SneakyThrows;
 @Service
 @Profile("mcp-server")
 public class TaskMcpTool implements McpToolPlugin {
+
+  /**
+   * The most boards a {@code list_tasks} answer grouped by project lists, the
+   * ones with the most selected tasks first; {@code project_count} still
+   * counts them all (EXO-94250).
+   */
+  public static final int               MAX_PROJECT_COUNTS              = 100;
 
   /** How many projects a scan of the projects of a space reads at a time. */
   static final int                      SPACE_SCAN_CHUNK                = 50;
@@ -193,6 +202,20 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           MSG_INVALID_SINCE               =
                                                           "%s must be a date such as 2026-10-14, or a date and time such as "
                                                               + "2026-10-14T09:00:00+02:00, not '%s'";
+
+  private static final String           ARG_DUE_FROM                    = "due_from";
+
+  private static final String           ARG_DUE_TO                      = "due_to";
+
+  private static final String           MSG_WITHOUT_DUE_DATE_AND_RANGE  =
+                                                                       "without_due_date lists the tasks with no due date and "
+                                                                           + "due_from/due_to the tasks due in a range: pass one "
+                                                                           + "of them, not both";
+
+  private static final String           MSG_WITHOUT_DUE_DATE_AND_OVERDUE =
+                                                                         "without_due_date lists the tasks with no due date, "
+                                                                             + "which are never overdue: pass one of "
+                                                                             + "without_due_date and overdue_only, not both";
 
   private final ProjectService          projectService;
 
@@ -617,10 +640,12 @@ public class TaskMcpTool implements McpToolPlugin {
    * date, and with {@code completedSince} only those completed since that
    * date, completed tasks included, each with its changes since that date
    * (EXO-91902). Asking both the overdue tasks and the tasks completed since
-   * a date is refused. Without any of these filters, the open tasks, the most
-   * recently active first. Each task comes as a list item, without its
-   * description or coworkers, which {@link #getTaskById(Long)} returns; with
-   * {@code includeDescription}, with its description as cut plain text.
+   * a date is refused. With {@code dueFrom} and {@code dueTo}, only the tasks
+   * due in that range, both ends included (EXO-94250). Without any of these
+   * filters, the open tasks, the most recently active first. Each task comes
+   * as a list item, without its description or coworkers, which
+   * {@link #getTaskById(Long)} returns; with {@code includeDescription}, with
+   * its description as cut plain text.
    *
    * @param offset the first task returned
    * @param limit the most tasks returned, {@value #MAX_LIMIT} at most
@@ -630,14 +655,20 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param includeDescription whether each task carries its description as
    *          plain text, cut at {@value TaskDescriptionText#MAX_LENGTH}
    *          characters
+   * @param dueFrom the first day or instant of the due range, blank for no
+   *          lower bound
+   * @param dueTo the last day or instant of the due range, blank for no upper
+   *          bound
    * @return the tasks, with their count and whether more remain
    */
-  public TaskCollectionModel listAssignedTasks(Integer offset,
+  public TaskCollectionModel listAssignedTasks(Integer offset, // NOSONAR the tool's parameters, each one its own
                                                Integer limit,
                                                Boolean overdueOnly,
                                                String changedSince,
                                                String completedSince,
-                                               Boolean includeDescription) {
+                                               Boolean includeDescription,
+                                               String dueFrom,
+                                               String dueTo) {
     ZoneId zone = getCurrentUserZone();
     int usedOffset = getOffset(offset);
     int usedLimit = getLimit(limit);
@@ -645,6 +676,8 @@ public class TaskMcpTool implements McpToolPlugin {
     Date completedSinceDate = parseSince(completedSince, ARG_COMPLETED_SINCE, zone);
     Date since = changedSinceDate == null ? completedSinceDate : changedSinceDate;
     checkNotOverdueAndCompleted(overdueOnly, completedSinceDate);
+    Date dueFromDate = parseSince(dueFrom, ARG_DUE_FROM, zone);
+    // a due range narrows what the other filters select: alone, the open tasks due in it
     boolean filtered = Boolean.TRUE.equals(overdueOnly) || since != null;
     TaskQuery taskQuery = taskService.getAssignedTasksQuery(getCurrentUserName(),
                                                             new TaskChangeFilter(changedSinceDate,
@@ -652,6 +685,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                                  null,
                                                                                  null,
                                                                                  !filtered));
+    setDueRange(taskQuery, dueFromDate, dueTo, zone);
     List<TaskDto> tasks;
     if (Boolean.TRUE.equals(overdueOnly)) {
       setOverdueOnly(taskQuery, zone);
@@ -678,8 +712,18 @@ public class TaskMcpTool implements McpToolPlugin {
    * status (EXO-91902). A task listed with {@code changedSince} or
    * {@code completedSince} carries its changes since that date. Asking both
    * the overdue tasks, which are open, and the tasks completed since a date
-   * is refused. The count is
-   * the count of the tasks the same filters select.
+   * is refused. With {@code withoutDueDate}, only the tasks with no due date;
+   * with {@code dueFrom} and {@code dueTo}, only the tasks due in that range,
+   * both ends included, a day bound covering the whole day in the user's
+   * time zone; asking both is refused, as is asking the tasks with no due
+   * date among the overdue ones (EXO-94250). The count is the count of the
+   * tasks the same filters select.
+   * <p>
+   * With {@code groupByProject}, the answer also counts, board by board, the
+   * tasks the filters select, beside each board's open tasks, so that one
+   * call tells which boards hold such tasks and how many of their open tasks
+   * they are, whatever the number of boards (EXO-94250). A personal task, on
+   * no board, is listed but counted on none.
    * <p>
    * Each task comes as a list item, without its description or coworkers,
    * which {@link #getTaskById(Long)} returns; with {@code includeDescription},
@@ -701,11 +745,21 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param statusId the status of the tasks listed, null for any
    * @param includeDescription whether each list item carries its description
    *          as cut plain text
-   * @return the tasks, with their count and whether more remain
+   * @param withoutDueDate whether only the tasks with no due date are listed
+   * @param dueFrom the first day or instant of the due range, blank for no
+   *          lower bound
+   * @param dueTo the last day or instant of the due range, blank for no upper
+   *          bound
+   * @param groupByProject whether the answer also counts the selected tasks
+   *          board by board
+   * @return the tasks, with their count and whether more remain, and with
+   *         {@code groupByProject} the count of each board
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
-   * @throws IllegalArgumentException when a date is no date, or when both
-   *           {@code overdueOnly} and {@code completedSince} are given
+   * @throws IllegalArgumentException when a date is no date, when both
+   *           {@code overdueOnly} and {@code completedSince} are given, or
+   *           when {@code withoutDueDate} comes with a due range or with
+   *           {@code overdueOnly}
    */
   public TaskCollectionModel listTasks(Long projectId, // NOSONAR the tool's parameters, each one its own
                                        Boolean hideCompletedTasks,
@@ -718,13 +772,23 @@ public class TaskMcpTool implements McpToolPlugin {
                                        String completedSince,
                                        String assignee,
                                        Long statusId,
-                                       Boolean includeDescription) throws IllegalAccessException, ObjectNotFoundException {
+                                       Boolean includeDescription,
+                                       Boolean withoutDueDate,
+                                       String dueFrom,
+                                       String dueTo,
+                                       Boolean groupByProject) throws IllegalAccessException, ObjectNotFoundException {
     ZoneId zone = getCurrentUserZone();
     LocalDate today = getToday(zone);
     Date changedSinceDate = parseSince(changedSince, ARG_CHANGED_SINCE, zone);
     Date completedSinceDate = parseSince(completedSince, ARG_COMPLETED_SINCE, zone);
     checkNotOverdueAndCompleted(overdueOnly, completedSinceDate);
+    Date dueFromDate = parseSince(dueFrom, ARG_DUE_FROM, zone);
+    checkWithoutDueDate(withoutDueDate, overdueOnly, dueFromDate != null || StringUtils.isNotBlank(dueTo));
     TaskQuery taskQuery = getTaskQuery(projectId, false, Boolean.TRUE.equals(overdueOnly), zone);
+    if (Boolean.TRUE.equals(withoutDueDate)) {
+      taskQuery.setWithoutDueDate();
+    }
+    setDueRange(taskQuery, dueFromDate, dueTo, zone);
     if (StringUtils.isNotBlank(title)) {
       // TaskQuery#setTitle compares the lower-cased title with the value as given
       taskQuery.setTitle(title.trim().toLowerCase(Locale.ROOT));
@@ -748,7 +812,11 @@ public class TaskMcpTool implements McpToolPlugin {
     } else {
       taskModels = tasks.stream().map(t -> toTaskWithChangeLogModel(t, null, zone, today)).toList();
     }
-    return toTaskCollection(taskModels, usedOffset, usedLimit, countTasks(taskQuery));
+    TaskCollectionModel collection = toTaskCollection(taskModels, usedOffset, usedLimit, countTasks(taskQuery));
+    if (Boolean.TRUE.equals(groupByProject)) {
+      setProjectCounts(collection, taskQuery, projectId, zone);
+    }
+    return collection;
   }
 
   /**
@@ -2184,8 +2252,103 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Parses the date a {@code changed_since} or {@code completed_since}
-   * argument holds: a date, read as the start of that day in the user's time
+   * Counts board by board the tasks a listing selects, each board beside its
+   * open tasks, the boards with the most selected tasks first, then by name
+   * and identifier, so that two calls list them in the same order. The open
+   * tasks are counted with the listing's own accessibility, among the boards
+   * that hold a selected task only (EXO-94250).
+   *
+   * @param collection the listing's answer, to which the counts are added
+   * @param taskQuery the listing's query
+   * @param projectId the listing's project, null for every accessible task
+   * @param zone the user's time zone
+   * @throws IllegalAccessException when the user can't view the project
+   * @throws ObjectNotFoundException when the project doesn't exist
+   */
+  private void setProjectCounts(TaskCollectionModel collection,
+                                TaskQuery taskQuery,
+                                Long projectId,
+                                ZoneId zone) throws IllegalAccessException, ObjectNotFoundException {
+    List<ProjectTaskCountDto> counts = taskService.countTasksByProject(taskQuery);
+    Map<Long, Long> openCounts = Collections.emptyMap();
+    if (!counts.isEmpty()) {
+      TaskQuery openQuery = getTaskQuery(projectId, true, false, zone);
+      openQuery.setProjectIds(counts.stream().map(ProjectTaskCountDto::getProjectId).toList());
+      openCounts = taskService.countTasksByProject(openQuery)
+                              .stream()
+                              .collect(Collectors.toMap(ProjectTaskCountDto::getProjectId, ProjectTaskCountDto::getCount));
+    }
+    Map<Long, Long> open = openCounts;
+    List<ProjectTaskCountModel> projects = counts.stream()
+                                                 .sorted(Comparator.comparingLong(ProjectTaskCountDto::getCount)
+                                                                   .reversed()
+                                                                   .thenComparing(ProjectTaskCountDto::getProjectName,
+                                                                                  Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                                                                   .thenComparingLong(ProjectTaskCountDto::getProjectId))
+                                                 .limit(MAX_PROJECT_COUNTS)
+                                                 .map(count -> new ProjectTaskCountModel(count.getProjectId(),
+                                                                                         count.getProjectName(),
+                                                                                         count.getCount(),
+                                                                                         open.getOrDefault(count.getProjectId(), 0L)))
+                                                 .toList();
+    collection.setProjects(projects);
+    collection.setProjectCount(counts.size());
+  }
+
+  /**
+   * Restricts a query to the tasks due in a range, both ends included: a day
+   * bound covers the whole day in the user's time zone, so a day upper bound
+   * is the start of the next day, excluded, and a date-time upper bound is
+   * that instant, included (EXO-94250).
+   *
+   * @param taskQuery the query to restrict
+   * @param dueFrom the start of the range, null for no lower bound
+   * @param dueTo the due_to argument, blank for no upper bound
+   * @param zone the user's time zone
+   * @throws IllegalArgumentException when due_to is no date
+   */
+  private void setDueRange(TaskQuery taskQuery, Date dueFrom, String dueTo, ZoneId zone) {
+    taskQuery.setDueDateFrom(dueFrom);
+    if (StringUtils.isBlank(dueTo)) {
+      return;
+    }
+    String text = dueTo.trim();
+    if (text.length() == ISO_DATE_LENGTH) {
+      try {
+        LocalDate lastDay = LocalDate.parse(text);
+        taskQuery.setDueDateBefore(Date.from(lastDay.plusDays(1).atStartOfDay(zone).toInstant()));
+      } catch (DateTimeParseException e) {
+        throw new IllegalArgumentException(MSG_INVALID_SINCE.formatted(ARG_DUE_TO, dueTo), e);
+      }
+    } else {
+      taskQuery.setDueDateTo(parseSince(text, ARG_DUE_TO, zone));
+    }
+  }
+
+  /**
+   * Refuses the tasks with no due date among the overdue ones, which all
+   * have one, or among the tasks due in a range.
+   *
+   * @param withoutDueDate whether the tasks with no due date are asked for
+   * @param overdueOnly whether only the overdue tasks are asked for
+   * @param dueRange whether a due range is given
+   * @throws IllegalArgumentException when the filters select nothing together
+   */
+  private void checkWithoutDueDate(Boolean withoutDueDate, Boolean overdueOnly, boolean dueRange) {
+    if (!Boolean.TRUE.equals(withoutDueDate)) {
+      return;
+    }
+    if (dueRange) {
+      throw new IllegalArgumentException(MSG_WITHOUT_DUE_DATE_AND_RANGE);
+    } else if (Boolean.TRUE.equals(overdueOnly)) {
+      throw new IllegalArgumentException(MSG_WITHOUT_DUE_DATE_AND_OVERDUE);
+    }
+  }
+
+  /**
+   * Parses the date a {@code changed_since}, {@code completed_since},
+   * {@code due_from} or date-time {@code due_to} argument holds: a date, read
+   * as the start of that day in the user's time
    * zone; a date and time with an offset or {@code Z}; or a date and time
    * without one, read in the user's time zone.
    *
