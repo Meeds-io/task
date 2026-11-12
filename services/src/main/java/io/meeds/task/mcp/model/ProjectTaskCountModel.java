@@ -26,8 +26,8 @@ import lombok.NoArgsConstructor;
 
 /**
  * One board of a {@code list_tasks} answer grouped by project: how many of
- * the tasks the filters select are on it, and how many open tasks it holds
- * (EXO-94250).
+ * the tasks the filters select are on it, and how many of its open tasks
+ * the user can access (EXO-94250).
  */
 @Data
 @NoArgsConstructor
