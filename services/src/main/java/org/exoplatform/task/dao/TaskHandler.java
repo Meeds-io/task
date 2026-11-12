@@ -22,6 +22,7 @@ import org.exoplatform.commons.api.persistence.GenericDAO;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.dto.ProjectTaskCountDto;
 
 import java.util.List;
 import java.util.Set;
@@ -37,6 +38,17 @@ public interface TaskHandler extends GenericDAO<Task, Long> {
   public List<Task> findAllByMembership(String user, List<String> memberships);
 
   public <T> List<T> selectTaskField(TaskQuery query, String fieldName);
+
+  /**
+   * Counts the tasks a query selects in each project, a task counted once
+   * however many of the query's joins it matches. A personal task, in no
+   * project, is counted in none (EXO-94250).
+   *
+   * @param query the query, its accessibility condition included
+   * @return one count per project holding at least one selected task, in no
+   *         particular order
+   */
+  List<ProjectTaskCountDto> countTasksByProject(TaskQuery query);
 
   Task findTaskByActivityId(String activityId);
 

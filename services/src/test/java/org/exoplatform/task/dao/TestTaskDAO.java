@@ -44,6 +44,7 @@ import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.task.AbstractTest;
 import org.exoplatform.task.dao.condition.Conditions;
 import org.exoplatform.task.dao.condition.PredicateCondition;
+import org.exoplatform.task.dto.ProjectTaskCountDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.domain.*;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -1594,6 +1595,96 @@ public class TestTaskDAO extends AbstractTest {
       query.setAccessible(reader);
     }
     return Arrays.stream(ListUtil.load(tDAO.findTasks(query), 0, -1)).map(Task::getId).collect(Collectors.toSet());
+  }
+
+  /**
+   * The grouped count runs on the engine with the listing's own conditions: a
+   * reader's open tasks with no due date are counted once per board, a task
+   * matching several of the accessibility's joins (two coworkers) counted
+   * once, a board the reader cannot see not counted, a dated or completed
+   * task left out, and a personal task counted on no board; the same count
+   * without the due-date condition, on those boards only, gives each board's
+   * open tasks. Mutants: {@code count} instead of {@code countDistinct}, the
+   * is-null condition inverted or dropped.
+   */
+  @Test
+  public void testCountTasksByProjectCountsTheSelectedTasksOfEachBoard() {
+    Status alpha = newReaderBoard("Alpha", "reader");
+    Status beta = newReaderBoard("Beta", "reader");
+    Status gamma = newReaderBoard("Gamma", "stranger");
+    newCard("alpha undated", alpha, null);
+    newCard("alpha undated with coworkers", alpha, null, "reader", "other");
+    Task dated = newTaskInstance("alpha dated", "", null);
+    dated.setStatus(alpha);
+    dated.setDueDate(new Date());
+    tDAO.create(dated);
+    Task completed = newTaskInstance("alpha completed", "", null);
+    completed.setStatus(alpha);
+    completed.setCompleted(true);
+    tDAO.create(completed);
+    newCard("beta undated", beta, null);
+    newCard("gamma undated", gamma, null);
+    Task personal = newTaskInstance("personal undated", "", "reader");
+    tDAO.create(personal);
+    Identity reader = new Identity("reader");
+
+    TaskQuery undated = new TaskQuery();
+    undated.setAccessible(reader);
+    undated.setCompleted(false);
+    undated.setWithoutDueDate();
+    Map<String, Long> counts = tDAO.countTasksByProject(undated)
+                                   .stream()
+                                   .collect(Collectors.toMap(ProjectTaskCountDto::getProjectName, ProjectTaskCountDto::getCount));
+    assertEquals(Map.of("Alpha", 2L, "Beta", 1L), counts);
+
+    TaskQuery open = new TaskQuery();
+    open.setAccessible(reader);
+    open.setCompleted(false);
+    open.setProjectIds(List.of(alpha.getProject().getId(), beta.getProject().getId()));
+    Map<String, Long> openCounts = tDAO.countTasksByProject(open)
+                                       .stream()
+                                       .collect(Collectors.toMap(ProjectTaskCountDto::getProjectName, ProjectTaskCountDto::getCount));
+    assertEquals(Map.of("Alpha", 3L, "Beta", 1L), openCounts);
+  }
+
+  /**
+   * A due-date bound before an instant excludes a task due at that instant
+   * and keeps one due a millisecond before it, on the engine. Mutant: the
+   * strict comparison made inclusive.
+   */
+  @Test
+  public void testDueDateBeforeExcludesItsInstant() {
+    Status board = newReaderBoard("Week", "reader");
+    Date nextMonday = Date.from(Instant.parse("2026-11-15T23:00:00Z"));
+    Task lastMinute = newTaskInstance("due on Sunday night", "", null);
+    lastMinute.setStatus(board);
+    lastMinute.setDueDate(new Date(nextMonday.getTime() - 1000));
+    tDAO.create(lastMinute);
+    Task monday = newTaskInstance("due next Monday", "", null);
+    monday.setStatus(board);
+    monday.setDueDate(nextMonday);
+    tDAO.create(monday);
+
+    TaskQuery query = new TaskQuery();
+    query.setProjectIds(List.of(board.getProject().getId()));
+    query.setDueDateBefore(nextMonday);
+    Task[] found = ListUtil.load(tDAO.findTasks(query), 0, -1);
+
+    assertEquals(1, found.length);
+    assertEquals(lastMinute.getId(), found[0].getId());
+  }
+
+  /**
+   * Creates a board one user participates in, with one column.
+   *
+   * @param name the board name
+   * @param participator the participating username
+   * @return the column
+   */
+  private Status newReaderBoard(String name, String participator) {
+    Project board = new Project(name, "", null, new HashSet<>(Set.of("manager")), new HashSet<>(Set.of(participator)));
+    board = daoHandler.getProjectHandler().create(board);
+    return newColumn(board, "To do", 1);
   }
 
   private Task newTaskInstance(String taskTitle, String description, String assignee) {

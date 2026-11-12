@@ -38,6 +38,7 @@ import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
+import org.exoplatform.task.dto.ProjectTaskCountDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskSearchFilter;
@@ -169,6 +170,14 @@ public class TaskStorageImpl implements TaskStorage {
     @Override
     public <T> List<T> selectTaskField(TaskQuery query, String fieldName) {
         return daoHandler.getTaskHandler().selectTaskField(query, fieldName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ProjectTaskCountDto> countTasksByProject(TaskQuery query) {
+        return daoHandler.getTaskHandler().countTasksByProject(query);
     }
 
     @Override

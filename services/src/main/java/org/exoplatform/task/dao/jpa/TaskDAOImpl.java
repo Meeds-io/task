@@ -49,6 +49,7 @@ import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.domain.ChangeLog;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.dto.ProjectTaskCountDto;
 
 public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler {
 
@@ -150,6 +151,33 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
 
     final TypedQuery<T> selectQuery = em.createQuery(q);
     return cloneEntities(selectQuery.getResultList());
+  }
+
+  /**
+   * {@inheritDoc} The query's conditions are built as for its listing, so
+   * the counts select exactly the tasks the listing would return; the project
+   * comes from the task's status, so a personal task, with no status, is left
+   * out of every count.
+   */
+  @Override
+  public List<ProjectTaskCountDto> countTasksByProject(TaskQuery query) {
+    EntityManager em = getEntityManager();
+    CriteriaBuilder cb = em.getCriteriaBuilder();
+    CriteriaQuery<Tuple> q = cb.createTupleQuery();
+    Root<Task> task = q.from(Task.class);
+    Predicate predicate = buildQuery(query.getCondition(), task, cb, q);
+    if (predicate != null) {
+      q.where(predicate);
+    }
+    Join<Object, Object> project = task.join("status", JoinType.INNER).join("project", JoinType.INNER);
+    Path<Long> projectId = project.get("id");
+    Path<String> projectName = project.get("name");
+    q.multiselect(projectId, projectName, cb.countDistinct(task)).groupBy(projectId, projectName);
+    return em.createQuery(q)
+             .getResultList()
+             .stream()
+             .map(row -> new ProjectTaskCountDto(row.get(0, Long.class), row.get(1, String.class), row.get(2, Long.class)))
+             .toList();
   }
 
   @Override

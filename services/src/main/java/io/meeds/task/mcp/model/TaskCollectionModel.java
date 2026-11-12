@@ -57,4 +57,34 @@ public class TaskCollectionModel {
   @JsonInclude(Include.NON_NULL)
   private Integer nextOffset;
 
+  /**
+   * With {@code group_by_project}, the boards holding the tasks the filters
+   * select, the most first, {@value io.meeds.task.mcp.TaskMcpTool#MAX_PROJECT_COUNTS}
+   * at most (EXO-94250).
+   */
+  @JsonInclude(Include.NON_NULL)
+  private List<ProjectTaskCountModel> projects;
+
+  /**
+   * With {@code group_by_project}, the number of boards holding the tasks the
+   * filters select, those left out of {@code projects} included.
+   */
+  @JsonProperty("project_count")
+  @JsonInclude(Include.NON_NULL)
+  private Integer projectCount;
+
+  /**
+   * A page of tasks, with no count per board.
+   *
+   * @param tasks the tasks of the page
+   * @param usedOffset the offset of the page
+   * @param usedLimit the limit of the page
+   * @param count the count of the tasks the listing selects
+   * @param hasMore whether more tasks remain after the page
+   * @param nextOffset the offset of the next page, null when none remains
+   */
+  public TaskCollectionModel(List<?> tasks, int usedOffset, int usedLimit, long count, boolean hasMore, Integer nextOffset) {
+    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null);
+  }
+
 }
