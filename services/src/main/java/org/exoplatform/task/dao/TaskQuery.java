@@ -246,6 +246,29 @@ public class TaskQuery extends Query implements Cloneable {
   }
 
   /**
+   * Selects the tasks due strictly before an instant: the bound of a range
+   * that ends with a whole day is the start of the day after it, so a task
+   * due at any time of its last day is selected, and none of the next day
+   * (EXO-94250).
+   *
+   * @param dueDateBefore the instant the due date is before, null for no
+   *          condition
+   */
+  public void setDueDateBefore(Date dueDateBefore) {
+    if (dueDateBefore != null) {
+      add(lt(TASK_DUEDATE, dueDateBefore));
+    }
+  }
+
+  /**
+   * Selects the tasks with no due date, the date the Tasks UI shows, never the
+   * end date (EXO-94250).
+   */
+  public void setWithoutDueDate() {
+    add(isNull(TASK_DUEDATE));
+  }
+
+  /**
    * Selects the overdue tasks: open, with a due date strictly before the
    * given instant, the start of the user's day (EXO-91122). A task due at
    * that instant, today, is not overdue; a task with no due date never is.
