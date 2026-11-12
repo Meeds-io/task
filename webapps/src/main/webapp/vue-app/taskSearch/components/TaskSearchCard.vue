@@ -18,10 +18,7 @@
   <v-hover v-slot="{ hover }">
     <v-card
       flat
-      class="pa-0"
-      :href="taskUrl"
-      :aria-label="$t('search.access.to.result', {0 :taskTitleText})"
-      @click.stop.prevent="openTaskDrawer">
+      class="transparent pa-0">
       <v-list class="pa-0" :class="hover && 'light-grey-background-color no-border-radius' || ''">
         <v-list-item>
           <v-list-item-icon class="me-2">
@@ -30,9 +27,12 @@
 
           <v-list-item-content>
             <v-list-item-title class="d-flex flex-row full-width align-center">
-              <h1
-                class="flex-grow-1 title primary--text pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
-                v-sanitized-html="taskTitle">
+              <h1 class="flex-grow-1 title primary--text pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate">
+                <a
+                  :href="taskUrl"
+                  class="stretched-link"
+                  v-sanitized-html="taskTitle"
+                  @click.stop.prevent="openTaskDrawer"></a>
               </h1>
             </v-list-item-title>
 
@@ -45,7 +45,7 @@
                     size="3"
                     class="icon-default-color mx-3">fas fa-circle</v-icon>
                 </span>
-                <span class="d-flex flex-row align-center" v-if="taskAssign && !isMobile">
+                <span class="stretched-link-above d-flex flex-row align-center" v-if="taskAssign && !isMobile">
                   <exo-user-avatar
                     :profile-id="taskAssign"
                     :size="18"
@@ -111,9 +111,6 @@ export default {
     },
     taskTitle() {
       return this.result?.title || '';
-    },
-    taskTitleText() {
-      return $('<div />').html(this.taskTitle).text();
     },
     taskAssign() {
       return this.result?.assignee;
