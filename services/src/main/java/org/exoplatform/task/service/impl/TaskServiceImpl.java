@@ -322,6 +322,14 @@ public class TaskServiceImpl implements TaskService {
         return taskStorage.selectTaskField(query, fieldName);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ProjectTaskCountDto> countTasksByProject(TaskQuery query) {
+        return taskStorage.countTasksByProject(query);
+    }
+
     @Override
     public List<TaskDto> findTasksByLabel(LabelDto label, List<Long> projectIds, String username, OrderBy orderBy, int offset, int limit) throws Exception {
 
