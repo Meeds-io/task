@@ -67,8 +67,6 @@
   </div>
 </template>
 <script>
-import {createTimeline} from '../../js/changesTimeline.js';
-
 /** The changes given out per scroll, and asked of each source per read. */
 const PAGE_SIZE = 20;
 /**
@@ -236,7 +234,7 @@ export default {
       const chosen = this.selected === this.ALL && this.sources
         || this.sources.filter(source => source.id === this.selected);
       this.generation++;
-      this.timeline = createTimeline(chosen.map(source => ({
+      this.timeline = this.$changesTimeline.createTimeline(chosen.map(source => ({
         id: source.id,
         rank: source.rank || 0,
         load: ({before, limit}) => source.load({taskId: this.taskId, projectId: this.projectId, before, limit}),
