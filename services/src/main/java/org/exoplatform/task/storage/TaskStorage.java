@@ -23,6 +23,7 @@ import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
+import org.exoplatform.task.dto.ProjectTaskCountDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskSearchFilter;
@@ -79,6 +80,15 @@ public interface TaskStorage {
     int countTasks(TaskQuery query) throws Exception;
 
     <T> List<T> selectTaskField(TaskQuery query, String fieldName);
+
+    /**
+     * Counts the tasks a query selects in each project (EXO-94250).
+     *
+     * @param query the query, its accessibility condition included
+     * @return one count per project holding at least one selected task;
+     *         personal tasks are in none
+     */
+    List<ProjectTaskCountDto> countTasksByProject(TaskQuery query);
 
     TaskDto findTaskByActivityId(String activityId);
 
