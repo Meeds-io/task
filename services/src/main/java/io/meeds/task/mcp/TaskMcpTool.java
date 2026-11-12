@@ -2254,9 +2254,9 @@ public class TaskMcpTool implements McpToolPlugin {
   /**
    * Counts board by board the tasks a listing selects, each board beside its
    * open tasks, the boards with the most selected tasks first, then by name
-   * and identifier, so that two calls list them in the same order. The open
-   * tasks are counted with the listing's own accessibility, among the boards
-   * that hold a selected task only (EXO-94250).
+   * and identifier, so that two calls list them in the same order, at most
+   * {@value #MAX_PROJECT_COUNTS}. The open tasks are counted with the
+   * listing's own accessibility, among the boards listed only (EXO-94250).
    *
    * @param collection the listing's answer, to which the counts are added
    * @param taskQuery the listing's query
@@ -2270,27 +2270,29 @@ public class TaskMcpTool implements McpToolPlugin {
                                 Long projectId,
                                 ZoneId zone) throws IllegalAccessException, ObjectNotFoundException {
     List<ProjectTaskCountDto> counts = taskService.countTasksByProject(taskQuery);
+    List<ProjectTaskCountDto> kept = counts.stream()
+                                           .sorted(Comparator.comparingLong(ProjectTaskCountDto::getCount)
+                                                             .reversed()
+                                                             .thenComparing(ProjectTaskCountDto::getProjectName,
+                                                                            Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                                                             .thenComparingLong(ProjectTaskCountDto::getProjectId))
+                                           .limit(MAX_PROJECT_COUNTS)
+                                           .toList();
     Map<Long, Long> openCounts = Collections.emptyMap();
-    if (!counts.isEmpty()) {
+    if (!kept.isEmpty()) {
       TaskQuery openQuery = getTaskQuery(projectId, true, false, zone);
-      openQuery.setProjectIds(counts.stream().map(ProjectTaskCountDto::getProjectId).toList());
+      openQuery.setProjectIds(kept.stream().map(ProjectTaskCountDto::getProjectId).toList());
       openCounts = taskService.countTasksByProject(openQuery)
                               .stream()
                               .collect(Collectors.toMap(ProjectTaskCountDto::getProjectId, ProjectTaskCountDto::getCount));
     }
     Map<Long, Long> open = openCounts;
-    List<ProjectTaskCountModel> projects = counts.stream()
-                                                 .sorted(Comparator.comparingLong(ProjectTaskCountDto::getCount)
-                                                                   .reversed()
-                                                                   .thenComparing(ProjectTaskCountDto::getProjectName,
-                                                                                  Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
-                                                                   .thenComparingLong(ProjectTaskCountDto::getProjectId))
-                                                 .limit(MAX_PROJECT_COUNTS)
-                                                 .map(count -> new ProjectTaskCountModel(count.getProjectId(),
-                                                                                         count.getProjectName(),
-                                                                                         count.getCount(),
-                                                                                         open.getOrDefault(count.getProjectId(), 0L)))
-                                                 .toList();
+    List<ProjectTaskCountModel> projects = kept.stream()
+                                               .map(count -> new ProjectTaskCountModel(count.getProjectId(),
+                                                                                       count.getProjectName(),
+                                                                                       count.getCount(),
+                                                                                       open.getOrDefault(count.getProjectId(), 0L)))
+                                               .toList();
     collection.setProjects(projects);
     collection.setProjectCount(counts.size());
   }
