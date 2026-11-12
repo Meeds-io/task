@@ -720,9 +720,10 @@ public class TaskMcpTool implements McpToolPlugin {
    * tasks the same filters select.
    * <p>
    * With {@code groupByProject}, the answer also counts, board by board, the
-   * tasks the filters select, beside each board's open tasks, so that one
-   * call tells which boards hold such tasks and how many of their open tasks
-   * they are, whatever the number of boards (EXO-94250). A personal task, on
+   * tasks the filters select, beside each board's open tasks the user can
+   * access, so that one call tells which boards hold such tasks and how many
+   * of those open tasks they are, whatever the number of boards (EXO-94250).
+   * A personal task, on
    * no board, is listed but counted on none.
    * <p>
    * Each task comes as a list item, without its description or coworkers,
