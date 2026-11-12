@@ -1649,7 +1649,8 @@ public class TestTaskDAO extends AbstractTest {
 
   /**
    * A due-date bound before an instant excludes a task due at that instant
-   * and keeps one due a millisecond before it, on the engine. Mutant: the
+   * and keeps one due a second before it, on the engine: a second, which a
+   * column without fractional seconds still tells apart. Mutant: the
    * strict comparison made inclusive.
    */
   @Test
