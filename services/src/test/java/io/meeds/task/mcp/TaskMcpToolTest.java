@@ -3398,7 +3398,7 @@ public class TaskMcpToolTest {
     assertTrue(conjunction(open).stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(8L, 9L, 7L))));
     assertTrue(selectsOpenTasksOnly(open));
     assertTrue(scopedToTheUser(open));
-    assertFalse("the open count is every open task of the board", hasDueDateCondition(open));
+    assertFalse("the open count is every open task of the board the user can access", hasDueDateCondition(open));
     assertEquals(List.of(new ProjectTaskCountModel(8L, "Alpha", 3L, 3L),
                          new ProjectTaskCountModel(9L, "zeta", 3L, 4L),
                          new ProjectTaskCountModel(7L, "Beta", 1L, 5L)),

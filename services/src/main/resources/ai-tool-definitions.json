@@ -162,7 +162,7 @@
           "without_due_date": { "type": "boolean", "description": "Only the tasks with no due date; not together with overdue_only, due_from or due_to." },
           "due_from": { "type": "string", "description": "Only the tasks due at or after this date: a date such as 2026-11-09, from the start of that day in the user's time zone, or a date and time with its offset." },
           "due_to": { "type": "string", "description": "Only the tasks due at or before this date: a date such as 2026-11-15, to the end of that day in the user's time zone, or a date and time with its offset." },
-          "group_by_project": { "type": "boolean", "description": "true: also projects, the count of the tasks the filters select on each board (hide_completed_tasks included) and its open_count, every open task of the board, and project_count." }
+          "group_by_project": { "type": "boolean", "description": "true: also projects, the count of the tasks the filters select on each board (hide_completed_tasks included) and its open_count, the board's open tasks the user can access, and project_count." }
         }
       },
       "annotations": {
