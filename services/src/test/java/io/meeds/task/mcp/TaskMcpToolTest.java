@@ -3395,7 +3395,7 @@ public class TaskMcpToolTest {
 
     assertSame(listed.getValue(), counted.getAllValues().get(0));
     TaskQuery open = counted.getAllValues().get(1);
-    assertTrue(conjunction(open).stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(7L, 9L, 8L))));
+    assertTrue(conjunction(open).stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(8L, 9L, 7L))));
     assertTrue(selectsOpenTasksOnly(open));
     assertTrue(scopedToTheUser(open));
     assertFalse("the open count is every open task of the board", hasDueDateCondition(open));
@@ -3433,7 +3433,9 @@ public class TaskMcpToolTest {
   /**
    * The board counts list {@value TaskMcpTool#MAX_PROJECT_COUNTS} boards at
    * most, those with the most selected tasks, while project_count counts
-   * every board. Mutant: the cap dropped, or applied before the sort.
+   * every board, and the open tasks are counted on the listed boards only.
+   * Mutants: the cap dropped, or applied before the sort; the open count
+   * run on every board.
    *
    * @throws Exception never
    */
@@ -3444,10 +3446,17 @@ public class TaskMcpToolTest {
     for (long id = 1; id <= TaskMcpTool.MAX_PROJECT_COUNTS + 1; id++) {
       counts.add(new ProjectTaskCountDto(id, "Board " + id, id));
     }
-    when(taskService.countTasksByProject(any())).thenReturn(counts, List.of());
+    ArgumentCaptor<TaskQuery> counted = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.countTasksByProject(counted.capture())).thenReturn(counts, List.of());
 
     TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true);
 
+    List<Long> listedBoards = new ArrayList<>();
+    for (long id = TaskMcpTool.MAX_PROJECT_COUNTS + 1L; id >= 2; id--) {
+      listedBoards.add(id);
+    }
+    assertTrue(conjunction(counted.getAllValues().get(1)).stream()
+                                                          .anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", listedBoards)));
     assertEquals(TaskMcpTool.MAX_PROJECT_COUNTS, result.getProjects().size());
     assertEquals(TaskMcpTool.MAX_PROJECT_COUNTS + 1L, result.getProjects().get(0).getProjectId());
     assertEquals(2L, result.getProjects().get(TaskMcpTool.MAX_PROJECT_COUNTS - 1).getProjectId());
