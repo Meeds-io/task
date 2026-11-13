@@ -255,7 +255,8 @@ public class TaskToolDefinitionSpaceScopeTest {
                          "without_due_date",
                          "due_from",
                          "due_to",
-                         "group_by_project"),
+                         "group_by_project",
+                         "priority"),
                  allowed(tool));
     JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
     assertTrue(properties.has("project_id"));
