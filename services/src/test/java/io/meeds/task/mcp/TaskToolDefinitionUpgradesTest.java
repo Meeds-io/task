@@ -53,7 +53,7 @@ public class TaskToolDefinitionUpgradesTest {
   private static final JsonMapper          MAPPER                   = JsonMapper.builder().build();
 
   /** How many earlier definitions of each changed tool the sweep of every ref found. */
-  private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks", 17, "list_assigned_tasks", 12);
+  private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks", 22, "list_assigned_tasks", 14);
 
   /**
    * The definitions feature/rtd shipped before EXO-94250, which the
@@ -66,10 +66,20 @@ public class TaskToolDefinitionUpgradesTest {
                                                                            "d946c744a74d7798c5679c7c83517449738a45c8937a5572b8ed9fad398f3884");
 
   /**
-   * Each changed tool lists every earlier definition, the one shipped just
-   * before included, and not its shipped one, which an instance already
-   * holding it keeps anyway. Mutants: a digest removed, the shipped digest
-   * added, a tool's entry dropped.
+   * The definitions EXO-94250 ships, which an instance that ran it stored
+   * before the priority filter (EXO-94284).
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_94284 =
+                                                                    Map.of("list_tasks",
+                                                                           "6aa906a39eeb3d9987fd8ce4b2ea6b4adbb0489b7cf2bef4ab859cf52ae16904",
+                                                                           "list_assigned_tasks",
+                                                                           "63166a4d5ab928e4fd49346cd11b0207907cf1e2de92268b3790d70e62f1c6e3");
+
+  /**
+   * Each changed tool lists every earlier definition, those shipped before
+   * EXO-94250 and before EXO-94284 included, and not its shipped one, which
+   * an instance already holding it keeps anyway. Mutants: a digest removed,
+   * the shipped digest added, a tool's entry dropped.
    *
    * @throws Exception never
    */
@@ -84,6 +94,7 @@ public class TaskToolDefinitionUpgradesTest {
       assertEquals(name, count.intValue(), digests.size());
       assertEquals(name, count.intValue(), Set.copyOf(digests).size());
       assertTrue(name, digests.contains(DEFINITIONS_BEFORE_94250.get(name)));
+      assertTrue(name, digests.contains(DEFINITIONS_BEFORE_94284.get(name)));
       assertFalse(name + " lists its shipped definition", digests.contains(shipped.get(name)));
       digests.forEach(digest -> assertTrue(digest, digest.matches("[0-9a-f]{64}")));
     });
