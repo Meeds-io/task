@@ -477,6 +477,41 @@
       "require_approval": true
     },
     {
+      "name": "move_tasks_to_project",
+      "title": "Move Tasks to another Project",
+      "description": "Move one or several tasks to another project (AKA board), all at once. Each task takes the target project's default status, or the given status of that project. Nothing is moved when a task cannot be edited by the current user or the target project cannot be viewed. The tasks keep their labels.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "Identifiers of the tasks to move."
+          },
+          "project_id": {
+            "type": "integer",
+            "description": "Identifier of the target project."
+          },
+          "status_id": {
+            "type": "integer",
+            "description": "Optional identifier of a status (AKA Dashboard UI column) of the target project; its default status when omitted."
+          }
+        },
+        "required": ["task_ids", "project_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
       "name": "assign_task_to_me",
       "title": "Self assign a Task",
       "description": "Assign a task to the current user.",
