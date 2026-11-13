@@ -454,6 +454,21 @@ public class TaskQuery extends Query implements Cloneable {
     this.add(eq(TASK_PRIORITY, priority));
   }
 
+  /**
+   * Selects the tasks of a priority as the Tasks UI shows it: for
+   * {@link Priority#NONE}, the tasks with no priority too, whose column is
+   * empty when a client saved the task without one (EXO-94284).
+   *
+   * @param priority the priority, null for no condition
+   */
+  public void setShownPriority(Priority priority) {
+    if (priority == Priority.NONE) {
+      add(Conditions.or(eq(TASK_PRIORITY, priority), isNull(TASK_PRIORITY)));
+    } else if (priority != null) {
+      setPriority(priority);
+    }
+  }
+
   public void setNullField(String nullField) {
     add(isNull(nullField));
   }
