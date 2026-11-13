@@ -642,7 +642,10 @@ public class TaskMcpTool implements McpToolPlugin {
    * (EXO-91902). Asking both the overdue tasks and the tasks completed since
    * a date is refused. With {@code dueFrom} and {@code dueTo}, only the tasks
    * due in that range, both ends included (EXO-94250). Without any of these
-   * filters, the open tasks, the most recently active first. Each task comes
+   * filters, the open tasks, the most recently active first. With
+   * {@code priority}, only the tasks of that priority, {@link Priority#NONE}
+   * covering the tasks with no priority too, counted by the same query
+   * (EXO-94284). Each task comes
    * as a list item, without its description or coworkers, which
    * {@link #getTaskById(Long)} returns; with {@code includeDescription}, with
    * its description as cut plain text.
@@ -659,6 +662,7 @@ public class TaskMcpTool implements McpToolPlugin {
    *          lower bound
    * @param dueTo the last day or instant of the due range, blank for no upper
    *          bound
+   * @param priority the priority of the tasks listed, null for any
    * @return the tasks, with their count and whether more remain
    */
   public TaskCollectionModel listAssignedTasks(Integer offset, // NOSONAR the tool's parameters, each one its own
@@ -668,7 +672,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                String completedSince,
                                                Boolean includeDescription,
                                                String dueFrom,
-                                               String dueTo) {
+                                               String dueTo,
+                                               Priority priority) {
     ZoneId zone = getCurrentUserZone();
     int usedOffset = getOffset(offset);
     int usedLimit = getLimit(limit);
@@ -686,6 +691,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                                  null,
                                                                                  !filtered));
     setDueRange(taskQuery, dueFromDate, dueTo, zone);
+    taskQuery.setShownPriority(priority);
     List<TaskDto> tasks;
     if (Boolean.TRUE.equals(overdueOnly)) {
       setOverdueOnly(taskQuery, zone);
@@ -716,7 +722,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * with {@code dueFrom} and {@code dueTo}, only the tasks due in that range,
    * both ends included, a day bound covering the whole day in the user's
    * time zone; asking both is refused, as is asking the tasks with no due
-   * date among the overdue ones (EXO-94250). The count is the count of the
+   * date among the overdue ones (EXO-94250). With {@code priority}, only the
+   * tasks of that priority, {@link Priority#NONE} covering the tasks with no
+   * priority too (EXO-94284). The count is the count of the
    * tasks the same filters select.
    * <p>
    * With {@code groupByProject}, the answer also counts, board by board, the
@@ -753,6 +761,7 @@ public class TaskMcpTool implements McpToolPlugin {
    *          bound
    * @param groupByProject whether the answer also counts the selected tasks
    *          board by board
+   * @param priority the priority of the tasks listed, null for any
    * @return the tasks, with their count and whether more remain, and with
    *         {@code groupByProject} the count of each board
    * @throws IllegalAccessException when the user can't view the project
@@ -777,7 +786,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                        Boolean withoutDueDate,
                                        String dueFrom,
                                        String dueTo,
-                                       Boolean groupByProject) throws IllegalAccessException, ObjectNotFoundException {
+                                       Boolean groupByProject,
+                                       Priority priority) throws IllegalAccessException, ObjectNotFoundException {
     ZoneId zone = getCurrentUserZone();
     LocalDate today = getToday(zone);
     Date changedSinceDate = parseSince(changedSince, ARG_CHANGED_SINCE, zone);
@@ -790,6 +800,7 @@ public class TaskMcpTool implements McpToolPlugin {
       taskQuery.setWithoutDueDate();
     }
     setDueRange(taskQuery, dueFromDate, dueTo, zone);
+    taskQuery.setShownPriority(priority);
     if (StringUtils.isNotBlank(title)) {
       // TaskQuery#setTitle compares the lower-cased title with the value as given
       taskQuery.setTitle(title.trim().toLowerCase(Locale.ROOT));

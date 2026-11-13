@@ -1648,6 +1648,91 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   /**
+   * The priority condition runs on the engine, ANDed onto the accessibility
+   * condition: HIGH lists, counts and counts board by board the reader's open
+   * High tasks only, a board the reader cannot see and a completed task left
+   * out, and a personal task listed but counted on no board; NONE selects the
+   * tasks of priority None and those saved with no priority, never a Low one;
+   * on the assigned tasks' query, it keeps the reader's own High task only
+   * (EXO-94284). Mutants: the condition dropped, the NONE branch reduced to
+   * the equality, the null branch made the only one.
+   */
+  @Test
+  public void testPriorityConditionListsAndCountsTheTasksOfThatPriority() throws Exception {
+    Status alpha = newReaderBoard("Alpha", "reader");
+    Status beta = newReaderBoard("Beta", "reader");
+    Status gamma = newReaderBoard("Gamma", "stranger");
+    Task alphaHigh = newPriorityCard("alpha high", alpha, "reader", Priority.HIGH);
+    Task alphaHighShared = newPriorityCard("alpha high, coworkers", alpha, null, Priority.HIGH);
+    alphaHighShared.setCoworker(new HashSet<>(Set.of("reader", "other")));
+    tDAO.update(alphaHighShared);
+    newPriorityCard("alpha normal", alpha, "reader", Priority.NORMAL);
+    Task alphaNone = newPriorityCard("alpha none", alpha, null, Priority.NONE);
+    Task alphaUnset = newPriorityCard("alpha unset", alpha, null, null);
+    newPriorityCard("alpha low", alpha, null, Priority.LOW);
+    Task completedHigh = newPriorityCard("alpha completed high", alpha, "reader", Priority.HIGH);
+    completedHigh.setCompleted(true);
+    tDAO.update(completedHigh);
+    Task betaHigh = newPriorityCard("beta high", beta, "someone", Priority.HIGH);
+    newPriorityCard("gamma high", gamma, "stranger", Priority.HIGH);
+    Task personalHigh = newTaskInstance("personal high", "", "reader");
+    personalHigh.setPriority(Priority.HIGH);
+    tDAO.create(personalHigh);
+    Identity reader = new Identity("reader");
+
+    TaskQuery high = new TaskQuery();
+    high.setAccessible(reader);
+    high.setCompleted(false);
+    high.setShownPriority(Priority.HIGH);
+    assertEquals(Set.of(alphaHigh.getId(), alphaHighShared.getId(), betaHigh.getId(), personalHigh.getId()), foundIds(high));
+    assertEquals(4, tDAO.findTasks(high).getSize());
+    Map<String, Long> counts = tDAO.countTasksByProject(high)
+                                   .stream()
+                                   .collect(Collectors.toMap(ProjectTaskCountDto::getProjectName, ProjectTaskCountDto::getCount));
+    assertEquals(Map.of("Alpha", 2L, "Beta", 1L), counts);
+
+    TaskQuery none = new TaskQuery();
+    none.setAccessible(reader);
+    none.setCompleted(false);
+    none.setShownPriority(Priority.NONE);
+    assertEquals(Set.of(alphaNone.getId(), alphaUnset.getId()), foundIds(none));
+    assertEquals(2, tDAO.findTasks(none).getSize());
+
+    TaskQuery assignedHigh = new TaskQuery();
+    assignedHigh.setAssigneeOrCoworker(List.of("reader"));
+    assignedHigh.setCompleted(false);
+    assignedHigh.setShownPriority(Priority.HIGH);
+    assertEquals(Set.of(alphaHigh.getId(), alphaHighShared.getId(), personalHigh.getId()), foundIds(assignedHigh));
+    assertEquals(3, tDAO.findTasks(assignedHigh).getSize());
+  }
+
+  /**
+   * Lists the ids of the tasks a query finds.
+   *
+   * @param query the query
+   * @return the ids found
+   */
+  private Set<Long> foundIds(TaskQuery query) {
+    return Arrays.stream(ListUtil.load(tDAO.findTasks(query), 0, -1)).map(Task::getId).collect(Collectors.toSet());
+  }
+
+  /**
+   * Creates a card of a priority in a column.
+   *
+   * @param title its title
+   * @param column its column
+   * @param assignee its assignee, null for none
+   * @param priority its priority, null for none saved
+   * @return the stored card
+   */
+  private Task newPriorityCard(String title, Status column, String assignee, Priority priority) {
+    Task task = newTaskInstance(title, "", assignee);
+    task.setStatus(column);
+    task.setPriority(priority);
+    return tDAO.create(task);
+  }
+
+  /**
    * A due-date bound before an instant excludes a task due at that instant
    * and keeps one due a second before it, on the engine: a second, which a
    * column without fractional seconds still tells apart. Mutant: the
