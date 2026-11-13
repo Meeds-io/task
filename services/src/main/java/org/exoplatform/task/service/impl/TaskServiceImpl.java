@@ -48,6 +48,8 @@ import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.StorageUtil;
 import org.exoplatform.task.util.TaskUtil;
 
+import io.meeds.common.ContainerTransactional;
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
@@ -95,54 +97,23 @@ public class TaskServiceImpl implements TaskService {
       if (task == null) {
         throw new IllegalArgumentException("TaskDto must not be NULL");
       }
-      TaskDto oldTaskEntity = taskStorage.getTaskWithCoworkers(task.getId());
-      TaskDto newTaskEntity = taskStorage.update(task);
-      TaskPayload event = new TaskPayload(oldTaskEntity, newTaskEntity);
-      broadcastEvent(listenerService, TASK_UPDATED, null, event);
-      if (task.getStatus() != null && task.getStatus().getProject() != null) {
-        broadcastEvent(listenerService, "exo.project.projectModified", null, task.getStatus().getProject());
-      }
-      return newTaskEntity;
+      TaskPayload event = persistUpdate(task);
+      broadcastUpdate(event);
+      return event.after();
     }
 
     @Override
     public TaskDto updateTask(long taskId, TaskDto task, Identity identity) throws ObjectNotFoundException,
                                                                             IllegalAccessException {
-      if (task == null) {
-        throw new IllegalArgumentException("TaskDto must not be NULL");
-      }
-      TaskDto storedTask = taskStorage.getTaskById(taskId);
-      if (storedTask == null) {
-        throw new ObjectNotFoundException("Task " + taskId + " not found");
-      }
-      if (!TaskUtil.hasEditPermission(this, storedTask, identity)) {
-        throw new IllegalAccessException("User " + (identity == null ? null : identity.getUserId()) + " cannot edit task "
-            + taskId);
-      }
-      task.setId(taskId);
-      // The authorship is an edit permission input: never taken from the update
-      task.setCreatedBy(storedTask.getCreatedBy());
-      task.setCreatedTime(storedTask.getCreatedTime());
-      if (task.getStatus() != null) {
-        // The storage resolves the status by its id alone: authorize a move on
-        // the project of the loaded status, never on the project the task carries
-        StatusDto status = task.getStatus().getId() == null ? null
-                                                            : ExoContainerContext.getService(StatusService.class)
-                                                                                 .getStatus(task.getStatus().getId());
-        if (status == null || status.getProject() == null) {
-          throw new IllegalArgumentException("task.status.notFound");
-        }
-        long currentProjectId = storedTask.getStatus() == null || storedTask.getStatus().getProject() == null ? 0
-                                                                                                              : storedTask.getStatus()
-                                                                                                                          .getProject()
-                                                                                                                          .getId();
-        if (status.getProject().getId() != currentProjectId && !canViewProject(status.getProject().getId(), identity)) {
-          throw new IllegalAccessException("User " + identity.getUserId() + " cannot move task " + taskId + " to project "
-              + status.getProject().getId());
-        }
-        task.setStatus(status);
-      }
-      return updateTask(task);
+      return updateTask(authorizeUpdate(taskId, task, identity));
+    }
+
+    @Override
+    public List<TaskDto> moveTasks(List<Long> taskIds, long statusId, Identity identity) throws ObjectNotFoundException,
+                                                                                         IllegalAccessException {
+      List<TaskPayload> events = moveTasksAtomically(taskIds, statusId, identity);
+      events.forEach(this::broadcastUpdate);
+      return events.stream().map(TaskPayload::after).toList();
     }
 
     @Override
@@ -554,6 +525,85 @@ public class TaskServiceImpl implements TaskService {
         return project != null && project.canView(identity);
       } catch (EntityNotFoundException e) {
         return false;
+      }
+    }
+
+    /**
+     * One transaction for the whole move: a task refused after others were
+     * written rolls those writes back. The events are left to the caller, which
+     * broadcasts them once this method returns: after the commit when it began
+     * the transaction, before the outer commit when it joined one (see
+     * {@link TaskService#moveTasks(List, long, Identity)}).
+     */
+    @ContainerTransactional(atomic = true)
+    protected List<TaskPayload> moveTasksAtomically(List<Long> taskIds,
+                                                    long statusId,
+                                                    Identity identity) throws ObjectNotFoundException,
+                                                                       IllegalAccessException {
+      List<TaskPayload> events = new ArrayList<>();
+      for (Long taskId : taskIds) {
+        TaskDto storedTask = taskStorage.getTaskById(taskId);
+        if (storedTask == null) {
+          throw new ObjectNotFoundException("Task " + taskId + " not found");
+        }
+        StatusDto status = new StatusDto();
+        status.setId(statusId);
+        storedTask.setStatus(status);
+        events.add(persistUpdate(authorizeUpdate(taskId, storedTask, identity)));
+      }
+      return events;
+    }
+
+    private TaskDto authorizeUpdate(long taskId, TaskDto task, Identity identity) throws ObjectNotFoundException,
+                                                                                   IllegalAccessException {
+      if (task == null) {
+        throw new IllegalArgumentException("TaskDto must not be NULL");
+      }
+      TaskDto storedTask = taskStorage.getTaskById(taskId);
+      if (storedTask == null) {
+        throw new ObjectNotFoundException("Task " + taskId + " not found");
+      }
+      if (!TaskUtil.hasEditPermission(this, storedTask, identity)) {
+        throw new IllegalAccessException("User " + (identity == null ? null : identity.getUserId()) + " cannot edit task "
+            + taskId);
+      }
+      task.setId(taskId);
+      // The authorship is an edit permission input: never taken from the update
+      task.setCreatedBy(storedTask.getCreatedBy());
+      task.setCreatedTime(storedTask.getCreatedTime());
+      if (task.getStatus() != null) {
+        // The storage resolves the status by its id alone: authorize a move on
+        // the project of the loaded status, never on the project the task carries
+        StatusDto status = task.getStatus().getId() == null ? null
+                                                            : ExoContainerContext.getService(StatusService.class)
+                                                                                 .getStatus(task.getStatus().getId());
+        if (status == null || status.getProject() == null) {
+          throw new IllegalArgumentException("task.status.notFound");
+        }
+        long currentProjectId = storedTask.getStatus() == null || storedTask.getStatus().getProject() == null ? 0
+                                                                                                              : storedTask.getStatus()
+                                                                                                                          .getProject()
+                                                                                                                          .getId();
+        if (status.getProject().getId() != currentProjectId && !canViewProject(status.getProject().getId(), identity)) {
+          throw new IllegalAccessException("User " + identity.getUserId() + " cannot move task " + taskId + " to project "
+              + status.getProject().getId());
+        }
+        task.setStatus(status);
+      }
+      return task;
+    }
+
+    private TaskPayload persistUpdate(TaskDto task) {
+      TaskDto oldTaskEntity = taskStorage.getTaskWithCoworkers(task.getId());
+      TaskDto newTaskEntity = taskStorage.update(task);
+      return new TaskPayload(oldTaskEntity, newTaskEntity);
+    }
+
+    private void broadcastUpdate(TaskPayload event) {
+      broadcastEvent(listenerService, TASK_UPDATED, null, event);
+      TaskDto task = event.after();
+      if (task.getStatus() != null && task.getStatus().getProject() != null) {
+        broadcastEvent(listenerService, "exo.project.projectModified", null, task.getStatus().getProject());
       }
     }
 }
