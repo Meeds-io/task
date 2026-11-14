@@ -2238,7 +2238,8 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * @param task a task
-   * @param since only the change log entries after this instant, null for all
+   * @param since only the change log entries and comments at or after this
+   *          instant, null for all
    * @param zone the user's time zone
    * @param today today in that zone
    * @return the task model, with its change log and comments
