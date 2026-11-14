@@ -74,6 +74,23 @@ public class TaskCollectionModel {
   private Integer projectCount;
 
   /**
+   * In list_assigned_tasks, how many of the tasks counted by {@code count}
+   * are assigned to the user, those the user is also a coworker of included.
+   */
+  @JsonProperty("assigned_count")
+  @JsonInclude(Include.NON_NULL)
+  private Long    assignedCount;
+
+  /**
+   * In list_assigned_tasks, how many of the tasks counted by {@code count}
+   * the user is a coworker of without being their assignee: with
+   * {@code assigned_count}, it makes {@code count}.
+   */
+  @JsonProperty("coworker_count")
+  @JsonInclude(Include.NON_NULL)
+  private Long    coworkerCount;
+
+  /**
    * A page of tasks, with no count per board.
    *
    * @param tasks the tasks of the page
@@ -84,7 +101,7 @@ public class TaskCollectionModel {
    * @param nextOffset the offset of the next page, null when none remains
    */
   public TaskCollectionModel(List<?> tasks, int usedOffset, int usedLimit, long count, boolean hasMore, Integer nextOffset) {
-    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null);
+    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null);
   }
 
 }

@@ -324,6 +324,46 @@ public class TestTaskDAO extends AbstractTest {
     assertThrows(IllegalStateException.class, () -> taskService.countTasks(nullPredicateQuery));
   }
 
+  /**
+   * The count list_assigned_tasks splits: the tasks the user is assignee or
+   * coworker of, each counted once, and among them, through a clone of that
+   * query restricted to the assignee, those assigned to the user, a task the
+   * user is both assignee and coworker of included; the clone leaves the
+   * first query unchanged. Mutants: the count not distinct, so the task with
+   * the user twice counts twice; the restriction added to the first query.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testAssignedTasksOfTheAssigneeOrCoworkerQueryCountEachTaskOnce() throws Exception {
+    Task assigned = newTaskInstance("assigned", "", "root");
+    tDAO.create(assigned);
+    Task coworked = newTaskInstance("coworked", "", "john");
+    coworked.setCoworker(new HashSet<>(Set.of("root")));
+    tDAO.create(coworked);
+    Task both = newTaskInstance("both", "", "root");
+    both.setCoworker(new HashSet<>(Set.of("root", "mary")));
+    tDAO.create(both);
+    Task other = newTaskInstance("other", "", "john");
+    other.setCoworker(new HashSet<>(Set.of("mary")));
+    tDAO.create(other);
+
+    TaskQuery query = new TaskQuery();
+    query.setAssigneeOrCoworker(List.of("root"));
+    TaskQuery assignedQuery = query.clone();
+    assignedQuery.setAssignee(List.of("root"));
+
+    ListAccess<Task> all = tDAO.findTasks(query);
+    Assert.assertEquals(3, all.getSize());
+    Assert.assertEquals(Set.of(assigned.getId(), coworked.getId(), both.getId()),
+                        Arrays.stream(all.load(0, -1)).map(Task::getId).collect(Collectors.toSet()));
+    ListAccess<Task> ofAssignee = tDAO.findTasks(assignedQuery);
+    Assert.assertEquals(2, ofAssignee.getSize());
+    Assert.assertEquals(Set.of(assigned.getId(), both.getId()),
+                        Arrays.stream(ofAssignee.load(0, -1)).map(Task::getId).collect(Collectors.toSet()));
+    Assert.assertEquals(3, tDAO.findTasks(query).getSize());
+  }
+
   @Test
   public void testFindTaskOrderByDueDate() throws Exception {
     Calendar calendar = Calendar.getInstance();

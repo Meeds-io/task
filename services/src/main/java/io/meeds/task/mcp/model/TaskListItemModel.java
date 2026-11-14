@@ -66,6 +66,13 @@ public class TaskListItemModel {
   private List<ProjectLabel> labels;
 
   private TaskAssigneeModel  assignee;
+  /**
+   * In list_assigned_tasks, {@value io.meeds.task.mcp.TaskMcpTool#RELATION_ASSIGNEE}
+   * for a task assigned to the user, whether or not the user is also a
+   * coworker of it, {@value io.meeds.task.mcp.TaskMcpTool#RELATION_COWORKER}
+   * for a task the user is a coworker of only; none in the other listings.
+   */
+  private String             relation;
 
   @JsonProperty("due_date")
   private String             dueDate;
@@ -171,6 +178,7 @@ public class TaskListItemModel {
          status,
          labels,
          assignee,
+         null,
          dueDate,
          createdDate,
          daysOverdue,
