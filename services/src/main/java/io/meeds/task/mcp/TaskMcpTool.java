@@ -1792,6 +1792,18 @@ public class TaskMcpTool implements McpToolPlugin {
     return task;
   }
 
+  /**
+   * Lists a project's tasks updated since a number of days, then its other
+   * uncompleted tasks. The period starts at midnight of the user's day, that
+   * number of days ago, in the user's time zone, the server's when they have
+   * none.
+   *
+   * @param projectId the project, or null for every project the user sees
+   * @param days the number of days to look back
+   * @return the tasks updated in the period, then the other uncompleted ones
+   * @throws IllegalAccessException when the user can't view the project
+   * @throws ObjectNotFoundException when the project doesn't exist
+   */
   public ProjectActivityModel listProjectActivitySince(Long projectId, Integer days) throws IllegalAccessException,
                                                                                      ObjectNotFoundException {
     long count = countTaskModels(projectId, false);
@@ -1803,10 +1815,8 @@ public class TaskMcpTool implements McpToolPlugin {
       ZoneId zone = getCurrentUserZone();
       LocalDate today = getToday(zone);
 
-      Instant sinceInstant = LocalDate.now()
-                                      .minusDays(days)
-                                      .atStartOfDay(ZoneId.systemDefault())
-                                      .toInstant();
+      // the period starts at midnight of the user's day, in the user's zone
+      Instant sinceInstant = today.minusDays(days).atStartOfDay(zone).toInstant();
 
       int offset = 0;
       int limit = 10;
