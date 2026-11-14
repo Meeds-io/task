@@ -52,8 +52,13 @@ public class TaskToolDefinitionUpgradesTest {
 
   private static final JsonMapper          MAPPER                   = JsonMapper.builder().build();
 
-  /** How many earlier definitions of each changed tool the sweep of every ref found. */
-  private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks", 22, "list_assigned_tasks", 14);
+  /** How many earlier definitions of each changed tool the history of every ref holds. */
+  private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks",
+                                                                            22,
+                                                                            "list_assigned_tasks",
+                                                                            14,
+                                                                            "list_projects",
+                                                                            5);
 
   /**
    * The definitions feature/rtd shipped before EXO-94250, which the
@@ -76,10 +81,18 @@ public class TaskToolDefinitionUpgradesTest {
                                                                            "63166a4d5ab928e4fd49346cd11b0207907cf1e2de92268b3790d70e62f1c6e3");
 
   /**
+   * The definition of list_projects feature/rtd shipped before managed_only,
+   * the one an instance of that line stored.
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_MANAGED_ONLY =
+                                                                           Map.of("list_projects",
+                                                                                  "4a79343c507a0bed50fa489d47a63fe132cadd0b220ca2dc637417a5878aef73");
+
+  /**
    * Each changed tool lists every earlier definition, those shipped before
-   * EXO-94250 and before EXO-94284 included, and not its shipped one, which
-   * an instance already holding it keeps anyway. Mutants: a digest removed,
-   * the shipped digest added, a tool's entry dropped.
+   * EXO-94250, before EXO-94284 and before managed_only included, and not its
+   * shipped one, which an instance already holding it keeps anyway. Mutants:
+   * a digest removed, the shipped digest added, a tool's entry dropped.
    *
    * @throws Exception never
    */
@@ -93,8 +106,13 @@ public class TaskToolDefinitionUpgradesTest {
       List<String> digests = replaced.get(name);
       assertEquals(name, count.intValue(), digests.size());
       assertEquals(name, count.intValue(), Set.copyOf(digests).size());
-      assertTrue(name, digests.contains(DEFINITIONS_BEFORE_94250.get(name)));
-      assertTrue(name, digests.contains(DEFINITIONS_BEFORE_94284.get(name)));
+      for (Map<String, String> pinned : List.of(DEFINITIONS_BEFORE_94250,
+                                                DEFINITIONS_BEFORE_94284,
+                                                DEFINITIONS_BEFORE_MANAGED_ONLY)) {
+        if (pinned.containsKey(name)) {
+          assertTrue(name, digests.contains(pinned.get(name)));
+        }
+      }
       assertFalse(name + " lists its shipped definition", digests.contains(shipped.get(name)));
       digests.forEach(digest -> assertTrue(digest, digest.matches("[0-9a-f]{64}")));
     });

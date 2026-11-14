@@ -2232,7 +2232,7 @@ public class TaskMcpToolTest {
     lenient().when(project.getDescription()).thenReturn("<p>A long description</p>");
     when(project.getManager()).thenReturn(Collections.emptySet());
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, null, null));
 
     assertEquals(1, result.getProjects().size());
     assertEquals(0, result.getUsedOffset());
@@ -2303,14 +2303,14 @@ public class TaskMcpToolTest {
     when(projectService.findProjects(any(), any(), any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
     when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
 
-    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Q3 Roadmap  "));
+    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Q3 Roadmap  ", null));
     verify(projectService).findProjects(any(), eq("Q3 Roadmap"), any(), eq(0), eq(10));
     ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
     verify(projectService, times(2)).countProjects(counted.capture());
     assertAllWordsQuery(counted.getAllValues().get(0), "%q3%", "%roadmap%");
     assertNameQuery(counted.getAllValues().get(1), AggregateCondition.OR, "%q3%", "%roadmap%");
 
-    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, " "));
+    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, " ", null));
     verify(projectService).findProjects(any(), eq(null), any(), eq(0), eq(10));
     verify(projectService, times(3)).countProjects(counted.capture());
     assertNameQuery(counted.getAllValues().get(counted.getAllValues().size() - 1), null);
@@ -2318,7 +2318,7 @@ public class TaskMcpToolTest {
 
     givenSpaceTheUserIsMemberOf();
     currentSpaceScoped = true;
-    runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Q3 Roadmap"));
+    runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Q3 Roadmap", null));
     verify(projectService).findProjects(any(), eq("Q3 Roadmap"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
   }
 
@@ -2334,7 +2334,7 @@ public class TaskMcpToolTest {
   public void listProjectsByOneWordNameNeverFallsBack() throws Exception { // NOSONAR
     when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Roadmap "));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Roadmap ", null));
     assertTrue(result.getProjects().isEmpty());
     assertEquals(0L, result.getCount());
     assertFalse(result.isHasMore());
@@ -2342,7 +2342,7 @@ public class TaskMcpToolTest {
 
     givenSpaceTheUserIsMemberOf();
     currentSpaceScoped = true;
-    ProjectCollectionModel ofSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Roadmap"));
+    ProjectCollectionModel ofSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Roadmap", null));
     assertTrue(ofSpace.getProjects().isEmpty());
     assertEquals(0L, ofSpace.getCount());
     verify(projectService, times(2)).countProjects(any(ProjectQuery.class));
@@ -2366,7 +2366,7 @@ public class TaskMcpToolTest {
     when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
     when(projectService.findProjects(any(ProjectQuery.class), eq(2), eq(5))).thenReturn(List.of(board));
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 "));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 ", null));
 
     assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(1L, result.getCount());
@@ -2395,7 +2395,7 @@ public class TaskMcpToolTest {
     when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0, 3);
     when(projectService.findProjects(any(), eq("Big Board 50"), any(), eq(2), eq(5))).thenReturn(List.of(onboarding));
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 "));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 ", null));
 
     assertEquals(List.of(4L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(3L, result.getCount());
@@ -2419,7 +2419,7 @@ public class TaskMcpToolTest {
     when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(3);
     when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(projects);
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 1, "Big Board"));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 1, "Big Board", null));
 
     assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertTrue(result.isHasMore());
@@ -2452,15 +2452,141 @@ public class TaskMcpToolTest {
                                      eq(0),
                                      eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(List.of(ofOtherSpace));
 
-    ProjectCollectionModel none = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board"));
+    ProjectCollectionModel none = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board", null));
     assertEquals(List.of(4L), none.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(1L, none.getCount());
     verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
 
-    ProjectCollectionModel otherSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board"));
+    ProjectCollectionModel otherSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board", null));
     assertEquals(List.of(4L), otherSpace.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(1L, otherSpace.getCount());
     verify(projectService, times(2)).findProjects(any(), eq("Big Board"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+  }
+
+  /**
+   * With managed_only, the list and the count read one query: the user's
+   * memberships, the user's name included, against the managers only, the
+   * most recently modified first; the selection of the managers and the
+   * participants is never read. managed_only false, like no managed_only,
+   * keeps that selection. Mutants: the participants read with managed_only;
+   * the list read from the selection of both roles; managed_only taken as
+   * true by default.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsManagedOnlyListsAndCountsTheProjectsTheUserManages() throws Exception { // NOSONAR
+    ProjectDto managedProject = listedProject(1L, null);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(10))).thenReturn(List.of(managedProject));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, null, true));
+
+    assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, result.getCount());
+    assertFalse(result.isHasMore());
+    ArgumentCaptor<ProjectQuery> listed = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listed.capture(), eq(0), eq(10));
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).countProjects(counted.capture());
+    for (ProjectQuery query : List.of(listed.getValue(), counted.getValue())) {
+      assertManagedQuery(query, null);
+      assertTrue(((List<?>) managerCondition(query).getValue()).contains(USER));
+    }
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+
+    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, null, false));
+    verify(projectService).findProjects(any(), eq(null), any(), eq(0), eq(10));
+    verify(projectService, times(2)).countProjects(counted.capture());
+    assertNameQuery(counted.getAllValues().get(counted.getAllValues().size() - 1), null);
+  }
+
+  /**
+   * With managed_only and a name, the query of every word and, when no
+   * managed project holds them all, the list and the count of any one word
+   * read the managers only, with the same offset and limit. Mutants: the
+   * participants read on the all-words path or on the any-word fallback; the
+   * fallback read from the selection of both roles.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsManagedOnlyByNameReadsTheManagersOnBothPaths() throws Exception { // NOSONAR
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0, 2);
+    ProjectDto onboarding = listedProject(4L, null);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(2), eq(5))).thenReturn(List.of(onboarding));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 ", true));
+
+    assertEquals(List.of(4L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService, times(2)).countProjects(counted.capture());
+    assertManagedQuery(counted.getAllValues().get(0), AggregateCondition.AND, "%big%", "%board%", "%50%");
+    assertManagedQuery(counted.getAllValues().get(1), AggregateCondition.OR, "%big%", "%board%", "%50%");
+    ArgumentCaptor<ProjectQuery> listed = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listed.capture(), eq(2), eq(5));
+    assertManagedQuery(listed.getValue(), AggregateCondition.OR, "%big%", "%board%", "%50%");
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+  }
+
+  /**
+   * In a run limited to a space, managed_only scans the projects whose
+   * managers hold one of the space roles the user has, and keeps those of the
+   * space. Mutant: the scan read from the selection of both roles.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsOfASpaceManagedOnlyScansTheManagedProjects() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> projects = List.of(listedProject(1L, 10L), listedProject(2L, 11L));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(projects);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null, true));
+
+    assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    ArgumentCaptor<ProjectQuery> scanned = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(scanned.capture(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+    assertManagedQuery(scanned.getValue(), null);
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+  }
+
+  /**
+   * @param query a query of the projects the memberships manage, by name
+   *          words or not, the most recently modified first
+   * @param wordsType how the name words are combined, or null when the query
+   *          has no name condition
+   * @param likes the patterns each word must match, lower-cased
+   */
+  private void assertManagedQuery(ProjectQuery query, String wordsType, String... likes) {
+    assertEquals(1, query.getOrderBy().size());
+    assertEquals("lastModifiedDate", query.getOrderBy().get(0).getFieldName());
+    assertFalse(query.getOrderBy().get(0).isAscending());
+    List<Condition> conditions = ((AggregateCondition) query.getCondition()).getConditions();
+    assertEquals(wordsType == null ? 1 : 2, conditions.size());
+    SingleCondition<?> managers = managerCondition(query);
+    assertEquals(SingleCondition.IN, managers.getType());
+    assertFalse(((List<?>) managers.getValue()).isEmpty());
+    if (wordsType == null) {
+      return;
+    }
+    AggregateCondition words = (AggregateCondition) conditions.get(1);
+    assertEquals(wordsType, words.getType());
+    assertEquals(List.of(likes), words.getConditions().stream().map(c -> ((SingleCondition<?>) c).getValue()).toList());
+  }
+
+  /**
+   * @param query a query of projects by their roles
+   * @return its first condition, which must be one on the managers alone
+   */
+  private SingleCondition<?> managerCondition(ProjectQuery query) {
+    Condition first = ((AggregateCondition) query.getCondition()).getConditions().get(0);
+    assertTrue("a condition on the managers alone, not " + first, first instanceof SingleCondition);
+    SingleCondition<?> managers = (SingleCondition<?>) first;
+    assertEquals("manager", managers.getField());
+    return managers;
   }
 
   /**
@@ -2520,11 +2646,11 @@ public class TaskMcpToolTest {
     }
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(projects);
 
-    ProjectCollectionModel first = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2, null));
+    ProjectCollectionModel first = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2, null, null));
     assertTrue(first.isHasMore());
     assertEquals(Integer.valueOf(2), first.getNextOffset());
 
-    ProjectCollectionModel last = runWithDateFormatMockResult(() -> tool.listProjects(10L, 2, 2, null));
+    ProjectCollectionModel last = runWithDateFormatMockResult(() -> tool.listProjects(10L, 2, 2, null, null));
     assertEquals(List.of(3L, 4L), last.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertFalse(last.isHasMore());
     assertNull(last.getNextOffset());
@@ -2856,7 +2982,7 @@ public class TaskMcpToolTest {
     runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, 101, null, null, null, null, null, null, null));
     verify(taskService, times(2)).findLastUpdatedTasks(any(), eq(0), eq(100));
 
-    ProjectCollectionModel projects = runWithDateFormatMockResult(() -> tool.listProjects(null, null, 101, null));
+    ProjectCollectionModel projects = runWithDateFormatMockResult(() -> tool.listProjects(null, null, 101, null, null));
     verify(projectService).findProjects(any(), any(), any(), eq(0), eq(100));
     assertEquals(100, projects.getUsedLimit());
 
@@ -3019,7 +3145,7 @@ public class TaskMcpToolTest {
                                                                                                                           inNoSpace,
                                                                                                                           inSpaceToo));
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null, null));
 
     assertEquals(List.of(1L, 4L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(2L, result.getCount());
@@ -3042,7 +3168,7 @@ public class TaskMcpToolTest {
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(List.of(inSpace, shared));
     when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(2);
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null, null));
 
     assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(2L, result.getCount());
@@ -3072,14 +3198,14 @@ public class TaskMcpToolTest {
                                                                                                                           second,
                                                                                                                           third));
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 1, 1, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 1, 1, null, null));
 
     assertEquals(List.of(3L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(3L, result.getCount());
     assertEquals(1, result.getUsedOffset());
     assertEquals(1, result.getUsedLimit());
 
-    ProjectCollectionModel clamped = runWithDateFormatMockResult(() -> tool.listProjects(10L, -4, -2, null));
+    ProjectCollectionModel clamped = runWithDateFormatMockResult(() -> tool.listProjects(10L, -4, -2, null, null));
     assertEquals(List.of(1L, 3L, 4L), clamped.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(0, clamped.getUsedOffset());
     assertEquals(10, clamped.getUsedLimit());
@@ -3102,7 +3228,7 @@ public class TaskMcpToolTest {
     }
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(chunk);
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2, null, null));
 
     assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(3L, result.getCount());
@@ -3132,7 +3258,7 @@ public class TaskMcpToolTest {
                                                                                                                                                       minetoo,
                                                                                                                                                       theirs));
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null, null));
 
     assertEquals(List.of(100L, 101L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
     assertEquals(2L, result.getCount());
@@ -3151,13 +3277,13 @@ public class TaskMcpToolTest {
     ProjectDto other = listedProject(2L, 11L);
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
                                                                                                       .thenReturn(List.of(other));
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null, null));
     assertEquals(0, result.getProjects().size());
     assertEquals(0L, result.getCount());
 
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
                                                                                                       .thenReturn(Collections.emptyList());
-    result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+    result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null, null));
     assertEquals(0L, result.getCount());
   }
 
@@ -3286,9 +3412,9 @@ public class TaskMcpToolTest {
 
     for (boolean scoped : new boolean[] { false, true }) {
       currentSpaceScoped = scoped;
-      assertEquals(0L, runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20, null)).getCount());
+      assertEquals(0L, runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20, null, null)).getCount());
     }
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20, null, null));
 
     assertEquals(0, result.getProjects().size());
     assertEquals(0L, result.getCount());
