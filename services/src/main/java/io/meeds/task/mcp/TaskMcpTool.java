@@ -2353,16 +2353,16 @@ public class TaskMcpTool implements McpToolPlugin {
   /**
    * @param task a task
    * @param logs its change log entries, as the task service returns them
-   * @param since only the entries and comments after this instant, null for
-   *          all
+   * @param since only the entries and comments at or after this instant,
+   *          null for all
    * @return its change log and comments, replies included, oldest first when
    *         it has comments
    */
   private List<TaskChangeLog> getChangeLogs(TaskDto task, List<ChangeLogEntry> logs, Instant since) {
     List<TaskChangeLog> taskLogs = logs.stream()
                                        .filter(l -> since == null
-                                                    || Instant.ofEpochMilli(l.getCreatedTime())
-                                                              .isAfter(since))
+                                                    || !Instant.ofEpochMilli(l.getCreatedTime())
+                                                               .isBefore(since))
                                        .map(this::getTaskChangeLog)
                                        .toList();
     int commentsCount = commentService.countComments(task.getId());
@@ -2374,8 +2374,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                                       CollectionUtils.emptyIfNull(c.getSubComments())
                                                                                                      .stream()))
                                                           .filter(c -> since == null
-                                                                       || Instant.ofEpochMilli(c.getCreatedTime().getTime())
-                                                                                 .isAfter(since))
+                                                                       || !Instant.ofEpochMilli(c.getCreatedTime().getTime())
+                                                                                  .isBefore(since))
                                                           .map(c -> new TaskChangeLog("commented",
                                                                                       "commented",
                                                                                       getUserModel(c.getAuthor()),
