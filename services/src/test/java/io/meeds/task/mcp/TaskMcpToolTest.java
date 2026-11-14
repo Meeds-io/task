@@ -3689,6 +3689,41 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * On a day whose midnight a daylight-saving switch skips (São Paulo, 4
+   * November 2018), the period starts at the day's first instant, 01:00, and
+   * a task updated at that very instant is in it, one updated a minute earlier
+   * is not. Mutants: a strict comparison; the server's zone.
+   */
+  @Test
+  public void listProjectActivitySinceStartsAtTheFirstInstantOfASkippedMidnight() throws Exception { // NOSONAR
+    ZoneId saoPaulo = ZoneId.of("America/Sao_Paulo");
+    LocalDate weekAfterTheSwitch = LocalDate.of(2018, 11, 11);
+    TaskMcpTool saoPauloTool = new TestableTaskMcpTool() {
+      @Override
+      protected ZoneId getCurrentUserZone() {
+        return saoPaulo;
+      }
+
+      @Override
+      protected LocalDate getToday(ZoneId zone) {
+        return weekAfterTheSwitch;
+      }
+    };
+    Instant firstInstant = Instant.parse("2018-11-04T03:00:00Z");
+    TaskDto atFirstInstant = mockTaskWithProject(TASK_ID, Date.from(firstInstant));
+    TaskDto minuteBefore = mockTaskWithProject(13L, Date.from(firstInstant.minusSeconds(60)));
+    when(taskService.countTasks(any())).thenReturn(2);
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(atFirstInstant, minuteBefore));
+    when(taskService.getTaskLogs(anyLong(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    when(commentService.getLastComment(anyLong())).thenReturn(null);
+    when(commentService.countComments(anyLong())).thenReturn(0);
+
+    ProjectActivityModel result = runWithDateFormatMockResult(() -> saoPauloTool.listProjectActivitySince(null, 7));
+
+    assertEquals(List.of(TASK_ID), result.getLastUpdatedTasks().stream().map(TaskWithChangeLogModel::getId).toList());
+  }
+
+  /**
    * @param projectId a project id
    * @return a label of that project
    */
