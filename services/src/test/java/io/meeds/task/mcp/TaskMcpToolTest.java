@@ -49,7 +49,6 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -3358,8 +3357,8 @@ public class TaskMcpToolTest {
 
   @Test
   public void listProjectActivitySinceShouldReturnUpdatedAndUncompletedTasks() throws Exception { // NOSONAR
-    TaskDto recentlyUpdatedTask = mockTaskWithProject();
-    TaskDto oldUncompletedTask = mockTaskWithProject(13L, daysAgo(30));
+    TaskDto recentlyUpdatedTask = mockTaskWithProject(TASK_ID, Date.from(TODAY.minusDays(1).atTime(12, 0).atZone(USER_ZONE).toInstant()));
+    TaskDto oldUncompletedTask = mockTaskWithProject(13L, Date.from(TODAY.minusDays(30).atTime(12, 0).atZone(USER_ZONE).toInstant()));
 
     when(taskService.countTasks(any())).thenReturn(2);
 
@@ -3376,6 +3375,40 @@ public class TaskMcpToolTest {
 
     assertEquals(1, result.getLastUpdatedTasks().size());
     assertEquals(1, result.getOtherUncompletedTasks().size());
+  }
+
+  /**
+   * The period of list_project_activity_since starts at midnight of the
+   * user's day, in the user's zone, never the server's (EXO-94298): a task
+   * updated at 01:00 on the period's first day in Kiritimati (UTC+14), which
+   * is still the day before in UTC and in Europe, is in it. Mutants: the
+   * server's zone; the server's day.
+   */
+  @Test
+  public void listProjectActivitySinceStartsAtTheUsersMidnight() throws Exception { // NOSONAR
+    ZoneId kiritimati = ZoneId.of("Pacific/Kiritimati");
+    TaskMcpTool farEastTool = new TestableTaskMcpTool() {
+      @Override
+      protected ZoneId getCurrentUserZone() {
+        return kiritimati;
+      }
+
+      @Override
+      protected LocalDate getToday(ZoneId zone) {
+        return TODAY;
+      }
+    };
+    TaskDto firstHourTask = mockTaskWithProject(TASK_ID, Date.from(TODAY.minusDays(7).atTime(1, 0).atZone(kiritimati).toInstant()));
+    TaskDto dayBeforeTask = mockTaskWithProject(13L, Date.from(TODAY.minusDays(8).atTime(23, 0).atZone(kiritimati).toInstant()));
+    when(taskService.countTasks(any())).thenReturn(2);
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(firstHourTask, dayBeforeTask));
+    when(taskService.getTaskLogs(anyLong(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    when(commentService.getLastComment(anyLong())).thenReturn(null);
+    when(commentService.countComments(anyLong())).thenReturn(0);
+
+    ProjectActivityModel result = runWithDateFormatMockResult(() -> farEastTool.listProjectActivitySince(null, 7));
+
+    assertEquals(List.of(TASK_ID), result.getLastUpdatedTasks().stream().map(TaskWithChangeLogModel::getId).toList());
   }
 
   /**
@@ -3435,12 +3468,6 @@ public class TaskMcpToolTest {
              .thenReturn(Collections.emptyList());
 
     return task;
-  }
-
-  private Date daysAgo(int days) {
-    Calendar calendar = Calendar.getInstance();
-    calendar.add(Calendar.DAY_OF_MONTH, -days);
-    return calendar.getTime();
   }
 
   @SneakyThrows
