@@ -3691,9 +3691,10 @@ public class TaskMcpToolTest {
   /**
    * On a day whose midnight a daylight-saving switch skips (São Paulo, 4
    * November 2018), the period starts at the day's first instant, 01:00, and
-   * a task updated at that very instant is in it with the change made then,
-   * one updated a minute earlier is not. Mutants: a strict comparison, on the
-   * task or on its change log; the server's zone.
+   * a task updated at that very instant is in it with the change and the
+   * comment made then, not the comment made a minute earlier, and a task
+   * updated a minute earlier is not in it. Mutants: a strict comparison, on
+   * the task, its change log or its comments; the server's zone.
    */
   @Test
   public void listProjectActivitySinceStartsAtTheFirstInstantOfASkippedMidnight() throws Exception { // NOSONAR
@@ -3720,12 +3721,30 @@ public class TaskMcpToolTest {
     when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(List.of(changedAtFirstInstant));
     when(taskService.getTaskLogs(eq(13L), anyInt(), anyInt())).thenReturn(Collections.emptyList());
     when(commentService.getLastComment(anyLong())).thenReturn(null);
-    when(commentService.countComments(anyLong())).thenReturn(0);
+    when(commentService.countComments(TASK_ID)).thenReturn(2);
+    when(commentService.countComments(13L)).thenReturn(0);
+    when(commentService.getCommentsWithSubs(TASK_ID, 0, 2)).thenReturn(List.of(commentAt(firstInstant),
+                                                                              commentAt(firstInstant.minusSeconds(60))));
 
     ProjectActivityModel result = runWithDateFormatMockResult(() -> saoPauloTool.listProjectActivitySince(null, 7));
 
     assertEquals(List.of(TASK_ID), result.getLastUpdatedTasks().stream().map(TaskWithChangeLogModel::getId).toList());
-    assertEquals(1, result.getLastUpdatedTasks().get(0).getChangeLogs().size());
+    // the change and the comment made at the first instant, not the comment a minute earlier
+    List<String> actions = result.getLastUpdatedTasks().get(0).getChangeLogs().stream().map(TaskChangeLog::getActionId).toList();
+    assertEquals(2, actions.size());
+    assertEquals(Set.of("editTitle", "commented"), Set.copyOf(actions));
+  }
+
+  /**
+   * @param createdTime when the comment was posted
+   * @return a comment of another user, posted then, with no reply
+   */
+  private static CommentDto commentAt(Instant createdTime) {
+    CommentDto comment = new CommentDto();
+    comment.setAuthor(OTHER_USER);
+    comment.setCreatedTime(Date.from(createdTime));
+    comment.setSubComments(Collections.emptyList());
+    return comment;
   }
 
   /**
