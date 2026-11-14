@@ -1028,6 +1028,119 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * list_assigned_tasks tells each task's relation to the user and splits
+   * its count the same way: a task assigned to the user is assignee, also
+   * when the user is a coworker of it, a task of another assignee the user
+   * is a coworker of is coworker; assigned_count counts the listed query
+   * restricted to the user as assignee, its filters kept, overdue_only
+   * included, and coworker_count the rest of count. list_tasks carries
+   * neither field. Mutants: relation read from the coworkers, so a task with
+   * the user as both is coworker; coworker_count equal to count; the
+   * assigned count without the listing's filters; the fields on list_tasks.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listAssignedTasksTellsEachRelationAndSplitsTheCount() throws Exception { // NOSONAR
+    TaskDto assigned = mockTask();
+    when(assigned.getAssignee()).thenReturn(USER);
+    TaskDto coworked = mockTask();
+    when(coworked.getAssignee()).thenReturn("mary");
+    lenient().when(coworked.getCoworker()).thenReturn(Set.of(USER));
+    TaskDto both = mockTask();
+    when(both.getAssignee()).thenReturn(USER);
+    lenient().when(both.getCoworker()).thenReturn(Set.of(USER, "mary"));
+    when(both.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-07T00:00:00+02:00")));
+    ArgumentCaptor<TaskQuery> listed = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(listed.capture(), eq(0), eq(10))).thenReturn(List.of(assigned, coworked, both));
+    ArgumentCaptor<TaskQuery> overdue = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findTasks(overdue.capture(), eq(0), eq(10))).thenReturn(List.of(both));
+    when(taskService.countTasks(any())).thenAnswer(invocation -> {
+      TaskQuery counted = invocation.getArgument(0);
+      return ((AggregateCondition) counted.getCondition()).getConditions()
+                                                          .stream()
+                                                          .anyMatch(c -> c instanceof SingleCondition<?> single
+                                                              && "assignee".equals(single.getField())) ? 2 : 3;
+    });
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, null, null, null, null, null, null, null, null));
+
+    assertEquals(List.of(TaskMcpTool.RELATION_ASSIGNEE, TaskMcpTool.RELATION_COWORKER, TaskMcpTool.RELATION_ASSIGNEE),
+                 result.getTasks().stream().map(task -> ((TaskListItemModel) task).getRelation()).toList());
+    assertEquals(3L, result.getCount());
+    assertEquals(Long.valueOf(2), result.getAssignedCount());
+    assertEquals(Long.valueOf(1), result.getCoworkerCount());
+    ArgumentCaptor<TaskQuery> counted = ArgumentCaptor.forClass(TaskQuery.class);
+    verify(taskService, times(2)).countTasks(counted.capture());
+    assertRestrictedToTheAssignee(listed.getValue(), counted.getAllValues());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(result));
+    assertEquals(2, json.path("assigned_count").asInt());
+    assertEquals(1, json.path("coworker_count").asInt());
+    assertEquals("coworker", json.path("tasks").path(1).path("relation").asString());
+
+    runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, null, true, null, null, null, null, null, null));
+    verify(taskService, times(4)).countTasks(counted.capture());
+    List<TaskQuery> overdueCounts = counted.getAllValues().subList(counted.getAllValues().size() - 2, counted.getAllValues().size());
+    assertRestrictedToTheAssignee(overdue.getValue(), overdueCounts);
+    assertEquals(findDueDateBefore(overdue.getValue()), findDueDateBefore(overdueCounts.get(1)));
+
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(assigned));
+    TaskCollectionModel tasks = runWithDateFormatMockResult(() -> tool.listTasks(null,
+                                                                                true,
+                                                                                false,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null,
+                                                                                null));
+    JsonNode tasksJson = JSON.readTree(JSON.writeValueAsString(tasks));
+    assertFalse(tasksJson.has("assigned_count"));
+    assertFalse(tasksJson.has("coworker_count"));
+    assertFalse(tasksJson.path("tasks").path(0).has("relation"));
+  }
+
+  /**
+   * @param condition a query condition
+   * @return its type, field and value, those of its conditions for an
+   *         aggregate, its class for another kind, so that a condition and
+   *         its clone read the same
+   */
+  private static String describe(Condition condition) {
+    if (condition instanceof AggregateCondition aggregate) {
+      return aggregate.getType() + aggregate.getConditions().stream().map(TaskMcpToolTest::describe).toList();
+    }
+    if (condition instanceof SingleCondition<?> single) {
+      return single.getType() + " " + single.getField() + " " + single.getValue();
+    }
+    return condition.getClass().getSimpleName();
+  }
+
+  /**
+   * @param listed the query a listing read its tasks with
+   * @param counts the two queries it counted with, in their order
+   */
+  private static void assertRestrictedToTheAssignee(TaskQuery listed, List<TaskQuery> counts) {
+    assertSame("count reads the listed query", listed, counts.get(0));
+    List<Condition> listedConditions = ((AggregateCondition) listed.getCondition()).getConditions();
+    List<Condition> assignedConditions = ((AggregateCondition) counts.get(1).getCondition()).getConditions();
+    assertEquals(listedConditions.size() + 1, assignedConditions.size());
+    assertEquals(listedConditions.stream().map(TaskMcpToolTest::describe).toList(),
+                 assignedConditions.subList(0, listedConditions.size()).stream().map(TaskMcpToolTest::describe).toList());
+    SingleCondition<?> assignee = (SingleCondition<?>) assignedConditions.get(listedConditions.size());
+    assertEquals("assignee", assignee.getField());
+    assertEquals(List.of(USER), assignee.getValue());
+  }
+
+  /**
    * changed_since on list_tasks of a project narrows the project's tasks to
    * those with a status, project, due date, assignee or completion change
    * at or after the start of that day in the user's time zone, completed
@@ -2618,8 +2731,9 @@ public class TaskMcpToolTest {
 
   /**
    * Without include_description, null or false, a compact item of list_tasks
-   * and of list_assigned_tasks keeps its keys: neither description nor
-   * description_truncated, and the description is not even read. Mutants:
+   * and of list_assigned_tasks keeps its keys, relation besides for the
+   * latter: neither description nor description_truncated, and the
+   * description is not even read. Mutants:
    * the description always added; a false truncation flag serialised.
    *
    * @throws Exception never
@@ -2638,9 +2752,20 @@ public class TaskMcpToolTest {
                                                                                                                                                                   .get(0);
 
       assertEquals(DEFAULT_ITEM_KEYS, fieldNames(JSON.readTree(JSON.writeValueAsString(listed))));
-      assertEquals(DEFAULT_ITEM_KEYS, fieldNames(JSON.readTree(JSON.writeValueAsString(assigned))));
+      assertEquals(withRelation(DEFAULT_ITEM_KEYS), fieldNames(JSON.readTree(JSON.writeValueAsString(assigned))));
     }
     verify(task, never()).getDescription();
+  }
+
+  /**
+   * @param keys the keys of a compact item
+   * @return those keys and relation, which an item of list_assigned_tasks
+   *         carries besides
+   */
+  private static Set<String> withRelation(Set<String> keys) {
+    Set<String> withRelation = new HashSet<>(keys);
+    withRelation.add("relation");
+    return withRelation;
   }
 
   /**
@@ -2669,7 +2794,7 @@ public class TaskMcpToolTest {
 
     for (List<?> items : List.of(listed, assigned)) {
       JsonNode shortItem = JSON.readTree(JSON.writeValueAsString(items.get(0)));
-      Set<String> withDescription = new HashSet<>(DEFAULT_ITEM_KEYS);
+      Set<String> withDescription = items == assigned ? withRelation(DEFAULT_ITEM_KEYS) : new HashSet<>(DEFAULT_ITEM_KEYS);
       withDescription.add("description");
       assertEquals(withDescription, fieldNames(shortItem));
       assertEquals(QUALIFICATION_TEXT, shortItem.path("description").asString());
