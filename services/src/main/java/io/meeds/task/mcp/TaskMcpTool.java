@@ -165,6 +165,15 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private static final int              MAX_TO_LOAD                     = 100;
 
+  /**
+   * The most tasks list_project_activity_since returns, both lists together:
+   * each one carries its change log and comments of the period.
+   */
+  private static final int              MAX_ACTIVITY_TASKS              = 20;
+
+  /** The page size list_project_activity_since reads the tasks by. */
+  private static final int              ACTIVITY_PAGE_SIZE              = 10;
+
   private static final String           MSG_TASK_NOT_EDITABLE           =
                                                               "Task with identifier '%s' is not editable for user '%s'";
 
@@ -1742,10 +1751,19 @@ public class TaskMcpTool implements McpToolPlugin {
    * number of days ago, in the user's time zone, the server's when they have
    * none: the day's first instant when a daylight-saving switch skips its
    * midnight. A task updated at that very instant is in the period.
+   * <p>
+   * At most {@value #MAX_ACTIVITY_TASKS} tasks in all, each with its change
+   * log and comments of the period: the updated ones first, the most recently
+   * active first, then as many other uncompleted ones as there is room for.
+   * The tasks are read in their last-activity order, in which the updated ones
+   * come first, and only the tasks returned are read in full. The answer says
+   * whether more tasks exist than it holds, and how many uncompleted tasks the
+   * project has.
    *
    * @param projectId the project, or null for every project the user sees
    * @param days the number of days to look back
-   * @return the tasks updated in the period, then the other uncompleted ones
+   * @return the tasks updated in the period, then the other uncompleted ones,
+   *         whether more exist and the count of uncompleted tasks
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
    */
@@ -1753,47 +1771,67 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                                      ObjectNotFoundException {
     long count = countTaskModels(projectId, false);
     if (count == 0) {
-      return new ProjectActivityModel(Collections.emptyList(), Collections.emptyList());
+      return new ProjectActivityModel(Collections.emptyList(), Collections.emptyList(), false, 0L);
     } else {
-      List<TaskWithChangeLogModel> updatedTasks = new ArrayList<>();
-      List<TaskWithChangeLogModel> uncompletedTasks = new ArrayList<>();
       ZoneId zone = getCurrentUserZone();
       LocalDate today = getToday(zone);
 
       // the period starts at midnight of the user's day, in the user's zone
       Instant sinceInstant = today.minusDays(days).atStartOfDay(zone).toInstant();
 
+      // the updated tasks come first in the last-activity order: stop at the
+      // first page they don't fill, or once one more than the cap is found
+      List<TaskDto> updatedTasks = new ArrayList<>();
+      boolean hasMore = false;
       int offset = 0;
-      int limit = 10;
+      int updatedInPage;
       do {
-        List<TaskWithChangeLogModel> taskModels = getTasks(projectId, offset, limit, false).stream()
-                                                                                           .filter(t -> !Instant.ofEpochMilli(getLastUpdateDate(t).getTime())
-                                                                                                                .isBefore(sinceInstant))
-                                                                                           .map(t -> toTaskWithChangeLogModel(t,
-                                                                                                                              sinceInstant,
-                                                                                                                              zone,
-                                                                                                                              today))
-                                                                                           .toList();
-        updatedTasks.addAll(taskModels);
-        if (taskModels.size() < limit) {
-          break;
-        } else {
-          offset += limit;
+        updatedInPage = 0;
+        for (TaskDto task : getTasks(projectId, offset, ACTIVITY_PAGE_SIZE, false)) {
+          if (!Instant.ofEpochMilli(getLastUpdateDate(task).getTime()).isBefore(sinceInstant)) {
+            updatedInPage++;
+            if (updatedTasks.size() < MAX_ACTIVITY_TASKS) {
+              updatedTasks.add(task);
+            } else {
+              hasMore = true;
+              break;
+            }
+          }
         }
-      } while (offset < count);
+        offset += ACTIVITY_PAGE_SIZE;
+      } while (!hasMore && updatedInPage == ACTIVITY_PAGE_SIZE && offset < count);
 
-      count = countTaskModels(projectId, false);
+      // then the other uncompleted tasks, as many as there is room for, and
+      // one more to tell whether more exist
+      long uncompletedCount = countTaskModels(projectId, true);
+      int room = MAX_ACTIVITY_TASKS - updatedTasks.size();
+      List<TaskDto> uncompletedTasks = new ArrayList<>();
       offset = 0;
-      limit = 10;
-      do {
-        getTasks(projectId, offset, limit, true).stream()
-                                                .filter(t -> Instant.ofEpochMilli(getLastUpdateDate(t).getTime())
-                                                                    .isBefore(sinceInstant))
-                                                .map(t -> toTaskWithChangeLogModel(t, sinceInstant, zone, today))
-                                                .forEach(uncompletedTasks::add);
-        offset += limit;
-      } while (offset < count);
-      return new ProjectActivityModel(updatedTasks, uncompletedTasks);
+      while (!hasMore && offset < uncompletedCount) {
+        List<TaskDto> page = getTasks(projectId, offset, ACTIVITY_PAGE_SIZE, true);
+        for (TaskDto task : page) {
+          if (Instant.ofEpochMilli(getLastUpdateDate(task).getTime()).isBefore(sinceInstant)) {
+            if (uncompletedTasks.size() < room) {
+              uncompletedTasks.add(task);
+            } else {
+              hasMore = true;
+              break;
+            }
+          }
+        }
+        if (page.size() < ACTIVITY_PAGE_SIZE) {
+          break;
+        }
+        offset += ACTIVITY_PAGE_SIZE;
+      }
+      return new ProjectActivityModel(updatedTasks.stream()
+                                                  .map(t -> toTaskWithChangeLogModel(t, sinceInstant, zone, today))
+                                                  .toList(),
+                                      uncompletedTasks.stream()
+                                                      .map(t -> toTaskWithChangeLogModel(t, sinceInstant, zone, today))
+                                                      .toList(),
+                                      hasMore,
+                                      uncompletedCount);
     }
   }
 

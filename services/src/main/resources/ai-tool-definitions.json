@@ -178,7 +178,7 @@
     {
       "name": "list_project_activity_since",
       "title": "Get Project Activity since last days",
-      "description": "Retrieve a project activity since a designated date and list all other uncompleted tasks.",
+      "description": "Lists a project's tasks updated in the last days, the most recently active first, each with its changes and comments of the period, then its other uncompleted tasks: at most 20 tasks in all. The period starts at midnight of the user's day, that number of days ago. has_more is true when the project has more such tasks than shown: to list every uncompleted task of the project, page list_tasks with project_id and hide_completed_tasks true. uncompleted_count is the count of the project's uncompleted tasks.",
       "input_schema": {
         "type": "object",
         "properties": {

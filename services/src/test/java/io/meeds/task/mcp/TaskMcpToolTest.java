@@ -59,6 +59,7 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.stream.LongStream;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -1981,6 +1982,8 @@ public class TaskMcpToolTest {
 
     assertEquals(0, result.getLastUpdatedTasks().size());
     assertEquals(0, result.getOtherUncompletedTasks().size());
+    assertFalse(result.isHasMore());
+    assertEquals(0, result.getUncompletedCount());
   }
 
   @Test
@@ -3456,6 +3459,172 @@ public class TaskMcpToolTest {
     List<String> actions = result.getLastUpdatedTasks().get(0).getChangeLogs().stream().map(TaskChangeLog::getActionId).toList();
     assertEquals(2, actions.size());
     assertEquals(Set.of("editTitle", "commented"), Set.copyOf(actions));
+  }
+
+  /**
+   * list_project_activity_since returns at most 20 tasks: of 25 updated in the
+   * period, the 20 most recently active, no older one, and has_more; only
+   * those 20 are read in full. Mutants: the cap at 21; the tasks read in full
+   * before the cap.
+   */
+  @Test
+  public void listProjectActivitySinceListsAtMostTwentyUpdatedTasks() throws Exception { // NOSONAR
+    mockProjectActivity(25, 0, 0);
+
+    ProjectActivityModel result = runWithDateFormatMockResult(() -> tool.listProjectActivitySince(null, 7));
+
+    assertEquals(LongStream.range(100, 120).boxed().toList(),
+                 result.getLastUpdatedTasks().stream().map(TaskWithChangeLogModel::getId).toList());
+    assertEquals(List.of(), result.getOtherUncompletedTasks());
+    assertTrue(result.isHasMore());
+    verify(commentService, times(20)).countComments(anyLong());
+  }
+
+  /**
+   * Below the cap, the older uncompleted tasks fill the room the updated ones
+   * leave, the most recently active first, never a completed one: 15
+   * updated and 10 older give 15 and 5, and has_more. The read of all tasks
+   * stops at the first page the updated ones don't fill. Mutants: the older
+   * tasks past the room; the completed tasks read among the older ones; the
+   * read of all tasks past that page.
+   */
+  @Test
+  public void listProjectActivitySinceFillsTheRestWithOlderUncompletedTasks() throws Exception { // NOSONAR
+    mockProjectActivity(15, 10, 3);
+
+    ProjectActivityModel result = runWithDateFormatMockResult(() -> tool.listProjectActivitySince(null, 7));
+
+    assertEquals(15, result.getLastUpdatedTasks().size());
+    assertEquals(LongStream.range(200, 205).boxed().toList(),
+                 result.getOtherUncompletedTasks().stream().map(TaskWithChangeLogModel::getId).toList());
+    assertTrue(result.isHasMore());
+    verify(taskService, times(2)).findLastUpdatedTasks(argThat(query -> !isUncompletedOnly(query)), anyInt(), anyInt());
+  }
+
+  /**
+   * A project of exactly 20 such tasks fits: 15 updated and 5 older are all
+   * returned, without has_more, whatever completed tasks the project holds.
+   * Mutants: has_more set at the cap rather than past it; the completed tasks
+   * read among the older ones.
+   */
+  @Test
+  public void listProjectActivitySinceHasNoMoreWhenTheTasksFitTheCap() throws Exception { // NOSONAR
+    mockProjectActivity(15, 5, 3);
+
+    ProjectActivityModel result = runWithDateFormatMockResult(() -> tool.listProjectActivitySince(null, 7));
+
+    assertEquals(15, result.getLastUpdatedTasks().size());
+    assertEquals(LongStream.range(200, 205).boxed().toList(),
+                 result.getOtherUncompletedTasks().stream().map(TaskWithChangeLogModel::getId).toList());
+    assertFalse(result.isHasMore());
+  }
+
+  /**
+   * Twenty updated tasks fill the cap: one older uncompleted task left out
+   * sets has_more, which none does not. Mutant: the older tasks not read once
+   * the updated ones fill the cap.
+   */
+  @Test
+  public void listProjectActivitySinceHasMoreWhenAnOlderTaskIsLeftOut() throws Exception { // NOSONAR
+    mockProjectActivity(20, 1, 0);
+
+    ProjectActivityModel result = runWithDateFormatMockResult(() -> tool.listProjectActivitySince(null, 7));
+
+    assertEquals(20, result.getLastUpdatedTasks().size());
+    assertEquals(List.of(), result.getOtherUncompletedTasks());
+    assertTrue(result.isHasMore());
+  }
+
+  /**
+   * Twenty updated tasks and no older one: all are returned, without
+   * has_more.
+   */
+  @Test
+  public void listProjectActivitySinceHasNoMoreWhenTwentyUpdatedTasksAreAll() throws Exception { // NOSONAR
+    mockProjectActivity(20, 0, 0);
+
+    ProjectActivityModel result = runWithDateFormatMockResult(() -> tool.listProjectActivitySince(null, 7));
+
+    assertEquals(20, result.getLastUpdatedTasks().size());
+    assertFalse(result.isHasMore());
+  }
+
+  /**
+   * uncompleted_count is the count of the project's uncompleted tasks, not of
+   * all its tasks. Mutant: the count of all tasks.
+   */
+  @Test
+  public void listProjectActivitySinceCountsTheUncompletedTasks() throws Exception { // NOSONAR
+    mockProjectActivity(3, 2, 4);
+
+    ProjectActivityModel result = runWithDateFormatMockResult(() -> tool.listProjectActivitySince(null, 7));
+
+    assertEquals(5, result.getUncompletedCount());
+    assertFalse(result.isHasMore());
+  }
+
+  /**
+   * Stubs a project for list_project_activity_since: uncompleted tasks updated
+   * yesterday (ids from 100), then completed ones updated 20 days ago (ids
+   * from 300) and uncompleted ones updated 30 days ago (ids from 200), in the
+   * last-activity order. The read of all tasks pages through every one, the
+   * read of the uncompleted ones leaves the completed out, and each count
+   * counts what its read pages through.
+   *
+   * @param updated the uncompleted tasks updated in the period
+   * @param older the uncompleted tasks updated before it
+   * @param completed the completed tasks updated before it
+   */
+  @SneakyThrows
+  private void mockProjectActivity(int updated, int older, int completed) {
+    List<TaskDto> uncompletedTasks = new ArrayList<>();
+    List<TaskDto> allTasks = new ArrayList<>();
+    Date yesterday = Date.from(TODAY.minusDays(1).atTime(12, 0).atZone(USER_ZONE).toInstant());
+    Date twentyDaysAgo = Date.from(TODAY.minusDays(20).atTime(12, 0).atZone(USER_ZONE).toInstant());
+    Date monthAgo = Date.from(TODAY.minusDays(30).atTime(12, 0).atZone(USER_ZONE).toInstant());
+    for (int i = 0; i < updated; i++) {
+      uncompletedTasks.add(mockTaskWithProject(100L + i, yesterday));
+    }
+    allTasks.addAll(uncompletedTasks);
+    for (int i = 0; i < completed; i++) {
+      allTasks.add(mockTaskWithProject(300L + i, twentyDaysAgo));
+    }
+    for (int i = 0; i < older; i++) {
+      TaskDto task = mockTaskWithProject(200L + i, monthAgo);
+      uncompletedTasks.add(task);
+      allTasks.add(task);
+    }
+    when(taskService.countTasks(any())).thenAnswer(invocation -> isUncompletedOnly(invocation.getArgument(0)) ? uncompletedTasks.size()
+                                                                                                                : allTasks.size());
+    when(taskService.findLastUpdatedTasks(any(), anyInt(), anyInt())).thenAnswer(invocation -> {
+      List<TaskDto> tasks = isUncompletedOnly(invocation.getArgument(0)) ? uncompletedTasks : allTasks;
+      int offset = invocation.getArgument(1);
+      int limit = invocation.getArgument(2);
+      return tasks.subList(Math.min(offset, tasks.size()), Math.min(offset + limit, tasks.size()));
+    });
+    when(taskService.getTaskLogs(anyLong(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    when(commentService.getLastComment(anyLong())).thenReturn(null);
+    when(commentService.countComments(anyLong())).thenReturn(0);
+  }
+
+  /**
+   * @param query a task query
+   * @return true when it leaves the completed tasks out
+   */
+  private static boolean isUncompletedOnly(TaskQuery query) {
+    return query != null && restrictsField(query.getCondition(), "completed");
+  }
+
+  /**
+   * @param condition a query condition, null for none
+   * @param field a task field
+   * @return true when it, or one of its conditions, is on that field
+   */
+  private static boolean restrictsField(Condition condition, String field) {
+    if (condition instanceof AggregateCondition aggregate) {
+      return aggregate.getConditions().stream().anyMatch(c -> restrictsField(c, field));
+    }
+    return condition instanceof SingleCondition<?> single && field.equals(single.getField());
   }
 
   /**
