@@ -4,14 +4,15 @@
     {
       "name": "list_projects",
       "title": "List Task Projects",
-      "description": "List task projects accessible to the current user, optionally filtered by space, the most recently modified first. In a run limited to a space, only the projects managed through that space are listed. To find a project by its name, pass name: the projects whose name holds all its words, ignoring case; when none does, those holding any one of them. Compact items; get_project_by_id for details. While has_more, call again with offset=next_offset.",
+      "description": "List task projects accessible to the current user, optionally filtered by space, the most recently modified first. In a run limited to a space, only the projects managed through that space are listed. To find a project by its name, pass name: the projects whose name holds all its words, ignoring case; when none does, those holding any one of them. With managed_only, only the projects the user manages: named among their managers, or a manager of the space that holds the project (with space_id, the projects whose managers hold one of the user's roles of that space); wider than the Tasks app's \"I manage\" filter, which lists only the projects naming the user. Compact items; get_project_by_id for details. While has_more, call again with offset=next_offset: a question about every project needs every page.",
       "input_schema": {
         "type": "object",
         "properties": {
           "space_id": {"type": "integer" },
           "offset": { "type": "integer" },
           "limit": { "type": "integer", "description": "Default 10, max 100." },
-          "name": { "type": "string", "description": "Words of the project name: projects holding all of them, ignoring case; when none does, any one of them." }
+          "name": { "type": "string", "description": "Words of the project name: projects holding all of them, ignoring case; when none does, any one of them." },
+          "managed_only": { "type": "boolean", "description": "true: only the projects the user manages. Default false: the projects the user manages or takes part in." }
         }
       },
       "annotations": {
@@ -20,7 +21,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "space_arg": "space_id", "when_absent": "use_scope", "allowed_args": ["offset", "limit", "name"] }
+      "space_scope": { "space_arg": "space_id", "when_absent": "use_scope", "allowed_args": ["offset", "limit", "name", "managed_only"] }
     },
     {
       "name": "get_project_by_id",
