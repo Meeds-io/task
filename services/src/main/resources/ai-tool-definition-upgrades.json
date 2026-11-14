@@ -1,6 +1,12 @@
 {
   "tools": [
     {
+      "name": "list_project_activity_since",
+      "replaced_definitions": [
+        "0648b6b3cc88c4567304a1730b8a9ac39b7f69a62acddd8c2aa2235831c15b04"
+      ]
+    },
+    {
       "name": "list_assigned_tasks",
       "replaced_definitions": [
         "041b710713ed2aa79237c24facbb6fcbdeafa218f0b781f83bf0d5386e006294",

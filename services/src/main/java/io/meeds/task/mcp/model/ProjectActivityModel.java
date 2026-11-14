@@ -37,4 +37,12 @@ public class ProjectActivityModel {
   @JsonProperty("other_uncompleted_tasks")
   private List<TaskWithChangeLogModel> otherUncompletedTasks;
 
+  /** Whether the project has more such tasks than the answer holds. */
+  @JsonProperty("has_more")
+  private boolean                      hasMore;
+
+  /** The project's uncompleted tasks, whatever their last activity. */
+  @JsonProperty("uncompleted_count")
+  private long                         uncompletedCount;
+
 }

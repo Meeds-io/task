@@ -58,7 +58,9 @@ public class TaskToolDefinitionUpgradesTest {
                                                                             "list_assigned_tasks",
                                                                             15,
                                                                             "list_projects",
-                                                                            5);
+                                                                            5,
+                                                                            "list_project_activity_since",
+                                                                            1);
 
   /**
    * The definitions feature/rtd shipped before EXO-94250, which the
@@ -97,9 +99,17 @@ public class TaskToolDefinitionUpgradesTest {
                                                                                   "b184d4331d207cc11557d2a50596ca5a9f1ee9e178a8ad29a257188bcd309c63");
 
   /**
+   * The definition every line shipped before list_project_activity_since was
+   * capped (EXO-94377), the only one it ever had.
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_94377        =
+                                                                           Map.of("list_project_activity_since",
+                                                                                  "0648b6b3cc88c4567304a1730b8a9ac39b7f69a62acddd8c2aa2235831c15b04");
+
+  /**
    * Each changed tool lists every earlier definition, those shipped before
-   * EXO-94250, before EXO-94284, before managed_only and before the relation
-   * included, and not its
+   * EXO-94250, before EXO-94284, before managed_only, before the relation and
+   * before EXO-94377 included, and not its
    * shipped one, which an instance already holding it keeps anyway. Mutants:
    * a digest removed, the shipped digest added, a tool's entry dropped.
    *
@@ -118,7 +128,8 @@ public class TaskToolDefinitionUpgradesTest {
       for (Map<String, String> pinned : List.of(DEFINITIONS_BEFORE_94250,
                                                 DEFINITIONS_BEFORE_94284,
                                                 DEFINITIONS_BEFORE_MANAGED_ONLY,
-                                                DEFINITIONS_BEFORE_RELATION)) {
+                                                DEFINITIONS_BEFORE_RELATION,
+                                                DEFINITIONS_BEFORE_94377)) {
         if (pinned.containsKey(name)) {
           assertTrue(name, digests.contains(pinned.get(name)));
         }
