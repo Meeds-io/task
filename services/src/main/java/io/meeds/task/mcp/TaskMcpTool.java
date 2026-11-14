@@ -1796,7 +1796,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * Lists a project's tasks updated since a number of days, then its other
    * uncompleted tasks. The period starts at midnight of the user's day, that
    * number of days ago, in the user's time zone, the server's when they have
-   * none.
+   * none: the day's first instant when a daylight-saving switch skips its
+   * midnight. A task updated at that very instant is in the period.
    *
    * @param projectId the project, or null for every project the user sees
    * @param days the number of days to look back
@@ -1822,8 +1823,8 @@ public class TaskMcpTool implements McpToolPlugin {
       int limit = 10;
       do {
         List<TaskWithChangeLogModel> taskModels = getTasks(projectId, offset, limit, false).stream()
-                                                                                           .filter(t -> Instant.ofEpochMilli(getLastUpdateDate(t).getTime())
-                                                                                                               .isAfter(sinceInstant))
+                                                                                           .filter(t -> !Instant.ofEpochMilli(getLastUpdateDate(t).getTime())
+                                                                                                                .isBefore(sinceInstant))
                                                                                            .map(t -> toTaskWithChangeLogModel(t,
                                                                                                                               sinceInstant,
                                                                                                                               zone,
