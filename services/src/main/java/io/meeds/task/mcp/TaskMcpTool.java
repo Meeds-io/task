@@ -328,18 +328,30 @@ public class TaskMcpTool implements McpToolPlugin {
    * name holds any one of its words. Each
    * project comes as a list item, without its description, statuses or
    * labels, which {@link #getProjectById(Long)} returns.
+   * <p>
+   * With {@code managed_only}, only the projects the current user manages:
+   * those whose managers hold the user's name or one of the user's
+   * memberships, a project of a space naming the managers of that space, as
+   * {@link ProjectDto#canEdit(Identity)} reads them; otherwise the projects
+   * the user manages or takes part in. Given a space, the memberships are the
+   * user's roles of that space group only, as for the plain list, so a
+   * project naming the user, not a role, among its managers is not selected.
    *
    * @param spaceId the space whose projects are listed, null or not positive
    *          for the projects of the current user
    * @param offset the first project returned
    * @param limit the most projects returned, {@value #MAX_LIMIT} at most
    * @param name words of the name of the projects listed, blank for any
+   * @param managedOnly true for the projects the current user manages only,
+   *          null or false for those the user manages or takes part in
    * @return the projects, with their count and whether more remain
    */
   public ProjectCollectionModel listProjects(Long spaceId,
                                              Integer offset,
                                              Integer limit,
-                                             String name) {
+                                             String name,
+                                             Boolean managedOnly) {
+    boolean managed = Boolean.TRUE.equals(managedOnly);
     boolean spaceGiven = spaceId != null && spaceId > 0;
     Space space = spaceGiven ? spaceService.getSpaceById(spaceId) : null;
     List<String> memberships = getMemberships(space);
@@ -349,9 +361,9 @@ public class TaskMcpTool implements McpToolPlugin {
     if (memberships.isEmpty() || spaceGiven && space == null) {
       return toProjectCollection(Collections.emptyList(), usedOffset, usedLimit, 0);
     } else if (space != null && isSpaceScoped()) {
-      return listSpaceProjects(space, memberships, keyword, usedOffset, usedLimit);
+      return listSpaceProjects(space, memberships, keyword, managed, usedOffset, usedLimit);
     }
-    ProjectQuery allWords = getAllWordsQuery(memberships, keyword);
+    ProjectQuery allWords = getAllWordsQuery(memberships, keyword, managed);
     if (allWords != null) {
       int allWordsCount = projectService.countProjects(allWords);
       if (allWordsCount > 0) {
@@ -361,8 +373,12 @@ public class TaskMcpTool implements McpToolPlugin {
         return toProjectCollection(Collections.emptyList(), usedOffset, usedLimit, 0);
       }
     }
-    List<ProjectListItemModel> projects = getProjectListItems(memberships, keyword, usedOffset, usedLimit);
-    long count = projectService.countProjects(getAnyWordQuery(memberships, keyword));
+    List<ProjectListItemModel> projects = toProjectListItems(findAnyWordProjects(memberships,
+                                                                                 keyword,
+                                                                                 managed,
+                                                                                 usedOffset,
+                                                                                 usedLimit));
+    long count = projectService.countProjects(getAnyWordQuery(memberships, keyword, managed));
     return toProjectCollection(projects, usedOffset, usedLimit, count);
   }
 
@@ -375,14 +391,60 @@ public class TaskMcpTool implements McpToolPlugin {
    *
    * @param memberships the memberships whose projects are counted
    * @param keyword words of the name of the projects, null for any
+   * @param managed true for the projects whose managers hold one of the
+   *          memberships only
    * @return the query
    */
-  private ProjectQuery getAnyWordQuery(List<String> memberships, String keyword) {
-    ProjectQuery query = new ProjectQuery();
-    query.setMembership(memberships);
+  private ProjectQuery getAnyWordQuery(List<String> memberships, String keyword, boolean managed) {
+    ProjectQuery query = newProjectQuery(memberships, managed);
     query.setKeyword(keyword);
+    return query;
+  }
+
+  /**
+   * Builds the query of the projects the memberships reach, the most
+   * recently modified first: through the managers only, or through the
+   * managers and the participants.
+   *
+   * @param memberships the memberships whose projects are selected
+   * @param managed true for the projects whose managers hold one of the
+   *          memberships only, false for those whose managers or
+   *          participants do
+   * @return the query, without a name condition
+   */
+  private ProjectQuery newProjectQuery(List<String> memberships, boolean managed) {
+    ProjectQuery query = new ProjectQuery();
+    if (managed) {
+      query.setManager(memberships);
+    } else {
+      query.setMembership(memberships);
+    }
     query.setOrderBy(List.of(new OrderBy.DESC("lastModifiedDate")));
     return query;
+  }
+
+  /**
+   * Reads the projects the memberships reach whose name holds any one word of
+   * the keyword, the most recently modified first: the selection
+   * {@link #getAnyWordQuery(List, String, boolean)} counts.
+   *
+   * @param memberships the memberships whose projects are read
+   * @param keyword words of the name of the projects, null for any
+   * @param managed true for the projects whose managers hold one of the
+   *          memberships only
+   * @param offset the first project read
+   * @param limit the most projects read
+   * @return the projects
+   */
+  private List<ProjectDto> findAnyWordProjects(List<String> memberships,
+                                               String keyword,
+                                               boolean managed,
+                                               int offset,
+                                               int limit) {
+    if (managed) {
+      return projectService.findProjects(getAnyWordQuery(memberships, keyword, true), offset, limit);
+    }
+    return projectService.findProjects(memberships, keyword, new OrderBy.DESC("lastModifiedDate"), offset, limit);
   }
 
   /**
@@ -402,16 +464,16 @@ public class TaskMcpTool implements McpToolPlugin {
    *
    * @param memberships the memberships whose projects are listed
    * @param keyword words of the name of the projects, null for any
+   * @param managed true for the projects whose managers hold one of the
+   *          memberships only
    * @return the query, or null when there is no keyword
    */
-  private ProjectQuery getAllWordsQuery(List<String> memberships, String keyword) {
+  private ProjectQuery getAllWordsQuery(List<String> memberships, String keyword, boolean managed) {
     if (keyword == null) {
       return null;
     }
-    ProjectQuery query = new ProjectQuery();
-    query.setMembership(memberships);
+    ProjectQuery query = newProjectQuery(memberships, managed);
     query.setNameWords(keyword);
-    query.setOrderBy(List.of(new OrderBy.DESC("lastModifiedDate")));
     return query;
   }
 
@@ -548,18 +610,21 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param space an existing space
    * @param memberships the roles of the space group the current user holds
    * @param keyword words of the name of the projects, null for any
+   * @param managed true for the projects whose managers hold one of the
+   *          memberships only
    * @param offset the first project returned, not negative
    * @param limit the most projects returned, positive
    * @return the projects of that space among those the memberships reach,
    *         with the count described on
-   *         {@link #listProjects(Long, Integer, Integer, String)}
+   *         {@link #listProjects(Long, Integer, Integer, String, Boolean)}
    */
   private ProjectCollectionModel listSpaceProjects(Space space,
                                                    List<String> memberships,
                                                    String keyword,
+                                                   boolean managed,
                                                    int offset,
                                                    int limit) {
-    ProjectQuery allWords = getAllWordsQuery(memberships, keyword);
+    ProjectQuery allWords = getAllWordsQuery(memberships, keyword, managed);
     if (allWords != null) {
       List<ProjectDto> ofSpace = Collections.emptyList();
       if (projectService.countProjects(allWords) > 0) {
@@ -570,11 +635,7 @@ public class TaskMcpTool implements McpToolPlugin {
       }
     }
     List<ProjectDto> ofSpace = scanSpaceProjects(space,
-                                                 (from, size) -> projectService.findProjects(memberships,
-                                                                                             keyword,
-                                                                                             new OrderBy.DESC("lastModifiedDate"),
-                                                                                             from,
-                                                                                             size),
+                                                 (from, size) -> findAnyWordProjects(memberships, keyword, managed, from, size),
                                                  offset + limit + 1);
     return toSpaceProjectCollection(ofSpace, offset, limit);
   }
@@ -1740,23 +1801,6 @@ public class TaskMcpTool implements McpToolPlugin {
       } while (offset < count);
       return new ProjectActivityModel(updatedTasks, uncompletedTasks);
     }
-  }
-
-  /**
-   * @param memberships the memberships whose projects are listed
-   * @param keyword words of the name of the projects, null for any
-   * @param offset the first project returned
-   * @param limit the most projects returned
-   * @return the projects of the page, the most recently modified first, as
-   *         list items
-   */
-  private List<ProjectListItemModel> getProjectListItems(List<String> memberships, String keyword, int offset, int limit) {
-    List<ProjectDto> projects = projectService.findProjects(memberships,
-                                                            keyword,
-                                                            new OrderBy.DESC("lastModifiedDate"),
-                                                            offset,
-                                                            limit);
-    return toProjectListItems(projects);
   }
 
   /**

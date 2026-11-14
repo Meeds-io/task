@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -169,6 +170,51 @@ public class TestProjectDAO extends AbstractTest {
       ListAccess<Project> projects = pDAO.findProjects(query);
       Assert.assertEquals(List.of(board.getId()), Arrays.stream(projects.load(0, 10)).map(Project::getId).toList());
       Assert.assertEquals("keyword " + keyword, 1, projects.getSize());
+    }
+  }
+
+  /**
+   * The selection list_projects reads with managed_only: the memberships
+   * against the managers only. A project naming the user among its managers
+   * and one whose managers are the managers of a space the user manages are
+   * selected, each counted once although the first matches two memberships;
+   * a project the user only takes part in, and one the user is in neither
+   * way, are not. The memberships against the managers and the participants
+   * select the project the user takes part in too. Mutants: the participants
+   * read for the managed selection; the count not distinct.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testManagedProjectsAreThoseWhoseManagersHoldTheMemberships() throws Exception {
+    List<String> memberships = List.of("root", "*:/spaces/seed", "manager:/spaces/seed");
+    Project named = pDAO.create(new Project("Seed Board Named", null, null, Set.of("root", "manager:/spaces/seed"), null));
+    Project ofSpace = pDAO.create(new Project("Seed Board Space",
+                                              null,
+                                              null,
+                                              Set.of("manager:/spaces/seed"),
+                                              Set.of("member:/spaces/seed")));
+    Project takesPart = pDAO.create(new Project("Seed Board Part", null, null, Set.of("mary"), Set.of("root")));
+    pDAO.create(new Project("Seed Board Other", null, null, Set.of("mary"), Set.of("john")));
+
+    for (String keyword : Arrays.asList(null, "board orbit")) {
+      ProjectQuery managed = new ProjectQuery();
+      managed.setManager(memberships);
+      managed.setKeyword(keyword);
+      managed.setOrderBy(List.of(new OrderBy.DESC("lastModifiedDate")));
+      ListAccess<Project> managedProjects = pDAO.findProjects(managed);
+      Assert.assertEquals("keyword " + keyword,
+                          Set.of(named.getId(), ofSpace.getId()),
+                          Arrays.stream(managedProjects.load(0, 10)).map(Project::getId).collect(Collectors.toSet()));
+      Assert.assertEquals("keyword " + keyword, 2, managedProjects.getSize());
+
+      ProjectQuery reached = new ProjectQuery();
+      reached.setMembership(memberships);
+      reached.setKeyword(keyword);
+      reached.setOrderBy(List.of(new OrderBy.DESC("lastModifiedDate")));
+      Assert.assertEquals("keyword " + keyword,
+                          Set.of(named.getId(), ofSpace.getId(), takesPart.getId()),
+                          Arrays.stream(pDAO.findProjects(reached).load(0, 10)).map(Project::getId).collect(Collectors.toSet()));
     }
   }
 
