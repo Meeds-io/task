@@ -159,10 +159,11 @@ public class TaskToolDefinitionSpaceScopeTest {
 
   /**
    * The project list reads the call's space when it names none, takes its
-   * space only through {@code space_id}, and may carry its paging and the
-   * name filter, which narrows the projects of that space, nothing else.
-   * Mutant: {@code when_absent} dropped, so an absent space is refused; or
-   * the space argument renamed.
+   * space only through {@code space_id}, and may carry its paging, the name
+   * filter and {@code managed_only}, which narrow the projects of that space,
+   * nothing else. Mutant: {@code when_absent} dropped, so an absent space is
+   * refused; the space argument renamed; {@code managed_only} not allowed,
+   * so a run limited to a space drops it.
    */
   @Test
   public void projectListUsesTheScopeSpaceWhenAbsent() {
@@ -172,11 +173,12 @@ public class TaskToolDefinitionSpaceScopeTest {
     assertTrue(scope.isSpaceKind());
     assertEquals("space_id", scope.getSpaceArg());
     assertTrue(scope.isUseScopeWhenAbsent());
-    assertEquals(List.of("offset", "limit", "name"), allowed(tool));
+    assertEquals(List.of("offset", "limit", "name", "managed_only"), allowed(tool));
     assertTrue(tool.getDescription().contains("In a run limited to a space, only the projects managed through that space"));
     JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
     assertTrue(properties.has("space_id"));
     allowed(tool).forEach(argument -> assertTrue(argument, properties.has(argument)));
+    assertEquals("boolean", properties.path("managed_only").path("type").asString());
   }
 
   /**
