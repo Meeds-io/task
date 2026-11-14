@@ -143,6 +143,15 @@ public class TaskMcpTool implements McpToolPlugin {
    */
   public static final int               MAX_PROJECT_COUNTS              = 100;
 
+  /** The relation of a list_assigned_tasks item assigned to the user. */
+  public static final String            RELATION_ASSIGNEE               = "assignee";
+
+  /**
+   * The relation of a list_assigned_tasks item the user is a coworker of
+   * without being its assignee.
+   */
+  public static final String            RELATION_COWORKER               = "coworker";
+
   /** How many projects a scan of the projects of a space reads at a time. */
   static final int                      SPACE_SCAN_CHUNK                = 50;
 
@@ -706,7 +715,12 @@ public class TaskMcpTool implements McpToolPlugin {
    * filters, the open tasks, the most recently active first. With
    * {@code priority}, only the tasks of that priority, {@link Priority#NONE}
    * covering the tasks with no priority too, counted by the same query
-   * (EXO-94284). Each task comes
+   * (EXO-94284). Each task carries its relation to the user,
+   * {@value #RELATION_ASSIGNEE} when it is assigned to the user, also when
+   * the user is a coworker of it, {@value #RELATION_COWORKER} otherwise; the
+   * count is split the same way, the tasks assigned to the user counted by
+   * the same query restricted to them, the others being those the user is a
+   * coworker of only (EXO-94361). Each task comes
    * as a list item, without its description or coworkers, which
    * {@link #getTaskById(Long)} returns; with {@code includeDescription}, with
    * its description as cut plain text.
@@ -724,7 +738,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param dueTo the last day or instant of the due range, blank for no upper
    *          bound
    * @param priority the priority of the tasks listed, null for any
-   * @return the tasks, with their count and whether more remain
+   * @return the tasks, with their count, split between those assigned to the
+   *         user and those the user is a coworker of only, and whether more
+   *         remain
    */
   public TaskCollectionModel listAssignedTasks(Integer offset, // NOSONAR the tool's parameters, each one its own
                                                Integer limit,
@@ -760,7 +776,30 @@ public class TaskMcpTool implements McpToolPlugin {
     } else {
       tasks = taskService.findLastUpdatedTasks(taskQuery, usedOffset, usedLimit);
     }
-    return toTaskCollection(toTaskListItems(tasks, since, zone, Boolean.TRUE.equals(includeDescription)), usedOffset, usedLimit, countTasks(taskQuery));
+    String username = getCurrentUserName();
+    List<TaskListItemModel> items = toTaskListItems(tasks, since, zone, Boolean.TRUE.equals(includeDescription));
+    for (int i = 0; i < items.size(); i++) {
+      items.get(i).setRelation(username.equals(tasks.get(i).getAssignee()) ? RELATION_ASSIGNEE : RELATION_COWORKER);
+    }
+    long count = countTasks(taskQuery);
+    long assignedCount = countAssignedTasks(taskQuery, username);
+    TaskCollectionModel collection = toTaskCollection(items, usedOffset, usedLimit, count);
+    collection.setAssignedCount(assignedCount);
+    collection.setCoworkerCount(count - assignedCount);
+    return collection;
+  }
+
+  /**
+   * @param taskQuery the query of the tasks assigned to the user or of which
+   *          the user is a coworker, with its filters
+   * @param username the user
+   * @return the count of the tasks that query selects whose assignee is the
+   *         user, those the user is also a coworker of included
+   */
+  private long countAssignedTasks(TaskQuery taskQuery, String username) {
+    TaskQuery assignedQuery = taskQuery.clone();
+    assignedQuery.setAssignee(List.of(username));
+    return countTasks(assignedQuery);
   }
 
   /**
