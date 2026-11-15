@@ -91,6 +91,37 @@ public class TaskCollectionModel {
   private Long    coworkerCount;
 
   /**
+   * With {@code group_by_project}, the number of boards the user can access
+   * that hold at least one open task (EXO-94360).
+   */
+  @JsonProperty("open_project_count")
+  @JsonInclude(Include.NON_NULL)
+  private Integer openProjectCount;
+
+  /**
+   * With {@code group_by_project}, the boards holding selected tasks that
+   * {@code projects} leaves out, past its cap (EXO-94360).
+   */
+  @JsonProperty("projects_not_listed")
+  @JsonInclude(Include.NON_NULL)
+  private Integer projectsNotListed;
+
+  /**
+   * With {@code group_by_project}, how many of the tasks counted by
+   * {@code count} are personal tasks, on no board (EXO-94360).
+   */
+  @JsonProperty("personal_count")
+  @JsonInclude(Include.NON_NULL)
+  private Long    personalCount;
+
+  /**
+   * With {@code group_by_project}, one sentence stating the count, the
+   * filters applied and the boards, built from the fields above (EXO-94360).
+   */
+  @JsonInclude(Include.NON_NULL)
+  private String  summary;
+
+  /**
    * A page of tasks, with no count per board.
    *
    * @param tasks the tasks of the page
@@ -101,7 +132,7 @@ public class TaskCollectionModel {
    * @param nextOffset the offset of the next page, null when none remains
    */
   public TaskCollectionModel(List<?> tasks, int usedOffset, int usedLimit, long count, boolean hasMore, Integer nextOffset) {
-    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null);
+    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null, null, null, null, null);
   }
 
 }
