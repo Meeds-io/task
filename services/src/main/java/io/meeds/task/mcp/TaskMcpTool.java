@@ -847,7 +847,11 @@ public class TaskMcpTool implements McpToolPlugin {
    * access, so that one call tells which boards hold such tasks and how many
    * of those open tasks they are, whatever the number of boards (EXO-94250).
    * A personal task, on
-   * no board, is listed but counted on none.
+   * no board, is listed but counted on none. The grouped answer also counts
+   * the boards holding open tasks, the boards left out of the list and the
+   * personal tasks, and states them in a summary naming the filters applied;
+   * a grouped call with a limit of 1, made for the counts, returns at most
+   * one task and says no next page remains (EXO-94360).
    * <p>
    * Each task comes as a list item, without its description or coworkers,
    * which {@link #getTaskById(Long)} returns; with {@code includeDescription},
@@ -941,7 +945,24 @@ public class TaskMcpTool implements McpToolPlugin {
     }
     TaskCollectionModel collection = toTaskCollection(taskModels, usedOffset, usedLimit, countTasks(taskQuery));
     if (Boolean.TRUE.equals(groupByProject)) {
+      if (usedLimit == 1) {
+        // a call for the counts, its one task aside, asks no next page (EXO-94360)
+        collection.setHasMore(false);
+        collection.setNextOffset(null);
+      }
       setProjectCounts(collection, taskQuery, projectId, zone);
+      collection.setSummary(getGroupedSummary(collection,
+                                              new ListingFilters(Boolean.TRUE.equals(overdueOnly),
+                                                                 Boolean.TRUE.equals(hideCompletedTasks),
+                                                                 Boolean.TRUE.equals(withoutDueDate),
+                                                                 dueFrom,
+                                                                 dueTo,
+                                                                 priority,
+                                                                 assignee,
+                                                                 statusId,
+                                                                 title,
+                                                                 changedSince,
+                                                                 completedSince)));
     }
     return collection;
   }
@@ -2502,7 +2523,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * open tasks, the boards with the most selected tasks first, then by name
    * and identifier, so that two calls list them in the same order, at most
    * {@value #MAX_PROJECT_COUNTS}. The open tasks are counted with the
-   * listing's own accessibility, among the boards listed only (EXO-94250).
+   * listing's own accessibility on every board, which counts the boards that
+   * hold open tasks too; the boards left out of the list and the personal
+   * tasks, on no board, are counted (EXO-94360).
    *
    * @param collection the listing's answer, to which the counts are added
    * @param taskQuery the listing's query
@@ -2524,23 +2547,136 @@ public class TaskMcpTool implements McpToolPlugin {
                                                              .thenComparingLong(ProjectTaskCountDto::getProjectId))
                                            .limit(MAX_PROJECT_COUNTS)
                                            .toList();
-    Map<Long, Long> openCounts = Collections.emptyMap();
-    if (!kept.isEmpty()) {
-      TaskQuery openQuery = getTaskQuery(projectId, true, false, zone);
-      openQuery.setProjectIds(kept.stream().map(ProjectTaskCountDto::getProjectId).toList());
-      openCounts = taskService.countTasksByProject(openQuery)
-                              .stream()
-                              .collect(Collectors.toMap(ProjectTaskCountDto::getProjectId, ProjectTaskCountDto::getCount));
-    }
-    Map<Long, Long> open = openCounts;
+    // the open tasks of every board the user can access: their boards are
+    // counted, and the listed boards read their open count from them
+    Map<Long, Long> open = taskService.countTasksByProject(getTaskQuery(projectId, true, false, zone))
+                                      .stream()
+                                      .collect(Collectors.toMap(ProjectTaskCountDto::getProjectId,
+                                                                ProjectTaskCountDto::getCount));
     List<ProjectTaskCountModel> projects = kept.stream()
                                                .map(count -> new ProjectTaskCountModel(count.getProjectId(),
                                                                                        count.getProjectName(),
                                                                                        count.getCount(),
                                                                                        open.getOrDefault(count.getProjectId(), 0L)))
                                                .toList();
+    long onBoards = counts.stream().mapToLong(ProjectTaskCountDto::getCount).sum();
     collection.setProjects(projects);
     collection.setProjectCount(counts.size());
+    collection.setOpenProjectCount(open.size());
+    collection.setProjectsNotListed(counts.size() - kept.size());
+    collection.setPersonalCount(Math.max(0L, collection.getCount() - onBoards));
+  }
+
+  /**
+   * States a grouped listing in one sentence: the count, the filters applied,
+   * the boards holding the tasks among the boards holding open tasks when only
+   * open tasks are selected, the personal tasks and the boards left out of the
+   * list, such as « 260 overdue open tasks in 29 of 86 boards » (EXO-94360).
+   *
+   * @param collection the grouped answer, its counts set
+   * @param filters the filters the listing applied
+   * @return the sentence
+   */
+  static String getGroupedSummary(TaskCollectionModel collection, ListingFilters filters) {
+    long count = collection.getCount();
+    long personal = collection.getPersonalCount() == null ? 0L : collection.getPersonalCount();
+    // hide_completed_tasks keeps the completed tasks when completed_since is
+    // given (TaskServiceImpl#addChangeFilter): the tasks are open only without it
+    boolean openOnly = filters.overdueOnly() || filters.hideCompleted() && StringUtils.isBlank(filters.completedSince());
+    StringBuilder summary = new StringBuilder().append(count).append(' ');
+    if (filters.overdueOnly()) {
+      summary.append("overdue open ");
+    } else if (openOnly) {
+      summary.append("open ");
+    }
+    summary.append(count == 1 ? "task" : "tasks").append(describeFilters(filters));
+    int boards = collection.getProjectCount();
+    StringBuilder where = new StringBuilder(" in ").append(boards);
+    int last = boards;
+    if (openOnly) {
+      last = collection.getOpenProjectCount();
+      where.append(" of ").append(last);
+    }
+    where.append(last == 1 ? " board" : " boards");
+    if (personal > 0 && personal == count) {
+      summary.append(", all personal, on no board");
+    } else if (personal > 0) {
+      summary.append(": ").append(count - personal).append(where).append(", ").append(personal).append(" personal");
+    } else {
+      summary.append(where);
+    }
+    if (collection.getProjectsNotListed() != null && collection.getProjectsNotListed() > 0) {
+      summary.append("; the ").append(collection.getProjects().size()).append(" boards with the most are listed");
+    }
+    return summary.toString();
+  }
+
+  /**
+   * @param filters the filters a listing applied
+   * @return the filters other than overdue and open, each as the words that
+   *         follow « tasks », in the order of the tool's arguments
+   */
+  private static String describeFilters(ListingFilters filters) {
+    StringBuilder words = new StringBuilder();
+    if (filters.priority() == Priority.NONE) {
+      words.append(" with no priority");
+    } else if (filters.priority() != null) {
+      words.append(" of priority ").append(filters.priority().name().toLowerCase(Locale.ROOT));
+    }
+    if (StringUtils.isNotBlank(filters.title())) {
+      words.append(" whose title contains \"").append(filters.title().trim()).append('"');
+    }
+    if (StringUtils.isNotBlank(filters.assignee())) {
+      words.append(" assigned to ").append(filters.assignee().trim());
+    }
+    if (filters.statusId() != null) {
+      words.append(" in status ").append(filters.statusId());
+    }
+    if (filters.withoutDueDate()) {
+      words.append(" with no due date");
+    }
+    if (StringUtils.isNotBlank(filters.dueFrom())) {
+      words.append(" due from ").append(filters.dueFrom().trim());
+    }
+    if (StringUtils.isNotBlank(filters.dueTo())) {
+      words.append(StringUtils.isNotBlank(filters.dueFrom()) ? " to " : " due until ").append(filters.dueTo().trim());
+    }
+    if (StringUtils.isNotBlank(filters.changedSince())) {
+      words.append(" changed since ").append(filters.changedSince().trim());
+    }
+    if (StringUtils.isNotBlank(filters.completedSince())) {
+      words.append(" completed since ").append(filters.completedSince().trim());
+    }
+    return words.toString();
+  }
+
+  /**
+   * The filters a listing applied, as its tool call gave them, for the
+   * summary of a grouped answer (EXO-94360).
+   *
+   * @param overdueOnly whether only the overdue tasks are listed
+   * @param hideCompleted whether the completed tasks are left out
+   * @param withoutDueDate whether only the tasks with no due date are listed
+   * @param dueFrom the first day or instant of the due range, blank for none
+   * @param dueTo the last day or instant of the due range, blank for none
+   * @param priority the priority, null for any
+   * @param assignee the username of the assignee, blank for any
+   * @param statusId the status, null for any
+   * @param title a part of the title, blank for any
+   * @param changedSince the change date, blank for none
+   * @param completedSince the completion date, blank for none
+   */
+  record ListingFilters(boolean overdueOnly, // NOSONAR the tool's filters, each one its own
+                        boolean hideCompleted,
+                        boolean withoutDueDate,
+                        String dueFrom,
+                        String dueTo,
+                        Priority priority,
+                        String assignee,
+                        Long statusId,
+                        String title,
+                        String changedSince,
+                        String completedSince) {
   }
 
   /**
