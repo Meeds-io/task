@@ -3937,12 +3937,14 @@ public class TaskMcpToolTest {
 
   /**
    * group_by_project counts board by board with the listing's own query, then
-   * the open tasks of those boards only, with the same accessibility: the
-   * boards with the most selected tasks first, ties by name ignoring case,
-   * each with its open count, and project_count counting them all. Mutants:
-   * the counts read from another query than the listing's, the open count
-   * taken from the selected count, the open query not restricted to the
-   * boards or keeping the completed tasks, the order reversed or by id.
+   * the open tasks of every board the user can access, with the same
+   * accessibility: the boards with the most selected tasks first, ties by
+   * name ignoring case, each with its open count, project_count counting them
+   * all and open_project_count the boards holding open tasks, a board with
+   * none selected included (EXO-94360). Mutants: the counts read from another
+   * query than the listing's, the open count taken from the selected count,
+   * the open query restricted to the listed boards or keeping the completed
+   * tasks, the order reversed or by id.
    *
    * @throws Exception never
    */
@@ -3956,13 +3958,15 @@ public class TaskMcpToolTest {
                                                                                 new ProjectTaskCountDto(8L, "Alpha", 3L)),
                                                                         List.of(new ProjectTaskCountDto(7L, "Beta", 5L),
                                                                                 new ProjectTaskCountDto(8L, "Alpha", 3L),
-                                                                                new ProjectTaskCountDto(9L, "zeta", 4L)));
+                                                                                new ProjectTaskCountDto(9L, "zeta", 4L),
+                                                                                new ProjectTaskCountDto(10L, "Gamma", 2L)));
 
     TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true, null);
 
     assertSame(listed.getValue(), counted.getAllValues().get(0));
     TaskQuery open = counted.getAllValues().get(1);
-    assertTrue(conjunction(open).stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(8L, 9L, 7L))));
+    assertFalse("the open tasks are counted on every board",
+                conjunction(open).stream().anyMatch(c -> c instanceof SingleCondition<?> in && "status.project.id".equals(in.getField())));
     assertTrue(selectsOpenTasksOnly(open));
     assertTrue(scopedToTheUser(open));
     assertFalse("the open count is every open task of the board the user can access", hasDueDateCondition(open));
@@ -3971,13 +3975,14 @@ public class TaskMcpToolTest {
                          new ProjectTaskCountModel(7L, "Beta", 1L, 5L)),
                  result.getProjects());
     assertEquals(Integer.valueOf(3), result.getProjectCount());
+    assertEquals(Integer.valueOf(4), result.getOpenProjectCount());
   }
 
   /**
-   * Without group_by_project, the answer carries no board counts and no
-   * grouped count runs; with it and no board holding a selected task, the
-   * counts are empty and the open tasks are not counted. Mutants: the counts
-   * always computed, or the open count run on an empty set of boards.
+   * Without group_by_project, the answer carries no board counts, no summary
+   * and no grouped count runs; with it and no board holding a selected task,
+   * the counts are empty and the open tasks are still counted, for
+   * open_project_count (EXO-94360). Mutant: the counts always computed.
    *
    * @throws Exception never
    */
@@ -3988,21 +3993,26 @@ public class TaskMcpToolTest {
     TaskCollectionModel plain = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, null, null);
     assertNull(plain.getProjects());
     assertNull(plain.getProjectCount());
+    assertNull(plain.getSummary());
+    assertNull(plain.getOpenProjectCount());
     verify(taskService, never()).countTasksByProject(any());
 
     when(taskService.countTasksByProject(any())).thenReturn(List.of());
     TaskCollectionModel none = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true, null);
     assertEquals(List.of(), none.getProjects());
     assertEquals(Integer.valueOf(0), none.getProjectCount());
-    verify(taskService, times(1)).countTasksByProject(any());
+    assertEquals(Integer.valueOf(0), none.getOpenProjectCount());
+    verify(taskService, times(2)).countTasksByProject(any());
   }
 
   /**
    * The board counts list {@value TaskMcpTool#MAX_PROJECT_COUNTS} boards at
    * most, those with the most selected tasks, while project_count counts
-   * every board, and the open tasks are counted on the listed boards only.
-   * Mutants: the cap dropped, or applied before the sort; the open count
-   * run on every board.
+   * every board and projects_not_listed the boards left out, and the
+   * personal tasks are the count less the tasks of every board, the board
+   * left out included (EXO-94360). Mutants: the cap dropped, or applied
+   * before the sort; the boards left out not counted; the personal tasks
+   * counted from the listed boards only.
    *
    * @throws Exception never
    */
@@ -4015,20 +4025,161 @@ public class TaskMcpToolTest {
     }
     ArgumentCaptor<TaskQuery> counted = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.countTasksByProject(counted.capture())).thenReturn(counts, List.of());
+    long onBoards = counts.stream().mapToLong(ProjectTaskCountDto::getCount).sum();
+    when(taskService.countTasks(any())).thenReturn((int) onBoards + 7);
 
     TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true, null);
 
-    List<Long> listedBoards = new ArrayList<>();
-    for (long id = TaskMcpTool.MAX_PROJECT_COUNTS + 1L; id >= 2; id--) {
-      listedBoards.add(id);
-    }
-    assertTrue(conjunction(counted.getAllValues().get(1)).stream()
-                                                          .anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", listedBoards)));
     assertEquals(TaskMcpTool.MAX_PROJECT_COUNTS, result.getProjects().size());
+    assertEquals(Integer.valueOf(1), result.getProjectsNotListed());
+    assertEquals("the board left out holds 1 task, not a personal one", Long.valueOf(7L), result.getPersonalCount());
     assertEquals(TaskMcpTool.MAX_PROJECT_COUNTS + 1L, result.getProjects().get(0).getProjectId());
     assertEquals(2L, result.getProjects().get(TaskMcpTool.MAX_PROJECT_COUNTS - 1).getProjectId());
     assertEquals(0L, result.getProjects().get(0).getOpenCount());
     assertEquals(Integer.valueOf(TaskMcpTool.MAX_PROJECT_COUNTS + 1), result.getProjectCount());
+  }
+
+  /**
+   * A grouped call with a limit of 1 is made for the counts: it returns at
+   * most one task and says no next page remains, though more tasks match; a
+   * grouped call reading a real page, and an ungrouped call with a limit of
+   * 1, keep has_more and next_offset (EXO-94360). Mutants: has_more left on
+   * the counting call; has_more dropped on every grouped call; the rule
+   * applied without group_by_project.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksGroupedCountingCallSaysNoNextPage() throws Exception { // NOSONAR
+    List<TaskDto> ten = new ArrayList<>();
+    for (long id = 1; id <= 10; id++) {
+      ten.add(mockTaskWithProject(id, new Date()));
+    }
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(1))).thenReturn(ten.subList(0, 1));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(ten);
+    when(taskService.countTasks(any())).thenReturn(25);
+    when(taskService.countTasksByProject(any())).thenReturn(List.of(new ProjectTaskCountDto(8L, "Alpha", 25L)));
+
+    TaskCollectionModel counting = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 1, null, null, null, null, null, null, null, null, null, true, null));
+    assertFalse(counting.isHasMore());
+    assertNull(counting.getNextOffset());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(counting));
+    assertFalse(json.path("has_more").asBoolean());
+    assertFalse(json.has("next_offset"));
+    assertEquals(25, json.path("count").asInt());
+
+    TaskCollectionModel page = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 10, null, null, null, null, null, null, null, null, null, true, null));
+    assertTrue(page.isHasMore());
+    assertEquals(Integer.valueOf(10), page.getNextOffset());
+
+    TaskCollectionModel plain = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 1, null, null, null, null, null, null, null, null, null, null, null));
+    assertTrue(plain.isHasMore());
+    assertEquals(Integer.valueOf(1), plain.getNextOffset());
+  }
+
+  /**
+   * The grouped answer counts the boards holding open tasks the user can
+   * access, the boards left out of the list and the selected personal tasks,
+   * which are on no board: the count less the tasks of every board, those
+   * left out of the list included; its summary states them, under the JSON
+   * names the definition gives (EXO-94360). Mutants: the personal tasks not
+   * subtracted; the open boards counted from the selected ones.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksGroupedCountsOpenBoardsAndPersonalTasks() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    when(taskService.countTasks(any())).thenReturn(60);
+    when(taskService.countTasksByProject(any())).thenReturn(List.of(new ProjectTaskCountDto(8L, "Alpha", 30L),
+                                                                    new ProjectTaskCountDto(9L, "Beta", 20L)),
+                                                            List.of(new ProjectTaskCountDto(8L, "Alpha", 50L),
+                                                                    new ProjectTaskCountDto(9L, "Beta", 20L),
+                                                                    new ProjectTaskCountDto(10L, "Gamma", 5L)));
+
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, true, null);
+
+    assertEquals(Long.valueOf(10L), result.getPersonalCount());
+    assertEquals(Integer.valueOf(3), result.getOpenProjectCount());
+    assertEquals(Integer.valueOf(0), result.getProjectsNotListed());
+    assertEquals(50L, result.getProjects().get(0).getOpenCount());
+    assertEquals("60 open tasks: 50 in 2 of 3 boards, 10 personal", result.getSummary());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(result));
+    assertEquals(3, json.path("open_project_count").asInt());
+    assertEquals(0, json.path("projects_not_listed").asInt());
+    assertEquals(10, json.path("personal_count").asInt());
+    assertEquals(result.getSummary(), json.path("summary").asText());
+  }
+
+  /**
+   * The summary names the filters the call applied: overdue and open before
+   * « tasks », the others after it in the tool's order; it counts the boards
+   * among the boards holding open tasks only when the listing selects open
+   * tasks only, which hide_completed_tasks with completed_since does not, and
+   * says when the list leaves boards out (EXO-94360). Mutants: « overdue »
+   * always written; « open » or « of » the open boards when completed tasks
+   * are included; a filter left out; the singular lost; « 0 in 0 boards »
+   * written when every task is personal.
+   */
+  @Test
+  public void groupedSummaryNamesTheFiltersApplied() { // NOSONAR
+    assertEquals("260 overdue open tasks in 29 of 86 boards",
+                 TaskMcpTool.getGroupedSummary(grouped(260, 29, 86, 0, 0),
+                                               new TaskMcpTool.ListingFilters(true, false, false, null, null, null, null, null, null, null, null)));
+    assertEquals("41 tasks in 12 boards",
+                 TaskMcpTool.getGroupedSummary(grouped(41, 12, 86, 0, 0),
+                                               new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null)));
+    assertEquals("1 task in 1 board",
+                 TaskMcpTool.getGroupedSummary(grouped(1, 1, 5, 0, 0),
+                                               new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null)));
+    assertEquals("7 open tasks of priority high whose title contains \"Report\" assigned to john in status 4 due from 2026-11-01 to 2026-11-30"
+        + " changed since 2026-11-02 in 3 of 9 boards",
+                 TaskMcpTool.getGroupedSummary(grouped(7, 3, 9, 0, 0),
+                                               new TaskMcpTool.ListingFilters(false,
+                                                                              true,
+                                                                              false,
+                                                                              "2026-11-01",
+                                                                              "2026-11-30",
+                                                                              Priority.HIGH,
+                                                                              "john",
+                                                                              4L,
+                                                                              " Report ",
+                                                                              "2026-11-02",
+                                                                              null)));
+    assertEquals("2 open tasks with no priority with no due date in 1 of 1 board",
+                 TaskMcpTool.getGroupedSummary(grouped(2, 1, 1, 0, 0),
+                                               new TaskMcpTool.ListingFilters(false, true, true, null, null, Priority.NONE, null, null, null, null, null)));
+    assertEquals("3 tasks due until 2026-11-30 completed since 2026-11-01 in 2 boards",
+                 TaskMcpTool.getGroupedSummary(grouped(3, 2, 9, 0, 0),
+                                               new TaskMcpTool.ListingFilters(false, true, false, null, "2026-11-30", null, null, null, null, null, "2026-11-01")));
+    assertEquals("3 overdue open tasks, all personal, on no board",
+                 TaskMcpTool.getGroupedSummary(grouped(3, 0, 4, 3, 0),
+                                               new TaskMcpTool.ListingFilters(true, false, false, null, null, null, null, null, null, null, null)));
+    assertEquals("150 tasks in 101 boards; the 100 boards with the most are listed",
+                 TaskMcpTool.getGroupedSummary(grouped(150, 101, 120, 0, 1),
+                                               new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null)));
+  }
+
+  /**
+   * @param count the count of the tasks selected
+   * @param boards the boards holding them
+   * @param openBoards the boards holding open tasks
+   * @param personal the personal tasks among them
+   * @param notListed the boards left out of the list
+   * @return a grouped answer with those counts, listing every other board
+   */
+  private static TaskCollectionModel grouped(long count, int boards, int openBoards, long personal, int notListed) {
+    TaskCollectionModel collection = new TaskCollectionModel(Collections.emptyList(), 0, 1, count, false, null);
+    List<ProjectTaskCountModel> listed = new ArrayList<>();
+    for (long id = 1; id <= boards - notListed; id++) {
+      listed.add(new ProjectTaskCountModel(id, "Board " + id, 1L, 1L));
+    }
+    collection.setProjects(listed);
+    collection.setProjectCount(boards);
+    collection.setOpenProjectCount(openBoards);
+    collection.setPersonalCount(personal);
+    collection.setProjectsNotListed(notListed);
+    return collection;
   }
 
   /**
