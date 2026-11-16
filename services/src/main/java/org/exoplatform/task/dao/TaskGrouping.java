@@ -32,6 +32,9 @@ public enum TaskGrouping {
   /** The assignee, a task with none in the group of key null. */
   ASSIGNEE,
 
-  /** The label, a task in as many groups as it has labels and in none without one. */
+  /**
+   * The label of the task's own board, those its card shows: a task is in as
+   * many groups as it has such labels, and in none without one.
+   */
   LABEL
 }
