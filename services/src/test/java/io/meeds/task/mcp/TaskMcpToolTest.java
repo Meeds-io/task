@@ -4804,6 +4804,12 @@ public class TaskMcpToolTest {
     assertEquals("264 overdue open tasks in 30 of the 105 boards the user manages; 1 has no open task",
                  TaskMcpTool.getGroupedSummary(overdueManaged,
                                                new TaskMcpTool.ListingFilters(true, false, false, null, null, null, null, null, null, null, null, true)));
+    TaskCollectionModel noneIdle = grouped(41, 12, 12, 0, 0);
+    noneIdle.setManagedProjectCount(12);
+    assertEquals("no « 0 have no open task » when every board the user manages holds open tasks",
+                 "41 open tasks in 12 of the 12 boards the user manages",
+                 TaskMcpTool.getGroupedSummary(noneIdle,
+                                               new TaskMcpTool.ListingFilters(false, true, false, null, null, null, null, null, null, null, null, true)));
     TaskCollectionModel everyManaged = grouped(5, 1, 1, 0, 0);
     everyManaged.setManagedProjectCount(1);
     assertEquals("5 tasks in 1 of the 1 board the user manages",
