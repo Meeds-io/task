@@ -4002,7 +4002,8 @@ public class TaskMcpToolTest {
    * Without group_by_project, the answer carries no board counts, no summary
    * and no grouped count runs; with it and no board holding a selected task,
    * the counts are empty and the open and overdue tasks are still counted,
-   * for open_project_count and overdue_count (EXO-94360). Mutant: the counts always computed.
+   * the open ones for open_project_count, no row carrying an overdue_count
+   * (EXO-94360). Mutant: the counts always computed.
    *
    * @throws Exception never
    */

@@ -2511,13 +2511,14 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Counts board by board the tasks a listing selects, each board beside its
-   * open and overdue tasks and split status by status, the boards with the most selected
-   * tasks first, then by name and identifier, so that two calls list them in
-   * the same order, at most {@value #MAX_PROJECT_COUNTS}. The open tasks are
-   * counted with the listing's own accessibility on every board, which counts
-   * the boards that hold open tasks too, and the overdue ones among them with
-   * the rule of {@code overdue_only}; the boards left out of the list and
-   * the personal tasks, on no board, are counted (EXO-94360).
+   * open and overdue tasks and split status by status, the boards with the
+   * most selected tasks first, then by name and identifier, so that two calls
+   * list them in the same order, at most {@value #MAX_PROJECT_COUNTS}. The
+   * open tasks are counted with the listing's own accessibility on every
+   * board, which counts the boards that hold open tasks too, and the overdue
+   * ones among them with the rule of {@code overdue_only}; the boards left
+   * out of the list and the personal tasks, on no board, are counted
+   * (EXO-94360).
    *
    * @param collection the listing's answer, to which the counts are added
    * @param taskQuery the listing's query
