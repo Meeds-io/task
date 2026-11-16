@@ -4717,6 +4717,9 @@ public class TaskMcpToolTest {
     assertEquals(List.of(5L), project.getProjectIds());
     assertFalse(narrowedToManagedBoards(counted.getAllValues().get(counted.getAllValues().size() - 1)));
     assertNull(oneBoard.getManagedProjectCount());
+    TaskCollectionModel byAssignee = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "assignee", true);
+    assertEquals(Integer.valueOf(2), byAssignee.getManagedProjectCount());
+    assertTrue(byAssignee.getSummary(), byAssignee.getSummary().startsWith("4 open tasks on the 2 boards the user manages"));
     assertEquals("4 open tasks in 1 of 1 board the user manages", oneBoard.getSummary());
     verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
   }
@@ -4777,7 +4780,8 @@ public class TaskMcpToolTest {
    * open boards when completed tasks are included; a filter left out; the
    * singular lost; « 0 in 0 boards » written when every task is personal;
    * the managed boards' count dropped or read from the open boards; the
-   * boards with no open task not named, named at 0, or always plural.
+   * boards with no open task not named, named at 0, beside completed tasks,
+   * or always plural.
    */
   @Test
   public void groupedSummaryNamesTheFiltersApplied() { // NOSONAR
@@ -4805,6 +4809,12 @@ public class TaskMcpToolTest {
     assertEquals("5 tasks in 1 of the 1 board the user manages",
                  TaskMcpTool.getGroupedSummary(everyManaged,
                                                new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null, true)));
+    TaskCollectionModel completedManaged = grouped(12, 3, 86, 0, 0);
+    completedManaged.setManagedProjectCount(105);
+    assertEquals("the boards with no open task are named only beside open tasks",
+                 "12 tasks completed since 2026-11-01 in 3 of the 105 boards the user manages",
+                 TaskMcpTool.getGroupedSummary(completedManaged,
+                                               new TaskMcpTool.ListingFilters(false, true, false, null, null, null, null, null, null, null, "2026-11-01", true)));
     assertEquals("the managed boards are named only with managed_only",
                  "5 tasks in 1 board",
                  TaskMcpTool.getGroupedSummary(everyManaged,
