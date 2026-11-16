@@ -23,6 +23,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -36,6 +37,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+// the board's own counts before its split by status: the default mapper would
+// write the keys in alphabetical order, by_status and its counts first
+@JsonPropertyOrder({ "project_id", "project_name", "count", "open_count", "overdue_count", "by_status" })
 public class ProjectTaskCountModel {
 
   @JsonProperty("project_id")
