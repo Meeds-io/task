@@ -19,11 +19,13 @@
 package org.exoplatform.task.storage;
 
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.TaskGrouping;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectTaskCountDto;
+import org.exoplatform.task.dto.TaskGroupCountDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskSearchFilter;
@@ -89,6 +91,16 @@ public interface TaskStorage {
      *         personal tasks are in none
      */
     List<ProjectTaskCountDto> countTasksByProject(TaskQuery query);
+
+    /**
+     * Counts the tasks a query selects in each group of a grouping
+     * (EXO-94360).
+     *
+     * @param query the query, its accessibility condition included
+     * @param grouping what the tasks are counted by
+     * @return one count per group holding at least one selected task
+     */
+    List<TaskGroupCountDto> countTasksByGroup(TaskQuery query, TaskGrouping grouping);
 
     TaskDto findTaskByActivityId(String activityId);
 

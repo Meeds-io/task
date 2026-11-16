@@ -42,6 +42,7 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.TaskGrouping;
 import org.exoplatform.task.dao.TaskHandler;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.LoggedSince;
@@ -50,6 +51,7 @@ import org.exoplatform.task.domain.ChangeLog;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ProjectTaskCountDto;
+import org.exoplatform.task.dto.TaskGroupCountDto;
 
 public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler {
 
@@ -178,6 +180,94 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
              .stream()
              .map(row -> new ProjectTaskCountDto(row.get(0, Long.class), row.get(1, String.class), row.get(2, Long.class)))
              .toList();
+  }
+
+  /**
+   * {@inheritDoc} The query's conditions are built as for its listing, so the
+   * counts select exactly the tasks the listing would return. A status and a
+   * project status come from the task's status, so a personal task is in no
+   * group; a label comes from the task's labels, a label of no project
+   * carrying no project.
+   */
+  @Override
+  public List<TaskGroupCountDto> countTasksByGroup(TaskQuery query, TaskGrouping grouping) {
+    EntityManager em = getEntityManager();
+    CriteriaBuilder cb = em.getCriteriaBuilder();
+    CriteriaQuery<Tuple> q = cb.createTupleQuery();
+    Root<Task> task = q.from(Task.class);
+    Predicate predicate = buildQuery(query.getCondition(), task, cb, q);
+    if (predicate != null) {
+      q.where(predicate);
+    }
+    switch (grouping) {
+    case STATUS -> {
+      Path<String> name = task.join("status", JoinType.INNER).get("name");
+      q.multiselect(name, cb.countDistinct(task)).groupBy(name);
+      return em.createQuery(q)
+               .getResultList()
+               .stream()
+               .map(row -> new TaskGroupCountDto(row.get(0, String.class),
+                                                 row.get(0, String.class),
+                                                 null,
+                                                 null,
+                                                 row.get(1, Long.class)))
+               .toList();
+    }
+    case PROJECT_STATUS -> {
+      Join<Object, Object> status = task.join("status", JoinType.INNER);
+      Join<Object, Object> project = status.join("project", JoinType.INNER);
+      Path<Long> statusId = status.get("id");
+      Path<String> statusName = status.get("name");
+      Path<Integer> rank = status.get("rank");
+      Path<Long> projectId = project.get("id");
+      Path<String> projectName = project.get("name");
+      q.multiselect(statusId, statusName, projectId, projectName, cb.countDistinct(task))
+       .groupBy(projectId, projectName, statusId, statusName, rank)
+       .orderBy(cb.asc(projectId), cb.asc(rank), cb.asc(statusId));
+      return em.createQuery(q)
+               .getResultList()
+               .stream()
+               .map(row -> new TaskGroupCountDto(String.valueOf(row.get(0, Long.class)),
+                                                 row.get(1, String.class),
+                                                 row.get(2, Long.class),
+                                                 row.get(3, String.class),
+                                                 row.get(4, Long.class)))
+               .toList();
+    }
+    case ASSIGNEE -> {
+      Path<String> assignee = task.get("assignee");
+      q.multiselect(assignee, cb.countDistinct(task)).groupBy(assignee);
+      return em.createQuery(q)
+               .getResultList()
+               .stream()
+               .map(row -> new TaskGroupCountDto(row.get(0, String.class),
+                                                 row.get(0, String.class),
+                                                 null,
+                                                 null,
+                                                 row.get(1, Long.class)))
+               .toList();
+    }
+    case LABEL -> {
+      Join<Object, Object> label = task.join("labels", JoinType.INNER).join("label", JoinType.INNER);
+      Join<Object, Object> project = label.join("project", JoinType.LEFT);
+      Path<Long> labelId = label.get("id");
+      Path<String> labelName = label.get("name");
+      Path<Long> projectId = project.get("id");
+      Path<String> projectName = project.get("name");
+      q.multiselect(labelId, labelName, projectId, projectName, cb.countDistinct(task))
+       .groupBy(labelId, labelName, projectId, projectName);
+      return em.createQuery(q)
+               .getResultList()
+               .stream()
+               .map(row -> new TaskGroupCountDto(String.valueOf(row.get(0, Long.class)),
+                                                 row.get(1, String.class),
+                                                 row.get(2, Long.class),
+                                                 row.get(3, String.class),
+                                                 row.get(4, Long.class)))
+               .toList();
+    }
+    default -> throw new IllegalArgumentException("Unknown task grouping " + grouping);
+    }
   }
 
   @Override
