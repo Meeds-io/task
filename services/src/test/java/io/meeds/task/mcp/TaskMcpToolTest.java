@@ -101,6 +101,8 @@ import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.ProjectTaskCountDto;
+import org.exoplatform.task.dto.TaskGroupCountDto;
+import org.exoplatform.task.dao.TaskGrouping;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -131,6 +133,8 @@ import io.meeds.task.mcp.model.ProjectModel;
 import io.meeds.task.mcp.model.ProjectStatisticsModel;
 import io.meeds.task.mcp.model.ProjectStatus;
 import io.meeds.task.mcp.model.ProjectTaskCountModel;
+import io.meeds.task.mcp.model.TaskGroupCountModel;
+import io.meeds.task.mcp.model.StatusTaskCountModel;
 import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
 import io.meeds.task.mcp.model.TaskListItemModel;
@@ -1251,7 +1255,7 @@ public class TaskMcpToolTest {
     when(taskService.findTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -1273,7 +1277,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(4);
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     assertNull(findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -1378,7 +1382,7 @@ public class TaskMcpToolTest {
                                                                                 null,
                                                                                 null,
                                                                                 null,
-                                                                                null));
+                                                                                null, null, null));
     JsonNode tasksJson = JSON.readTree(JSON.writeValueAsString(tasks));
     assertFalse(tasksJson.has("assigned_count"));
     assertFalse(tasksJson.has("coworker_count"));
@@ -1457,7 +1461,7 @@ public class TaskMcpToolTest {
                                                                                   "2026-10-01",
                                                                                   null,
                                                                                   null,
-                                                                                  null, null, null, null, null, null, null));
+                                                                                  null, null, null, null, null, null, null, null, null));
 
     List<Condition> conjunction = conjunction(query.getValue());
     assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
@@ -1487,7 +1491,7 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(null, true, false, null, null, null, null, null, "2026-10-05T08:00:00Z", null, null, null, null, null, null, null, null);
+    tool.listTasks(null, true, false, null, null, null, null, null, "2026-10-05T08:00:00Z", null, null, null, null, null, null, null, null, null, null);
 
     LoggedSince loggedSince = findLoggedSince(query.getValue());
     assertEquals(List.of("mark_done"), loggedSince.actionNames());
@@ -1513,8 +1517,8 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(null, false, false, null, null, null, null, null, null, " john ", 8L, null, null, null, null, null, null);
-    tool.listTasks(null, false, false, null, null, null, null, null, null, " ", null, null, null, null, null, null, null);
+    tool.listTasks(null, false, false, null, null, null, null, null, null, " john ", 8L, null, null, null, null, null, null, null, null);
+    tool.listTasks(null, false, false, null, null, null, null, null, null, " ", null, null, null, null, null, null, null, null, null);
 
     List<Condition> filtered = conjunction(query.getAllValues().get(0));
     assertTrue(filtered.stream()
@@ -1568,7 +1572,7 @@ public class TaskMcpToolTest {
                                                                                       log(1, "created", "ToDo", "2026-10-04T10:00:00Z")));
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
 
-    runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+    runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
     verify(identityManager).getOrCreateUserIdentity(OTHER_USER);
     verify(identityManager, never()).getOrCreateUserIdentity("ToDo");
@@ -1648,7 +1652,7 @@ public class TaskMcpToolTest {
                                                                                   "2026-09-01",
                                                                                   null,
                                                                                   null,
-                                                                                  null, null, null, null, null, null, null));
+                                                                                  null, null, null, null, null, null, null, null, null));
 
     List<TaskChangeLog> changeLogs = ((TaskWithChangesModel) result.getTasks().get(0)).getChangeLogs();
     assertEquals(1, changeLogs.size());
@@ -1663,7 +1667,7 @@ public class TaskMcpToolTest {
   @Test
   public void overdueOnlyAndCompletedSinceAreRefusedTogether() throws Exception { // NOSONAR
     assertThrows(IllegalArgumentException.class,
-                 () -> tool.listTasks(null, null, false, true, null, null, null, null, "2026-10-01", null, null, null, null, null, null, null, null));
+                 () -> tool.listTasks(null, null, false, true, null, null, null, null, "2026-10-01", null, null, null, null, null, null, null, null, null, null));
     assertThrows(IllegalArgumentException.class, () -> tool.listAssignedTasks(null, 5, true, null, "2026-10-01", null, null, null, null));
     verify(taskService, never()).findTasks(any(), anyInt(), anyInt());
   }
@@ -1877,7 +1881,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(0);
 
-    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     assertEquals(0, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
@@ -2814,7 +2818,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
     TaskListItemModel item = (TaskListItemModel) result.getTasks().get(0);
     assertEquals(TASK_ID, item.getId());
@@ -2854,7 +2858,7 @@ public class TaskMcpToolTest {
     assertEquals(Set.of("username", "display_name"), fieldNames(json.path("assignee")));
     assertEquals(Set.of("username", "display_name"), fieldNames(json.path("last_comment_author")));
 
-    TaskCollectionModel full = runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel full = runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
     TaskModel fullTask = (TaskModel) full.getTasks().get(0);
     assertTrue(fullTask instanceof TaskWithChangeLogModel);
@@ -2888,7 +2892,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel full = runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel full = runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
     TaskWithChangeLogModel fullTask = (TaskWithChangeLogModel) full.getTasks().get(0);
     assertEquals(2, fullTask.getCommentsCount());
@@ -2927,7 +2931,7 @@ public class TaskMcpToolTest {
       mocked.when(McpToolUtils::getUserTimeZone).thenReturn(TimeZone.getTimeZone("UTC"));
       mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
             .thenAnswer(invocation -> ((Date) invocation.getArgument(0)).toInstant().toString());
-      result = tool.listTasks(null, false, false, null, 0, 100, null, null, null, null, null, null, null, null, null, null, null);
+      result = tool.listTasks(null, false, false, null, 0, 100, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     assertEquals(100, result.getTasks().size());
@@ -2965,10 +2969,10 @@ public class TaskMcpToolTest {
       mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
             .thenAnswer(invocation -> ((Date) invocation.getArgument(0)).toInstant().toString());
 
-      TaskListItemModel item = (TaskListItemModel) tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null)
+      TaskListItemModel item = (TaskListItemModel) tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null)
                                                        .getTasks()
                                                        .get(0);
-      TaskModel fullTask = (TaskModel) tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null)
+      TaskModel fullTask = (TaskModel) tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null)
                                            .getTasks()
                                            .get(0);
       TaskListItemModel assigned = (TaskListItemModel) tool.listAssignedTasks(null, null, null, null, null, null, null, null, null).getTasks().get(0);
@@ -3025,7 +3029,7 @@ public class TaskMcpToolTest {
     when(taskService.countTasks(any())).thenReturn(1);
 
     for (Boolean includeDescription : new Boolean[] { null, false }) {
-      TaskListItemModel listed = (TaskListItemModel) runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, includeDescription, null, null, null, null, null)).getTasks()
+      TaskListItemModel listed = (TaskListItemModel) runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, includeDescription, null, null, null, null, null, null, null)).getTasks()
                                                                                                                                                                                       .get(0);
       TaskListItemModel assigned = (TaskListItemModel) runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, null, null, null, null, includeDescription, null, null, null)).getTasks()
                                                                                                                                                                   .get(0);
@@ -3068,7 +3072,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(shortTask, longTask));
     when(taskService.countTasks(any())).thenReturn(2);
 
-    List<?> listed = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, true, null, null, null, null, null)).getTasks();
+    List<?> listed = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, true, null, null, null, null, null, null, null)).getTasks();
     List<?> assigned = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, null, null, null, null, true, null, null, null)).getTasks();
 
     for (List<?> items : List.of(listed, assigned)) {
@@ -3102,7 +3106,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
     when(projectService.findProjects(any(), any(), any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
 
-    TaskCollectionModel tasks = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, 101, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel tasks = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, 101, null, null, null, null, null, null, null, null, null, null, null, null, null));
     verify(taskService).findLastUpdatedTasks(any(), eq(0), eq(100));
     assertEquals(100, tasks.getUsedLimit());
 
@@ -3113,7 +3117,7 @@ public class TaskMcpToolTest {
     verify(projectService).findProjects(any(), any(), any(), eq(0), eq(100));
     assertEquals(100, projects.getUsedLimit());
 
-    runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, 100, null, null, null, null, null, null, null, null, null, null, null));
+    runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, 100, null, null, null, null, null, null, null, null, null, null, null, null, null));
     verify(taskService, times(3)).findLastUpdatedTasks(any(), eq(0), eq(100));
 
     assertEquals(100, TaskMcpTool.getLimit(101));
@@ -3143,7 +3147,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(30), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(25);
 
-    TaskCollectionModel first = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 0, 10, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel first = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 0, 10, null, null, null, null, null, null, null, null, null, null, null, null, null));
     assertTrue(first.isHasMore());
     assertEquals(Integer.valueOf(10), first.getNextOffset());
     JsonNode json = JSON.readTree(JSON.writeValueAsString(first));
@@ -3152,12 +3156,12 @@ public class TaskMcpToolTest {
     assertEquals(25, json.path("count").asInt());
     assertEquals(10, json.path("used_limit").asInt());
 
-    TaskCollectionModel last = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 20, 10, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel last = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 20, 10, null, null, null, null, null, null, null, null, null, null, null, null, null));
     assertFalse(last.isHasMore());
     assertNull(last.getNextOffset());
     assertFalse(JSON.readTree(JSON.writeValueAsString(last)).has("next_offset"));
 
-    TaskCollectionModel past = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 30, 10, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel past = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 30, 10, null, null, null, null, null, null, null, null, null, null, null, null, null));
     assertFalse(past.isHasMore());
     assertNull(past.getNextOffset());
 
@@ -3562,7 +3566,7 @@ public class TaskMcpToolTest {
                                                                 .thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
     assertEquals(1, result.getTasks().size());
     assertEquals(1L, result.getCount());
@@ -3586,7 +3590,7 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(PROJECT_ID, false, false, null, null, null, "  Live Check 2 ", null, null, null, null, null, null, null, null, null, null);
+    tool.listTasks(PROJECT_ID, false, false, null, null, null, "  Live Check 2 ", null, null, null, null, null, null, null, null, null, null, null, null);
 
     List<Condition> conjunction = conjunction(query.getValue());
     assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
@@ -3607,8 +3611,8 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(null, false, false, null, null, null, "Live", null, null, null, null, null, null, null, null, null, null);
-    tool.listTasks(null, false, false, null, null, null, "  ", null, null, null, null, null, null, null, null, null, null);
+    tool.listTasks(null, false, false, null, null, null, "Live", null, null, null, null, null, null, null, null, null, null, null, null);
+    tool.listTasks(null, false, false, null, null, null, "  ", null, null, null, null, null, null, null, null, null, null, null, null);
 
     List<Condition> withTitle = conjunction(query.getAllValues().get(0));
     assertTrue(withTitle.stream()
@@ -3625,14 +3629,14 @@ public class TaskMcpToolTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(false);
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null, null, null, null, null, null, null);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   @Test(expected = ObjectNotFoundException.class)
   public void listTasksWithProjectWhenProjectServiceThrowsEntityNotFoundShouldThrowObjectNotFound() throws Exception { // NOSONAR
     when(projectService.getProject(PROJECT_ID)).thenThrow(new EntityNotFoundException(PROJECT_ID, ProjectDto.class));
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null, null, null, null, null, null, null);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
   @Test
@@ -4034,7 +4038,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithInstantDates(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel result = runWithInstantDates(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
     List<TaskChangeLog> changeLogs = ((TaskWithChangeLogModel) result.getTasks().get(0)).getChangeLogs();
     assertEquals(List.of("edit_title", "edit_status", "commented"), changeLogs.stream().map(TaskChangeLog::getActionId).toList());
@@ -4058,7 +4062,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithInstantDates(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel result = runWithInstantDates(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 
     assertEquals("2026-09-01T08:00:00Z", ((TaskWithChangeLogModel) result.getTasks().get(0)).getUpdatedDate());
   }
@@ -4116,8 +4120,8 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, null, null);
-    tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, false, null, null, null, null);
+    tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, null, null, null, null);
+    tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, false, null, null, null, null, null, null);
 
     List<Condition> undated = conjunction(query.getAllValues().get(0));
     assertTrue(undated.stream()
@@ -4143,8 +4147,8 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, "2026-11-09", "2026-11-15", null, null);
-    tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, "2026-11-15T18:00:00+01:00", null, null);
+    tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, "2026-11-09", "2026-11-15", null, null, null, null);
+    tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, "2026-11-15T18:00:00+01:00", null, null, null, null);
 
     List<Condition> days = conjunction(query.getAllValues().get(0));
     assertTrue(days.stream().anyMatch(c -> isSingle(c, SingleCondition.GTE, "dueDate", Date.from(Instant.parse("2026-11-08T23:00:00Z")))));
@@ -4165,14 +4169,14 @@ public class TaskMcpToolTest {
   @Test
   public void listTasksRefusesNoDueDateWithARangeOrOverdue() { // NOSONAR
     IllegalArgumentException range = assertThrows(IllegalArgumentException.class,
-                                                  () -> tool.listTasks(null, null, false, null, null, null, null, null, null, null, null, null, true, null, "2026-11-15", null, null));
+                                                  () -> tool.listTasks(null, null, false, null, null, null, null, null, null, null, null, null, true, null, "2026-11-15", null, null, null, null));
     assertTrue(range.getMessage().contains("without_due_date"));
     assertTrue(range.getMessage().contains("due_from/due_to"));
     IllegalArgumentException overdue = assertThrows(IllegalArgumentException.class,
-                                                    () -> tool.listTasks(null, null, false, true, null, null, null, null, null, null, null, null, true, null, null, null, null));
+                                                    () -> tool.listTasks(null, null, false, true, null, null, null, null, null, null, null, null, true, null, null, null, null, null, null));
     assertTrue(overdue.getMessage().contains("overdue_only"));
     IllegalArgumentException noDate = assertThrows(IllegalArgumentException.class,
-                                                   () -> tool.listTasks(null, null, false, null, null, null, null, null, null, null, null, null, null, null, "2026-13-45", null, null));
+                                                   () -> tool.listTasks(null, null, false, null, null, null, null, null, null, null, null, null, null, null, "2026-13-45", null, null, null, null));
     assertTrue(noDate.getMessage().startsWith("due_to"));
     verify(taskService, never()).findLastUpdatedTasks(any(), anyInt(), anyInt());
   }
@@ -4195,7 +4199,7 @@ public class TaskMcpToolTest {
     when(taskService.countTasksByProject(counted.capture())).thenReturn(List.of(new ProjectTaskCountDto(8L, "Alpha", 40L)),
                                                                         List.of(new ProjectTaskCountDto(8L, "Alpha", 90L)));
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, true, Priority.HIGH);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, true, Priority.HIGH, null, null);
 
     TaskQuery query = listed.getValue();
     assertTrue(conjunction(query).stream().anyMatch(c -> isSingle(c, SingleCondition.EQ, "priority", Priority.HIGH)));
@@ -4204,7 +4208,7 @@ public class TaskMcpToolTest {
     assertEquals(42L, result.getCount());
     assertSame(query, counted.getAllValues().get(0));
     assertFalse("the open count is every open task of the board", hasPriorityCondition(counted.getAllValues().get(1)));
-    assertEquals(List.of(new ProjectTaskCountModel(8L, "Alpha", 40L, 90L)), result.getProjects());
+    assertEquals(List.of(new ProjectTaskCountModel(8L, "Alpha", 40L, 90L, List.of())), result.getProjects());
   }
 
   /**
@@ -4264,7 +4268,7 @@ public class TaskMcpToolTest {
                                                                                 new ProjectTaskCountDto(9L, "zeta", 4L),
                                                                                 new ProjectTaskCountDto(10L, "Gamma", 2L)));
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true, null);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true, null, null, null);
 
     assertSame(listed.getValue(), counted.getAllValues().get(0));
     TaskQuery open = counted.getAllValues().get(1);
@@ -4273,9 +4277,9 @@ public class TaskMcpToolTest {
     assertTrue(selectsOpenTasksOnly(open));
     assertTrue(scopedToTheUser(open));
     assertFalse("the open count is every open task of the board the user can access", hasDueDateCondition(open));
-    assertEquals(List.of(new ProjectTaskCountModel(8L, "Alpha", 3L, 3L),
-                         new ProjectTaskCountModel(9L, "zeta", 3L, 4L),
-                         new ProjectTaskCountModel(7L, "Beta", 1L, 5L)),
+    assertEquals(List.of(new ProjectTaskCountModel(8L, "Alpha", 3L, 3L, List.of()),
+                         new ProjectTaskCountModel(9L, "zeta", 3L, 4L, List.of()),
+                         new ProjectTaskCountModel(7L, "Beta", 1L, 5L, List.of())),
                  result.getProjects());
     assertEquals(Integer.valueOf(3), result.getProjectCount());
     assertEquals(Integer.valueOf(4), result.getOpenProjectCount());
@@ -4293,7 +4297,7 @@ public class TaskMcpToolTest {
   public void listTasksCountsBoardsOnlyWhenAsked() throws Exception { // NOSONAR
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
-    TaskCollectionModel plain = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, null, null);
+    TaskCollectionModel plain = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, null, null, null, null);
     assertNull(plain.getProjects());
     assertNull(plain.getProjectCount());
     assertNull(plain.getSummary());
@@ -4301,7 +4305,7 @@ public class TaskMcpToolTest {
     verify(taskService, never()).countTasksByProject(any());
 
     when(taskService.countTasksByProject(any())).thenReturn(List.of());
-    TaskCollectionModel none = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true, null);
+    TaskCollectionModel none = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true, null, null, null);
     assertEquals(List.of(), none.getProjects());
     assertEquals(Integer.valueOf(0), none.getProjectCount());
     assertEquals(Integer.valueOf(0), none.getOpenProjectCount());
@@ -4331,7 +4335,7 @@ public class TaskMcpToolTest {
     long onBoards = counts.stream().mapToLong(ProjectTaskCountDto::getCount).sum();
     when(taskService.countTasks(any())).thenReturn((int) onBoards + 7);
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true, null);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, true, null, null, true, null, null, null);
 
     assertEquals(TaskMcpTool.MAX_PROJECT_COUNTS, result.getProjects().size());
     assertEquals(Integer.valueOf(1), result.getProjectsNotListed());
@@ -4363,7 +4367,7 @@ public class TaskMcpToolTest {
     when(taskService.countTasks(any())).thenReturn(25);
     when(taskService.countTasksByProject(any())).thenReturn(List.of(new ProjectTaskCountDto(8L, "Alpha", 25L)));
 
-    TaskCollectionModel counting = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 1, null, null, null, null, null, null, null, null, null, true, null));
+    TaskCollectionModel counting = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 1, null, null, null, null, null, null, null, null, null, true, null, null, null));
     assertFalse(counting.isHasMore());
     assertNull(counting.getNextOffset());
     JsonNode json = JSON.readTree(JSON.writeValueAsString(counting));
@@ -4371,11 +4375,11 @@ public class TaskMcpToolTest {
     assertFalse(json.has("next_offset"));
     assertEquals(25, json.path("count").asInt());
 
-    TaskCollectionModel page = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 10, null, null, null, null, null, null, null, null, null, true, null));
+    TaskCollectionModel page = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 10, null, null, null, null, null, null, null, null, null, true, null, null, null));
     assertTrue(page.isHasMore());
     assertEquals(Integer.valueOf(10), page.getNextOffset());
 
-    TaskCollectionModel plain = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 1, null, null, null, null, null, null, null, null, null, null, null));
+    TaskCollectionModel plain = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 1, null, null, null, null, null, null, null, null, null, null, null, null, null));
     assertTrue(plain.isHasMore());
     assertEquals(Integer.valueOf(1), plain.getNextOffset());
   }
@@ -4400,7 +4404,7 @@ public class TaskMcpToolTest {
                                                                     new ProjectTaskCountDto(9L, "Beta", 20L),
                                                                     new ProjectTaskCountDto(10L, "Gamma", 5L)));
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, true, null);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, true, null, null, null);
 
     assertEquals(Long.valueOf(10L), result.getPersonalCount());
     assertEquals(Integer.valueOf(3), result.getOpenProjectCount());
@@ -4412,6 +4416,285 @@ public class TaskMcpToolTest {
     assertEquals(0, json.path("projects_not_listed").asInt());
     assertEquals(10, json.path("personal_count").asInt());
     assertEquals(result.getSummary(), json.path("summary").asText());
+  }
+
+  /**
+   * group_by project splits each listed board by status, from the listing's
+   * own query in the engine's column order, under by_status (EXO-94360).
+   * Mutants: by_status read from the open tasks' query; a board's statuses
+   * given to another board.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksGroupByProjectSplitsEachBoardByStatus() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    when(taskService.countTasks(any())).thenReturn(4);
+    ArgumentCaptor<TaskQuery> boards = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.countTasksByProject(boards.capture())).thenReturn(List.of(new ProjectTaskCountDto(8L, "Alpha", 3L),
+                                                                               new ProjectTaskCountDto(9L, "Beta", 1L)),
+                                                                       List.of(new ProjectTaskCountDto(8L, "Alpha", 5L),
+                                                                               new ProjectTaskCountDto(9L, "Beta", 2L)));
+    ArgumentCaptor<TaskQuery> statuses = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.countTasksByGroup(statuses.capture(), eq(TaskGrouping.PROJECT_STATUS)))
+                                                                                      .thenReturn(List.of(new TaskGroupCountDto("21", "To do", 8L, "Alpha", 2L),
+                                                                                                          new TaskGroupCountDto("22", "Done", 8L, "Alpha", 1L),
+                                                                                                          new TaskGroupCountDto("31", "To do", 9L, "Beta", 1L)));
+
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "project", null);
+
+    assertEquals(List.of(new StatusTaskCountModel(21L, "To do", 2L), new StatusTaskCountModel(22L, "Done", 1L)),
+                 result.getProjects().get(0).getByStatus());
+    assertEquals(List.of(new StatusTaskCountModel(31L, "To do", 1L)), result.getProjects().get(1).getByStatus());
+    assertSame(boards.getAllValues().get(0), statuses.getValue());
+    assertNull(result.getGroupBy());
+    assertEquals("4 tasks in 2 boards", result.getSummary());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(result));
+    assertEquals(21L, json.path("projects").path(0).path("by_status").path(0).path("status_id").asLong());
+    assertEquals("Done", json.path("projects").path(0).path("by_status").path(1).path("status").asText());
+  }
+
+  /**
+   * group_by assignee counts each assignee beside the open tasks of that
+   * assignee the user can access, the most first then by name, the tasks
+   * with no assignee under « unassigned »; it tells the grouping, the
+   * groups' count and none left out, and a call of limit 1 says no next page
+   * remains (EXO-94360). Mutants: the open count read from the selected
+   * groups; the order by name dropped; the null group's name left null.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksGroupByAssigneeCountsEachAssignee() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(1))).thenReturn(Collections.emptyList());
+    when(taskService.countTasks(any())).thenReturn(13);
+    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.ASSIGNEE))).thenReturn(List.of(new TaskGroupCountDto("john", "john", null, null, 5L),
+                                                                                             new TaskGroupCountDto(null, null, null, null, 3L),
+                                                                                             new TaskGroupCountDto("ann", "ann", null, null, 5L)),
+                                                                                     List.of(new TaskGroupCountDto("john", "john", null, null, 7L),
+                                                                                             new TaskGroupCountDto(null, null, null, null, 4L)));
+
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, 1, null, null, null, null, null, null, null, null, null, null, null, " Assignee ", null);
+
+    assertEquals(List.of(new TaskGroupCountModel("ann", "ann", null, null, 5L, 0L),
+                         new TaskGroupCountModel("john", "john", null, null, 5L, 7L),
+                         new TaskGroupCountModel(null, "unassigned", null, null, 3L, 4L)),
+                 result.getGroups());
+    assertEquals("assignee", result.getGroupBy());
+    assertEquals(Integer.valueOf(3), result.getGroupCount());
+    assertEquals(Integer.valueOf(0), result.getGroupsNotListed());
+    assertNull(result.getProjects());
+    assertNull(result.getPersonalCount());
+    assertFalse(result.isHasMore());
+    assertEquals("13 tasks, by assignee: ann 5, john 5, unassigned 3", result.getSummary());
+    verify(taskService, never()).countTasksByProject(any());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(result));
+    assertEquals("assignee", json.path("group_by").asText());
+    assertEquals(7, json.path("groups").path(1).path("open_count").asInt());
+    assertEquals(3, json.path("group_count").asInt());
+    assertEquals(0, json.path("groups_not_listed").asInt());
+    assertFalse(json.path("groups").path(0).has("project_id"));
+  }
+
+  /**
+   * group_by status counts each status name across boards, the personal
+   * tasks, in no status, counted apart; past the cap, the groups left out
+   * are counted and the summary names five groups and the number of the
+   * others (EXO-94360). Mutants: the personal tasks not counted; the cap
+   * dropped; the summary naming every group.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksGroupByStatusCountsPersonalTasksAndCapsTheGroups() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    when(taskService.countTasks(any())).thenReturn(12, 300);
+    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.STATUS))).thenReturn(List.of(new TaskGroupCountDto("To do", "To do", null, null, 7L),
+                                                                                           new TaskGroupCountDto("Done", "Done", null, null, 2L)),
+                                                                                   Collections.emptyList());
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "status", null);
+
+    assertEquals(Long.valueOf(3L), result.getPersonalCount());
+    assertEquals("12 tasks, by status: To do 7, Done 2; 3 personal, in no status", result.getSummary());
+
+    List<TaskGroupCountDto> many = new ArrayList<>();
+    for (int i = 0; i < 102; i++) {
+      many.add(new TaskGroupCountDto("s" + i, String.format("s%03d", i), null, null, 2L));
+    }
+    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.STATUS))).thenReturn(many, Collections.emptyList());
+    when(taskService.countTasks(any())).thenReturn(204);
+    TaskCollectionModel capped = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "status", null);
+
+    assertEquals(TaskMcpTool.MAX_PROJECT_COUNTS, capped.getGroups().size());
+    assertEquals(Integer.valueOf(102), capped.getGroupCount());
+    assertEquals(Integer.valueOf(2), capped.getGroupsNotListed());
+    assertEquals("204 tasks, by status: s000 2, s001 2, s002 2, s003 2, s004 2, and 97 more", capped.getSummary());
+  }
+
+  /**
+   * group_by label counts each label with its board, and the tasks with no
+   * label under « no label », counted on their own on the selected and on the
+   * open tasks; the summary says a task is counted under each of its labels
+   * (EXO-94360). Mutants: the no-label group dropped; its open count read
+   * from the selected tasks.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksGroupByLabelCountsTheTasksWithNoLabel() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    // the listing, its tasks with no label, the open tasks with no label
+    when(taskService.countTasks(any())).thenAnswer(invocation -> {
+      TaskQuery query = invocation.getArgument(0);
+      if (!hasFieldCondition(query, "labels")) {
+        return 10;
+      }
+      return selectsOpenTasksOnly(query) ? 9 : 6;
+    });
+    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.LABEL))).thenReturn(List.of(new TaskGroupCountDto("5", "urgent", 8L, "Alpha", 4L)),
+                                                                                  List.of(new TaskGroupCountDto("5", "urgent", 8L, "Alpha", 6L)));
+
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "label", null);
+
+    assertEquals(List.of(new TaskGroupCountModel(null, "no label", null, null, 6L, 9L),
+                         new TaskGroupCountModel("5", "urgent", 8L, "Alpha", 4L, 6L)),
+                 result.getGroups());
+    assertEquals("10 tasks, by label: no label 6, urgent (Alpha) 4; a task is counted under each of its labels", result.getSummary());
+  }
+
+  /**
+   * group_by due_period counts the five periods in their order, each on the
+   * listing's query and on the open tasks' query narrowed to its due dates
+   * in the user's time zone: before today, today to Sunday, the next week,
+   * later, and no due date (EXO-94360). Mutants: a period's bound moved; the
+   * open count read from the listing's query; the no-due-date period read
+   * as a range.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksGroupByDuePeriodCountsTheFivePeriods() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    ArgumentCaptor<TaskQuery> counted = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.countTasks(counted.capture())).thenReturn(20, 3, 5, 4, 4, 2, 2, 6, 8, 5, 9);
+
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "due_period", null);
+
+    assertEquals(List.of(new TaskGroupCountModel("overdue", "due before today", null, null, 3L, 5L),
+                         new TaskGroupCountModel("this_week", "due this week", null, null, 4L, 4L),
+                         new TaskGroupCountModel("next_week", "due next week", null, null, 2L, 2L),
+                         new TaskGroupCountModel("later", "due later", null, null, 6L, 8L),
+                         new TaskGroupCountModel("none", "with no due date", null, null, 5L, 9L)),
+                 result.getGroups());
+    assertEquals(Integer.valueOf(5), result.getGroupCount());
+    assertEquals("20 tasks: 3 due before today, 4 due this week, 2 due next week, 6 due later, 5 with no due date",
+                 result.getSummary());
+    // TODAY, 8 October 2026, is a Thursday in Paris, at UTC+2
+    Date today = Date.from(Instant.parse("2026-10-07T22:00:00Z"));
+    Date nextWeek = Date.from(Instant.parse("2026-10-11T22:00:00Z"));
+    Date weekAfter = Date.from(Instant.parse("2026-10-18T22:00:00Z"));
+    List<TaskQuery> queries = counted.getAllValues();
+    assertEquals(11, queries.size());
+    TaskQuery listing = queries.get(0);
+    for (int open = 0; open < 2; open++) {
+      TaskQuery overdue = queries.get(1 + open);
+      TaskQuery thisWeek = queries.get(3 + open);
+      TaskQuery next = queries.get(5 + open);
+      TaskQuery later = queries.get(7 + open);
+      TaskQuery none = queries.get(9 + open);
+      assertTrue(conjunction(overdue).stream().anyMatch(c -> isSingle(c, SingleCondition.LT, "dueDate", today)));
+      assertTrue(conjunction(thisWeek).stream().anyMatch(c -> isSingle(c, SingleCondition.GTE, "dueDate", today)));
+      assertTrue(conjunction(thisWeek).stream().anyMatch(c -> isSingle(c, SingleCondition.LT, "dueDate", nextWeek)));
+      assertTrue(conjunction(next).stream().anyMatch(c -> isSingle(c, SingleCondition.GTE, "dueDate", nextWeek)));
+      assertTrue(conjunction(next).stream().anyMatch(c -> isSingle(c, SingleCondition.LT, "dueDate", weekAfter)));
+      assertTrue(conjunction(later).stream().anyMatch(c -> isSingle(c, SingleCondition.GTE, "dueDate", weekAfter)));
+      assertFalse(conjunction(later).stream().anyMatch(c -> isSingle(c, SingleCondition.LT, "dueDate", weekAfter)));
+      assertTrue(conjunction(none).stream().anyMatch(c -> c instanceof SingleCondition<?> single && "dueDate".equals(single.getField())
+          && SingleCondition.IS_NULL.equals(single.getType())));
+      for (TaskQuery period : List.of(overdue, thisWeek, next, later, none)) {
+        assertEquals(open == 1, selectsOpenTasksOnly(period));
+      }
+    }
+    assertFalse(hasDueDateCondition(listing));
+  }
+
+  /**
+   * A week runs from Monday to Sunday: the next week starts on the Monday
+   * after the day, seven days later on a Monday, the next day on a Sunday
+   * (EXO-94360). Mutant: a Monday taken as the start of the next week.
+   */
+  @Test
+  public void nextWeekStartsOnTheMondayAfterTheDay() {
+    assertEquals(LocalDate.of(2026, 10, 12), TaskMcpTool.getStartOfNextWeek(LocalDate.of(2026, 10, 8)));
+    assertEquals(LocalDate.of(2026, 10, 19), TaskMcpTool.getStartOfNextWeek(LocalDate.of(2026, 10, 12)));
+    assertEquals(LocalDate.of(2026, 10, 12), TaskMcpTool.getStartOfNextWeek(LocalDate.of(2026, 10, 11)));
+  }
+
+  /**
+   * managed_only narrows the listing and the open tasks to the boards the
+   * user manages, read as list_projects managed_only reads them: with no
+   * project, every such board; with a project the user manages, that board;
+   * with one the user does not manage, or when the user manages none, an
+   * empty list, which selects nothing; the summary says so (EXO-94360).
+   * Mutants: the managed boards left out of the open tasks' query; a project
+   * not managed kept; the participants' boards read.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksManagedOnlyNarrowsToTheBoardsTheUserManages() throws Exception { // NOSONAR
+    ProjectDto first = listedProject(1L, null);
+    ProjectDto second = listedProject(2L, null);
+    ArgumentCaptor<ProjectQuery> managed = ArgumentCaptor.forClass(ProjectQuery.class);
+    when(projectService.countProjects(managed.capture())).thenReturn(2);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(2))).thenReturn(List.of(first, second));
+    ProjectDto viewable = mock(ProjectDto.class);
+    when(viewable.canView(any())).thenReturn(true);
+    when(projectService.getProject(2L)).thenReturn(viewable);
+    when(projectService.getProject(5L)).thenReturn(viewable);
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    ArgumentCaptor<TaskQuery> counted = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.countTasks(counted.capture())).thenReturn(4);
+    ArgumentCaptor<TaskQuery> boards = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.countTasksByProject(boards.capture())).thenReturn(List.of(new ProjectTaskCountDto(1L, "One", 4L)));
+
+    TaskCollectionModel all = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, true, null, null, true);
+    tool.listTasks(2L, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true);
+    tool.listTasks(5L, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true);
+    tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false);
+
+    assertManagedQuery(managed.getValue(), null);
+    assertEquals(List.of(1L, 2L), counted.getAllValues().get(0).getProjectIds());
+    assertEquals(List.of(1L, 2L), boards.getAllValues().get(0).getProjectIds());
+    assertEquals(List.of(1L, 2L), boards.getAllValues().get(1).getProjectIds());
+    assertEquals("4 open tasks in 1 of 1 board the user manages", all.getSummary());
+    assertEquals(List.of(2L), counted.getAllValues().get(1).getProjectIds());
+    assertEquals(List.of(), counted.getAllValues().get(2).getProjectIds());
+    assertNull(counted.getAllValues().get(3).getProjectIds());
+
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
+    tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true);
+    assertEquals(List.of(), counted.getAllValues().get(4).getProjectIds());
+  }
+
+  /**
+   * group_by takes one of its five groupings, ignoring case and blanks; with
+   * group_by_project true, only project; no group_by keeps group_by_project's
+   * answer, and neither gives an answer with no counts (EXO-94360). Mutants:
+   * an unknown grouping let through; group_by_project true with another
+   * grouping let through.
+   */
+  @Test
+  public void groupByTakesOneGroupingOnly() {
+    assertEquals("project", TaskMcpTool.getGrouping(null, true));
+    assertEquals("project", TaskMcpTool.getGrouping(" ", true));
+    assertNull(TaskMcpTool.getGrouping(null, null));
+    assertNull(TaskMcpTool.getGrouping("", false));
+    assertEquals("due_period", TaskMcpTool.getGrouping(" DUE_PERIOD ", null));
+    assertEquals("project", TaskMcpTool.getGrouping("project", true));
+    IllegalArgumentException unknown = assertThrows(IllegalArgumentException.class, () -> TaskMcpTool.getGrouping("week", null));
+    assertEquals("group_by must be one of project, assignee, status, label, due_period, not 'week'", unknown.getMessage());
+    assertThrows(IllegalArgumentException.class, () -> TaskMcpTool.getGrouping("label", true));
   }
 
   /**
@@ -4428,13 +4711,16 @@ public class TaskMcpToolTest {
   public void groupedSummaryNamesTheFiltersApplied() { // NOSONAR
     assertEquals("260 overdue open tasks in 29 of 86 boards",
                  TaskMcpTool.getGroupedSummary(grouped(260, 29, 86, 0, 0),
-                                               new TaskMcpTool.ListingFilters(true, false, false, null, null, null, null, null, null, null, null)));
+                                               new TaskMcpTool.ListingFilters(true, false, false, null, null, null, null, null, null, null, null, false)));
     assertEquals("41 tasks in 12 boards",
                  TaskMcpTool.getGroupedSummary(grouped(41, 12, 86, 0, 0),
-                                               new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null)));
+                                               new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null, false)));
+    assertEquals("41 open tasks in 12 of 86 boards the user manages",
+                 TaskMcpTool.getGroupedSummary(grouped(41, 12, 86, 0, 0),
+                                               new TaskMcpTool.ListingFilters(false, true, false, null, null, null, null, null, null, null, null, true)));
     assertEquals("1 task in 1 board",
                  TaskMcpTool.getGroupedSummary(grouped(1, 1, 5, 0, 0),
-                                               new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null)));
+                                               new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null, false)));
     assertEquals("7 open tasks of priority high whose title contains \"Report\" assigned to john in status 4 due from 2026-11-01 to 2026-11-30"
         + " changed since 2026-11-02 in 3 of 9 boards",
                  TaskMcpTool.getGroupedSummary(grouped(7, 3, 9, 0, 0),
@@ -4448,19 +4734,19 @@ public class TaskMcpToolTest {
                                                                               4L,
                                                                               " Report ",
                                                                               "2026-11-02",
-                                                                              null)));
+                                                                              null, false)));
     assertEquals("2 open tasks with no priority with no due date in 1 of 1 board",
                  TaskMcpTool.getGroupedSummary(grouped(2, 1, 1, 0, 0),
-                                               new TaskMcpTool.ListingFilters(false, true, true, null, null, Priority.NONE, null, null, null, null, null)));
+                                               new TaskMcpTool.ListingFilters(false, true, true, null, null, Priority.NONE, null, null, null, null, null, false)));
     assertEquals("3 tasks due until 2026-11-30 completed since 2026-11-01 in 2 boards",
                  TaskMcpTool.getGroupedSummary(grouped(3, 2, 9, 0, 0),
-                                               new TaskMcpTool.ListingFilters(false, true, false, null, "2026-11-30", null, null, null, null, null, "2026-11-01")));
+                                               new TaskMcpTool.ListingFilters(false, true, false, null, "2026-11-30", null, null, null, null, null, "2026-11-01", false)));
     assertEquals("3 overdue open tasks, all personal, on no board",
                  TaskMcpTool.getGroupedSummary(grouped(3, 0, 4, 3, 0),
-                                               new TaskMcpTool.ListingFilters(true, false, false, null, null, null, null, null, null, null, null)));
+                                               new TaskMcpTool.ListingFilters(true, false, false, null, null, null, null, null, null, null, null, false)));
     assertEquals("150 tasks in 101 boards; the 100 boards with the most are listed",
                  TaskMcpTool.getGroupedSummary(grouped(150, 101, 120, 0, 1),
-                                               new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null)));
+                                               new TaskMcpTool.ListingFilters(false, false, false, null, null, null, null, null, null, null, null, false)));
   }
 
   /**
@@ -4506,6 +4792,25 @@ public class TaskMcpToolTest {
     assertTrue(selectsOpenTasksOnly(ranged));
     assertTrue(scopedToTheUser(ranged));
     assertFalse(hasDueDateCondition(query.getAllValues().get(1)));
+  }
+
+  /**
+   * @param query a task query
+   * @param field a field
+   * @return whether any of its conditions reads that field
+   */
+  private static boolean hasFieldCondition(TaskQuery query, String field) {
+    List<Condition> conditions = new ArrayList<>();
+    conditions.add(query.getCondition());
+    for (int i = 0; i < conditions.size(); i++) {
+      Condition condition = conditions.get(i);
+      if (condition instanceof AggregateCondition aggregate) {
+        conditions.addAll(aggregate.getConditions());
+      } else if (condition instanceof SingleCondition<?> single && field.equals(single.getField())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

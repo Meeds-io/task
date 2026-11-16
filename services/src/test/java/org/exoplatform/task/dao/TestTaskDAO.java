@@ -45,6 +45,7 @@ import org.exoplatform.task.AbstractTest;
 import org.exoplatform.task.dao.condition.Conditions;
 import org.exoplatform.task.dao.condition.PredicateCondition;
 import org.exoplatform.task.dto.ProjectTaskCountDto;
+import org.exoplatform.task.dto.TaskGroupCountDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.domain.*;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -1744,6 +1745,101 @@ public class TestTaskDAO extends AbstractTest {
     assignedHigh.setShownPriority(Priority.HIGH);
     assertEquals(Set.of(alphaHigh.getId(), alphaHighShared.getId(), personalHigh.getId()), foundIds(assignedHigh));
     assertEquals(3, tDAO.findTasks(assignedHigh).getSize());
+  }
+
+  /**
+   * Each grouping counts on the engine the tasks the query selects, a board
+   * the reader cannot see and a completed task left out: by status name
+   * across boards, by status of each board in its column order, by assignee
+   * with the unassigned under a null key, by label with a task in each of its
+   * labels; the tasks with no label, which list_tasks counts apart, are the
+   * accessible open ones with none, a personal task included; a personal task
+   * is counted by assignee only (EXO-94360). Mutants:
+   * the query's condition dropped, the distinct count made a plain count, the
+   * status rank order dropped.
+   */
+  @Test
+  public void testCountTasksByGroupCountsEachGrouping() throws Exception {
+    Status alphaTodo = newReaderBoard("Alpha", "reader");
+    Status alphaDone = newColumn(alphaTodo.getProject(), "Done", 0);
+    Status betaTodo = newReaderBoard("Beta", "reader");
+    Status gammaTodo = newReaderBoard("Gamma", "stranger");
+    Task alphaOne = newPriorityCard("alpha one", alphaTodo, "reader", Priority.NORMAL);
+    alphaOne.setCoworker(new HashSet<>(Set.of("reader", "other")));
+    tDAO.update(alphaOne);
+    Task alphaTwo = newPriorityCard("alpha two", alphaTodo, null, Priority.NORMAL);
+    newPriorityCard("alpha three", alphaDone, "someone", Priority.NORMAL);
+    Task completed = newPriorityCard("alpha completed", alphaTodo, "reader", Priority.NORMAL);
+    completed.setCompleted(true);
+    tDAO.update(completed);
+    newPriorityCard("beta one", betaTodo, "someone", Priority.NORMAL);
+    newPriorityCard("gamma one", gammaTodo, "stranger", Priority.NORMAL);
+    tDAO.create(newTaskInstance("personal", "", "reader"));
+    Label urgent = labelHandler.create(new Label("urgent", "reader", alphaTodo.getProject()));
+    Label later = labelHandler.create(new Label("later", "reader", alphaTodo.getProject()));
+    daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(urgent, alphaOne));
+    daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(later, alphaOne));
+    daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(urgent, alphaTwo));
+    TaskQuery open = new TaskQuery();
+    open.setAccessible(new Identity("reader"));
+    open.setCompleted(false);
+
+    assertEquals(Map.of("To do", 3L, "Done", 1L), byKey(tDAO.countTasksByGroup(open, TaskGrouping.STATUS)));
+
+    List<TaskGroupCountDto> boardStatuses = tDAO.countTasksByGroup(open, TaskGrouping.PROJECT_STATUS);
+    assertEquals(List.of("Alpha:Done:1", "Alpha:To do:2", "Beta:To do:1"),
+                 boardStatuses.stream().map(g -> g.getProjectName() + ":" + g.getName() + ":" + g.getCount()).toList());
+    assertEquals(String.valueOf(alphaDone.getId()), boardStatuses.get(0).getKey());
+    assertEquals(alphaDone.getProject().getId(), boardStatuses.get(0).getProjectId().longValue());
+
+    Map<String, Long> assignees = new HashMap<>();
+    tDAO.countTasksByGroup(open, TaskGrouping.ASSIGNEE).forEach(g -> assignees.put(g.getKey(), g.getCount()));
+    Map<String, Long> expectedAssignees = new HashMap<>();
+    expectedAssignees.put("reader", 2L);
+    expectedAssignees.put("someone", 2L);
+    expectedAssignees.put(null, 1L);
+    assertEquals(expectedAssignees, assignees);
+
+    List<TaskGroupCountDto> labels = tDAO.countTasksByGroup(open, TaskGrouping.LABEL);
+    assertEquals(Map.of(String.valueOf(urgent.getId()), 2L, String.valueOf(later.getId()), 1L), byKey(labels));
+    assertTrue(labels.stream().allMatch(g -> "Alpha".equals(g.getProjectName())));
+
+    TaskQuery noLabel = open.clone();
+    noLabel.setEmptyField("labels");
+    assertEquals(3, tDAO.findTasks(noLabel).getSize());
+    assertEquals(3, foundIds(noLabel).size());
+    assertFalse(foundIds(noLabel).contains(alphaOne.getId()));
+    assertFalse(foundIds(noLabel).contains(alphaTwo.getId()));
+  }
+
+  /**
+   * An empty list of projects selects no task on the engine, a personal task
+   * included: list_tasks managed_only gives it when the user manages no
+   * board, or not the board asked (EXO-94360). Mutant: the empty list
+   * dropped from the query.
+   */
+  @Test
+  public void testEmptyProjectListSelectsNoTask() {
+    Status alpha = newReaderBoard("Alpha", "reader");
+    newPriorityCard("alpha one", alpha, "reader", Priority.NORMAL);
+    tDAO.create(newTaskInstance("personal", "", "reader"));
+    TaskQuery none = new TaskQuery();
+    none.setAccessible(new Identity("reader"));
+    none.setProjectIds(Collections.emptyList());
+
+    assertEquals(0, foundIds(none).size());
+    assertTrue(tDAO.countTasksByProject(none).isEmpty());
+    assertTrue(tDAO.countTasksByGroup(none, TaskGrouping.ASSIGNEE).isEmpty());
+  }
+
+  /**
+   * Maps each group's key to its count.
+   *
+   * @param groups the groups counted
+   * @return the count of each key
+   */
+  private Map<String, Long> byKey(List<TaskGroupCountDto> groups) {
+    return groups.stream().collect(Collectors.toMap(TaskGroupCountDto::getKey, TaskGroupCountDto::getCount));
   }
 
   /**

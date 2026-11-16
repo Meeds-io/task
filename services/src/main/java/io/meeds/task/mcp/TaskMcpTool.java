@@ -30,6 +30,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.DayOfWeek;
+import java.time.temporal.TemporalAdjusters;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -37,6 +39,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -77,6 +80,7 @@ import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
+import org.exoplatform.task.dao.TaskGrouping;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ChangeLogEntry;
@@ -87,6 +91,7 @@ import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.ProjectTaskCountDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.dto.TaskGroupCountDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskChangeFilter;
 import org.exoplatform.task.model.TaskChanges;
@@ -124,6 +129,8 @@ import io.meeds.task.mcp.model.TaskCommentModel;
 import io.meeds.task.mcp.model.TaskListItemModel;
 import io.meeds.task.mcp.util.TaskDescriptionText;
 import io.meeds.task.mcp.model.ProjectTaskCountModel;
+import io.meeds.task.mcp.model.StatusTaskCountModel;
+import io.meeds.task.mcp.model.TaskGroupCountModel;
 import io.meeds.task.mcp.model.TaskModel;
 import io.meeds.task.mcp.model.TaskSearchCollectionModel;
 import io.meeds.task.mcp.model.TaskSearchResultModel;
@@ -146,6 +153,36 @@ public class TaskMcpTool implements McpToolPlugin {
    * counts them all (EXO-94250).
    */
   public static final int               MAX_PROJECT_COUNTS              = 100;
+
+  /** The {@code group_by} of a list_tasks answer counted board by board. */
+  public static final String            GROUP_BY_PROJECT                = "project";
+
+  /** The {@code group_by} of a list_tasks answer counted by assignee. */
+  public static final String            GROUP_BY_ASSIGNEE               = "assignee";
+
+  /** The {@code group_by} of a list_tasks answer counted by status name. */
+  public static final String            GROUP_BY_STATUS                 = "status";
+
+  /** The {@code group_by} of a list_tasks answer counted by label. */
+  public static final String            GROUP_BY_LABEL                  = "label";
+
+  /** The {@code group_by} of a list_tasks answer counted by due period. */
+  public static final String            GROUP_BY_DUE_PERIOD             = "due_period";
+
+  /** The due period of the tasks due before today. */
+  public static final String            DUE_PERIOD_OVERDUE              = "overdue";
+
+  /** The due period of the tasks due from today to the end of the week. */
+  public static final String            DUE_PERIOD_THIS_WEEK            = "this_week";
+
+  /** The due period of the tasks due in the next week. */
+  public static final String            DUE_PERIOD_NEXT_WEEK            = "next_week";
+
+  /** The due period of the tasks due after the next week. */
+  public static final String            DUE_PERIOD_LATER                = "later";
+
+  /** The due period of the tasks with no due date. */
+  public static final String            DUE_PERIOD_NONE                 = "none";
 
   /** The relation of a list_assigned_tasks item assigned to the user. */
   public static final String            RELATION_ASSIGNEE               = "assignee";
@@ -230,6 +267,21 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           ARG_DUE_FROM                    = "due_from";
 
   private static final String           ARG_DUE_TO                      = "due_to";
+
+  private static final List<String>     GROUP_BY_VALUES                 = List.of(GROUP_BY_PROJECT,
+                                                                                  GROUP_BY_ASSIGNEE,
+                                                                                  GROUP_BY_STATUS,
+                                                                                  GROUP_BY_LABEL,
+                                                                                  GROUP_BY_DUE_PERIOD);
+
+  /** The most groups the summary of a listing grouped by assignee, status or label names. */
+  private static final int              SUMMARY_GROUPS                  = 5;
+
+  private static final String           MSG_INVALID_GROUP_BY            = "group_by must be one of %s, not '%s'";
+
+  private static final String           MSG_GROUP_BY_AND_PROJECT        =
+                                                                 "group_by_project counts board by board and group_by '%s' "
+                                                                     + "counts otherwise: pass group_by alone";
 
   private static final String           MSG_WITHOUT_DUE_DATE_AND_RANGE  =
                                                                        "without_due_date lists the tasks with no due date and "
@@ -853,6 +905,16 @@ public class TaskMcpTool implements McpToolPlugin {
    * a grouped call with a limit of 1, made for the counts, returns at most
    * one task and says no next page remains (EXO-94360).
    * <p>
+   * With {@code groupBy}, the answer counts the selected tasks by
+   * {@value #GROUP_BY_PROJECT}, as {@code groupByProject} does, each board
+   * then split status by status; or by {@value #GROUP_BY_ASSIGNEE},
+   * {@value #GROUP_BY_STATUS} name across boards, {@value #GROUP_BY_LABEL} or
+   * {@value #GROUP_BY_DUE_PERIOD}, each group beside its open tasks the user
+   * can access. With {@code managedOnly}, only the tasks of the boards the
+   * user manages, as {@code list_projects} reads them with no space: a
+   * personal task is on none, and a {@code projectId} the user does not
+   * manage selects nothing (EXO-94360).
+   * <p>
    * Each task comes as a list item, without its description or coworkers,
    * which {@link #getTaskById(Long)} returns; with {@code includeDescription},
    * with its description as plain text, cut at
@@ -881,14 +943,20 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param groupByProject whether the answer also counts the selected tasks
    *          board by board
    * @param priority the priority of the tasks listed, null for any
+   * @param groupBy what the answer also counts the selected tasks by, blank
+   *          for nothing unless {@code groupByProject}
+   * @param managedOnly whether only the tasks of the boards the user manages
+   *          are listed
    * @return the tasks, with their count and whether more remain, and with
-   *         {@code groupByProject} the count of each board
+   *         {@code groupByProject} or {@code groupBy} the count of each board
+   *         or group
    * @throws IllegalAccessException when the user can't view the project
    * @throws ObjectNotFoundException when the project doesn't exist
    * @throws IllegalArgumentException when a date is no date, when both
    *           {@code overdueOnly} and {@code completedSince} are given, or
    *           when {@code withoutDueDate} comes with a due range or with
-   *           {@code overdueOnly}
+   *           {@code overdueOnly}, or when {@code groupBy} is no grouping or
+   *           comes with {@code groupByProject} for another grouping
    */
   public TaskCollectionModel listTasks(Long projectId, // NOSONAR the tool's parameters, each one its own
                                        Boolean hideCompletedTasks,
@@ -906,7 +974,10 @@ public class TaskMcpTool implements McpToolPlugin {
                                        String dueFrom,
                                        String dueTo,
                                        Boolean groupByProject,
-                                       Priority priority) throws IllegalAccessException, ObjectNotFoundException {
+                                       Priority priority,
+                                       String groupBy,
+                                       Boolean managedOnly) throws IllegalAccessException, ObjectNotFoundException {
+    String grouping = getGrouping(groupBy, groupByProject);
     ZoneId zone = getCurrentUserZone();
     LocalDate today = getToday(zone);
     Date changedSinceDate = parseSince(changedSince, ARG_CHANGED_SINCE, zone);
@@ -915,6 +986,11 @@ public class TaskMcpTool implements McpToolPlugin {
     Date dueFromDate = parseSince(dueFrom, ARG_DUE_FROM, zone);
     checkWithoutDueDate(withoutDueDate, overdueOnly, dueFromDate != null || StringUtils.isNotBlank(dueTo));
     TaskQuery taskQuery = getTaskQuery(projectId, false, Boolean.TRUE.equals(overdueOnly), zone);
+    List<Long> managedProjectIds = Boolean.TRUE.equals(managedOnly) ? getManagedProjectIds(projectId) : null;
+    if (managedProjectIds != null) {
+      // an empty list selects no task
+      taskQuery.setProjectIds(managedProjectIds);
+    }
     if (Boolean.TRUE.equals(withoutDueDate)) {
       taskQuery.setWithoutDueDate();
     }
@@ -944,25 +1020,40 @@ public class TaskMcpTool implements McpToolPlugin {
       taskModels = tasks.stream().map(t -> toTaskWithChangeLogModel(t, null, zone, today)).toList();
     }
     TaskCollectionModel collection = toTaskCollection(taskModels, usedOffset, usedLimit, countTasks(taskQuery));
-    if (Boolean.TRUE.equals(groupByProject)) {
+    if (grouping != null) {
       if (usedLimit == 1) {
         // a call for the counts, its one task aside, asks no next page (EXO-94360)
         collection.setHasMore(false);
         collection.setNextOffset(null);
       }
-      setProjectCounts(collection, taskQuery, projectId, zone);
-      collection.setSummary(getGroupedSummary(collection,
-                                              new ListingFilters(Boolean.TRUE.equals(overdueOnly),
-                                                                 Boolean.TRUE.equals(hideCompletedTasks),
-                                                                 Boolean.TRUE.equals(withoutDueDate),
-                                                                 dueFrom,
-                                                                 dueTo,
-                                                                 priority,
-                                                                 assignee,
-                                                                 statusId,
-                                                                 title,
-                                                                 changedSince,
-                                                                 completedSince)));
+      TaskQuery openQuery = getTaskQuery(projectId, true, false, zone);
+      if (managedProjectIds != null) {
+        openQuery.setProjectIds(managedProjectIds);
+      }
+      ListingFilters filters = new ListingFilters(Boolean.TRUE.equals(overdueOnly),
+                                                  Boolean.TRUE.equals(hideCompletedTasks),
+                                                  Boolean.TRUE.equals(withoutDueDate),
+                                                  dueFrom,
+                                                  dueTo,
+                                                  priority,
+                                                  assignee,
+                                                  statusId,
+                                                  title,
+                                                  changedSince,
+                                                  completedSince,
+                                                  Boolean.TRUE.equals(managedOnly));
+      if (GROUP_BY_PROJECT.equals(grouping)) {
+        setProjectCounts(collection, taskQuery, openQuery);
+        collection.setSummary(getGroupedSummary(collection, filters));
+      } else {
+        collection.setGroupBy(grouping);
+        if (GROUP_BY_DUE_PERIOD.equals(grouping)) {
+          setDuePeriodCounts(collection, taskQuery, openQuery, zone);
+        } else {
+          setGroupCounts(collection, taskQuery, openQuery, grouping);
+        }
+        collection.setSummary(getGroupsSummary(collection, filters));
+      }
     }
     return collection;
   }
@@ -2520,24 +2611,19 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Counts board by board the tasks a listing selects, each board beside its
-   * open tasks, the boards with the most selected tasks first, then by name
-   * and identifier, so that two calls list them in the same order, at most
-   * {@value #MAX_PROJECT_COUNTS}. The open tasks are counted with the
-   * listing's own accessibility on every board, which counts the boards that
-   * hold open tasks too; the boards left out of the list and the personal
-   * tasks, on no board, are counted (EXO-94360).
+   * open tasks and split status by status, the boards with the most selected
+   * tasks first, then by name and identifier, so that two calls list them in
+   * the same order, at most {@value #MAX_PROJECT_COUNTS}. The open tasks are
+   * counted with the listing's own accessibility on every board, which counts
+   * the boards that hold open tasks too; the boards left out of the list and
+   * the personal tasks, on no board, are counted (EXO-94360).
    *
    * @param collection the listing's answer, to which the counts are added
    * @param taskQuery the listing's query
-   * @param projectId the listing's project, null for every accessible task
-   * @param zone the user's time zone
-   * @throws IllegalAccessException when the user can't view the project
-   * @throws ObjectNotFoundException when the project doesn't exist
+   * @param openQuery the query of the open tasks the user can access, on the
+   *          listing's project or managed boards
    */
-  private void setProjectCounts(TaskCollectionModel collection,
-                                TaskQuery taskQuery,
-                                Long projectId,
-                                ZoneId zone) throws IllegalAccessException, ObjectNotFoundException {
+  private void setProjectCounts(TaskCollectionModel collection, TaskQuery taskQuery, TaskQuery openQuery) {
     List<ProjectTaskCountDto> counts = taskService.countTasksByProject(taskQuery);
     List<ProjectTaskCountDto> kept = counts.stream()
                                            .sorted(Comparator.comparingLong(ProjectTaskCountDto::getCount)
@@ -2549,15 +2635,24 @@ public class TaskMcpTool implements McpToolPlugin {
                                            .toList();
     // the open tasks of every board the user can access: their boards are
     // counted, and the listed boards read their open count from them
-    Map<Long, Long> open = taskService.countTasksByProject(getTaskQuery(projectId, true, false, zone))
+    Map<Long, Long> open = taskService.countTasksByProject(openQuery)
                                       .stream()
                                       .collect(Collectors.toMap(ProjectTaskCountDto::getProjectId,
                                                                 ProjectTaskCountDto::getCount));
+    // in each board's column order, as the engine returns them
+    Map<Long, List<StatusTaskCountModel>> byStatus = new HashMap<>();
+    taskService.countTasksByGroup(taskQuery, TaskGrouping.PROJECT_STATUS)
+               .forEach(group -> byStatus.computeIfAbsent(group.getProjectId(), id -> new ArrayList<>())
+                                         .add(new StatusTaskCountModel(Long.parseLong(group.getKey()),
+                                                                       group.getName(),
+                                                                       group.getCount())));
     List<ProjectTaskCountModel> projects = kept.stream()
                                                .map(count -> new ProjectTaskCountModel(count.getProjectId(),
                                                                                        count.getProjectName(),
                                                                                        count.getCount(),
-                                                                                       open.getOrDefault(count.getProjectId(), 0L)))
+                                                                                       open.getOrDefault(count.getProjectId(), 0L),
+                                                                                       byStatus.getOrDefault(count.getProjectId(),
+                                                                                                             Collections.emptyList())))
                                                .toList();
     long onBoards = counts.stream().mapToLong(ProjectTaskCountDto::getCount).sum();
     collection.setProjects(projects);
@@ -2565,6 +2660,206 @@ public class TaskMcpTool implements McpToolPlugin {
     collection.setOpenProjectCount(open.size());
     collection.setProjectsNotListed(counts.size() - kept.size());
     collection.setPersonalCount(Math.max(0L, collection.getCount() - onBoards));
+  }
+
+  /**
+   * Counts by assignee, status name or label the tasks a listing selects,
+   * each group beside its open tasks the user can access, the groups with the
+   * most selected tasks first, then by name and key, at most
+   * {@value #MAX_PROJECT_COUNTS}. The tasks with no assignee, or with no
+   * label, make a group of key null; a personal task, with no status, is in
+   * no status group and is counted as personal (EXO-94360).
+   *
+   * @param collection the listing's answer, to which the counts are added
+   * @param taskQuery the listing's query
+   * @param openQuery the query of the open tasks the user can access
+   * @param grouping {@value #GROUP_BY_ASSIGNEE}, {@value #GROUP_BY_STATUS} or
+   *          {@value #GROUP_BY_LABEL}
+   */
+  private void setGroupCounts(TaskCollectionModel collection, TaskQuery taskQuery, TaskQuery openQuery, String grouping) {
+    TaskGrouping taskGrouping = switch (grouping) {
+    case GROUP_BY_ASSIGNEE -> TaskGrouping.ASSIGNEE;
+    case GROUP_BY_STATUS -> TaskGrouping.STATUS;
+    default -> TaskGrouping.LABEL;
+    };
+    List<TaskGroupCountDto> counts = new ArrayList<>(taskService.countTasksByGroup(taskQuery, taskGrouping));
+    List<TaskGroupCountDto> openCounts = new ArrayList<>(taskService.countTasksByGroup(openQuery, taskGrouping));
+    if (taskGrouping == TaskGrouping.LABEL) {
+      addNoLabelGroup(counts, taskQuery);
+      addNoLabelGroup(openCounts, openQuery);
+    }
+    Map<String, Long> open = new HashMap<>();
+    openCounts.forEach(group -> open.put(group.getKey(), group.getCount()));
+    List<TaskGroupCountModel> groups = counts.stream()
+                                             .sorted(Comparator.comparingLong(TaskGroupCountDto::getCount)
+                                                               .reversed()
+                                                               .thenComparing(TaskGroupCountDto::getName,
+                                                                              Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                                                               .thenComparing(TaskGroupCountDto::getKey,
+                                                                              Comparator.nullsLast(Comparator.naturalOrder())))
+                                             .limit(MAX_PROJECT_COUNTS)
+                                             .map(group -> new TaskGroupCountModel(group.getKey(),
+                                                                                   getGroupName(group, grouping),
+                                                                                   group.getProjectId(),
+                                                                                   group.getProjectName(),
+                                                                                   group.getCount(),
+                                                                                   open.getOrDefault(group.getKey(), 0L)))
+                                             .toList();
+    collection.setGroups(groups);
+    collection.setGroupCount(counts.size());
+    collection.setGroupsNotListed(counts.size() - groups.size());
+    if (taskGrouping == TaskGrouping.STATUS) {
+      long inStatuses = counts.stream().mapToLong(TaskGroupCountDto::getCount).sum();
+      collection.setPersonalCount(Math.max(0L, collection.getCount() - inStatuses));
+    }
+  }
+
+  /**
+   * Adds the group of the tasks with no label, key null, when the query
+   * selects any: a label group counts a task once per label, so this one is
+   * counted on its own rather than by difference.
+   *
+   * @param groups the label groups, to which the group is added
+   * @param query the query whose tasks with no label are counted
+   */
+  private void addNoLabelGroup(List<TaskGroupCountDto> groups, TaskQuery query) {
+    TaskQuery noLabel = query.clone();
+    noLabel.setEmptyField("labels");
+    long count = countTasks(noLabel);
+    if (count > 0) {
+      groups.add(new TaskGroupCountDto(null, null, null, null, count));
+    }
+  }
+
+  /**
+   * @param group a group counted
+   * @param grouping the grouping it belongs to
+   * @return the name the answer gives the group: « unassigned » and « no
+   *         label » for the groups of key null, the group's own name otherwise
+   */
+  private static String getGroupName(TaskGroupCountDto group, String grouping) {
+    if (group.getKey() != null) {
+      return group.getName();
+    }
+    return GROUP_BY_ASSIGNEE.equals(grouping) ? "unassigned" : "no label";
+  }
+
+  /**
+   * Counts by due period the tasks a listing selects, each period beside its
+   * open tasks the user can access, the five periods always listed in their
+   * order: {@value #DUE_PERIOD_OVERDUE}, due before the start of the user's
+   * day, whose open tasks are the overdue ones; {@value #DUE_PERIOD_THIS_WEEK},
+   * from today to the end of the week, which ends on Sunday;
+   * {@value #DUE_PERIOD_NEXT_WEEK}; {@value #DUE_PERIOD_LATER}; and
+   * {@value #DUE_PERIOD_NONE}, with no due date (EXO-94360).
+   *
+   * @param collection the listing's answer, to which the counts are added
+   * @param taskQuery the listing's query
+   * @param openQuery the query of the open tasks the user can access
+   * @param zone the user's time zone
+   */
+  private void setDuePeriodCounts(TaskCollectionModel collection, TaskQuery taskQuery, TaskQuery openQuery, ZoneId zone) {
+    LocalDate today = getToday(zone);
+    LocalDate nextWeek = getStartOfNextWeek(today);
+    Date startOfToday = Date.from(today.atStartOfDay(zone).toInstant());
+    Date startOfNextWeek = Date.from(nextWeek.atStartOfDay(zone).toInstant());
+    Date startOfWeekAfter = Date.from(nextWeek.plusWeeks(1).atStartOfDay(zone).toInstant());
+    List<TaskGroupCountModel> groups = new ArrayList<>();
+    groups.add(countDuePeriod(DUE_PERIOD_OVERDUE, "due before today", taskQuery, openQuery, null, startOfToday));
+    groups.add(countDuePeriod(DUE_PERIOD_THIS_WEEK, "due this week", taskQuery, openQuery, startOfToday, startOfNextWeek));
+    groups.add(countDuePeriod(DUE_PERIOD_NEXT_WEEK, "due next week", taskQuery, openQuery, startOfNextWeek, startOfWeekAfter));
+    groups.add(countDuePeriod(DUE_PERIOD_LATER, "due later", taskQuery, openQuery, startOfWeekAfter, null));
+    TaskQuery none = taskQuery.clone();
+    none.setWithoutDueDate();
+    TaskQuery openNone = openQuery.clone();
+    openNone.setWithoutDueDate();
+    groups.add(new TaskGroupCountModel(DUE_PERIOD_NONE, "with no due date", null, null, countTasks(none), countTasks(openNone)));
+    collection.setGroups(groups);
+    collection.setGroupCount(groups.size());
+    collection.setGroupsNotListed(0);
+  }
+
+  /**
+   * @param today the user's day
+   * @return the Monday after it, which starts the next week: a week runs
+   *         from Monday to Sunday, so on a Monday it is seven days later
+   */
+  static LocalDate getStartOfNextWeek(LocalDate today) {
+    return today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+  }
+
+  /**
+   * Counts the tasks of one due period, those due at or after its start and
+   * strictly before its end.
+   *
+   * @param key the period
+   * @param name the name the answer gives the period
+   * @param taskQuery the listing's query
+   * @param openQuery the query of the open tasks the user can access
+   * @param from the start of the period, null for none
+   * @param before the end of the period, excluded, null for none
+   * @return the period's group
+   */
+  private TaskGroupCountModel countDuePeriod(String key,
+                                             String name,
+                                             TaskQuery taskQuery,
+                                             TaskQuery openQuery,
+                                             Date from,
+                                             Date before) {
+    TaskQuery period = taskQuery.clone();
+    period.setDueDateFrom(from);
+    period.setDueDateBefore(before);
+    TaskQuery openPeriod = openQuery.clone();
+    openPeriod.setDueDateFrom(from);
+    openPeriod.setDueDateBefore(before);
+    return new TaskGroupCountModel(key, name, null, null, countTasks(period), countTasks(openPeriod));
+  }
+
+  /**
+   * Reads the boards the current user manages, as {@code list_projects}
+   * reads them with {@code managed_only} and no space: those whose managers
+   * hold the user's name or one of the user's memberships (EXO-94360).
+   *
+   * @param projectId the listing's project, null for every board
+   * @return the identifiers of the boards managed, only {@code projectId}
+   *         when the user manages it, empty when the user manages none
+   */
+  private List<Long> getManagedProjectIds(Long projectId) {
+    List<String> memberships = getMemberships(null);
+    if (memberships.isEmpty()) {
+      return Collections.emptyList();
+    }
+    ProjectQuery query = newProjectQuery(memberships, true);
+    int count = projectService.countProjects(query);
+    List<Long> ids = count == 0 ? Collections.emptyList() :
+                                projectService.findProjects(query, 0, count).stream().map(ProjectDto::getId).toList();
+    if (projectId != null && projectId > 0) {
+      return ids.contains(projectId) ? List.of(projectId) : Collections.emptyList();
+    }
+    return ids;
+  }
+
+  /**
+   * Reads the grouping a list_tasks call asks for.
+   *
+   * @param groupBy the call's {@code group_by}, blank for none
+   * @param groupByProject the call's {@code group_by_project}
+   * @return the grouping, null for none
+   * @throws IllegalArgumentException when {@code groupBy} is no grouping, or
+   *           when {@code groupByProject} comes with another grouping
+   */
+  static String getGrouping(String groupBy, Boolean groupByProject) {
+    if (StringUtils.isBlank(groupBy)) {
+      return Boolean.TRUE.equals(groupByProject) ? GROUP_BY_PROJECT : null;
+    }
+    String grouping = groupBy.trim().toLowerCase(Locale.ROOT);
+    if (!GROUP_BY_VALUES.contains(grouping)) {
+      throw new IllegalArgumentException(MSG_INVALID_GROUP_BY.formatted(String.join(", ", GROUP_BY_VALUES), groupBy));
+    }
+    if (Boolean.TRUE.equals(groupByProject) && !GROUP_BY_PROJECT.equals(grouping)) {
+      throw new IllegalArgumentException(MSG_GROUP_BY_AND_PROJECT.formatted(grouping));
+    }
+    return grouping;
   }
 
   /**
@@ -2580,16 +2875,8 @@ public class TaskMcpTool implements McpToolPlugin {
   static String getGroupedSummary(TaskCollectionModel collection, ListingFilters filters) {
     long count = collection.getCount();
     long personal = collection.getPersonalCount() == null ? 0L : collection.getPersonalCount();
-    // hide_completed_tasks keeps the completed tasks when completed_since is
-    // given (TaskServiceImpl#addChangeFilter): the tasks are open only without it
-    boolean openOnly = filters.overdueOnly() || filters.hideCompleted() && StringUtils.isBlank(filters.completedSince());
-    StringBuilder summary = new StringBuilder().append(count).append(' ');
-    if (filters.overdueOnly()) {
-      summary.append("overdue open ");
-    } else if (openOnly) {
-      summary.append("open ");
-    }
-    summary.append(count == 1 ? "task" : "tasks").append(describeFilters(filters));
+    boolean openOnly = isOpenOnly(filters);
+    StringBuilder summary = describeCount(count, filters);
     int boards = collection.getProjectCount();
     StringBuilder where = new StringBuilder(" in ").append(boards);
     int last = boards;
@@ -2598,6 +2885,9 @@ public class TaskMcpTool implements McpToolPlugin {
       where.append(" of ").append(last);
     }
     where.append(last == 1 ? " board" : " boards");
+    if (filters.managedOnly()) {
+      where.append(" the user manages");
+    }
     if (personal > 0 && personal == count) {
       summary.append(", all personal, on no board");
     } else if (personal > 0) {
@@ -2609,6 +2899,80 @@ public class TaskMcpTool implements McpToolPlugin {
       summary.append("; the ").append(collection.getProjects().size()).append(" boards with the most are listed");
     }
     return summary.toString();
+  }
+
+  /**
+   * States a listing grouped by assignee, status, label or due period in one
+   * sentence: the count, the filters applied, then each due period, or the
+   * {@value #SUMMARY_GROUPS} groups with the most tasks, with the number of
+   * those left out and the personal tasks of a grouping by status, such as
+   * « 60 open tasks: 12 due before today, 20 due this week, 0 due next week,
+   * 5 due later, 23 with no due date » (EXO-94360).
+   *
+   * @param collection the grouped answer, its groups set
+   * @param filters the filters the listing applied
+   * @return the sentence
+   */
+  static String getGroupsSummary(TaskCollectionModel collection, ListingFilters filters) {
+    StringBuilder summary = describeCount(collection.getCount(), filters);
+    if (filters.managedOnly()) {
+      summary.append(" on the boards the user manages");
+    }
+    List<TaskGroupCountModel> groups = collection.getGroups();
+    if (GROUP_BY_DUE_PERIOD.equals(collection.getGroupBy())) {
+      summary.append(": ")
+             .append(groups.stream().map(group -> group.getCount() + " " + group.getName()).collect(Collectors.joining(", ")));
+      return summary.toString();
+    }
+    if (!groups.isEmpty()) {
+      summary.append(", by ")
+             .append(collection.getGroupBy())
+             .append(": ")
+             .append(groups.stream()
+                           .limit(SUMMARY_GROUPS)
+                           .map(group -> group.getProjectName() == null ? group.getName() + " " + group.getCount() :
+                                                                        group.getName() + " (" + group.getProjectName()
+                                                                            + ") " + group.getCount())
+                           .collect(Collectors.joining(", ")));
+      int more = collection.getGroupCount() - Math.min(SUMMARY_GROUPS, groups.size());
+      if (more > 0) {
+        summary.append(", and ").append(more).append(" more");
+      }
+    }
+    if (GROUP_BY_LABEL.equals(collection.getGroupBy())) {
+      summary.append("; a task is counted under each of its labels");
+    }
+    long personal = collection.getPersonalCount() == null ? 0L : collection.getPersonalCount();
+    if (personal > 0) {
+      summary.append("; ").append(personal).append(" personal, in no status");
+    }
+    return summary.toString();
+  }
+
+  /**
+   * @param filters the filters a listing applied
+   * @return whether the listing selects open tasks only: hide_completed_tasks
+   *         keeps the completed tasks when completed_since is given
+   *         (TaskServiceImpl#addChangeFilter)
+   */
+  private static boolean isOpenOnly(ListingFilters filters) {
+    return filters.overdueOnly() || filters.hideCompleted() && StringUtils.isBlank(filters.completedSince());
+  }
+
+  /**
+   * @param count the count of the tasks a listing selects
+   * @param filters the filters the listing applied
+   * @return the start of a grouped listing's summary: the count, whether the
+   *         tasks are overdue or open, and the other filters
+   */
+  private static StringBuilder describeCount(long count, ListingFilters filters) {
+    StringBuilder summary = new StringBuilder().append(count).append(' ');
+    if (filters.overdueOnly()) {
+      summary.append("overdue open ");
+    } else if (isOpenOnly(filters)) {
+      summary.append("open ");
+    }
+    return summary.append(count == 1 ? "task" : "tasks").append(describeFilters(filters));
   }
 
   /**
@@ -2665,6 +3029,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param title a part of the title, blank for any
    * @param changedSince the change date, blank for none
    * @param completedSince the completion date, blank for none
+   * @param managedOnly whether only the tasks of the boards the user manages
+   *          are listed
    */
   record ListingFilters(boolean overdueOnly, // NOSONAR the tool's filters, each one its own
                         boolean hideCompleted,
@@ -2676,7 +3042,8 @@ public class TaskMcpTool implements McpToolPlugin {
                         Long statusId,
                         String title,
                         String changedSince,
-                        String completedSince) {
+                        String completedSince,
+                        boolean managedOnly) {
   }
 
   /**
