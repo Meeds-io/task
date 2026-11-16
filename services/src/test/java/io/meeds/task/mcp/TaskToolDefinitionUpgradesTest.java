@@ -54,7 +54,7 @@ public class TaskToolDefinitionUpgradesTest {
 
   /** How many earlier definitions of each changed tool the history of every ref holds. */
   private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks",
-                                                                            24,
+                                                                            25,
                                                                             "list_assigned_tasks",
                                                                             15,
                                                                             "list_projects",
@@ -123,10 +123,19 @@ public class TaskToolDefinitionUpgradesTest {
                                                                                   "65f424bef5744953183b3f5b5702c359785b9f61feb3181bf129978227c42101");
 
   /**
+   * The definition of list_tasks group_by and managed_only shipped, before the
+   * managed boards' count and each board's overdue count (EXO-94360).
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_MANAGED_COUNT =
+                                                                           Map.of("list_tasks",
+                                                                                  "371786eaddec904bda16782a879d6b534c3f2b3758f2c6c3958743e3549857b0");
+
+  /**
    * Each changed tool lists every earlier definition, those shipped before
    * EXO-94250, before EXO-94284, before managed_only, before the relation,
-   * before EXO-94377, before EXO-94360 and before group_by included, and not its
-   * shipped one, which an instance already holding it keeps anyway. Mutants:
+   * before EXO-94377, before EXO-94360, before group_by and before the managed
+   * boards' count included, and not its shipped one, which an instance
+   * already holding it keeps anyway. Mutants:
    * a digest removed, the shipped digest added, a tool's entry dropped.
    *
    * @throws Exception never
@@ -147,7 +156,8 @@ public class TaskToolDefinitionUpgradesTest {
                                                 DEFINITIONS_BEFORE_RELATION,
                                                 DEFINITIONS_BEFORE_94377,
                                                 DEFINITIONS_BEFORE_94360,
-                                                DEFINITIONS_BEFORE_GROUP_BY)) {
+                                                DEFINITIONS_BEFORE_GROUP_BY,
+                                                DEFINITIONS_BEFORE_MANAGED_COUNT)) {
         if (pinned.containsKey(name)) {
           assertTrue(name, digests.contains(pinned.get(name)));
         }
