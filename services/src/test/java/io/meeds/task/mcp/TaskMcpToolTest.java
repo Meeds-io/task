@@ -4370,7 +4370,8 @@ public class TaskMcpToolTest {
    * condition left out of the open or overdue tasks' query; the condition
    * given the participants; managed_only taken as true by default; the
    * managed boards not counted, or counted through the participants or the
-   * count by memberships.
+   * count by memberships, or counted with a project, whose counts reach that
+   * board only.
    *
    * @throws Exception never
    */
@@ -4389,6 +4390,8 @@ public class TaskMcpToolTest {
 
     TaskCollectionModel all = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, true, null, null, true);
     tool.listTasks(5L, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true);
+    // grouped on one board: its counts reach that board only, so no total of the managed boards
+    TaskCollectionModel oneBoard = tool.listTasks(5L, true, false, null, null, null, null, null, null, null, null, null, null, null, null, true, null, null, true);
     tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false);
 
     assertTrue(narrowedToManagedBoards(counted.getAllValues().get(0)));
@@ -4409,7 +4412,9 @@ public class TaskMcpToolTest {
     TaskQuery project = counted.getAllValues().get(1);
     assertTrue(narrowedToManagedBoards(project));
     assertEquals(List.of(5L), project.getProjectIds());
-    assertFalse(narrowedToManagedBoards(counted.getAllValues().get(2)));
+    assertFalse(narrowedToManagedBoards(counted.getAllValues().get(counted.getAllValues().size() - 1)));
+    assertNull(oneBoard.getManagedProjectCount());
+    assertEquals("4 open tasks in 1 of 1 board the user manages", oneBoard.getSummary());
     verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
   }
 
