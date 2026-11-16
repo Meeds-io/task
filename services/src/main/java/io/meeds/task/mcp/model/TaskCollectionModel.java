@@ -122,6 +122,40 @@ public class TaskCollectionModel {
   private String  summary;
 
   /**
+   * With {@code group_by} assignee, status, label or due_period, the
+   * grouping the answer counts by (EXO-94360).
+   */
+  @JsonProperty("group_by")
+  @JsonInclude(Include.NON_NULL)
+  private String  groupBy;
+
+  /**
+   * With {@code group_by} assignee, status, label or due_period, the groups
+   * holding the tasks the filters select, the most first,
+   * {@value io.meeds.task.mcp.TaskMcpTool#MAX_PROJECT_COUNTS} at most; the
+   * five due periods always, in their order (EXO-94360).
+   */
+  @JsonInclude(Include.NON_NULL)
+  private List<TaskGroupCountModel> groups;
+
+  /**
+   * With {@code group_by} assignee, status, label or due_period, the number
+   * of groups holding the tasks the filters select, those left out of
+   * {@code groups} included.
+   */
+  @JsonProperty("group_count")
+  @JsonInclude(Include.NON_NULL)
+  private Integer groupCount;
+
+  /**
+   * With {@code group_by} assignee, status, label or due_period, the groups
+   * holding selected tasks that {@code groups} leaves out, past its cap.
+   */
+  @JsonProperty("groups_not_listed")
+  @JsonInclude(Include.NON_NULL)
+  private Integer groupsNotListed;
+
+  /**
    * A page of tasks, with no count per board.
    *
    * @param tasks the tasks of the page
@@ -132,7 +166,7 @@ public class TaskCollectionModel {
    * @param nextOffset the offset of the next page, null when none remains
    */
   public TaskCollectionModel(List<?> tasks, int usedOffset, int usedLimit, long count, boolean hasMore, Integer nextOffset) {
-    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null, null, null, null, null);
+    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
 }

@@ -54,7 +54,7 @@ public class TaskToolDefinitionUpgradesTest {
 
   /** How many earlier definitions of each changed tool the history of every ref holds. */
   private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks",
-                                                                            23,
+                                                                            24,
                                                                             "list_assigned_tasks",
                                                                             15,
                                                                             "list_projects",
@@ -115,9 +115,17 @@ public class TaskToolDefinitionUpgradesTest {
                                                                                   "2b53f023e39465e999c43f9d33f7ae28dc3e78340a9e53d79f9c5f8eee831642");
 
   /**
+   * The definition of list_tasks the grouped answer's board counts shipped,
+   * before group_by and managed_only (EXO-94360).
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_GROUP_BY     =
+                                                                           Map.of("list_tasks",
+                                                                                  "65f424bef5744953183b3f5b5702c359785b9f61feb3181bf129978227c42101");
+
+  /**
    * Each changed tool lists every earlier definition, those shipped before
    * EXO-94250, before EXO-94284, before managed_only, before the relation,
-   * before EXO-94377 and before EXO-94360 included, and not its
+   * before EXO-94377, before EXO-94360 and before group_by included, and not its
    * shipped one, which an instance already holding it keeps anyway. Mutants:
    * a digest removed, the shipped digest added, a tool's entry dropped.
    *
@@ -138,7 +146,8 @@ public class TaskToolDefinitionUpgradesTest {
                                                 DEFINITIONS_BEFORE_MANAGED_ONLY,
                                                 DEFINITIONS_BEFORE_RELATION,
                                                 DEFINITIONS_BEFORE_94377,
-                                                DEFINITIONS_BEFORE_94360)) {
+                                                DEFINITIONS_BEFORE_94360,
+                                                DEFINITIONS_BEFORE_GROUP_BY)) {
         if (pinned.containsKey(name)) {
           assertTrue(name, digests.contains(pinned.get(name)));
         }
