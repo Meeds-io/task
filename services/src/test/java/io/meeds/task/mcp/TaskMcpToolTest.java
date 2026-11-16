@@ -4630,9 +4630,10 @@ public class TaskMcpToolTest {
    * The summary of a grouping by board on the boards the user manages ends
    * with their overdue tasks and the boards holding them, the singular for
    * one board, « none overdue » for none, and no such clause on a call that
-   * selects the overdue tasks only, whose count already says it (EXO-94360).
-   * Mutants: the clause dropped, always plural, or written on an overdue
-   * call.
+   * selects the overdue tasks only, whose count already says it, nor beside
+   * a count another filter narrows, which those overdue tasks ignore
+   * (EXO-94360). Mutants: the clause dropped, always plural, written on an
+   * overdue call or beside a narrowed count.
    */
   @Test
   public void groupedSummaryOnManagedBoardsEndsWithTheirOverdueTasks() {
@@ -4651,6 +4652,13 @@ public class TaskMcpToolTest {
     managed.setOverdueProjectCount(0);
     assertEquals("1630 open tasks in 86 of the 105 boards the user manages; 19 have no open task; none overdue",
                  TaskMcpTool.getGroupedSummary(managed, open));
+    assertEquals("the overdue tasks of every managed board are not stated beside a narrowed count",
+                 "12 open tasks of priority high in 5 of the 105 boards the user manages; 19 have no open task",
+                 TaskMcpTool.getGroupedSummary(narrowed(),
+                                               new TaskMcpTool.ListingFilters(false, true, false, null, null, Priority.HIGH, null, null, null, null, null, true)));
+    assertEquals("40 open tasks with no due date in 5 of the 105 boards the user manages; 19 have no open task",
+                 TaskMcpTool.getGroupedSummary(withCount(narrowed(), 40),
+                                               new TaskMcpTool.ListingFilters(false, true, true, null, null, null, null, null, null, null, null, true)));
     TaskCollectionModel overdueCall = grouped(264, 30, 86, 0, 0);
     overdueCall.setManagedProjectCount(105);
     overdueCall.setOverdueCount(264L);
@@ -4664,14 +4672,15 @@ public class TaskMcpToolTest {
    * A board line states its own counts before its split by status, and a
    * listing its totals before the lists they sum up, though the mapper, as
    * the one serializing the tool results, writes other keys in alphabetical
-   * order: a board's count is read before a status's count (EXO-94360).
-   * Mutants: either order dropped.
+   * order: a board's count is read before a status's count, and a status
+   * before its own count (EXO-94360). Mutants: any of the orders dropped.
    */
   @Test
   public void countsAreWrittenBeforeTheListsTheySumUp() {
     ProjectTaskCountModel board = new ProjectTaskCountModel(8L, "Alpha", 32L, 40L, List.of(new StatusTaskCountModel(1L, "To Do", 8L)), 3L);
-    assertEquals(List.of("project_id", "project_name", "count", "open_count", "overdue_count", "by_status"),
-                 orderedNames(JSON.readTree(JSON.writeValueAsString(board))));
+    JsonNode row = JSON.readTree(JSON.writeValueAsString(board));
+    assertEquals(List.of("project_id", "project_name", "count", "open_count", "overdue_count", "by_status"), orderedNames(row));
+    assertEquals(List.of("status_id", "status", "count"), orderedNames(row.path("by_status").path(0)));
 
     TaskCollectionModel collection = new TaskCollectionModel(List.of(), 0, 1, 1630L, false, null);
     collection.setManagedProjectCount(105);
@@ -4700,6 +4709,28 @@ public class TaskMcpToolTest {
                          "used_limit",
                          "has_more"),
                  orderedNames(JSON.readTree(JSON.writeValueAsString(collection))));
+  }
+
+  /**
+   * @return a grouped answer on 5 of the 105 boards the user manages, 86 of
+   *         which hold open tasks, 264 overdue in 30 of them
+   */
+  private static TaskCollectionModel narrowed() {
+    TaskCollectionModel collection = grouped(12, 5, 86, 0, 0);
+    collection.setManagedProjectCount(105);
+    collection.setOverdueCount(264L);
+    collection.setOverdueProjectCount(30);
+    return collection;
+  }
+
+  /**
+   * @param collection a grouped answer
+   * @param count the count of the tasks it selects
+   * @return the answer with that count
+   */
+  private static TaskCollectionModel withCount(TaskCollectionModel collection, long count) {
+    collection.setCount(count);
+    return collection;
   }
 
   /**
