@@ -2933,8 +2933,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * With {@code managed_only}, among the boards the user manages, those with
    * no open task named apart when only open tasks are selected, such as
    * « 1630 open tasks in 86 of the 105 boards the user manages; 19 have no
-   * open task; 264 overdue in 30 boards », the overdue tasks but on a call
-   * selecting them only.
+   * open task; 264 overdue in 30 boards », the overdue tasks only beside a
+   * count no other filter narrows, and not on a call selecting them only.
    *
    * @param collection the grouped answer, its counts set
    * @param filters the filters the listing applied
@@ -2958,8 +2958,10 @@ public class TaskMcpTool implements McpToolPlugin {
       if (openOnly && idle > 0) {
         where.append("; ").append(idle).append(idle == 1 ? " has no open task" : " have no open task");
       }
-      // an overdue call already counts its overdue tasks
-      if (collection.getOverdueCount() != null && !filters.overdueOnly()) {
+      // the overdue tasks of every board the user manages, whatever the
+      // filters: stated only beside a count those filters do not narrow, and
+      // not beside an overdue call's count, which already says it
+      if (collection.getOverdueCount() != null && !filters.overdueOnly() && !isNarrowed(filters)) {
         where.append(describeOverdue(collection.getOverdueCount(), collection.getOverdueProjectCount()));
       }
     } else {
@@ -2984,6 +2986,24 @@ public class TaskMcpTool implements McpToolPlugin {
       summary.append("; the ").append(collection.getProjects().size()).append(" boards with the most are listed");
     }
     return summary.toString();
+  }
+
+  /**
+   * @param filters the filters a listing applied
+   * @return true when one of them narrows the tasks beyond their board and
+   *         completion: a priority, an assignee, a status, a title, a due
+   *         date or its absence, or a change or completion date
+   */
+  private static boolean isNarrowed(ListingFilters filters) {
+    return filters.withoutDueDate()
+        || filters.priority() != null
+        || filters.statusId() != null
+        || StringUtils.isNotBlank(filters.dueFrom())
+        || StringUtils.isNotBlank(filters.dueTo())
+        || StringUtils.isNotBlank(filters.assignee())
+        || StringUtils.isNotBlank(filters.title())
+        || StringUtils.isNotBlank(filters.changedSince())
+        || StringUtils.isNotBlank(filters.completedSince());
   }
 
   /**

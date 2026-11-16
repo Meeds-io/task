@@ -19,6 +19,7 @@
 package io.meeds.task.mcp.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,6 +32,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+// the status before its count: the default mapper would write the keys in
+// alphabetical order, the count first
+@JsonPropertyOrder({ "status_id", "status", "count" })
 public class StatusTaskCountModel {
 
   @JsonProperty("status_id")
