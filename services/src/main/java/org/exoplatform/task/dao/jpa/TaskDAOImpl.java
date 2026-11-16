@@ -186,8 +186,9 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
    * {@inheritDoc} The query's conditions are built as for its listing, so the
    * counts select exactly the tasks the listing would return. A status and a
    * project status come from the task's status, so a personal task is in no
-   * group; a label comes from the task's labels, a label of no project
-   * carrying no project.
+   * group; a label comes from the task's labels, among the labels of the
+   * task's own board only, those its card shows: a personal label, another
+   * user's included, and a label of another board count in no group.
    */
   @Override
   public List<TaskGroupCountDto> countTasksByGroup(TaskQuery query, TaskGrouping grouping) {
@@ -223,7 +224,7 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
       Path<String> projectName = project.get("name");
       q.multiselect(statusId, statusName, projectId, projectName, cb.countDistinct(task))
        .groupBy(projectId, projectName, statusId, statusName, rank)
-       .orderBy(cb.asc(projectId), cb.asc(rank), cb.asc(statusId));
+       .orderBy(cb.asc(projectId), cb.asc(cb.coalesce(rank, 0)), cb.asc(statusId));
       return em.createQuery(q)
                .getResultList()
                .stream()
@@ -249,7 +250,11 @@ public class TaskDAOImpl extends CommonJPADAO<Task, Long> implements TaskHandler
     }
     case LABEL -> {
       Join<Object, Object> label = task.join("labels", JoinType.INNER).join("label", JoinType.INNER);
-      Join<Object, Object> project = label.join("project", JoinType.LEFT);
+      Join<Object, Object> project = label.join("project", JoinType.INNER);
+      Join<Object, Object> taskProject = task.join("status", JoinType.INNER).join("project", JoinType.INNER);
+      // only the labels of the task's own board, those its card shows
+      Predicate boardLabel = cb.equal(project.get("id"), taskProject.get("id"));
+      q.where(predicate == null ? boardLabel : cb.and(predicate, boardLabel));
       Path<Long> labelId = label.get("id");
       Path<String> labelName = label.get("name");
       Path<Long> projectId = project.get("id");
