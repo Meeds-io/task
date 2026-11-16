@@ -2917,7 +2917,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * open tasks are selected, the personal tasks and the boards left out of the
    * list, such as « 260 overdue open tasks in 29 of 86 boards » (EXO-94360).
    * With {@code managed_only}, among the boards the user manages, those with
-   * no open task named apart, such as « 1630 open tasks in 86 of the 105
+   * no open task named apart when only open tasks are selected, such as « 1630 open tasks in 86 of the 105
    * boards the user manages; 19 have no open task ».
    *
    * @param collection the grouped answer, its counts set
@@ -2936,8 +2936,10 @@ public class TaskMcpTool implements McpToolPlugin {
       // the boards the user manages, those with no task included: the boards
       // the counts reach are only those holding tasks
       where.append(" of the ").append(managed).append(managed == 1 ? " board" : " boards").append(" the user manages");
+      // the boards with no open task are named only when the count is of open
+      // tasks: beside completed ones, they would read as a count of those
       int idle = managed - collection.getOpenProjectCount();
-      if (idle > 0) {
+      if (openOnly && idle > 0) {
         where.append("; ").append(idle).append(idle == 1 ? " has no open task" : " have no open task");
       }
     } else {
