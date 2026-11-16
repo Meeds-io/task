@@ -4299,6 +4299,8 @@ public class TaskMcpToolTest {
                  result.getProjects());
     assertEquals(Integer.valueOf(3), result.getProjectCount());
     assertEquals(Integer.valueOf(4), result.getOpenProjectCount());
+    assertNull("the managed totals come with managed_only only", result.getOverdueCount());
+    assertNull(result.getIdleProjectCount());
   }
 
   /**
@@ -4675,7 +4677,8 @@ public class TaskMcpToolTest {
    * given the participants; managed_only taken as true by default; the
    * managed boards not counted, or counted through the participants or the
    * count by memberships, or counted with a project, whose counts reach that
-   * board only.
+   * board only; the boards with no open task and the overdue totals given
+   * without managed_only, with a project or beside another grouping.
    *
    * @throws Exception never
    */
@@ -4703,8 +4706,11 @@ public class TaskMcpToolTest {
     assertTrue(narrowedToManagedBoards(boards.getAllValues().get(1)));
     assertTrue(selectsOpenTasksOnly(boards.getAllValues().get(1)));
     assertTrue(narrowedToManagedBoards(boards.getAllValues().get(2)));
-    assertEquals("4 open tasks in 1 of the 2 boards the user manages; 1 has no open task", all.getSummary());
+    assertEquals("4 open tasks in 1 of the 2 boards the user manages; 1 has no open task; 4 overdue in 1 board", all.getSummary());
     assertEquals(Integer.valueOf(2), all.getManagedProjectCount());
+    assertEquals(Integer.valueOf(1), all.getIdleProjectCount());
+    assertEquals(Long.valueOf(4), all.getOverdueCount());
+    assertEquals(Integer.valueOf(1), all.getOverdueProjectCount());
     JsonNode json = JSON.readTree(JSON.writeValueAsString(all));
     assertEquals(2, json.path("managed_project_count").asInt());
     assertEquals(4, json.path("projects").path(0).path("overdue_count").asInt());
@@ -4718,8 +4724,12 @@ public class TaskMcpToolTest {
     assertEquals(List.of(5L), project.getProjectIds());
     assertFalse(narrowedToManagedBoards(counted.getAllValues().get(counted.getAllValues().size() - 1)));
     assertNull(oneBoard.getManagedProjectCount());
+    assertNull(oneBoard.getIdleProjectCount());
+    assertNull(oneBoard.getOverdueCount());
+    assertNull(oneBoard.getOverdueProjectCount());
     TaskCollectionModel byAssignee = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "assignee", true);
     assertEquals(Integer.valueOf(2), byAssignee.getManagedProjectCount());
+    assertNull("the overdue tasks are counted board by board only", byAssignee.getOverdueCount());
     assertTrue(byAssignee.getSummary(), byAssignee.getSummary().startsWith("4 open tasks on the 2 boards the user manages"));
     assertEquals("4 open tasks in 1 of 1 board the user manages", oneBoard.getSummary());
     verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
@@ -4877,6 +4887,132 @@ public class TaskMcpToolTest {
     assertEquals("13 tasks on the 1 board the user manages, by assignee: ann 13", TaskMcpTool.getGroupsSummary(collection, managed));
     collection.setManagedProjectCount(null);
     assertEquals("13 tasks on the boards the user manages, by assignee: ann 13", TaskMcpTool.getGroupsSummary(collection, managed));
+  }
+
+  /**
+   * On the boards the user manages, the overdue tasks are counted on every
+   * board, those past the {@value TaskMcpTool#MAX_PROJECT_COUNTS} listed
+   * included, from the query giving each board's overdue_count, so the total
+   * is the listed boards' sum whenever none is left out; the boards with no
+   * open task are the managed ones less the open ones (EXO-94360). Mutants:
+   * the total summed over the listed boards only; the overdue boards read
+   * from the open ones; the boards with no open task counted from the
+   * boards holding selected tasks.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksManagedOnlyTotalsTheOverdueTasksOfEveryBoard() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(1))).thenReturn(Collections.emptyList());
+    List<ProjectTaskCountDto> selected = new ArrayList<>();
+    List<ProjectTaskCountDto> open = new ArrayList<>();
+    List<ProjectTaskCountDto> overdue = new ArrayList<>();
+    for (long id = 1; id <= TaskMcpTool.MAX_PROJECT_COUNTS + 1; id++) {
+      selected.add(new ProjectTaskCountDto(id, "Board " + id, id + 1));
+      open.add(new ProjectTaskCountDto(id, "Board " + id, id + 1));
+      if (id % 2 == 1) {
+        overdue.add(new ProjectTaskCountDto(id, "Board " + id, 1L));
+      }
+    }
+    open.add(new ProjectTaskCountDto(500L, "Open only", 3L));
+    when(taskService.countTasksByProject(any())).thenReturn(selected, open, overdue);
+    when(taskService.countTasks(any())).thenReturn(9999);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(120);
+
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, 1, null, null, null, null, null, null, null, null, null, null, null, "project", true);
+
+    assertEquals(Integer.valueOf(1), result.getProjectsNotListed());
+    long listedOverdue = result.getProjects().stream().mapToLong(ProjectTaskCountModel::getOverdueCount).sum();
+    assertEquals("board 1, the fewest tasks, is left out with its overdue task", overdue.size() - 1L, listedOverdue);
+    assertEquals(Long.valueOf(overdue.size()), result.getOverdueCount());
+    assertEquals(Integer.valueOf(overdue.size()), result.getOverdueProjectCount());
+    assertEquals(Integer.valueOf(120 - open.size()), result.getIdleProjectCount());
+  }
+
+  /**
+   * The summary of a grouping by board on the boards the user manages ends
+   * with their overdue tasks and the boards holding them, the singular for
+   * one board, « none overdue » for none, and no such clause on a call that
+   * selects the overdue tasks only, whose count already says it (EXO-94360).
+   * Mutants: the clause dropped, always plural, or written on an overdue
+   * call.
+   */
+  @Test
+  public void groupedSummaryOnManagedBoardsEndsWithTheirOverdueTasks() {
+    TaskMcpTool.ListingFilters open = new TaskMcpTool.ListingFilters(false, true, false, null, null, null, null, null, null, null, null, true);
+    TaskCollectionModel managed = grouped(1630, 86, 86, 0, 0);
+    managed.setManagedProjectCount(105);
+    managed.setOverdueCount(264L);
+    managed.setOverdueProjectCount(30);
+    assertEquals("1630 open tasks in 86 of the 105 boards the user manages; 19 have no open task; 264 overdue in 30 boards",
+                 TaskMcpTool.getGroupedSummary(managed, open));
+    managed.setOverdueCount(2L);
+    managed.setOverdueProjectCount(1);
+    assertEquals("1630 open tasks in 86 of the 105 boards the user manages; 19 have no open task; 2 overdue in 1 board",
+                 TaskMcpTool.getGroupedSummary(managed, open));
+    managed.setOverdueCount(0L);
+    managed.setOverdueProjectCount(0);
+    assertEquals("1630 open tasks in 86 of the 105 boards the user manages; 19 have no open task; none overdue",
+                 TaskMcpTool.getGroupedSummary(managed, open));
+    TaskCollectionModel overdueCall = grouped(264, 30, 86, 0, 0);
+    overdueCall.setManagedProjectCount(105);
+    overdueCall.setOverdueCount(264L);
+    overdueCall.setOverdueProjectCount(30);
+    assertEquals("264 overdue open tasks in 30 of the 105 boards the user manages; 19 have no open task",
+                 TaskMcpTool.getGroupedSummary(overdueCall,
+                                               new TaskMcpTool.ListingFilters(true, false, false, null, null, null, null, null, null, null, null, true)));
+  }
+
+  /**
+   * A board line states its own counts before its split by status, and a
+   * listing its totals before the lists they sum up, though the mapper, as
+   * the one serializing the tool results, writes other keys in alphabetical
+   * order: a board's count is read before a status's count (EXO-94360).
+   * Mutants: either order dropped.
+   */
+  @Test
+  public void countsAreWrittenBeforeTheListsTheySumUp() {
+    ProjectTaskCountModel board = new ProjectTaskCountModel(8L, "Alpha", 32L, 40L, List.of(new StatusTaskCountModel(1L, "To Do", 8L)), 3L);
+    assertEquals(List.of("project_id", "project_name", "count", "open_count", "overdue_count", "by_status"),
+                 orderedNames(JSON.readTree(JSON.writeValueAsString(board))));
+
+    TaskCollectionModel collection = new TaskCollectionModel(List.of(), 0, 1, 1630L, false, null);
+    collection.setManagedProjectCount(105);
+    collection.setProjectCount(86);
+    collection.setOpenProjectCount(86);
+    collection.setIdleProjectCount(19);
+    collection.setOverdueCount(264L);
+    collection.setOverdueProjectCount(30);
+    collection.setPersonalCount(0L);
+    collection.setProjectsNotListed(0);
+    collection.setSummary("1630 open tasks");
+    collection.setProjects(List.of(board));
+    assertEquals(List.of("count",
+                         "managed_project_count",
+                         "project_count",
+                         "open_project_count",
+                         "idle_project_count",
+                         "overdue_count",
+                         "overdue_project_count",
+                         "personal_count",
+                         "projects_not_listed",
+                         "summary",
+                         "projects",
+                         "tasks",
+                         "used_offset",
+                         "used_limit",
+                         "has_more"),
+                 orderedNames(JSON.readTree(JSON.writeValueAsString(collection))));
+  }
+
+  /**
+   * @param node a JSON object
+   * @return the names of its fields, in their order
+   */
+  private static List<String> orderedNames(JsonNode node) {
+    List<String> names = new ArrayList<>();
+    node.propertyNames().forEach(names::add);
+    return names;
   }
 
   /**
