@@ -99,6 +99,15 @@ public class TaskCollectionModel {
   private Integer openProjectCount;
 
   /**
+   * With {@code managed_only} on a grouped listing, the number of boards the
+   * user manages, those holding no task included: the count list_projects
+   * gives with {@code managed_only} and no space (EXO-94360).
+   */
+  @JsonProperty("managed_project_count")
+  @JsonInclude(Include.NON_NULL)
+  private Integer managedProjectCount;
+
+  /**
    * With {@code group_by_project}, the boards holding selected tasks that
    * {@code projects} leaves out, past its cap (EXO-94360).
    */
@@ -166,7 +175,7 @@ public class TaskCollectionModel {
    * @param nextOffset the offset of the next page, null when none remains
    */
   public TaskCollectionModel(List<?> tasks, int usedOffset, int usedLimit, long count, boolean hasMore, Integer nextOffset) {
-    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null, null, null, null, null, null, null, null, null);
+    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
 }

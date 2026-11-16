@@ -60,6 +60,15 @@ public class ProjectTaskCountModel {
   private List<StatusTaskCountModel> byStatus;
 
   /**
+   * The board's overdue tasks the user can access: open, due before today in
+   * the user's time zone, within the listing's project and managed boards,
+   * whatever the listing's other filters (EXO-94360).
+   */
+  @JsonProperty("overdue_count")
+  @JsonInclude(Include.NON_NULL)
+  private Long                       overdueCount;
+
+  /**
    * A board's counts with no split by status.
    *
    * @param projectId the board
@@ -68,7 +77,7 @@ public class ProjectTaskCountModel {
    * @param openCount every open task of the board the user can access
    */
   public ProjectTaskCountModel(long projectId, String projectName, long count, long openCount) {
-    this(projectId, projectName, count, openCount, null);
+    this(projectId, projectName, count, openCount, null, null);
   }
 
 }
