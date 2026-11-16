@@ -34,6 +34,7 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.TaskGrouping;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.domain.Status;
@@ -328,6 +329,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public List<ProjectTaskCountDto> countTasksByProject(TaskQuery query) {
         return taskStorage.countTasksByProject(query);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<TaskGroupCountDto> countTasksByGroup(TaskQuery query, TaskGrouping grouping) {
+        return taskStorage.countTasksByGroup(query, grouping);
     }
 
     @Override

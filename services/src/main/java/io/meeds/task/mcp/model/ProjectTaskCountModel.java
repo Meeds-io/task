@@ -18,6 +18,10 @@
  */
 package io.meeds.task.mcp.model;
 
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.AllArgsConstructor;
@@ -46,5 +50,25 @@ public class ProjectTaskCountModel {
   /** Every open task of the board the user can access. */
   @JsonProperty("open_count")
   private long   openCount;
+
+  /**
+   * The board's selected tasks status by status, in the board's column order,
+   * the statuses holding none left out (EXO-94360).
+   */
+  @JsonProperty("by_status")
+  @JsonInclude(Include.NON_NULL)
+  private List<StatusTaskCountModel> byStatus;
+
+  /**
+   * A board's counts with no split by status.
+   *
+   * @param projectId the board
+   * @param projectName the name of the board
+   * @param count the tasks of the board that the listing's filters select
+   * @param openCount every open task of the board the user can access
+   */
+  public ProjectTaskCountModel(long projectId, String projectName, long count, long openCount) {
+    this(projectId, projectName, count, openCount, null);
+  }
 
 }

@@ -30,6 +30,7 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.task.dao.DAOHandler;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.TaskGrouping;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.ChangeLog;
 import org.exoplatform.task.domain.Comment;
@@ -39,6 +40,7 @@ import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectTaskCountDto;
+import org.exoplatform.task.dto.TaskGroupCountDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.model.TaskSearchFilter;
@@ -178,6 +180,14 @@ public class TaskStorageImpl implements TaskStorage {
     @Override
     public List<ProjectTaskCountDto> countTasksByProject(TaskQuery query) {
         return daoHandler.getTaskHandler().countTasksByProject(query);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<TaskGroupCountDto> countTasksByGroup(TaskQuery query, TaskGrouping grouping) {
+        return daoHandler.getTaskHandler().countTasksByGroup(query, grouping);
     }
 
     @Override

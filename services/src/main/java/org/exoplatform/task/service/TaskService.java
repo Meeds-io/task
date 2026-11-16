@@ -21,12 +21,14 @@ package org.exoplatform.task.service;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.TaskGrouping;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectTaskCountDto;
+import org.exoplatform.task.dto.TaskGroupCountDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.exception.EntityNotFoundException;
@@ -155,6 +157,17 @@ public interface TaskService {
      *         none
      */
     List<ProjectTaskCountDto> countTasksByProject(TaskQuery query);
+
+    /**
+     * Counts the tasks a query selects in each group of a grouping: a status
+     * name, a project's status, an assignee or a label, each task counted once
+     * per group (EXO-94360).
+     *
+     * @param query the query, its accessibility condition included
+     * @param grouping what the tasks are counted by
+     * @return one count per group holding at least one selected task
+     */
+    List<TaskGroupCountDto> countTasksByGroup(TaskQuery query, TaskGrouping grouping);
 
     List<TaskDto> findTasksByLabel(LabelDto label, List<Long> projectIds, String username, OrderBy orderBy, int offset, int limit) throws Exception;
 
