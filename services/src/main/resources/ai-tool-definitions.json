@@ -512,6 +512,33 @@
       "require_approval": true
     },
     {
+      "name": "unassign_me_from_tasks",
+      "title": "Unassign me from Tasks",
+      "description": "Remove the current user from one or several tasks at once: on each task the user is no longer its assignee nor one of its coworkers; the other coworkers stay. Nothing changes when one of the tasks is not assigned to the current user, as assignee or coworker.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "Identifiers of the tasks to unassign the current user from."
+          }
+        },
+        "required": ["task_ids"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
       "name": "assign_task_to_me",
       "title": "Self assign a Task",
       "description": "Assign a task to the current user.",
