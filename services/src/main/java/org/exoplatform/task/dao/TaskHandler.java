@@ -23,6 +23,7 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ProjectTaskCountDto;
+import org.exoplatform.task.dto.TaskGroupCountDto;
 
 import java.util.List;
 import java.util.Set;
@@ -49,6 +50,19 @@ public interface TaskHandler extends GenericDAO<Task, Long> {
    *         particular order
    */
   List<ProjectTaskCountDto> countTasksByProject(TaskQuery query);
+
+  /**
+   * Counts the tasks a query selects in each group of a grouping, a task
+   * counted once per group however many of the query's joins it matches
+   * (EXO-94360).
+   *
+   * @param query the query, its accessibility condition included
+   * @param grouping what the tasks are counted by
+   * @return one count per group holding at least one selected task; for
+   *         {@link TaskGrouping#PROJECT_STATUS}, in the order of each
+   *         project's statuses, otherwise in no particular order
+   */
+  List<TaskGroupCountDto> countTasksByGroup(TaskQuery query, TaskGrouping grouping);
 
   Task findTaskByActivityId(String activityId);
 
