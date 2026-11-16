@@ -99,8 +99,8 @@ public class TaskCollectionModel {
   private Integer openProjectCount;
 
   /**
-   * With {@code managed_only} on a grouped listing, the number of boards the
-   * user manages, those holding no task included: the count list_projects
+   * With {@code managed_only} on a grouped listing with no project, the
+   * number of boards the user manages, those holding no task included: the count list_projects
    * gives with {@code managed_only} and no space (EXO-94360).
    */
   @JsonProperty("managed_project_count")
