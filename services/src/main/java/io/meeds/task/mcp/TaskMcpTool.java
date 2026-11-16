@@ -1038,7 +1038,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                                   completedSince,
                                                   Boolean.TRUE.equals(managedOnly));
       if (GROUP_BY_PROJECT.equals(grouping)) {
-        setProjectCounts(collection, taskQuery, openQuery, zone);
+        setProjectCounts(collection, taskQuery, openQuery, zone, collection.getManagedProjectCount() != null);
         collection.setSummary(getGroupedSummary(collection, filters));
       } else {
         collection.setGroupBy(grouping);
@@ -2525,8 +2525,15 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param openQuery the query of the open tasks the user can access, on the
    *          listing's project or managed boards
    * @param zone the user's time zone, whose day sets the overdue tasks
+   * @param managedTotals whether the answer counts the boards the user
+   *          manages, which then also gives the boards with no open task and
+   *          the overdue tasks of every board with the boards holding them
    */
-  private void setProjectCounts(TaskCollectionModel collection, TaskQuery taskQuery, TaskQuery openQuery, ZoneId zone) {
+  private void setProjectCounts(TaskCollectionModel collection,
+                                TaskQuery taskQuery,
+                                TaskQuery openQuery,
+                                ZoneId zone,
+                                boolean managedTotals) {
     List<ProjectTaskCountDto> counts = taskService.countTasksByProject(taskQuery);
     List<ProjectTaskCountDto> kept = counts.stream()
                                            .sorted(Comparator.comparingLong(ProjectTaskCountDto::getCount)
@@ -2572,6 +2579,12 @@ public class TaskMcpTool implements McpToolPlugin {
     collection.setOpenProjectCount(open.size());
     collection.setProjectsNotListed(counts.size() - kept.size());
     collection.setPersonalCount(Math.max(0L, collection.getCount() - onBoards));
+    if (managedTotals) {
+      // the open boards are among the managed ones, through the same managers
+      collection.setIdleProjectCount(Math.max(0, collection.getManagedProjectCount() - open.size()));
+      collection.setOverdueCount(overdue.values().stream().mapToLong(Long::longValue).sum());
+      collection.setOverdueProjectCount(overdue.size());
+    }
   }
 
   /**
@@ -2819,7 +2832,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * With {@code managed_only}, among the boards the user manages, those with
    * no open task named apart when only open tasks are selected, such as
    * « 1630 open tasks in 86 of the 105 boards the user manages; 19 have no
-   * open task ».
+   * open task; 264 overdue in 30 boards », the overdue tasks but on a call
+   * selecting them only.
    *
    * @param collection the grouped answer, its counts set
    * @param filters the filters the listing applied
@@ -2843,6 +2857,10 @@ public class TaskMcpTool implements McpToolPlugin {
       if (openOnly && idle > 0) {
         where.append("; ").append(idle).append(idle == 1 ? " has no open task" : " have no open task");
       }
+      // an overdue call already counts its overdue tasks
+      if (collection.getOverdueCount() != null && !filters.overdueOnly()) {
+        where.append(describeOverdue(collection.getOverdueCount(), collection.getOverdueProjectCount()));
+      }
     } else {
       int last = boards;
       if (openOnly) {
@@ -2865,6 +2883,20 @@ public class TaskMcpTool implements McpToolPlugin {
       summary.append("; the ").append(collection.getProjects().size()).append(" boards with the most are listed");
     }
     return summary.toString();
+  }
+
+  /**
+   * @param overdue the overdue tasks of the boards the user manages
+   * @param boards the boards holding them
+   * @return the summary's clause stating them, such as « ; 264 overdue in 30
+   *         boards », or « ; none overdue »
+   */
+  private static String describeOverdue(long overdue, Integer boards) {
+    if (overdue == 0) {
+      return "; none overdue";
+    }
+    int holding = boards == null ? 0 : boards;
+    return "; " + overdue + " overdue in " + holding + (holding == 1 ? " board" : " boards");
   }
 
   /**

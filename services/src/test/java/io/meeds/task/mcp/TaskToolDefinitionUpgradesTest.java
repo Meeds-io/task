@@ -54,7 +54,7 @@ public class TaskToolDefinitionUpgradesTest {
 
   /** How many earlier definitions of each changed tool the history of every ref holds. */
   private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks",
-                                                                            25,
+                                                                            26,
                                                                             "list_assigned_tasks",
                                                                             15,
                                                                             "list_projects",
@@ -131,11 +131,19 @@ public class TaskToolDefinitionUpgradesTest {
                                                                                   "371786eaddec904bda16782a879d6b534c3f2b3758f2c6c3958743e3549857b0");
 
   /**
+   * The definition of list_tasks the managed boards' count shipped, before
+   * the managed boards' totals of idle boards and overdue tasks (EXO-94360).
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_MANAGED_TOTALS =
+                                                                           Map.of("list_tasks",
+                                                                                  "a18106fc429b813bf74b7f7a19f4d7d09473010b63fe31be57cdf15c554e4b1a");
+
+  /**
    * Each changed tool lists every earlier definition, those shipped before
    * EXO-94250, before EXO-94284, before managed_only, before the relation,
-   * before EXO-94377, before EXO-94360, before group_by and before the managed
-   * boards' count included, and not its shipped one, which an instance
-   * already holding it keeps anyway. Mutants:
+   * before EXO-94377, before EXO-94360, before group_by, before the managed
+   * boards' count and before their totals included, and not its shipped one,
+   * which an instance already holding it keeps anyway. Mutants:
    * a digest removed, the shipped digest added, a tool's entry dropped.
    *
    * @throws Exception never
@@ -157,7 +165,8 @@ public class TaskToolDefinitionUpgradesTest {
                                                 DEFINITIONS_BEFORE_94377,
                                                 DEFINITIONS_BEFORE_94360,
                                                 DEFINITIONS_BEFORE_GROUP_BY,
-                                                DEFINITIONS_BEFORE_MANAGED_COUNT)) {
+                                                DEFINITIONS_BEFORE_MANAGED_COUNT,
+                                                DEFINITIONS_BEFORE_MANAGED_TOTALS)) {
         if (pinned.containsKey(name)) {
           assertTrue(name, digests.contains(pinned.get(name)));
         }
