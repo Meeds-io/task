@@ -23,6 +23,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,6 +32,12 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+// the totals before the lists they sum up: the default mapper would write the
+// keys in alphabetical order
+@JsonPropertyOrder({ "count", "assigned_count", "coworker_count", "managed_project_count", "project_count",
+    "open_project_count", "idle_project_count", "overdue_count", "overdue_project_count", "personal_count",
+    "projects_not_listed", "summary", "group_by", "group_count", "groups_not_listed", "groups", "projects", "tasks",
+    "used_offset", "used_limit", "has_more", "next_offset" })
 public class TaskCollectionModel {
 
   private List<?> tasks;
@@ -109,6 +116,34 @@ public class TaskCollectionModel {
   private Integer managedProjectCount;
 
   /**
+   * With {@code managed_only} on a listing grouped by board with no project,
+   * the boards the user manages that hold no open task: {@code
+   * managed_project_count} less {@code open_project_count} (EXO-94360).
+   */
+  @JsonProperty("idle_project_count")
+  @JsonInclude(Include.NON_NULL)
+  private Integer idleProjectCount;
+
+  /**
+   * With {@code managed_only} on a listing grouped by board with no project,
+   * the overdue tasks of the boards the user manages, those left out of
+   * {@code projects} included: the sum of the boards' {@code overdue_count},
+   * whatever the listing's other filters (EXO-94360).
+   */
+  @JsonProperty("overdue_count")
+  @JsonInclude(Include.NON_NULL)
+  private Long    overdueCount;
+
+  /**
+   * With {@code managed_only} on a listing grouped by board with no project,
+   * the boards the user manages that hold at least one overdue task
+   * (EXO-94360).
+   */
+  @JsonProperty("overdue_project_count")
+  @JsonInclude(Include.NON_NULL)
+  private Integer overdueProjectCount;
+
+  /**
    * With {@code group_by_project}, the boards holding selected tasks that
    * {@code projects} leaves out, past its cap (EXO-94360).
    */
@@ -176,7 +211,7 @@ public class TaskCollectionModel {
    * @param nextOffset the offset of the next page, null when none remains
    */
   public TaskCollectionModel(List<?> tasks, int usedOffset, int usedLimit, long count, boolean hasMore, Integer nextOffset) {
-    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
 }
