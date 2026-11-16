@@ -410,6 +410,27 @@ public class TaskQuery extends Query implements Cloneable {
     add(CardConditions.hasAnyLabel(names, viewer, excluded));
   }
 
+  /**
+   * Selects the tasks that carry none of their board's labels, the labels
+   * their card shows: a personal task, on no board, is always selected
+   * (EXO-94360).
+   */
+  public void setWithoutBoardLabel() {
+    add(CardConditions.hasBoardLabel(true));
+  }
+
+  /**
+   * Selects the tasks of the projects whose managers hold one of the given
+   * memberships, the user's name among them, as
+   * {@link ProjectQuery#setManager(List)} selects the projects: a personal
+   * task, in no project, is never selected (EXO-94360).
+   *
+   * @param memberships the memberships of the user, at least one
+   */
+  public void setManagedBy(List<String> memberships) {
+    add(in(TASK_MANAGER, memberships));
+  }
+
   public void setIsIncomingOf(String username) {
     add(and(Conditions.or(
             eq(TASK_ASSIGNEE, username), in(TASK_COWORKER, Collections.singletonList(username)), eq(TASK_CREATOR, username),

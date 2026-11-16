@@ -980,11 +980,8 @@ public class TaskMcpTool implements McpToolPlugin {
     Date dueFromDate = parseSince(dueFrom, ARG_DUE_FROM, zone);
     checkWithoutDueDate(withoutDueDate, overdueOnly, dueFromDate != null || StringUtils.isNotBlank(dueTo));
     TaskQuery taskQuery = getTaskQuery(projectId, false, Boolean.TRUE.equals(overdueOnly), zone);
-    List<Long> managedProjectIds = Boolean.TRUE.equals(managedOnly) ? getManagedProjectIds(projectId) : null;
-    if (managedProjectIds != null) {
-      // an empty list selects no task
-      taskQuery.setProjectIds(managedProjectIds);
-    }
+    List<String> managerMemberships = Boolean.TRUE.equals(managedOnly) ? getMemberships(null) : null;
+    setManagedBy(taskQuery, managerMemberships);
     if (Boolean.TRUE.equals(withoutDueDate)) {
       taskQuery.setWithoutDueDate();
     }
@@ -1021,9 +1018,7 @@ public class TaskMcpTool implements McpToolPlugin {
         collection.setNextOffset(null);
       }
       TaskQuery openQuery = getTaskQuery(projectId, true, false, zone);
-      if (managedProjectIds != null) {
-        openQuery.setProjectIds(managedProjectIds);
-      }
+      setManagedBy(openQuery, managerMemberships);
       ListingFilters filters = new ListingFilters(Boolean.TRUE.equals(overdueOnly),
                                                   Boolean.TRUE.equals(hideCompletedTasks),
                                                   Boolean.TRUE.equals(withoutDueDate),
@@ -2543,7 +2538,7 @@ public class TaskMcpTool implements McpToolPlugin {
     taskService.countTasksByGroup(taskQuery, TaskGrouping.PROJECT_STATUS)
                .forEach(group -> byStatus.computeIfAbsent(group.getProjectId(), id -> new ArrayList<>())
                                          .add(new StatusTaskCountModel(Long.parseLong(group.getKey()),
-                                                                       group.getName(),
+                                                                       getStatusLabel(group.getName()),
                                                                        group.getCount())));
     List<ProjectTaskCountModel> projects = kept.stream()
                                                .map(count -> new ProjectTaskCountModel(count.getProjectId(),
@@ -2586,6 +2581,9 @@ public class TaskMcpTool implements McpToolPlugin {
     if (taskGrouping == TaskGrouping.LABEL) {
       addNoLabelGroup(counts, taskQuery);
       addNoLabelGroup(openCounts, openQuery);
+    } else if (taskGrouping == TaskGrouping.STATUS) {
+      counts = mergeStatusLabels(counts);
+      openCounts = mergeStatusLabels(openCounts);
     }
     Map<String, Long> open = new HashMap<>();
     openCounts.forEach(group -> open.put(group.getKey(), group.getCount()));
@@ -2614,16 +2612,38 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Adds the group of the tasks with no label, key null, when the query
-   * selects any: a label group counts a task once per label, so this one is
-   * counted on its own rather than by difference.
+   * Gives each status group the status's name as the user reads it, a default
+   * status in the user's language, and merges the statuses read the same, as
+   * « InProgress » and a board's own « In Progress »: a task has one status,
+   * so their counts add up (EXO-94360).
+   *
+   * @param groups the status groups, keyed by the stored name
+   * @return the groups keyed and named by the name the user reads, in their
+   *         first order
+   */
+  private List<TaskGroupCountDto> mergeStatusLabels(List<TaskGroupCountDto> groups) {
+    Map<String, TaskGroupCountDto> merged = new LinkedHashMap<>();
+    for (TaskGroupCountDto group : groups) {
+      String label = getStatusLabel(group.getName());
+      merged.merge(label,
+                   new TaskGroupCountDto(label, label, null, null, group.getCount()),
+                   (first, other) -> new TaskGroupCountDto(label, label, null, null, first.getCount() + other.getCount()));
+    }
+    return new ArrayList<>(merged.values());
+  }
+
+  /**
+   * Adds the group of the tasks with no label of their board, the labels
+   * their card shows, key null, when the query selects any: a label group
+   * counts a task once per label, so this one is counted on its own rather
+   * than by difference.
    *
    * @param groups the label groups, to which the group is added
    * @param query the query whose tasks with no label are counted
    */
   private void addNoLabelGroup(List<TaskGroupCountDto> groups, TaskQuery query) {
     TaskQuery noLabel = query.clone();
-    noLabel.setEmptyField("labels");
+    noLabel.setWithoutBoardLabel();
     long count = countTasks(noLabel);
     if (count > 0) {
       groups.add(new TaskGroupCountDto(null, null, null, null, count));
@@ -2715,27 +2735,24 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Reads the boards the current user manages, as {@code list_projects}
-   * reads them with {@code managed_only} and no space: those whose managers
-   * hold the user's name or one of the user's memberships (EXO-94360).
+   * Narrows a listing to the boards the current user manages, as
+   * {@code list_projects} reads them with {@code managed_only} and no space:
+   * those whose managers hold the user's name or one of the user's
+   * memberships (EXO-94360).
    *
-   * @param projectId the listing's project, null for every board
-   * @return the identifiers of the boards managed, only {@code projectId}
-   *         when the user manages it, empty when the user manages none
+   * @param query the query narrowed
+   * @param memberships the user's memberships, null for no narrowing; when
+   *          empty, the query selects nothing
    */
-  private List<Long> getManagedProjectIds(Long projectId) {
-    List<String> memberships = getMemberships(null);
-    if (memberships.isEmpty()) {
-      return Collections.emptyList();
+  private void setManagedBy(TaskQuery query, List<String> memberships) {
+    if (memberships == null) {
+      return;
+    } else if (memberships.isEmpty()) {
+      // an empty list of projects selects no task
+      query.setProjectIds(Collections.emptyList());
+    } else {
+      query.setManagedBy(memberships);
     }
-    ProjectQuery query = newProjectQuery(memberships, true);
-    int count = projectService.countProjects(query);
-    List<Long> ids = count == 0 ? Collections.emptyList() :
-                                projectService.findProjects(query, 0, count).stream().map(ProjectDto::getId).toList();
-    if (projectId != null && projectId > 0) {
-      return ids.contains(projectId) ? List.of(projectId) : Collections.emptyList();
-    }
-    return ids;
   }
 
   /**
