@@ -1025,7 +1025,10 @@ public class TaskMcpTool implements McpToolPlugin {
       }
       TaskQuery openQuery = getTaskQuery(projectId, true, false, zone);
       setManagedBy(openQuery, managerMemberships);
-      if (managerMemberships != null) {
+      if (managerMemberships != null && (projectId == null || projectId <= 0)) {
+        // the boards the user manages, those with no task included; with a
+        // project, the counts reach that board only, so there is no total to
+        // set them against
         collection.setManagedProjectCount(countManagedProjects(managerMemberships));
       }
       ListingFilters filters = new ListingFilters(Boolean.TRUE.equals(overdueOnly),
