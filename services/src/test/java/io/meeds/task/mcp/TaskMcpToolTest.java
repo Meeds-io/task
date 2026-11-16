@@ -88,6 +88,8 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
+import org.exoplatform.task.dao.condition.Conditions;
+import org.exoplatform.task.dao.condition.PredicateCondition;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
@@ -4420,14 +4422,16 @@ public class TaskMcpToolTest {
 
   /**
    * group_by project splits each listed board by status, from the listing's
-   * own query in the engine's column order, under by_status (EXO-94360).
-   * Mutants: by_status read from the open tasks' query; a board's statuses
-   * given to another board.
+   * own query in the engine's column order, under by_status, a default
+   * status under its label in the user's language (EXO-94360). Mutants:
+   * by_status read from the open tasks' query; a board's statuses given to
+   * another board; the stored name given instead of the label.
    *
    * @throws Exception never
    */
   @Test
   public void listTasksGroupByProjectSplitsEachBoardByStatus() throws Exception { // NOSONAR
+    stubStatusLabels();
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(4);
     ArgumentCaptor<TaskQuery> boards = ArgumentCaptor.forClass(TaskQuery.class);
@@ -4437,13 +4441,13 @@ public class TaskMcpToolTest {
                                                                                new ProjectTaskCountDto(9L, "Beta", 2L)));
     ArgumentCaptor<TaskQuery> statuses = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.countTasksByGroup(statuses.capture(), eq(TaskGrouping.PROJECT_STATUS)))
-                                                                                      .thenReturn(List.of(new TaskGroupCountDto("21", "To do", 8L, "Alpha", 2L),
+                                                                                      .thenReturn(List.of(new TaskGroupCountDto("21", "ToDo", 8L, "Alpha", 2L),
                                                                                                           new TaskGroupCountDto("22", "Done", 8L, "Alpha", 1L),
                                                                                                           new TaskGroupCountDto("31", "To do", 9L, "Beta", 1L)));
 
     TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "project", null);
 
-    assertEquals(List.of(new StatusTaskCountModel(21L, "To do", 2L), new StatusTaskCountModel(22L, "Done", 1L)),
+    assertEquals(List.of(new StatusTaskCountModel(21L, "To Do", 2L), new StatusTaskCountModel(22L, "Done", 1L)),
                  result.getProjects().get(0).getByStatus());
     assertEquals(List.of(new StatusTaskCountModel(31L, "To do", 1L)), result.getProjects().get(1).getByStatus());
     assertSame(boards.getAllValues().get(0), statuses.getValue());
@@ -4468,11 +4472,14 @@ public class TaskMcpToolTest {
   public void listTasksGroupByAssigneeCountsEachAssignee() throws Exception { // NOSONAR
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(1))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(13);
-    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.ASSIGNEE))).thenReturn(List.of(new TaskGroupCountDto("john", "john", null, null, 5L),
-                                                                                             new TaskGroupCountDto(null, null, null, null, 3L),
-                                                                                             new TaskGroupCountDto("ann", "ann", null, null, 5L)),
-                                                                                     List.of(new TaskGroupCountDto("john", "john", null, null, 7L),
-                                                                                             new TaskGroupCountDto(null, null, null, null, 4L)));
+    List<TaskGroupCountDto> selected = List.of(new TaskGroupCountDto("john", "john", null, null, 5L),
+                                               new TaskGroupCountDto(null, null, null, null, 3L),
+                                               new TaskGroupCountDto("ann", "ann", null, null, 5L));
+    List<TaskGroupCountDto> open = List.of(new TaskGroupCountDto("john", "john", null, null, 7L),
+                                           new TaskGroupCountDto(null, null, null, null, 4L));
+    // the listing selects completed tasks too; the open tasks' query only open ones
+    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.ASSIGNEE))).thenAnswer(invocation -> selectsOpenTasksOnly(invocation.getArgument(0)) ? open
+                                                                                                                                                 : selected);
 
     TaskCollectionModel result = tool.listTasks(null, false, false, null, null, 1, null, null, null, null, null, null, null, null, null, null, null, " Assignee ", null);
 
@@ -4497,8 +4504,9 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * group_by status counts each status name across boards, the personal
-   * tasks, in no status, counted apart; past the cap, the groups left out
+   * group_by status counts each status name across boards as the user reads
+   * it, a default status in the user's language, the statuses read the same
+   * merged into one group; the personal tasks, in no status, counted apart; past the cap, the groups left out
    * are counted and the summary names five groups and the number of the
    * others (EXO-94360). Mutants: the personal tasks not counted; the cap
    * dropped; the summary naming every group.
@@ -4508,14 +4516,18 @@ public class TaskMcpToolTest {
   @Test
   public void listTasksGroupByStatusCountsPersonalTasksAndCapsTheGroups() throws Exception { // NOSONAR
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
-    when(taskService.countTasks(any())).thenReturn(12, 300);
-    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.STATUS))).thenReturn(List.of(new TaskGroupCountDto("To do", "To do", null, null, 7L),
+    when(taskService.countTasks(any())).thenReturn(13, 300);
+    stubStatusLabels();
+    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.STATUS))).thenReturn(List.of(new TaskGroupCountDto("ToDo", "ToDo", null, null, 7L),
+                                                                                           new TaskGroupCountDto("To Do", "To Do", null, null, 1L),
                                                                                            new TaskGroupCountDto("Done", "Done", null, null, 2L)),
                                                                                    Collections.emptyList());
     TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "status", null);
 
     assertEquals(Long.valueOf(3L), result.getPersonalCount());
-    assertEquals("12 tasks, by status: To do 7, Done 2; 3 personal, in no status", result.getSummary());
+    assertEquals("To Do", result.getGroups().get(0).getKey());
+    assertEquals(Integer.valueOf(2), result.getGroupCount());
+    assertEquals("13 tasks, by status: To Do 8, Done 2; 3 personal, in no status", result.getSummary());
 
     List<TaskGroupCountDto> many = new ArrayList<>();
     for (int i = 0; i < 102; i++) {
@@ -4535,8 +4547,9 @@ public class TaskMcpToolTest {
    * group_by label counts each label with its board, and the tasks with no
    * label under « no label », counted on their own on the selected and on the
    * open tasks; the summary says a task is counted under each of its labels
-   * (EXO-94360). Mutants: the no-label group dropped; its open count read
-   * from the selected tasks.
+   * (EXO-94360); groups of one count are ordered by name, not by key. Mutants:
+   * the no-label group dropped; its open count read from the selected tasks;
+   * the order by name dropped.
    *
    * @throws Exception never
    */
@@ -4546,20 +4559,25 @@ public class TaskMcpToolTest {
     // the listing, its tasks with no label, the open tasks with no label
     when(taskService.countTasks(any())).thenAnswer(invocation -> {
       TaskQuery query = invocation.getArgument(0);
-      if (!hasFieldCondition(query, "labels")) {
+      if (conjunction(query).stream().noneMatch(PredicateCondition.class::isInstance)) {
         return 10;
       }
       return selectsOpenTasksOnly(query) ? 9 : 6;
     });
-    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.LABEL))).thenReturn(List.of(new TaskGroupCountDto("5", "urgent", 8L, "Alpha", 4L)),
+    when(taskService.countTasksByGroup(any(), eq(TaskGrouping.LABEL))).thenReturn(List.of(new TaskGroupCountDto("5", "urgent", 8L, "Alpha", 4L),
+                                                                                          new TaskGroupCountDto("10", "zeta", 8L, "Alpha", 3L),
+                                                                                          new TaskGroupCountDto("9", "alpha", 8L, "Alpha", 3L)),
                                                                                   List.of(new TaskGroupCountDto("5", "urgent", 8L, "Alpha", 6L)));
 
     TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, "label", null);
 
     assertEquals(List.of(new TaskGroupCountModel(null, "no label", null, null, 6L, 9L),
-                         new TaskGroupCountModel("5", "urgent", 8L, "Alpha", 4L, 6L)),
+                         new TaskGroupCountModel("5", "urgent", 8L, "Alpha", 4L, 6L),
+                         new TaskGroupCountModel("9", "alpha", 8L, "Alpha", 3L, 0L),
+                         new TaskGroupCountModel("10", "zeta", 8L, "Alpha", 3L, 0L)),
                  result.getGroups());
-    assertEquals("10 tasks, by label: no label 6, urgent (Alpha) 4; a task is counted under each of its labels", result.getSummary());
+    assertEquals("10 tasks, by label: no label 6, urgent (Alpha) 4, alpha (Alpha) 3, zeta (Alpha) 3; a task is counted under each of its labels",
+                 result.getSummary());
   }
 
   /**
@@ -4631,26 +4649,20 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * managed_only narrows the listing and the open tasks to the boards the
-   * user manages, read as list_projects managed_only reads them: with no
-   * project, every such board; with a project the user manages, that board;
-   * with one the user does not manage, or when the user manages none, an
-   * empty list, which selects nothing; the summary says so (EXO-94360).
-   * Mutants: the managed boards left out of the open tasks' query; a project
-   * not managed kept; the participants' boards read.
+   * managed_only narrows the listing and the open tasks to the boards whose
+   * managers hold one of the user's memberships, the user's name included, as
+   * list_projects managed_only reads them: a condition of the query's own
+   * conjunction, beside a project given; without managed_only, none; the
+   * summary says so (EXO-94360). Mutants: the condition left out of the open
+   * tasks' query; the condition given the participants; managed_only taken as
+   * true by default.
    *
    * @throws Exception never
    */
   @Test
   public void listTasksManagedOnlyNarrowsToTheBoardsTheUserManages() throws Exception { // NOSONAR
-    ProjectDto first = listedProject(1L, null);
-    ProjectDto second = listedProject(2L, null);
-    ArgumentCaptor<ProjectQuery> managed = ArgumentCaptor.forClass(ProjectQuery.class);
-    when(projectService.countProjects(managed.capture())).thenReturn(2);
-    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(2))).thenReturn(List.of(first, second));
     ProjectDto viewable = mock(ProjectDto.class);
     when(viewable.canView(any())).thenReturn(true);
-    when(projectService.getProject(2L)).thenReturn(viewable);
     when(projectService.getProject(5L)).thenReturn(viewable);
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     ArgumentCaptor<TaskQuery> counted = ArgumentCaptor.forClass(TaskQuery.class);
@@ -4659,22 +4671,44 @@ public class TaskMcpToolTest {
     when(taskService.countTasksByProject(boards.capture())).thenReturn(List.of(new ProjectTaskCountDto(1L, "One", 4L)));
 
     TaskCollectionModel all = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, true, null, null, true);
-    tool.listTasks(2L, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true);
     tool.listTasks(5L, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true);
     tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false);
 
-    assertManagedQuery(managed.getValue(), null);
-    assertEquals(List.of(1L, 2L), counted.getAllValues().get(0).getProjectIds());
-    assertEquals(List.of(1L, 2L), boards.getAllValues().get(0).getProjectIds());
-    assertEquals(List.of(1L, 2L), boards.getAllValues().get(1).getProjectIds());
+    assertTrue(narrowedToManagedBoards(counted.getAllValues().get(0)));
+    assertTrue(narrowedToManagedBoards(boards.getAllValues().get(0)));
+    assertTrue(narrowedToManagedBoards(boards.getAllValues().get(1)));
+    assertTrue(selectsOpenTasksOnly(boards.getAllValues().get(1)));
     assertEquals("4 open tasks in 1 of 1 board the user manages", all.getSummary());
-    assertEquals(List.of(2L), counted.getAllValues().get(1).getProjectIds());
-    assertEquals(List.of(), counted.getAllValues().get(2).getProjectIds());
-    assertNull(counted.getAllValues().get(3).getProjectIds());
+    TaskQuery project = counted.getAllValues().get(1);
+    assertTrue(narrowedToManagedBoards(project));
+    assertEquals(List.of(5L), project.getProjectIds());
+    assertFalse(narrowedToManagedBoards(counted.getAllValues().get(2)));
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+  }
 
-    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
-    tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, true);
-    assertEquals(List.of(), counted.getAllValues().get(4).getProjectIds());
+  /**
+   * @param query a task query
+   * @return whether its own conjunction, not an alternative of its
+   *         accessibility, keeps the boards whose managers hold the user's
+   *         name
+   */
+  private static boolean narrowedToManagedBoards(TaskQuery query) {
+    return conjunction(query).stream()
+                             .anyMatch(c -> c instanceof SingleCondition<?> single && Conditions.TASK_MANAGER.equals(single.getField())
+                                 && SingleCondition.IN.equals(single.getType()) && ((List<?>) single.getValue()).contains(USER));
+  }
+
+  /**
+   * Gives the default statuses their label: « ToDo » reads « To Do ».
+   */
+  private void stubStatusLabels() {
+    ResourceBundle bundle = new ListResourceBundle() {
+      @Override
+      protected Object[][] getContents() {
+        return new Object[][] { { "tasks.status.ToDo", "To Do" } };
+      }
+    };
+    when(resourceBundleService.getResourceBundle(anyString(), any(Locale.class))).thenReturn(bundle);
   }
 
   /**
@@ -4792,25 +4826,6 @@ public class TaskMcpToolTest {
     assertTrue(selectsOpenTasksOnly(ranged));
     assertTrue(scopedToTheUser(ranged));
     assertFalse(hasDueDateCondition(query.getAllValues().get(1)));
-  }
-
-  /**
-   * @param query a task query
-   * @param field a field
-   * @return whether any of its conditions reads that field
-   */
-  private static boolean hasFieldCondition(TaskQuery query, String field) {
-    List<Condition> conditions = new ArrayList<>();
-    conditions.add(query.getCondition());
-    for (int i = 0; i < conditions.size(); i++) {
-      Condition condition = conditions.get(i);
-      if (condition instanceof AggregateCondition aggregate) {
-        conditions.addAll(aggregate.getConditions());
-      } else if (condition instanceof SingleCondition<?> single && field.equals(single.getField())) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /**

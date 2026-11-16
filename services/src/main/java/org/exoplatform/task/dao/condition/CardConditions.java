@@ -285,6 +285,27 @@ public final class CardConditions {
   }
 
   /**
+   * Selects the cards that carry a label of their own board, the labels a
+   * card shows, or none (EXO-94360).
+   *
+   * @param excluded true to keep the cards that carry no label of their board
+   * @return the condition
+   */
+  public static PredicateCondition<Task> hasBoardLabel(boolean excluded) {
+    return new PredicateCondition<>((cb, query, root) -> {
+      Subquery<Long> labels = query.subquery(Long.class);
+      Root<LabelTaskMapping> mapping = labels.from(LabelTaskMapping.class);
+      Join<?, ?> label = mapping.join("label");
+      Join<?, ?> card = mapping.join("task");
+      Join<?, ?> cardProject = card.join("status").join("project");
+      labels.select(label.get("id"))
+            .where(cb.equal(card.get("id"), root.get("id")), cb.equal(label.get("project").get("id"), cardProject.get("id")));
+      Predicate labelled = cb.exists(labels);
+      return excluded ? cb.not(labelled) : labelled;
+    });
+  }
+
+  /**
    * Builds the subquery of the ids of the cards some users work on as
    * coworkers. It is not correlated with the query's card, so the database
    * reads it once, through the index on the coworker.

@@ -1752,9 +1752,13 @@ public class TestTaskDAO extends AbstractTest {
    * the reader cannot see and a completed task left out: by status name
    * across boards, by status of each board in its column order, by assignee
    * with the unassigned under a null key, by label with a task in each of its
-   * labels; the tasks with no label, which list_tasks counts apart, are the
-   * accessible open ones with none, a personal task included; a personal task
-   * is counted by assignee only (EXO-94360). Mutants:
+   * labels, among the labels of the task's board only, those its card shows,
+   * a personal label, the reader's or another user's, and another board's
+   * label counted in none; the tasks with no label of their board, which
+   * list_tasks counts apart, are the accessible open ones with none, a task
+   * carrying only a personal label and a personal task included; a personal
+   * task is counted by assignee only (EXO-94360). Mutants: the board-label
+   * predicate dropped;
    * the query's condition dropped, the distinct count made a plain count, the
    * status rank order dropped.
    */
@@ -1772,14 +1776,22 @@ public class TestTaskDAO extends AbstractTest {
     Task completed = newPriorityCard("alpha completed", alphaTodo, "reader", Priority.NORMAL);
     completed.setCompleted(true);
     tDAO.update(completed);
-    newPriorityCard("beta one", betaTodo, "someone", Priority.NORMAL);
+    Task betaOne = newPriorityCard("beta one", betaTodo, "someone", Priority.NORMAL);
     newPriorityCard("gamma one", gammaTodo, "stranger", Priority.NORMAL);
-    tDAO.create(newTaskInstance("personal", "", "reader"));
+    Task personal = tDAO.create(newTaskInstance("personal", "", "reader"));
     Label urgent = labelHandler.create(new Label("urgent", "reader", alphaTodo.getProject()));
     Label later = labelHandler.create(new Label("later", "reader", alphaTodo.getProject()));
     daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(urgent, alphaOne));
     daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(later, alphaOne));
     daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(urgent, alphaTwo));
+    // labels the reader does not see: another user's personal one, another board's
+    Label strangers = labelHandler.create(new Label("secret", "stranger", null));
+    Label betaLabel = labelHandler.create(new Label("beta label", "reader", betaTodo.getProject()));
+    daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(strangers, betaOne));
+    daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(betaLabel, alphaTwo));
+    Label mine = labelHandler.create(new Label("mine", "reader", null));
+    daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(mine, alphaTwo));
+    daoHandler.getLabelTaskMappingHandler().create(new LabelTaskMapping(mine, personal));
     TaskQuery open = new TaskQuery();
     open.setAccessible(new Identity("reader"));
     open.setCompleted(false);
@@ -1805,9 +1817,11 @@ public class TestTaskDAO extends AbstractTest {
     assertTrue(labels.stream().allMatch(g -> "Alpha".equals(g.getProjectName())));
 
     TaskQuery noLabel = open.clone();
-    noLabel.setEmptyField("labels");
+    noLabel.setWithoutBoardLabel();
     assertEquals(3, tDAO.findTasks(noLabel).getSize());
-    assertEquals(3, foundIds(noLabel).size());
+    assertEquals(Set.of(betaOne.getId(), personal.getId()), foundIds(noLabel).stream()
+                                                                         .filter(id -> id.equals(betaOne.getId()) || id.equals(personal.getId()))
+                                                                         .collect(Collectors.toSet()));
     assertFalse(foundIds(noLabel).contains(alphaOne.getId()));
     assertFalse(foundIds(noLabel).contains(alphaTwo.getId()));
   }
@@ -1830,6 +1844,26 @@ public class TestTaskDAO extends AbstractTest {
     assertEquals(0, foundIds(none).size());
     assertTrue(tDAO.countTasksByProject(none).isEmpty());
     assertTrue(tDAO.countTasksByGroup(none, TaskGrouping.ASSIGNEE).isEmpty());
+  }
+
+  /**
+   * The managed boards' condition keeps the tasks of the boards whose
+   * managers hold one of the memberships, never a board the user only takes
+   * part in nor a personal task (EXO-94360). Mutant: the participants read.
+   */
+  @Test
+  public void testManagedByKeepsTheTasksOfTheBoardsManaged() throws Exception {
+    Project managedBoard = daoHandler.getProjectHandler()
+                                     .create(new Project("Managed", "", null, new HashSet<>(Set.of("reader")), new HashSet<>()));
+    Task managed = newPriorityCard("managed", newColumn(managedBoard, "To do", 1), null, Priority.NORMAL);
+    newPriorityCard("taken part in", newReaderBoard("Other", "reader"), "reader", Priority.NORMAL);
+    tDAO.create(newTaskInstance("personal", "", "reader"));
+    TaskQuery query = new TaskQuery();
+    query.setAccessible(new Identity("reader"));
+    query.setManagedBy(List.of("reader"));
+
+    assertEquals(Set.of(managed.getId()), foundIds(query));
+    assertEquals(1, tDAO.findTasks(query).getSize());
   }
 
   /**
