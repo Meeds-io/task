@@ -91,6 +91,8 @@ public class MailTemplateProvider extends TemplateProvider {
       String actionName = notification.getValueOwnerParameter(NotificationUtils.ACTION_NAME.getKey());
 
       TemplateContext templateContext = new TemplateContext(notification.getKey().getId(), language);
+      // the recipient's palette is bound first: the comment, user content, is written for the recipient's display mode
+      SocialNotificationUtils.addFooterAndFirstName(notification.getTo(), templateContext);
       Identity author = CommonsUtils.getService(IdentityManager.class)
                                     .getOrCreateIdentity(OrganizationIdentityProvider.NAME, notificationCreator, true);
       Profile profile = author.getProfile();
@@ -110,7 +112,8 @@ public class MailTemplateProvider extends TemplateProvider {
       templateContext.put("PROJECT_NAME", projectName == null ? "" : encoder.encode(projectName));
       templateContext.put("TASK_TITLE", encoder.encode(taskTitle));
       templateContext.put("TASK_DESCRIPTION", encoder.encode(getExcerpt(taskDesc, 130)));
-      templateContext.put("COMMENT_TEXT", commentText == null ? "" : commentText);
+      templateContext.put("COMMENT_TEXT",
+                          commentText == null ? "" : SocialNotificationUtils.withContentColors(templateContext, commentText));
       templateContext.put("DUE_DATE", getDueDate(notification));
       templateContext.put("TASK_URL", taskUrl);
       templateContext.put("PROJECT_URL", projectUrl);
@@ -121,7 +124,6 @@ public class MailTemplateProvider extends TemplateProvider {
       //
       templateContext.put("ACTION_NAME", encoder.encode(actionName.toString()));
 
-      SocialNotificationUtils.addFooterAndFirstName(notification.getTo(), templateContext);
       String subject = TemplateUtils.processSubject(templateContext);
 
       String body = TemplateUtils.processGroovy(templateContext);
