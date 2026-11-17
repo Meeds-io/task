@@ -81,7 +81,7 @@
       height: 6px;
       border-radius: 3px;
       overflow: hidden;
-      background-color: #e0e0e0;
+      background-color: var(--skinGreyLighten2, #e0e0e0);
     }
     .projectCardProgressSegment {
       height: 100%;
@@ -350,7 +350,7 @@
       bottom: 0;
       width: 60px;
       height: 20px;
-      background-color: #f2f2f2;
+      background-color: var(--skinGreyLighten4, #f2f2f2);
       -webkit-transition: .4s;
       transition: .4s;
     }
@@ -513,7 +513,7 @@
       cursor: pointer!important;
       color: @primaryColor!important;
       box-shadow: 0 0 #FFFFFE!important;
-      background-color: #FFFFFF!important;
+      background-color: @baseBackground!important;
       padding: 0px;
       margin: 0px;
       margin-left: -16px ~'; /** orientation=lt */ ';
@@ -1951,7 +1951,7 @@
   }
   .ghost-card {
     opacity: 0.5;
-    background: #F7FAFC;
+    background: var(--allPagesBaseBackgroundDark, #F7FAFC);
     //border: 1px solid #476A9C;
     animation: beginDrag 1s ease forwards;
   }
@@ -2052,21 +2052,21 @@
       fill: none;
     }
     .grid-header {
-      fill: #fff;
-      stroke: #e0e0e0;
+      fill: @baseBackground;
+      stroke: var(--skinGreyLighten2, #e0e0e0);
       stroke-width: 1.4;
     }
     .grid-row {
-      fill: #fff;
+      fill: @baseBackground;
       &:nth-child(even) {
-        fill: #f5f5f5;
+        fill: var(--skinGreyLighten4, #f5f5f5);
       }
     }
     .row-line {
-      stroke: #ebeff2;
+      stroke: var(--skinGreyLighten3, #ebeff2);
     }
     .tick {
-      stroke: #e0e0e0;
+      stroke: var(--skinGreyLighten2, #e0e0e0);
       stroke-width: .2;
     }
     .tick.thick {
@@ -2077,12 +2077,12 @@
       opacity: .5;
     }
     .weekend-highlight {
-      fill: #efefefa8;
+      fill: ~"var(--skinGreyLighten4, #efefefa8)";
       opacity: .5;
     }
     .arrow {
       fill: none;
-      stroke: #666;
+      stroke: var(--allPagesBaseColorMedium, #666);
       stroke-width: 1.4;
     }
     .bar {
@@ -2099,7 +2099,7 @@
       stroke-dasharray: 5;
     }
     .bar-invalid~.bar-label {
-      fill: #555;
+      fill: var(--allPagesBaseColorDark, #555);
     }
     .bar-label {
       fill: #fff;
@@ -2109,7 +2109,7 @@
       font-weight: lighter;
     }
     .bar-label.big {
-      fill: #555;
+      fill: var(--allPagesBaseColorDark, #555);
       text-anchor: start;
     }
     .handle {
@@ -2160,12 +2160,12 @@
     .lower-text {
       font-size: 12px;
       text-anchor: middle;
-      fill: #333;
+      fill: var(--allPagesBaseColorDark, #333);
     }
     .upper-text {
       font-size: 12px;
       text-anchor: middle;
-      fill: #555;
+      fill: var(--allPagesBaseColorDark, #555);
     }
     .hide {
       display: none;
@@ -2278,7 +2278,7 @@
   }
   /* Optional: show position indicator in red */
   .gantt-dates::-webkit-scrollbar-thumb {
-    background: #FFFFFF;
+    background: @baseBackground;
   }
   .gantt .arrow {
     display: none;
