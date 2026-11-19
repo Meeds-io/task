@@ -19,6 +19,7 @@
 package org.exoplatform.task.service.impl;
 
 import org.apache.commons.lang3.StringUtils;
+import org.jsoup.Jsoup;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainer;
@@ -418,10 +419,13 @@ public class TaskServiceImpl implements TaskService {
         filter.setProjectIds(Collections.singletonList(projectId));
       }
       List<TaskDto> hits = findTasks(filter);
+      List<String> numberWords = numberWords(words);
+      List<TaskDto> named = numberWords.isEmpty() ? hits
+                                                  : hits.stream().filter(task -> holdsNumberWords(task, numberWords)).toList();
       List<TaskDto> found = new ArrayList<>();
-      collectSearchHits(hits, projectId, false, identity.getUserId(), found, max + 1);
+      collectSearchHits(named, projectId, false, identity.getUserId(), found, max + 1);
       if (includeCompleted) {
-        collectSearchHits(hits, projectId, true, identity.getUserId(), found, max + 1);
+        collectSearchHits(named, projectId, true, identity.getUserId(), found, max + 1);
       }
       // a full window may hide matches ranked below it, whatever the filters kept
       boolean hasMore = found.size() > max || hits.size() >= TEXT_SEARCH_WINDOW;
@@ -961,6 +965,66 @@ public class TaskServiceImpl implements TaskService {
           found.add(task);
         }
       }
+    }
+
+    /**
+     * Lists the words of a search text that hold a digit, which the index's
+     * search analyzer, keeping letters only, does not search.
+     *
+     * @param words the search words, as {@link TaskUtil#toSearchWords(String)}
+     *          gives them
+     * @return those words, each in its compared form
+     */
+    private static List<String> numberWords(String words) {
+      return Arrays.stream(words.split(" "))
+                   .filter(word -> word.chars().anyMatch(Character::isDigit))
+                   .map(TaskServiceImpl::comparedForm)
+                   .distinct()
+                   .toList();
+    }
+
+    /**
+     * Tells whether a hit holds every word with a digit of the text: all of
+     * them in its title, or all of them in its description read as text.
+     *
+     * @param task a hit of the index
+     * @param numberWords the words with a digit, in their compared form
+     * @return true when the title or the description holds every one
+     */
+    private static boolean holdsNumberWords(TaskDto task, List<String> numberWords) {
+      return holdsEvery(task.getTitle(), numberWords)
+          || (StringUtils.isNotBlank(task.getDescription())
+              && holdsEvery(Jsoup.parseBodyFragment(task.getDescription()).text(), numberWords));
+    }
+
+    /**
+     * @param text a title or a description as text, possibly null
+     * @param numberWords the words with a digit, in their compared form
+     * @return true when every one is a whole word of the text
+     */
+    private static boolean holdsEvery(String text, List<String> numberWords) {
+      String textWords = TaskUtil.toSearchWords(text);
+      if (textWords.isEmpty()) {
+        return false;
+      }
+      Set<String> compared = new HashSet<>();
+      for (String word : textWords.split(" ")) {
+        compared.add(comparedForm(word));
+      }
+      return compared.containsAll(numberWords);
+    }
+
+    /**
+     * @param word a search word
+     * @return the word, a number without its leading zeros, so that {@code 08}
+     *         and {@code 8} compare equal, never {@code 108}
+     */
+    private static String comparedForm(String word) {
+      if (word.chars().allMatch(Character::isDigit)) {
+        String number = StringUtils.stripStart(word, "0");
+        return number.isEmpty() ? "0" : number;
+      }
+      return word;
     }
 
     /**
