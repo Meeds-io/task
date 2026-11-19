@@ -260,6 +260,14 @@ public class TaskMcpTool implements McpToolPlugin {
                                                               "overdue_only lists open tasks and completed_since completed ones: "
                                                                   + "pass one of them, not both";
 
+  private static final String           MSG_OVERDUE_COMPLETED_ONLY      =
+                                                                   "overdue_only lists open tasks and completed_only completed ones: "
+                                                                       + "pass one of them, not both";
+
+  private static final String           MSG_HIDDEN_COMPLETED_ONLY       =
+                                                                  "hide_completed_tasks leaves the completed tasks out and "
+                                                                      + "completed_only lists them alone: pass one of them, not both";
+
   private static final String           MSG_INVALID_SINCE               =
                                                           "%s must be a date such as 2026-10-14, or a date and time such as "
                                                               + "2026-10-14T09:00:00+02:00, not '%s'";
@@ -891,8 +899,11 @@ public class TaskMcpTool implements McpToolPlugin {
    * time zone; asking both is refused, as is asking the tasks with no due
    * date among the overdue ones (EXO-94250). With {@code priority}, only the
    * tasks of that priority, {@link Priority#NONE} covering the tasks with no
-   * priority too (EXO-94284). The count is the count of the
-   * tasks the same filters select.
+   * priority too (EXO-94284). With {@code completedOnly}, only the completed
+   * tasks, whatever their completion date; asking it with the overdue tasks,
+   * which are open, or with the completed tasks left out is refused
+   * (EXO-94538). The count is the count of the tasks the same filters
+   * select.
    * <p>
    * With {@code groupByProject}, the answer also counts, board by board, the
    * tasks the filters select, beside each board's open tasks the user can
@@ -947,6 +958,7 @@ public class TaskMcpTool implements McpToolPlugin {
    *          for nothing unless {@code groupByProject}
    * @param managedOnly whether only the tasks of the boards the user manages
    *          are listed
+   * @param completedOnly whether only the completed tasks are listed
    * @return the tasks, with their count and whether more remain, and with
    *         {@code groupByProject} or {@code groupBy} the count of each board
    *         or group
@@ -956,7 +968,9 @@ public class TaskMcpTool implements McpToolPlugin {
    *           {@code overdueOnly} and {@code completedSince} are given, or
    *           when {@code withoutDueDate} comes with a due range or with
    *           {@code overdueOnly}, or when {@code groupBy} is no grouping or
-   *           comes with {@code groupByProject} for another grouping
+   *           comes with {@code groupByProject} for another grouping, or when
+   *           {@code completedOnly} comes with {@code overdueOnly} or
+   *           {@code hideCompletedTasks}
    */
   public TaskCollectionModel listTasks(Long projectId, // NOSONAR the tool's parameters, each one its own
                                        Boolean hideCompletedTasks,
@@ -976,8 +990,10 @@ public class TaskMcpTool implements McpToolPlugin {
                                        Boolean groupByProject,
                                        Priority priority,
                                        String groupBy,
-                                       Boolean managedOnly) throws IllegalAccessException, ObjectNotFoundException {
+                                       Boolean managedOnly,
+                                       Boolean completedOnly) throws IllegalAccessException, ObjectNotFoundException {
     String grouping = getGrouping(groupBy, groupByProject);
+    checkCompletedOnly(completedOnly, overdueOnly, hideCompletedTasks);
     ZoneId zone = getCurrentUserZone();
     LocalDate today = getToday(zone);
     Date changedSinceDate = parseSince(changedSince, ARG_CHANGED_SINCE, zone);
@@ -1003,6 +1019,9 @@ public class TaskMcpTool implements McpToolPlugin {
                                                      assignee,
                                                      statusId,
                                                      Boolean.TRUE.equals(hideCompletedTasks)));
+    if (Boolean.TRUE.equals(completedOnly)) {
+      taskQuery.setCompleted(true);
+    }
     int usedOffset = getOffset(offset);
     int usedLimit = getLimit(limit);
     List<TaskDto> tasks = Boolean.TRUE.equals(overdueOnly) ? findOverdueTasks(taskQuery, usedOffset, usedLimit) :
@@ -1042,7 +1061,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                   title,
                                                   changedSince,
                                                   completedSince,
-                                                  Boolean.TRUE.equals(managedOnly));
+                                                  Boolean.TRUE.equals(managedOnly),
+                                                  Boolean.TRUE.equals(completedOnly));
       if (GROUP_BY_PROJECT.equals(grouping)) {
         setProjectCounts(collection, taskQuery, openQuery, zone, collection.getManagedProjectCount() != null);
         collection.setSummary(getGroupedSummary(collection, filters));
@@ -2611,6 +2631,28 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
+   * Refuses to list the completed tasks alone among the overdue tasks, which
+   * are open, or among the open tasks hide_completed_tasks keeps: either pair
+   * selects nothing (EXO-94538).
+   *
+   * @param completedOnly whether only the completed tasks are asked for
+   * @param overdueOnly whether only the overdue tasks are asked for
+   * @param hideCompletedTasks whether the completed tasks are left out
+   * @throws IllegalArgumentException when completed_only comes with either
+   */
+  private void checkCompletedOnly(Boolean completedOnly, Boolean overdueOnly, Boolean hideCompletedTasks) {
+    if (!Boolean.TRUE.equals(completedOnly)) {
+      return;
+    }
+    if (Boolean.TRUE.equals(overdueOnly)) {
+      throw new IllegalArgumentException(MSG_OVERDUE_COMPLETED_ONLY);
+    }
+    if (Boolean.TRUE.equals(hideCompletedTasks)) {
+      throw new IllegalArgumentException(MSG_HIDDEN_COMPLETED_ONLY);
+    }
+  }
+
+  /**
    * Counts board by board the tasks a listing selects, each board beside its
    * open and overdue tasks and split status by status, the boards with the
    * most selected tasks first, then by name and identifier, so that two calls
@@ -3003,7 +3045,8 @@ public class TaskMcpTool implements McpToolPlugin {
         || StringUtils.isNotBlank(filters.assignee())
         || StringUtils.isNotBlank(filters.title())
         || StringUtils.isNotBlank(filters.changedSince())
-        || StringUtils.isNotBlank(filters.completedSince());
+        || StringUtils.isNotBlank(filters.completedSince())
+        || filters.completedOnly();
   }
 
   /**
@@ -3098,6 +3141,9 @@ public class TaskMcpTool implements McpToolPlugin {
       summary.append("overdue open ");
     } else if (isOpenOnly(filters)) {
       summary.append("open ");
+    } else if (filters.completedOnly() && StringUtils.isBlank(filters.completedSince())) {
+      // with completed_since, its own words already say the tasks are completed
+      summary.append("completed ");
     }
     return summary.append(count == 1 ? "task" : "tasks").append(describeFilters(filters));
   }
@@ -3158,6 +3204,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param completedSince the completion date, blank for none
    * @param managedOnly whether only the tasks of the boards the user manages
    *          are listed
+   * @param completedOnly whether only the completed tasks are listed
+   *          (EXO-94538)
    */
   record ListingFilters(boolean overdueOnly, // NOSONAR the tool's filters, each one its own
                         boolean hideCompleted,
@@ -3170,7 +3218,8 @@ public class TaskMcpTool implements McpToolPlugin {
                         String title,
                         String changedSince,
                         String completedSince,
-                        boolean managedOnly) {
+                        boolean managedOnly,
+                        boolean completedOnly) {
   }
 
   /**
