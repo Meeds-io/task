@@ -168,9 +168,9 @@ public class TaskToolDefinitionUpgradesTest {
    * EXO-94250, before EXO-94284, before managed_only, before the relation,
    * before EXO-94377, before EXO-94360, before group_by, before the managed
    * boards' count, before their totals, before EXO-94516 and before EXO-94538
-   * included, and not its shipped one,
-   * which an instance already holding it keeps anyway. Mutants:
-   * a digest removed, the shipped digest added, a tool's entry dropped.
+   * included, and not its shipped one, which an instance already holding it
+   * keeps anyway. Mutants: a digest removed, the shipped digest added, a
+   * tool's entry dropped.
    *
    * @throws Exception never
    */

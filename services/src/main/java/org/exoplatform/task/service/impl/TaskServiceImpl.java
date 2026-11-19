@@ -19,7 +19,6 @@
 package org.exoplatform.task.service.impl;
 
 import org.apache.commons.lang3.StringUtils;
-import org.jsoup.Jsoup;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.ExoContainer;
@@ -58,6 +57,7 @@ import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.StorageUtil;
 import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.util.UserUtil;
+import org.jsoup.Jsoup;
 
 import io.meeds.task.plugin.TaskAclPlugin;
 import io.meeds.task.search.model.SearchFieldMatches;
