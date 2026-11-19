@@ -902,8 +902,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * priority too (EXO-94284). With {@code completedOnly}, only the completed
    * tasks, whatever their completion date; asking it with the overdue tasks,
    * which are open, or with the completed tasks left out, without
-   * {@code completedSince}, which keeps them, is refused (EXO-94538). The count is the count of the tasks the same filters
-   * select.
+   * {@code completedSince}, which keeps them, is refused (EXO-94538). The
+   * count is the count of the tasks the same filters select.
    * <p>
    * With {@code groupByProject}, the answer also counts, board by board, the
    * tasks the filters select, beside each board's open tasks the user can
@@ -3038,8 +3038,9 @@ public class TaskMcpTool implements McpToolPlugin {
   /**
    * @param filters the filters a listing applied
    * @return true when one of them narrows the tasks beyond their board and
-   *         completion: a priority, an assignee, a status, a title, a due
-   *         date or its absence, or a change or completion date
+   *         their open state: a priority, an assignee, a status, a title, a
+   *         due date or its absence, a change or completion date, or
+   *         completed_only
    */
   private static boolean isNarrowed(ListingFilters filters) {
     return filters.withoutDueDate()
