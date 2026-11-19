@@ -34,11 +34,12 @@ import lombok.NoArgsConstructor;
 
 /**
  * A task in a list: what tells the card apart on its board, as a search
- * result does, with its assignee, due date, creation date, priority and
- * comments count, without its description, coworkers or other dates, which
- * get_task_by_id returns. The creation date tells apart the tasks created
- * since a date; the date of the latest comment tells apart those nobody has
- * commented on since. On request, the description as cut plain text.
+ * result does, with its assignee, start date, due date, creation date,
+ * priority and comments count, without its description, coworkers or other
+ * dates, which get_task_by_id returns. The creation date tells apart the
+ * tasks created since a date; the date of the latest comment tells apart
+ * those nobody has commented on since. On request, the description as cut
+ * plain text.
  */
 @Data
 @NoArgsConstructor
@@ -73,6 +74,13 @@ public class TaskListItemModel {
    * for a task the user is a coworker of only; none in the other listings.
    */
   private String             relation;
+
+  /**
+   * When the task starts, formatted as due_date; none for a task without a
+   * start date.
+   */
+  @JsonProperty("start_date")
+  private String             startDate;
 
   @JsonProperty("due_date")
   private String             dueDate;
@@ -147,6 +155,7 @@ public class TaskListItemModel {
    * @param status its status
    * @param labels its labels
    * @param assignee its assignee
+   * @param startDate its start date
    * @param dueDate its due date
    * @param createdDate its creation date
    * @param daysOverdue its days overdue, null when not overdue
@@ -163,6 +172,7 @@ public class TaskListItemModel {
                            ProjectStatus status,
                            List<ProjectLabel> labels,
                            TaskAssigneeModel assignee,
+                           String startDate,
                            String dueDate,
                            String createdDate,
                            Integer daysOverdue,
@@ -179,6 +189,7 @@ public class TaskListItemModel {
          labels,
          assignee,
          null,
+         startDate,
          dueDate,
          createdDate,
          daysOverdue,

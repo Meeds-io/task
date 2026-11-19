@@ -2872,6 +2872,37 @@ public class TaskMcpToolTest {
   }
 
   /**
+   * A listed task carries its start date beside its due date, so that a
+   * gantt of the listing draws it as a bar from one to the other
+   * (EXO-93760); a task without a start date carries none (the key set of
+   * {@link #listTasksReturnsCompactItemsAndTheFullTaskWithTheChangeLog}).
+   * Mutant: the list item built without the start date.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksGivesEachTaskItsStartDate() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(task.getStartDate()).thenReturn(Date.from(Instant.parse("2026-11-02T08:00:00Z")));
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-11-06T17:00:00Z")));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getUserTimeZone).thenReturn(TimeZone.getTimeZone("UTC"));
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0, Date.class).toInstant().toString());
+      result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    TaskListItemModel item = (TaskListItemModel) result.getTasks().get(0);
+    assertEquals("2026-11-02T08:00:00Z", item.getStartDate());
+    assertEquals("2026-11-06T17:00:00Z", item.getDueDate());
+    assertEquals("2026-11-02T08:00:00Z", JSON.readTree(JSON.writeValueAsString(item)).path("start_date").asText());
+  }
+
+  /**
    * The full task of a listing with include_change_log has one "commented"
    * entry per comment, each reply included, as its comments count does.
    * Mutant: the top-level comments read without their replies.
