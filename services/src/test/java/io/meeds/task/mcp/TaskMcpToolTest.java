@@ -5306,7 +5306,7 @@ public class TaskMcpToolTest {
   public void listTasksGroupedWithCompletedOnlyCountsEachBoardsCompletedTasks() throws Exception { // NOSONAR
     ArgumentCaptor<TaskQuery> listed = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findLastUpdatedTasks(listed.capture(), eq(0), eq(1))).thenReturn(Collections.emptyList());
-    when(taskService.countTasks(any())).thenReturn(14L);
+    when(taskService.countTasks(any())).thenReturn(14);
     ArgumentCaptor<TaskQuery> counted = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.countTasksByProject(counted.capture())).thenReturn(List.of(new ProjectTaskCountDto(7L, "Beta", 4L),
                                                                                 new ProjectTaskCountDto(8L, "Alpha", 10L)),
@@ -5329,9 +5329,10 @@ public class TaskMcpToolTest {
    * completed_only with overdue_only, which lists open tasks, or with
    * hide_completed_tasks, which leaves the completed tasks out, selects
    * nothing: each pair is refused with a message naming both arguments, and
-   * no task is read; completed_only false refuses neither (EXO-94538).
+   * no task is read; completed_only false refuses neither, nor does
+   * hide_completed_tasks with completed_since, which ignores it (EXO-94538).
    * Mutants: either check dropped, the check run whatever completed_only
-   * says.
+   * says, the completed_since exception dropped.
    *
    * @throws Exception never
    */
@@ -5351,6 +5352,8 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
     tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, false);
     verify(taskService).findLastUpdatedTasks(any(), anyInt(), anyInt());
+    runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, null, null, null, null, "2026-11-01", null, null, null, null, null, null, null, null, null, null, true));
+    verify(taskService, times(2)).findLastUpdatedTasks(any(), anyInt(), anyInt());
   }
 
   /**
