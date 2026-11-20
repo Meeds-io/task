@@ -54,12 +54,14 @@ public class TaskToolDefinitionUpgradesTest {
 
   /** How many earlier definitions of each changed tool the history of every ref holds. */
   private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks",
-                                                                            26,
+                                                                            33,
                                                                             "list_assigned_tasks",
                                                                             15,
                                                                             "list_projects",
-                                                                            5,
+                                                                            6,
                                                                             "list_project_activity_since",
+                                                                            1,
+                                                                            "get_project_statistics",
                                                                             1);
 
   /**
@@ -139,10 +141,23 @@ public class TaskToolDefinitionUpgradesTest {
                                                                                   "a18106fc429b813bf74b7f7a19f4d7d09473010b63fe31be57cdf15c554e4b1a");
 
   /**
+   * The definitions feature/rtd shipped before completed_only and the
+   * clauses that send a question about several boards to one grouped call
+   * (EXO-94538).
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_94538      =
+                                                                       Map.of("list_tasks",
+                                                                              "5c51bdb7b610030c22eea0dc39847755d509899ee543f810ec71faecf71f7ccb",
+                                                                              "list_projects",
+                                                                              "785924f5fde2cc0979e51d260d133a8f9956ccb14d7404f5d847bd942d8ffb1b",
+                                                                              "get_project_statistics",
+                                                                              "c6c286f9618d8b69d5be10e8601627298c960e498a592527f10d568544a2f92c");
+
+  /**
    * Each changed tool lists every earlier definition, those shipped before
    * EXO-94250, before EXO-94284, before managed_only, before the relation,
    * before EXO-94377, before EXO-94360, before group_by, before the managed
-   * boards' count and before their totals included, and not its shipped one,
+   * boards' count, before their totals and before EXO-94538 included, and not its shipped one,
    * which an instance already holding it keeps anyway. Mutants:
    * a digest removed, the shipped digest added, a tool's entry dropped.
    *
@@ -166,7 +181,8 @@ public class TaskToolDefinitionUpgradesTest {
                                                 DEFINITIONS_BEFORE_94360,
                                                 DEFINITIONS_BEFORE_GROUP_BY,
                                                 DEFINITIONS_BEFORE_MANAGED_COUNT,
-                                                DEFINITIONS_BEFORE_MANAGED_TOTALS)) {
+                                                DEFINITIONS_BEFORE_MANAGED_TOTALS,
+                                                DEFINITIONS_BEFORE_94538)) {
         if (pinned.containsKey(name)) {
           assertTrue(name, digests.contains(pinned.get(name)));
         }
