@@ -54,15 +54,15 @@ public class TaskToolDefinitionUpgradesTest {
 
   /** How many earlier definitions of each changed tool the history of every ref holds. */
   private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks",
-                                                                            33,
+                                                                            37,
                                                                             "list_assigned_tasks",
                                                                             15,
                                                                             "list_projects",
-                                                                            6,
+                                                                            7,
                                                                             "list_project_activity_since",
                                                                             1,
                                                                             "search_tasks",
-                                                                            3,
+                                                                            4,
                                                                             "get_project_statistics",
                                                                             1);
 
@@ -164,12 +164,59 @@ public class TaskToolDefinitionUpgradesTest {
                                                                               "c6c286f9618d8b69d5be10e8601627298c960e498a592527f10d568544a2f92c");
 
   /**
+   * The definition of list_tasks feature/rtd shipped before unassigned_only
+   * (EXO-94785).
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_94785      =
+                                                                       Map.of("list_tasks",
+                                                                              "67e5a178e9a2ddcf4cf711d29d272eed8215f517e3ce3ff51f2ba26c981e4824");
+
+  /**
+   * The definition of list_tasks unassigned_only shipped, before boards_only
+   * (EXO-94747).
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_94747      =
+                                                                       Map.of("list_tasks",
+                                                                              "5ad3f91581eb564062c2fbd3c8e7296361bda996bb30364caa7949ae0ada9bbf");
+
+  /**
+   * The definition of search_tasks the EXO-94516 branch carried before its
+   * last commit, which an instance built from an integration branch holding
+   * it stored.
+   */
+  private static final Map<String, String>  DEFINITIONS_OF_94516_BRANCH   =
+                                                                       Map.of("search_tasks",
+                                                                              "69323fb78a650b8b1f46e9072f3847dbd77606f8c91c795c9d03f374f5687222");
+
+  /**
+   * The definition of list_tasks the integration branch of this change carried
+   * before boards_only reached the no-assignee clause (EXO-94747), which an
+   * instance built from that branch stored.
+   */
+  private static final Map<String, String>  DEFINITIONS_OF_94747_INTEGRATION =
+                                                                       Map.of("list_tasks",
+                                                                              "92963b2d9ae53804bd7b63eeeb2eaf4b55f0d1742bec8dd96cbf84499e7c6c23");
+
+  /**
+   * The definitions of list_tasks and list_projects the EXO-94538 branch
+   * carried before its last commit, which an instance built from that branch
+   * stored.
+   */
+  private static final Map<String, String>  DEFINITIONS_OF_94538_BRANCH   =
+                                                                       Map.of("list_tasks",
+                                                                              "8841a5a6e411461305c5fd811af9c91c2d60f4118fe3c9251a7fc6e5d2ca9e9c",
+                                                                              "list_projects",
+                                                                              "593326057821d9e0aef4b6c1015914cc7c27990da862d2e7c95c7931d482e858");
+
+  /**
    * Each changed tool lists every earlier definition, those shipped before
    * EXO-94250, before EXO-94284, before managed_only, before the relation,
    * before EXO-94377, before EXO-94360, before group_by, before the managed
-   * boards' count, before their totals, before EXO-94516 and before EXO-94538
-   * included, and not its shipped one, which an instance already holding it
-   * keeps anyway. Mutants: a digest removed, the shipped digest added, a
+   * boards' count, before their totals, before EXO-94516, before EXO-94538,
+   * before EXO-94785, before EXO-94747, the EXO-94516 and EXO-94538
+   * branches' and this change's integration branch's included,
+   * and not its shipped one, which an instance already holding it keeps
+   * anyway. Mutants: a digest removed, the shipped digest added, a
    * tool's entry dropped.
    *
    * @throws Exception never
@@ -194,7 +241,12 @@ public class TaskToolDefinitionUpgradesTest {
                                                 DEFINITIONS_BEFORE_MANAGED_COUNT,
                                                 DEFINITIONS_BEFORE_MANAGED_TOTALS,
                                                 DEFINITIONS_BEFORE_94516,
-                                                DEFINITIONS_BEFORE_94538)) {
+                                                DEFINITIONS_BEFORE_94538,
+                                                DEFINITIONS_BEFORE_94785,
+                                                DEFINITIONS_OF_94538_BRANCH,
+                                                DEFINITIONS_BEFORE_94747,
+                                                DEFINITIONS_OF_94747_INTEGRATION,
+                                                DEFINITIONS_OF_94516_BRANCH)) {
         if (pinned.containsKey(name)) {
           assertTrue(name, digests.contains(pinned.get(name)));
         }
