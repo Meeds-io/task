@@ -235,7 +235,8 @@ public class TaskToolDefinitionSpaceScopeTest {
    * the paging: {@code TaskMcpTool#listTasks} reads every task the user can
    * access when no project is given, so the project is the scope, and every
    * other argument either narrows it or pages it; completed_only narrows it
-   * to its completed tasks (EXO-94538).
+   * to its completed tasks (EXO-94538), and unassigned_only to its tasks with
+   * no assignee (EXO-94785).
    * Mutant: the declaration dropped, the resolver or the object argument
    * changed, or an argument added to the accepted ones.
    */
@@ -260,7 +261,8 @@ public class TaskToolDefinitionSpaceScopeTest {
                          "due_to",
                          "group_by_project",
                          "priority",
-                         "completed_only"),
+                         "completed_only",
+                         "unassigned_only"),
                  allowed(tool));
     JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
     assertTrue(properties.has("project_id"));
