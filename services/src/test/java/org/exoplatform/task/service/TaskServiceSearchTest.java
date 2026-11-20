@@ -330,6 +330,69 @@ public class TaskServiceSearchTest {
   }
 
   /**
+   * The index searches the words with letters only, so « L5 rig task 08 »
+   * reaches it as « l rig task » and every « L5 rig task NN » is a hit
+   * (EXO-94516). Each word with a digit must then be a whole word of the
+   * hit's title, a number ignoring its leading zeros, and this before the
+   * limit, so a named task ranked past the first page is still found.
+   * Mutants: no filter; a compare of the text instead of its whole words
+   * (« 108 » kept); no zeros ignored (« task 8 » finds nothing); the filter
+   * after the limit.
+   *
+   * @throws Exception never, the project lookup declares it
+   */
+  @Test
+  public void aWordWithADigitMustBeAWholeWordOfTheHit() throws Exception {// NOSONAR
+    List<TaskDto> hits = new ArrayList<>();
+    for (long id = 1; id <= 12; id++) {
+      hits.add(task(id, false, project, "L5 rig task %02d".formatted(id), null));
+    }
+    hits.add(task(108L, false, project, "L5 rig task 108", null));
+    hits.add(task(200L, false, project, "L4 rig task 08", null));
+    when(taskStorage.findTasks(any(TaskSearchFilter.class))).thenReturn(hits);
+
+    assertEquals(List.of(8L), ids(taskService.searchTasks("L5 rig task 08", null, false, 10, identity)));
+    assertEquals(List.of(11L), ids(taskService.searchTasks("L5 rig task 11", null, false, 10, identity)));
+    assertEquals(List.of(8L), ids(taskService.searchTasks("L5 rig task 8", null, false, 10, identity)));
+    assertEquals(List.of(8L, 200L), ids(taskService.searchTasks("rig task 08", null, false, 10, identity)));
+    assertEquals(List.of(), ids(taskService.searchTasks("L5 rig task 08 11", null, false, 10, identity)));
+    assertEquals(List.of(1L, 2L, 3L), ids(taskService.searchTasks("rig task", null, false, 3, identity)));
+  }
+
+  /**
+   * A hit whose description, read as text, holds every word with a digit is
+   * kept, its title holding none; an entity of the description's markup is
+   * not a word of it.
+   *
+   * @throws Exception never, the project lookup declares it
+   */
+  @Test
+  public void aWordWithADigitMayBeAWordOfTheDescription() throws Exception {// NOSONAR
+    TaskDto described = task(1L, false, project, "Renew the contract", "<p>Clause <b>08</b> of the contract</p>");
+    TaskDto entity = task(2L, false, project, "Renew the contract", "<p>It&#39;s due</p>");
+    TaskDto bare = task(3L, false, project, "Renew the contract", null);
+    when(taskStorage.findTasks(any(TaskSearchFilter.class))).thenReturn(List.of(described, entity, bare));
+
+    assertEquals(List.of(1L), ids(taskService.searchTasks("contract 8", null, false, 10, identity)));
+    assertEquals(List.of(), ids(taskService.searchTasks("contract 39", null, false, 10, identity)));
+  }
+
+  /**
+   * @param id the task identifier
+   * @param completed whether the task is completed
+   * @param taskProject the project of the task's status
+   * @param title its title
+   * @param description its description, possibly null
+   * @return a task in a status of that project
+   */
+  private TaskDto task(long id, boolean completed, ProjectDto taskProject, String title, String description) {
+    TaskDto task = task(id, completed, taskProject);
+    lenient().when(task.getTitle()).thenReturn(title);
+    lenient().when(task.getDescription()).thenReturn(description);
+    return task;
+  }
+
+  /**
    * @param id the task identifier
    * @param completed whether the task is completed
    * @param taskProject the project of the task's status

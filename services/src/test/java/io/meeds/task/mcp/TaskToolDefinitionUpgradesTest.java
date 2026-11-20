@@ -61,6 +61,8 @@ public class TaskToolDefinitionUpgradesTest {
                                                                             6,
                                                                             "list_project_activity_since",
                                                                             1,
+                                                                            "search_tasks",
+                                                                            3,
                                                                             "get_project_statistics",
                                                                             1);
 
@@ -141,6 +143,14 @@ public class TaskToolDefinitionUpgradesTest {
                                                                                   "a18106fc429b813bf74b7f7a19f4d7d09473010b63fe31be57cdf15c554e4b1a");
 
   /**
+   * The definition of search_tasks feature/rtd shipped before a word with a
+   * digit was checked on each hit (EXO-94516).
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_94516        =
+                                                                           Map.of("search_tasks",
+                                                                                  "667ce69539c40342ce5c3a071eb2b86c286635d52709a1ffc2b66175b6648454");
+
+  /**
    * The definitions feature/rtd shipped before completed_only and the
    * clauses that send a question about several boards to one grouped call
    * (EXO-94538).
@@ -157,9 +167,10 @@ public class TaskToolDefinitionUpgradesTest {
    * Each changed tool lists every earlier definition, those shipped before
    * EXO-94250, before EXO-94284, before managed_only, before the relation,
    * before EXO-94377, before EXO-94360, before group_by, before the managed
-   * boards' count, before their totals and before EXO-94538 included, and not its shipped one,
-   * which an instance already holding it keeps anyway. Mutants:
-   * a digest removed, the shipped digest added, a tool's entry dropped.
+   * boards' count, before their totals, before EXO-94516 and before EXO-94538
+   * included, and not its shipped one, which an instance already holding it
+   * keeps anyway. Mutants: a digest removed, the shipped digest added, a
+   * tool's entry dropped.
    *
    * @throws Exception never
    */
@@ -182,6 +193,7 @@ public class TaskToolDefinitionUpgradesTest {
                                                 DEFINITIONS_BEFORE_GROUP_BY,
                                                 DEFINITIONS_BEFORE_MANAGED_COUNT,
                                                 DEFINITIONS_BEFORE_MANAGED_TOTALS,
+                                                DEFINITIONS_BEFORE_94516,
                                                 DEFINITIONS_BEFORE_94538)) {
         if (pinned.containsKey(name)) {
           assertTrue(name, digests.contains(pinned.get(name)));
