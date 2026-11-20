@@ -2207,10 +2207,10 @@ public class TaskMcpTool implements McpToolPlugin {
 
   /**
    * Maps a task to its list item: what tells it apart on its board, as a
-   * search result, with its assignee, due date, creation date and priority,
-   * without its comments, which {@link #toTaskListItems} reads for the whole
-   * page. It reads neither the description, nor the coworkers, nor the last
-   * update date that the full model holds.
+   * search result, with its assignee, start date, due date, creation date and
+   * priority, without its comments, which {@link #toTaskListItems} reads for
+   * the whole page. It reads neither the description, nor the coworkers, nor
+   * the last update date that the full model holds.
    *
    * @param task a task
    * @param since the date the changes are listed from, null for none
@@ -2239,6 +2239,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                  getTaskStatus(status),
                                  project == null ? null : getTaskLabels(task, projectId, aclIdentity),
                                  getTaskAssignee(task.getAssignee()),
+                                 formatDate(task.getStartDate()),
                                  formatDate(task.getDueDate()),
                                  formatDate(task.getCreatedTime()),
                                  getDaysOverdue(task, zone, today),
