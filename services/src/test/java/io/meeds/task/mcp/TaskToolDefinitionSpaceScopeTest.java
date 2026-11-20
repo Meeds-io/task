@@ -236,7 +236,9 @@ public class TaskToolDefinitionSpaceScopeTest {
    * access when no project is given, so the project is the scope, and every
    * other argument either narrows it or pages it; completed_only narrows it
    * to its completed tasks (EXO-94538), and unassigned_only to its tasks with
-   * no assignee (EXO-94785).
+   * no assignee (EXO-94785); group_by splits that one project's tasks, as
+   * group_by_project counts it, so that the workload of a run limited to a
+   * space is one grouped call per project of that space (EXO-94747).
    * Mutant: the declaration dropped, the resolver or the object argument
    * changed, or an argument added to the accepted ones.
    */
@@ -262,7 +264,8 @@ public class TaskToolDefinitionSpaceScopeTest {
                          "group_by_project",
                          "priority",
                          "completed_only",
-                         "unassigned_only"),
+                         "unassigned_only",
+                         "group_by"),
                  allowed(tool));
     JsonNode properties = MAPPER.readTree(tool.getInputSchema()).path("properties");
     assertTrue(properties.has("project_id"));

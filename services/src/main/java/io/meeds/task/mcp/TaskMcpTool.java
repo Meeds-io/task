@@ -909,7 +909,10 @@ public class TaskMcpTool implements McpToolPlugin {
    * {@code completedSince}, which keeps them, is refused (EXO-94538). With
    * {@code unassignedOnly}, only the tasks with no assignee, whatever their
    * coworkers, in every column; asking it with an {@code assignee} is refused
-   * (EXO-94785). The count is the count of the tasks the same filters select.
+   * (EXO-94785). With {@code boardsOnly}, only the tasks on a board, the
+   * personal tasks left out, in the listing and in the open counts beside a
+   * grouping, so that a count by assignee across the user's boards takes one
+   * call (EXO-94747). The count is the count of the tasks the same filters select.
    * <p>
    * With {@code groupByProject}, the answer also counts, board by board, the
    * tasks the filters select, beside each board's open tasks the user can
@@ -966,6 +969,8 @@ public class TaskMcpTool implements McpToolPlugin {
    *          are listed
    * @param completedOnly whether only the completed tasks are listed
    * @param unassignedOnly whether only the tasks with no assignee are listed
+   * @param boardsOnly whether only the tasks on a board are listed, the
+   *          personal tasks left out
    * @return the tasks, with their count and whether more remain, and with
    *         {@code groupByProject} or {@code groupBy} the count of each board
    *         or group
@@ -1000,7 +1005,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                        String groupBy,
                                        Boolean managedOnly,
                                        Boolean completedOnly,
-                                       Boolean unassignedOnly) throws IllegalAccessException, ObjectNotFoundException {
+                                       Boolean unassignedOnly,
+                                       Boolean boardsOnly) throws IllegalAccessException, ObjectNotFoundException {
     String grouping = getGrouping(groupBy, groupByProject);
     checkCompletedOnly(completedOnly, overdueOnly, hideCompletedTasks, completedSince);
     checkUnassignedOnly(unassignedOnly, assignee);
@@ -1014,6 +1020,7 @@ public class TaskMcpTool implements McpToolPlugin {
     TaskQuery taskQuery = getTaskQuery(projectId, false, Boolean.TRUE.equals(overdueOnly), zone);
     List<String> managerMemberships = Boolean.TRUE.equals(managedOnly) ? getMemberships(null) : null;
     setManagedBy(taskQuery, managerMemberships);
+    setOnBoards(taskQuery, boardsOnly);
     if (Boolean.TRUE.equals(withoutDueDate)) {
       taskQuery.setWithoutDueDate();
     }
@@ -1058,6 +1065,7 @@ public class TaskMcpTool implements McpToolPlugin {
       }
       TaskQuery openQuery = getTaskQuery(projectId, true, false, zone);
       setManagedBy(openQuery, managerMemberships);
+      setOnBoards(openQuery, boardsOnly);
       if (managerMemberships != null && (projectId == null || projectId <= 0)) {
         // the boards the user manages, those with no task included; with a
         // project, the counts reach that board only, so there is no total to
@@ -1077,7 +1085,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                   completedSince,
                                                   Boolean.TRUE.equals(managedOnly),
                                                   Boolean.TRUE.equals(completedOnly),
-                                                  Boolean.TRUE.equals(unassignedOnly));
+                                                  Boolean.TRUE.equals(unassignedOnly),
+                                                  Boolean.TRUE.equals(boardsOnly));
       if (GROUP_BY_PROJECT.equals(grouping)) {
         setProjectCounts(collection, taskQuery, openQuery, zone, collection.getManagedProjectCount() != null);
         collection.setSummary(getGroupedSummary(collection, filters));
@@ -2967,6 +2976,19 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
+   * Narrows a query to the tasks on a board, the personal tasks left out
+   * (EXO-94747).
+   *
+   * @param query the query narrowed
+   * @param boardsOnly whether to narrow it, null for no
+   */
+  private void setOnBoards(TaskQuery query, Boolean boardsOnly) {
+    if (Boolean.TRUE.equals(boardsOnly)) {
+      query.setOnBoards();
+    }
+  }
+
+  /**
    * Counts the boards the current user manages, those holding no task
    * included: the selection {@code list_projects} counts with
    * {@code managed_only} and no space, through the query that counts each
@@ -3107,9 +3129,10 @@ public class TaskMcpTool implements McpToolPlugin {
    * sentence: the count, the filters applied, then each due period, or the
    * {@value #SUMMARY_GROUPS} groups with the most tasks, with the number of
    * those left out and the personal tasks of a grouping by status, the
-   * number of boards the user manages with {@code managed_only}, such as
-   * « 60 open tasks: 12 due before today, 20 due this week, 0 due next week,
-   * 5 due later, 23 with no due date » (EXO-94360).
+   * number of boards the user manages with {@code managed_only}, or « on
+   * boards » with {@code boards_only} (EXO-94747), such as « 60 open tasks:
+   * 12 due before today, 20 due this week, 0 due next week, 5 due later, 23
+   * with no due date » (EXO-94360).
    *
    * @param collection the grouped answer, its groups set
    * @param filters the filters the listing applied
@@ -3126,6 +3149,8 @@ public class TaskMcpTool implements McpToolPlugin {
         summary.append("boards");
       }
       summary.append(" the user manages");
+    } else if (filters.boardsOnly()) {
+      summary.append(" on boards");
     }
     List<TaskGroupCountModel> groups = collection.getGroups();
     if (GROUP_BY_DUE_PERIOD.equals(collection.getGroupBy())) {
@@ -3250,6 +3275,8 @@ public class TaskMcpTool implements McpToolPlugin {
    *          (EXO-94538)
    * @param unassignedOnly whether only the tasks with no assignee are listed
    *          (EXO-94785)
+   * @param boardsOnly whether only the tasks on a board are listed
+   *          (EXO-94747)
    */
   record ListingFilters(boolean overdueOnly, // NOSONAR the tool's filters, each one its own
                         boolean hideCompleted,
@@ -3264,7 +3291,8 @@ public class TaskMcpTool implements McpToolPlugin {
                         String completedSince,
                         boolean managedOnly,
                         boolean completedOnly,
-                        boolean unassignedOnly) {
+                        boolean unassignedOnly,
+                        boolean boardsOnly) {
   }
 
   /**
