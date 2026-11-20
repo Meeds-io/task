@@ -426,7 +426,12 @@ public interface TaskService {
      * against the task's own view permission and, with a project, against the
      * task's project, so a task the index still lists for a user who lost
      * access to it is never returned. The search reads the
-     * {@value #TEXT_SEARCH_WINDOW} most relevant hits at most.
+     * {@value #TEXT_SEARCH_WINDOW} most relevant hits at most. The index
+     * searches the words with letters only, so a word of the text holding a
+     * digit, such as {@code 08} or {@code L5}, is checked on each hit before
+     * the limit: every such word must be a whole word of the title, or every
+     * one a whole word of the description, a number ignoring its leading zeros
+     * ({@code 8} for {@code 08}, never {@code 108}).
      *
      * @param text the text searched: every word in the title, or every word in
      *          the description
