@@ -420,6 +420,14 @@ public class TaskQuery extends Query implements Cloneable {
   }
 
   /**
+   * Selects the tasks on a board, those with a status: a personal task, with
+   * no status, is never selected (EXO-94747).
+   */
+  public void setOnBoards() {
+    add(notNull(TASK_STATUS));
+  }
+
+  /**
    * Selects the tasks of the projects whose managers hold one of the given
    * memberships, the user's name among them, as
    * {@link ProjectQuery#setManager(List)} selects the projects: a personal

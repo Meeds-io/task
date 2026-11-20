@@ -2038,6 +2038,39 @@ public class TestTaskDAO extends AbstractTest {
   }
 
   /**
+   * The boards-only condition runs on the engine, ANDed onto the
+   * accessibility condition: a reader's personal task, with no status, is
+   * listed, counted and grouped by assignee without it, and never with it,
+   * while every card of the reader's board, assigned or not, stays
+   * (EXO-94747). Mutants: the condition dropped, or inverted to « is null ».
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void testOnBoardsLeavesThePersonalTasksOut() throws Exception {
+    Status alpha = newReaderBoard("Alpha", "reader");
+    Task johns = newCard("alpha john's", alpha, "john");
+    Task nobodys = newCard("alpha nobody's", alpha, null);
+    Task personal = tDAO.create(newTaskInstance("reader's personal", "", "reader"));
+    Identity reader = new Identity("reader");
+
+    TaskQuery accessible = new TaskQuery();
+    accessible.setAccessible(reader);
+    accessible.setOrderBy(Arrays.asList(new OrderBy.DESC("id")));
+    TaskQuery onBoards = accessible.clone();
+    onBoards.setOnBoards();
+
+    assertCards(accessible, personal, nobodys, johns);
+    assertCards(onBoards, nobodys, johns);
+    Map<String, Long> assignees = new HashMap<>();
+    tDAO.countTasksByGroup(onBoards, TaskGrouping.ASSIGNEE).forEach(g -> assignees.put(g.getKey(), g.getCount()));
+    Map<String, Long> expected = new HashMap<>();
+    expected.put("john", 1L);
+    expected.put(null, 1L);
+    assertEquals(expected, assignees);
+  }
+
+  /**
    * A date criterion compares the field it names, the start of the range
    * included and its end excluded; a card with no date never falls in a range,
    * and only the cards with no date match « is empty ». The start date is the
