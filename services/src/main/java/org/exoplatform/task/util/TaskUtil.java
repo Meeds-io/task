@@ -73,7 +73,10 @@ public final class TaskUtil {
    * Broadcast when a project's status is renamed, its name changed and not
    * only its rank (EXO-94917), with the status id as source and the ids of
    * its tasks as data, a {@code List<Long>}: each of them now shows the new
-   * name, and no {@link #TASK_UPDATED} is broadcast for them.
+   * name, and no {@link #TASK_UPDATED} is broadcast for them. It is broadcast
+   * before the renaming's transaction commits: a listener reading the status
+   * or its tasks at once may see them as they were, so it records the ids
+   * and reads them later.
    */
   public static final String           STATUS_RENAMED                                  = "exo.task.statusRenamed";
 
@@ -81,7 +84,9 @@ public final class TaskUtil {
    * Broadcast when a project's status is removed (EXO-94917), with the removed
    * status id as source and the ids of the tasks it moved to another status
    * of the project as data, a {@code List<Long>}: no {@link #TASK_UPDATED}
-   * is broadcast for them.
+   * is broadcast for them. It is broadcast before the removal's transaction
+   * commits: a listener reading the tasks at once may see them in their
+   * removed status, so it records the ids and reads them later.
    */
   public static final String           STATUS_REMOVED                                  = "exo.task.statusRemoved";
 
