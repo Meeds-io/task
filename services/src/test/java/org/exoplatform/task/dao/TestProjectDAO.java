@@ -104,6 +104,29 @@ public class TestProjectDAO extends AbstractTest {
   }
 
   @Test
+  public void testProjectQueryCountsEachProjectOnce() throws Exception {
+    // one project matching through its manager and both its participators, and a second project
+    pDAO.create(new Project("Campaign plan",
+                            null,
+                            null,
+                            new HashSet<>(Arrays.asList("manager:/spaces/space1")),
+                            new HashSet<>(Arrays.asList("member:/spaces/space1", "john"))));
+    pDAO.create(new Project("Campaign budget", null, null, new HashSet<>(Arrays.asList("manager:/spaces/space1")), null));
+
+    for (String keyword : Arrays.asList(null, "campaign")) {
+      ProjectQuery query = new ProjectQuery();
+      query.setMembership(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1"));
+      query.setKeyword(keyword);
+      query.setOrderBy(Arrays.asList(new OrderBy.DESC("lastModifiedDate")));
+
+      ListAccess<Project> projects = pDAO.findProjects(query);
+
+      Assert.assertEquals(2, projects.getSize());
+      Assert.assertEquals(2, projects.load(0, 10).length);
+    }
+  }
+
+  @Test
   public void testFindProjectByKeywordPartiallyMatching() throws Exception {
     Set<String> manager = new HashSet<String>();
     manager.add("root");

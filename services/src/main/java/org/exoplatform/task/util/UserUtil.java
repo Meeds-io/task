@@ -78,6 +78,27 @@ public final class UserUtil {
     return memberships;
   }
 
+  /**
+   * The memberships of a space, among those its projects are shared with, that
+   * the given user holds.
+   *
+   * @param identity the user
+   * @param spaceGroupId the space group id
+   * @return the space memberships the user holds, empty when the user holds
+   *         none
+   */
+  public static List<String> getSpaceMemberships(Identity identity, String spaceGroupId) {
+    List<String> memberships = new LinkedList<>();
+    for (String membership : getSpaceMemberships(spaceGroupId)) {
+      MembershipEntry entry = MembershipEntry.parse(membership);
+      // a membership of any type in the space matches each of its types
+      if (identity.getMemberships().stream().anyMatch(entry::equals)) {
+        memberships.add(membership);
+      }
+    }
+    return memberships;
+  }
+
   public static List<String> getMemberships(Identity identity) {
     Map<String, List<MembershipEntry>> gms = new HashMap<String, List<MembershipEntry>>();
     for (MembershipEntry m : identity.getMemberships()) {
