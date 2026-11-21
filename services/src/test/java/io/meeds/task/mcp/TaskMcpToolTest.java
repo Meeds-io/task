@@ -48,6 +48,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -55,6 +56,7 @@ import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.TimeZone;
 
 import jakarta.persistence.NoResultException;
@@ -74,11 +76,13 @@ import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
@@ -1463,9 +1467,8 @@ public class TaskMcpToolTest {
   public void listProjectsShouldUseProjectCountAndReturnCollection() throws Exception { // NOSONAR
     ProjectDto project = mock(ProjectDto.class);
 
-    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10)))
-                                                                            .thenReturn(Collections.singletonList(project));
-    when(projectService.countProjects(any(), eq(null))).thenReturn(1);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(10))).thenReturn(Collections.singletonList(project));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
 
     when(project.getId()).thenReturn(PROJECT_ID);
     when(project.getName()).thenReturn(PROJECT_NAME);
@@ -1481,7 +1484,55 @@ public class TaskMcpToolTest {
     assertEquals(0, result.getUsedOffset());
     assertEquals(10, result.getUsedLimit());
     assertEquals(1L, result.getCount());
-    verify(projectService).countProjects(any(), eq(null));
+    verify(projectService).countProjects(any(ProjectQuery.class));
+  }
+
+  @Test
+  public void listProjectsOfASpaceTheUserIsNotPartOfShouldListAndCountNothing() throws Exception { // NOSONAR
+    Space space = mock(Space.class);
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(space.getGroupId()).thenReturn("/spaces/space1");
+    when(currentIdentity.getMemberships()).thenReturn(Collections.singletonList(new MembershipEntry("/spaces/other", "member")));
+
+    ProjectCollectionModel result = tool.listProjects(10L, null, null);
+
+    assertEquals(0, result.getProjects().size());
+    assertEquals(0L, result.getCount());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+    verify(projectService, never()).countProjects(any(ProjectQuery.class));
+  }
+
+  @Test
+  public void listProjectsOfASpaceShouldUseTheSpaceMembershipsTheUserHolds() throws Exception { // NOSONAR
+    Space space = mock(Space.class);
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(space.getGroupId()).thenReturn("/spaces/space1");
+    when(currentIdentity.getMemberships()).thenReturn(Collections.singletonList(new MembershipEntry("/spaces/space1", "member")));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listProjects(10L, null, null);
+
+    ArgumentCaptor<ProjectQuery> listQuery = ArgumentCaptor.forClass(ProjectQuery.class);
+    ArgumentCaptor<ProjectQuery> countQuery = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
+    verify(projectService).countProjects(countQuery.capture());
+    assertEquals(Set.of("member:/spaces/space1"), conditionValues(listQuery.getValue().getCondition(), SingleCondition.IN));
+    assertEquals(Set.of("member:/spaces/space1"), conditionValues(countQuery.getValue().getCondition(), SingleCondition.IN));
+  }
+
+  // the values a query's conditions of the given type test, at any depth
+  private static Set<String> conditionValues(Condition condition, String type) {
+    Set<String> values = new HashSet<>();
+    if (condition instanceof AggregateCondition aggregate) {
+      aggregate.getConditions().forEach(child -> values.addAll(conditionValues(child, type)));
+    } else if (condition instanceof SingleCondition<?> single && type.equals(single.getType())) {
+      if (single.getValue() instanceof Collection<?> collection) {
+        collection.forEach(value -> values.add(String.valueOf(value)));
+      } else {
+        values.add(String.valueOf(single.getValue()));
+      }
+    }
+    return values;
   }
 
   @Test
