@@ -20,7 +20,12 @@ package org.exoplatform.task.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,6 +35,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -38,6 +44,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -52,12 +59,15 @@ import org.exoplatform.task.dao.ProjectHandler;
 import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.StatusHandler;
 import org.exoplatform.task.dao.TaskHandler;
+import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ProjectDto;
+import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.exception.NotAllowedOperationOnEntityException;
+import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.service.impl.StatusServiceImpl;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.StatusStorage;
@@ -214,6 +224,128 @@ public class StatusServiceTest {
         verify(statusHandler, times(1)).update(statusCaptor.capture());
         assertEquals(s2.getId(), statusCaptor.getValue().getId());
         assertEquals("s3", statusCaptor.getValue().getName());
+    }
+
+
+    /**
+     * A status renamed broadcasts its tasks' ids, read without loading them,
+     * so that an index showing its name builds them again (EXO-94917).
+     * Mutants: the renaming event left out, or sent with no task id, fail it.
+     */
+    @Test
+    public void testRenameBroadcastsTheStatusTasks() throws Exception {
+        Status renamed = projectStatus(2L, "Old");
+        when(statusHandler.find(2L)).thenReturn(renamed);
+        when(statusHandler.getStatuses(TestUtils.EXISTING_PROJECT_ID)).thenReturn(Arrays.asList(projectStatus(TestUtils.EXISTING_STATUS_ID, "TODO"), renamed));
+        when(statusHandler.update(any(Status.class))).thenAnswer(call -> call.getArgument(0));
+        when(taskHandler.selectTaskField(any(TaskQuery.class), eq("id"))).thenReturn(new ArrayList<>(List.of(31L, 32L)));
+
+        statusService.updateStatus(2L, " New ");
+
+        verify(listenerService).broadcast(TaskUtil.STATUS_RENAMED, 2L, List.of(31L, 32L));
+    }
+
+    /**
+     * A status moved, its rank changed and its name kept, trimmed or not, is
+     * no renaming: no renaming event (EXO-94917). Mutants: the name check
+     * left out, or inverted, fail it.
+     */
+    @Test
+    public void testMoveBroadcastsNoRenaming() throws Exception {
+        Status moved = projectStatus(2L, "Old");
+        // the update maps the status back onto this entity and reads its project from the project handler
+        when(projectHandler.find(TestUtils.EXISTING_PROJECT_ID)).thenReturn(TestUtils.getDefaultProject());
+        when(statusHandler.find(2L)).thenReturn(moved);
+        when(statusHandler.getStatuses(TestUtils.EXISTING_PROJECT_ID)).thenReturn(Arrays.asList(projectStatus(TestUtils.EXISTING_STATUS_ID, "TODO"), moved));
+        when(statusHandler.update(any(Status.class))).thenAnswer(call -> call.getArgument(0));
+        when(taskHandler.selectTaskField(any(TaskQuery.class), eq("id"))).thenReturn(new ArrayList<>(List.of(31L)));
+        StatusDto move = TestUtils.getDefaultStatusDto();
+        move.setId(2L);
+        move.setName("Old");
+        move.setRank(5);
+        move.setProject(TestDtoUtils.getDefaultProject());
+
+        statusService.updateStatus(move);
+        statusService.updateStatus(2L, "  Old ");
+
+        verify(listenerService, never()).broadcast(eq(TaskUtil.STATUS_RENAMED), any(), any());
+        verify(statusHandler, times(2)).update(any(Status.class));
+    }
+
+    /**
+     * A status removed broadcasts, after the removal, the ids of the tasks it
+     * moved to another status, read before the removal (EXO-94917). Mutants:
+     * the event broadcast before the removal, or the ids read after it (none
+     * left), fail it.
+     */
+    @Test
+    public void testRemovalBroadcastsTheMovedTasksAfterTheRemoval() throws Exception {
+        Status removed = projectStatus(2L, "Doing");
+        when(statusHandler.find(2L)).thenReturn(removed);
+        when(statusHandler.getStatuses(TestUtils.EXISTING_PROJECT_ID)).thenReturn(Arrays.asList(projectStatus(TestUtils.EXISTING_STATUS_ID, "TODO"), removed));
+        AtomicBoolean deleted = new AtomicBoolean();
+        doAnswer(call -> {
+            deleted.set(true);
+            return null;
+        }).when(statusHandler).delete(any(Status.class));
+        when(taskHandler.selectTaskField(any(TaskQuery.class), eq("id"))).thenAnswer(call -> deleted.get() ? new ArrayList<>() : new ArrayList<>(List.of(33L)));
+
+        statusService.removeStatus(2L);
+
+        InOrder order = inOrder(statusHandler, listenerService);
+        order.verify(statusHandler).delete(any(Status.class));
+        order.verify(listenerService).broadcast(TaskUtil.STATUS_REMOVED, 2L, List.of(33L));
+    }
+
+    /**
+     * The removal of a project's last status is refused and broadcasts nothing
+     * (EXO-94917). Mutant: the event broadcast before the removal fails it.
+     */
+    @Test
+    public void testRefusedRemovalBroadcastsNothing() throws Exception {
+        Status last = projectStatus(2L, "Only");
+        when(statusHandler.find(2L)).thenReturn(last);
+        when(statusHandler.getStatuses(TestUtils.EXISTING_PROJECT_ID)).thenReturn(Arrays.asList(last));
+        when(taskHandler.selectTaskField(any(TaskQuery.class), eq("id"))).thenReturn(new ArrayList<>(List.of(34L)));
+
+        Assert.assertThrows(NotAllowedOperationOnEntityException.class, () -> statusService.removeStatus(2L));
+
+        verify(listenerService, never()).broadcast(eq(TaskUtil.STATUS_REMOVED), any(), any());
+    }
+
+    /**
+     * A listener failing on a status event never fails the renaming nor the
+     * removal (EXO-94917). Mutant: the try/catch left out fails it.
+     */
+    @Test
+    public void testAFailingListenerLeavesTheStatusChangeDone() throws Exception {
+        Status status = projectStatus(2L, "Old");
+        // the update maps the status back onto this entity and reads its project from the project handler
+        when(projectHandler.find(TestUtils.EXISTING_PROJECT_ID)).thenReturn(TestUtils.getDefaultProject());
+        when(statusHandler.find(2L)).thenReturn(status);
+        when(statusHandler.getStatuses(TestUtils.EXISTING_PROJECT_ID)).thenReturn(Arrays.asList(projectStatus(TestUtils.EXISTING_STATUS_ID, "TODO"), status));
+        when(statusHandler.update(any(Status.class))).thenAnswer(call -> call.getArgument(0));
+        doThrow(new IllegalStateException("listener down")).when(listenerService).broadcast(eq(TaskUtil.STATUS_RENAMED), any(), any());
+        doThrow(new IllegalStateException("listener down")).when(listenerService).broadcast(eq(TaskUtil.STATUS_REMOVED), any(), any());
+
+        StatusDto renamed = statusService.updateStatus(2L, "New");
+        statusService.removeStatus(2L);
+
+        assertEquals("New", renamed.getName());
+        verify(statusHandler).delete(any(Status.class));
+    }
+
+    /**
+     * @param id a status id
+     * @param name its name
+     * @return a status of the default project
+     */
+    private static Status projectStatus(long id, String name) {
+        Status status = TestUtils.getDefaultStatus();
+        status.setId(id);
+        status.setName(name);
+        status.setProject(TestUtils.getDefaultProject());
+        return status;
     }
 
 }
