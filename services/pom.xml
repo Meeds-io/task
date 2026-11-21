@@ -74,6 +74,12 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <!-- TaskSearchConnectorIT, run with -Prun-its: the keyword search requests on a real Elasticsearch -->
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-elasticsearch</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <build>
     <plugins>

@@ -19,8 +19,10 @@
 package org.exoplatform.task.storage.search;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -28,8 +30,12 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import org.exoplatform.commons.search.es.client.ElasticSearchingClient;
 import org.exoplatform.container.xml.InitParams;
@@ -105,6 +111,83 @@ public class TaskSearchConnectorTest {
 
     long count = taskSearchConnector.count(filter);
     assertEquals(42, count);
+  }
+
+  @Test
+  public void testKeywordReservedCharactersAreIgnored() throws Exception {
+    JsonNode request = searchRequest(filterWithTerm("report\\"));
+
+    assertEquals("report", termOf(request));
+  }
+
+  @Test
+  public void testKeywordIsWrittenAsJsonText() throws Exception {
+    JsonNode request = searchRequest(filterWithTerm("quarterly \\ \"report\" tab\there"));
+
+    assertEquals("quarterly    report  tab\there", termOf(request));
+  }
+
+  @Test
+  public void testKeywordIsNeverReadAsTemplate() throws Exception {
+    TaskSearchFilter filter = filterWithTerm("@permission_query@ @sortQuery@ @limit@");
+    filter.setSortField("date");
+    filter.setSortDirection("asc");
+
+    JsonNode request = searchRequest(filter);
+
+    assertEquals("@permission_query@ @sortQuery@ @limit@", termOf(request));
+    JsonNode must = request.get("query").get("bool").get("must");
+    assertEquals(2, must.size());
+    assertTrue(must.get(1).has("terms"));
+    assertEquals(10, request.get("size").asInt());
+  }
+
+  @Test
+  public void testSortDirectionAbsentIsDescending() throws Exception {
+    assertEquals("desc", sortOrderOf(sortedFilter(null)));
+  }
+
+  @Test
+  public void testSortDirectionOtherTextIsDescending() throws Exception {
+    assertEquals("desc", sortOrderOf(sortedFilter("sideways")));
+  }
+
+  @Test
+  public void testSortDirectionAscIsAscending() throws Exception {
+    assertEquals("asc", sortOrderOf(sortedFilter("asc")));
+  }
+
+  private TaskSearchFilter filterWithTerm(String term) {
+    TaskSearchFilter filter = new TaskSearchFilter();
+    filter.setLimit(5);
+    filter.setOffset(0);
+    filter.setTerm(term);
+    filter.setPermissions(List.of("user1"));
+    return filter;
+  }
+
+  private TaskSearchFilter sortedFilter(String direction) {
+    TaskSearchFilter filter = filterWithTerm("report");
+    filter.setSortField("date");
+    filter.setSortDirection(direction);
+    return filter;
+  }
+
+  private JsonNode searchRequest(TaskSearchFilter filter) throws Exception {
+    when(client.sendRequest(anyString(), eq(ES_INDEX))).thenReturn("{}");
+    taskSearchConnector.search(filter);
+    ArgumentCaptor<String> request = ArgumentCaptor.forClass(String.class);
+    verify(client).sendRequest(request.capture(), eq(ES_INDEX));
+    return new ObjectMapper().readTree(request.getValue());
+  }
+
+  private String termOf(JsonNode request) {
+    return request.get("query").get("bool").get("must").get(0).get("query_string").get("query").asString();
+  }
+
+  private String sortOrderOf(TaskSearchFilter filter) throws Exception {
+    JsonNode request = searchRequest(filter);
+    return request.get("sort").get(0).get("lastUpdatedDate").get("order").asString();
   }
 
 }
