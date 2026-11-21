@@ -20,17 +20,20 @@ package org.exoplatform.task.rest;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -49,13 +52,17 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.rest.impl.RuntimeDelegateImpl;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.TestUtils;
-import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.ProjectQuery;
+import org.exoplatform.task.dao.condition.AggregateCondition;
+import org.exoplatform.task.dao.condition.Condition;
+import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
@@ -69,6 +76,7 @@ import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.service.UserService;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.storage.StatusStorage;
+import org.mockito.ArgumentCaptor;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TestProjectRestService {
@@ -220,12 +228,16 @@ public class TestProjectRestService {
     space.setPrettyName("space1");
     space.setGroupId(SpaceUtils.SPACE_GROUP + "/" + space.getPrettyName());
     when(spaceService.getSpaceByPrettyName("space1")).thenReturn(space);
+    ConversationState.setCurrent(new ConversationState(new Identity("root",
+                                                                    Arrays.asList(new MembershipEntry("/spaces/space1",
+                                                                                                      "manager"),
+                                                                                  new MembershipEntry("/spaces/space1",
+                                                                                                      "member")))));
 
     List<ProjectDto> projects = Arrays.asList(project1, project2);
 
-    List<String> memberships = Arrays.asList("manager:/spaces/space1", "member:/spaces/space1");
-    when(projectService.findProjects(anyList(), anyString(), any(OrderBy.class), anyInt(), anyInt())).thenReturn(projects);
-    when(projectService.countProjects(memberships, "")).thenReturn(2);
+    when(projectService.findProjects(any(ProjectQuery.class), anyInt(), anyInt())).thenReturn(projects);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(2);
 
     // When
     response = projectRestService.getProjects("", "space1", "ALL", -1, -1, false);
@@ -236,6 +248,113 @@ public class TestProjectRestService {
     JSONObject jsonObject = new JSONObject(response.getEntity().toString());
     int projectNumber = jsonObject.getInt("projectNumber");
     assertEquals(2, projectNumber);
+  }
+
+  @Test
+  public void testGetProjectsOfASpaceCountsOnlyTheMembershipsTheUserHolds() throws Exception {
+    ProjectRestService projectRestService = new ProjectRestService(taskService,
+                                                                   commentService,
+                                                                   projectService,
+                                                                   statusService,
+                                                                   userService,
+                                                                   spaceService,
+                                                                   labelService,
+                                                                   identityManager,
+                                                                   favoriteService);
+    Space space = new Space();
+    space.setPrettyName("space1");
+    space.setGroupId(SpaceUtils.SPACE_GROUP + "/space1");
+    when(spaceService.getSpaceByPrettyName("space1")).thenReturn(space);
+    ConversationState.setCurrent(new ConversationState(new Identity("mary",
+                                                                    Arrays.asList(new MembershipEntry("/spaces/space1",
+                                                                                                      "member")))));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
+
+    Response response = projectRestService.getProjects("pro", "space1", "ALL", 0, 10, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(1, new JSONObject(response.getEntity().toString()).getInt("projectNumber"));
+    ArgumentCaptor<ProjectQuery> listQuery = ArgumentCaptor.forClass(ProjectQuery.class);
+    ArgumentCaptor<ProjectQuery> countQuery = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
+    verify(projectService).countProjects(countQuery.capture());
+    // the total is counted by the list's own query
+    assertSame(listQuery.getValue(), countQuery.getValue());
+    assertEquals(new HashSet<>(Arrays.asList("member:/spaces/space1")),
+                 conditionValues(listQuery.getValue().getCondition(), SingleCondition.IN));
+    assertEquals(new HashSet<>(Arrays.asList("%pro%")), conditionValues(listQuery.getValue().getCondition(), SingleCondition.LIKE));
+  }
+
+  @Test
+  public void testGetProjectsOfASpaceMatchesAMembershipOfAnyType() throws Exception {
+    ProjectRestService projectRestService = new ProjectRestService(taskService,
+                                                                   commentService,
+                                                                   projectService,
+                                                                   statusService,
+                                                                   userService,
+                                                                   spaceService,
+                                                                   labelService,
+                                                                   identityManager,
+                                                                   favoriteService);
+    Space space = new Space();
+    space.setPrettyName("space1");
+    space.setGroupId(SpaceUtils.SPACE_GROUP + "/space1");
+    when(spaceService.getSpaceByPrettyName("space1")).thenReturn(space);
+    ConversationState.setCurrent(new ConversationState(new Identity("mary",
+                                                                    Arrays.asList(new MembershipEntry("/spaces/space1")))));
+
+    projectRestService.getProjects("", "space1", "ALL", 0, 10, false);
+
+    ArgumentCaptor<ProjectQuery> listQuery = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
+    assertEquals(new HashSet<>(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1")),
+                 conditionValues(listQuery.getValue().getCondition(), SingleCondition.IN));
+  }
+
+  @Test
+  public void testGetProjectsOfASpaceTheUserIsNotPartOfOrOfAnUnknownSpaceGivesNothing() throws Exception {
+    ProjectRestService projectRestService = new ProjectRestService(taskService,
+                                                                   commentService,
+                                                                   projectService,
+                                                                   statusService,
+                                                                   userService,
+                                                                   spaceService,
+                                                                   labelService,
+                                                                   identityManager,
+                                                                   favoriteService);
+    Space space = new Space();
+    space.setPrettyName("space1");
+    space.setGroupId(SpaceUtils.SPACE_GROUP + "/space1");
+    when(spaceService.getSpaceByPrettyName("space1")).thenReturn(space);
+    ConversationState.setCurrent(new ConversationState(new Identity("mary",
+                                                                    Arrays.asList(new MembershipEntry("/spaces/other",
+                                                                                                      "member")))));
+
+    for (String spaceName : Arrays.asList("space1", "unknown")) {
+      Response response = projectRestService.getProjects("pro", spaceName, "ALL", 0, 10, false);
+
+      assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+      JSONObject result = new JSONObject(response.getEntity().toString());
+      assertEquals(0, result.getInt("projectNumber"));
+      assertEquals(0, result.getJSONArray("projects").length());
+    }
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+    verify(projectService, never()).countProjects(any(ProjectQuery.class));
+  }
+
+  // the values a query's conditions of the given type test, at any depth
+  private static Set<String> conditionValues(Condition condition, String type) {
+    Set<String> values = new HashSet<>();
+    if (condition instanceof AggregateCondition aggregate) {
+      aggregate.getConditions().forEach(child -> values.addAll(conditionValues(child, type)));
+    } else if (condition instanceof SingleCondition<?> single && type.equals(single.getType())) {
+      if (single.getValue() instanceof Collection<?> collection) {
+        collection.forEach(value -> values.add(String.valueOf(value)));
+      } else {
+        values.add(String.valueOf(single.getValue()));
+      }
+    }
+    return values;
   }
 
   @Test

@@ -156,14 +156,20 @@ public class ProjectRestService implements ResourceContainer {
         if (StringUtils.isNoneEmpty(spaceName)) {
           Space space = spaceService.getSpaceByPrettyName(spaceName);
           if (space != null) {
-            memberships.addAll(UserUtil.getSpaceMemberships(space.getGroupId()));
+            memberships.addAll(UserUtil.getSpaceMemberships(identity, space.getGroupId()));
           }
         } else {
           memberships.addAll(UserUtil.getMemberships(identity));
         }
-        OrderBy orderBy = new OrderBy.DESC("lastModifiedDate");
-        projects = projectService.findProjects(memberships, query, orderBy, offset, limit);
-        projectNumber = projectService.countProjects(memberships, query);
+        if (!memberships.isEmpty()) {
+          // one query for the list and its total, which counts each project once
+          ProjectQuery projectQuery = new ProjectQuery();
+          projectQuery.setMembership(memberships);
+          projectQuery.setKeyword(query);
+          projectQuery.setOrderBy(Arrays.asList(new OrderBy.DESC("lastModifiedDate")));
+          projects = projectService.findProjects(projectQuery, offset, limit);
+          projectNumber = projectService.countProjects(projectQuery);
+        }
       }
       JSONObject global = new JSONObject();
       JSONArray projectsJsonArray = new JSONArray();

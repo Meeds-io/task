@@ -65,6 +65,7 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ChangeLogEntry;
@@ -200,8 +201,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                              Integer offset,
                                              Integer limit) {
     List<String> memberships = getMemberships(spaceId);
-    List<ProjectModel> projects = getProjectModels(memberships, offset, limit);
-    long count = countProjects(memberships);
+    List<ProjectModel> projects = memberships.isEmpty() ? Collections.emptyList() : getProjectModels(memberships, offset, limit);
+    long count = memberships.isEmpty() ? 0 : countProjects(memberships);
     return new ProjectCollectionModel(projects,
                                       getInteger(offset, DEFAULT_OFFSET),
                                       getInteger(limit, DEFAULT_LIMIT),
@@ -1033,13 +1034,19 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   private long countProjects(List<String> memberships) {
-    return projectService.countProjects(memberships, null);
+    // the same query as the list, so the total counts each project once
+    return projectService.countProjects(projectsQuery(memberships));
+  }
+
+  private ProjectQuery projectsQuery(List<String> memberships) {
+    ProjectQuery query = new ProjectQuery();
+    query.setMembership(memberships);
+    query.setOrderBy(List.of(new OrderBy.DESC("lastModifiedDate")));
+    return query;
   }
 
   private List<ProjectModel> getProjectModels(List<String> memberships, Integer offset, Integer limit) {
-    List<ProjectDto> projects = projectService.findProjects(memberships,
-                                                            null,
-                                                            new OrderBy.DESC("lastModifiedDate"),
+    List<ProjectDto> projects = projectService.findProjects(projectsQuery(memberships),
                                                             getInteger(offset, DEFAULT_OFFSET),
                                                             getInteger(limit, DEFAULT_LIMIT));
     if (CollectionUtils.isEmpty(projects)) {
@@ -1553,7 +1560,7 @@ public class TaskMcpTool implements McpToolPlugin {
     if (space == null) {
       memberships = UserUtil.getMemberships(getCurrentUserAclIdentity());
     } else {
-      memberships = UserUtil.getSpaceMemberships(space.getGroupId());
+      memberships = UserUtil.getSpaceMemberships(getCurrentUserAclIdentity(), space.getGroupId());
     }
     return memberships;
   }
