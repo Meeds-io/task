@@ -933,6 +933,43 @@ public class TestTaskRestService {
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), taskRestService.addTaskComment("commentText", 1).getStatus());
   }
 
+  /**
+   * The creator of a task in a space project who is not a member of the space
+   * answers a comment on it, while an outsider is refused (EXO-94925).
+   */
+  @Test
+  public void testAddTaskSubCommentAsCreatorOutsideTheSpace() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService,
+            commentService,
+            projectService,
+            statusService,
+            userService,
+            spaceService,
+            labelService,
+            favoriteService,
+            identityManager);
+    ProjectDto project = new ProjectDto();
+    project.setManager(java.util.Set.of("manager:/spaces/hr"));
+    project.setParticipator(java.util.Set.of("member:/spaces/hr"));
+    StatusDto status = new StatusDto();
+    status.setProject(project);
+    TaskDto task = new TaskDto();
+    task.setId(1);
+    task.setCreatedBy("requester");
+    task.setStatus(status);
+    CommentDto comment = new CommentDto();
+    comment.setId(2);
+    when(taskService.getTask(1)).thenReturn(task);
+    when(commentService.addComment(task, 7L, "requester", "commentText")).thenReturn(comment);
+    when(commentService.getComment(2L)).thenReturn(comment);
+
+    ConversationState.setCurrent(new ConversationState(new Identity("requester")));
+    assertEquals(Response.Status.OK.getStatusCode(), taskRestService.addTaskSubComment("commentText", 7L, 1).getStatus());
+
+    ConversationState.setCurrent(new ConversationState(new Identity("outsider")));
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), taskRestService.addTaskSubComment("commentText", 7L, 1).getStatus());
+  }
+
   @Test
   public void testAddTaskComment() throws Exception {
     // Given
