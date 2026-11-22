@@ -37,6 +37,8 @@ import java.util.*;
 public class ProjectDto implements Serializable {
     private static final Log LOG           = ExoLogger.getLogger(ProjectDto.class);
 
+    private static final String SPACES_GROUP_PREFIX = "/spaces/";
+
 
     private long      id;
 
@@ -107,7 +109,10 @@ public class ProjectDto implements Serializable {
     }
 
     private boolean hasPermission(Identity user, Set<String> permissions) {
-        if (permissions.contains(user.getUserId())) {
+        if (permissions == null) {
+            return false;
+        }
+        if (permissions.contains(user.getUserId()) && isMemberOfProjectSpaces(user)) {
             return true;
         } else {
             Set<MembershipEntry> memberships = new HashSet<MembershipEntry>();
@@ -126,6 +131,40 @@ public class ProjectDto implements Serializable {
         }
 
         return false;
+    }
+
+    /**
+     * A project belongs to a space when its manager entries
+     * reference a space group (manager entries only). A user named by id on such a project keeps the
+     * right only while member of one of those spaces. A project outside any
+     * space is not concerned.
+     */
+    private boolean isMemberOfProjectSpaces(Identity user) {
+        Set<String> spaceGroups = new HashSet<String>();
+        collectSpaceGroups(getManager(), spaceGroups);
+        if (spaceGroups.isEmpty()) {
+            return true;
+        }
+        if (user.getMemberships() != null) {
+            for (MembershipEntry entry : user.getMemberships()) {
+                if (spaceGroups.contains(entry.getGroup())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void collectSpaceGroups(Set<String> permissions, Set<String> spaceGroups) {
+        if (permissions == null) {
+            return;
+        }
+        for (String per : permissions) {
+            MembershipEntry entry = MembershipEntry.parse(per);
+            if (entry != null && entry.getGroup() != null && entry.getGroup().startsWith(SPACES_GROUP_PREFIX)) {
+                spaceGroups.add(entry.getGroup());
+            }
+        }
     }
 
     @Override
