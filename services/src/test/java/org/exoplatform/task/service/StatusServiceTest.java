@@ -300,7 +300,8 @@ public class StatusServiceTest {
     /**
      * The renaming, removal and board events are broadcast once their
      * transactional step has returned, that is after its commit when it began
-     * the transaction, never from inside it (EXO-94917). Mutant: any of them
+     * the transaction, never from inside it, on both updates, the renaming
+     * and the column move REST sends (EXO-94917). Mutant: any of them
      * broadcast from inside its transactional step fails it.
      */
     @Test
@@ -333,6 +334,17 @@ public class StatusServiceTest {
                     inStep.set(false);
                 }
             }
+
+            @Override
+            protected Update updateStatusAtomically(StatusDto statusDto, String name) throws EntityNotFoundException,
+                                                                                       NotAllowedOperationOnEntityException {
+                inStep.set(true);
+                try {
+                    return super.updateStatusAtomically(statusDto, name);
+                } finally {
+                    inStep.set(false);
+                }
+            }
         };
         List<Boolean> broadcastInStep = new ArrayList<>();
         doAnswer(call -> broadcastInStep.add(inStep.get())).when(listenerService).broadcast(eq(TaskUtil.STATUS_RENAMED), any(), any());
@@ -340,9 +352,16 @@ public class StatusServiceTest {
         doAnswer(call -> broadcastInStep.add(inStep.get())).when(listenerService).broadcast(eq("exo.project.projectModified"), any(), any());
 
         service.updateStatus(2L, "New");
+        StatusDto moved = TestUtils.getDefaultStatusDto();
+        moved.setId(2L);
+        moved.setName("Newer");
+        moved.setRank(3);
+        moved.setProject(TestDtoUtils.getDefaultProject());
+        service.updateStatus(moved);
         service.removeStatus(2L);
 
-        assertEquals(List.of(false, false, false), broadcastInStep, "the board's, the renaming's and the removal's events");
+        assertEquals(List.of(false, false, false, false, false), broadcastInStep,
+                     "the board's and the renaming's events of each update, and the removal's");
     }
 
     /**
