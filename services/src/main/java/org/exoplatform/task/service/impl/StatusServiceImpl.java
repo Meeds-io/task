@@ -35,6 +35,8 @@ import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.util.StorageUtil;
 import org.exoplatform.task.util.TaskUtil;
 
+import io.meeds.common.ContainerTransactional;
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Arrays;
@@ -166,7 +168,7 @@ public class StatusServiceImpl implements StatusService {
      * @return the ids of the tasks the removal moved, read before it
      * @throws Exception when the status does not exist or is the last one
      */
-    @ExoTransactional
+    @ContainerTransactional(atomic = true)
     protected List<Long> removeStatusAtomically(long statusID) throws Exception {
         List<Long> movedTaskIds = statusTaskIds(statusID);
         statusStorage.removeStatus(statusID, false);
@@ -206,7 +208,7 @@ public class StatusServiceImpl implements StatusService {
      * @throws NotAllowedOperationOnEntityException when another status of its
      *           project has that name
      */
-    @ExoTransactional
+    @ContainerTransactional(atomic = true)
     protected Update renameStatusAtomically(long id, String name) throws EntityNotFoundException,
                                                                     NotAllowedOperationOnEntityException {
         String previousName = storedName(id);
@@ -249,7 +251,7 @@ public class StatusServiceImpl implements StatusService {
      * @throws NotAllowedOperationOnEntityException when another status of its
      *           project has that name
      */
-    @ExoTransactional
+    @ContainerTransactional(atomic = true)
     protected Update updateStatusAtomically(StatusDto statusDto, String name) throws EntityNotFoundException,
                                                                                 NotAllowedOperationOnEntityException {
         long statusId = statusDto.getId();

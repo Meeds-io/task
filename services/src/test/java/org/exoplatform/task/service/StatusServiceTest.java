@@ -328,6 +328,53 @@ public class StatusServiceTest {
     }
 
     /**
+     * The renaming and removal events are broadcast once their transactional
+     * step has returned, that is after its commit when it began the
+     * transaction, never from inside it (EXO-94917). Mutant: either event
+     * broadcast from inside its transactional step fails it.
+     */
+    @Test
+    public void testTheStatusEventsFollowTheirTransactionalStep() throws Exception {
+        Status status = projectStatus(2L, "Old");
+        when(projectHandler.find(TestUtils.EXISTING_PROJECT_ID)).thenReturn(TestUtils.getDefaultProject());
+        when(statusHandler.find(2L)).thenReturn(status);
+        when(statusHandler.getStatuses(TestUtils.EXISTING_PROJECT_ID)).thenReturn(Arrays.asList(projectStatus(TestUtils.EXISTING_STATUS_ID, "TODO"), status));
+        when(statusHandler.update(any(Status.class))).thenAnswer(call -> call.getArgument(0));
+        when(taskHandler.selectTaskField(any(TaskQuery.class), eq("id"))).thenReturn(new ArrayList<>(List.of(31L)));
+        AtomicBoolean inStep = new AtomicBoolean();
+        StatusServiceImpl service = new StatusServiceImpl(daoHandler, statusStorage, projectStorage, listenerService) {
+            @Override
+            protected List<Long> removeStatusAtomically(long statusID) throws Exception {
+                inStep.set(true);
+                try {
+                    return super.removeStatusAtomically(statusID);
+                } finally {
+                    inStep.set(false);
+                }
+            }
+
+            @Override
+            protected Update renameStatusAtomically(long id, String name) throws EntityNotFoundException,
+                                                                             NotAllowedOperationOnEntityException {
+                inStep.set(true);
+                try {
+                    return super.renameStatusAtomically(id, name);
+                } finally {
+                    inStep.set(false);
+                }
+            }
+        };
+        List<Boolean> broadcastInStep = new ArrayList<>();
+        doAnswer(call -> broadcastInStep.add(inStep.get())).when(listenerService).broadcast(eq(TaskUtil.STATUS_RENAMED), any(), any());
+        doAnswer(call -> broadcastInStep.add(inStep.get())).when(listenerService).broadcast(eq(TaskUtil.STATUS_REMOVED), any(), any());
+
+        service.updateStatus(2L, "New");
+        service.removeStatus(2L);
+
+        assertEquals(List.of(false, false), broadcastInStep);
+    }
+
+    /**
      * The removal of a project's last status is refused and broadcasts nothing
      * (EXO-94917). Mutant: the event broadcast before the removal fails it.
      */
