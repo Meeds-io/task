@@ -36,6 +36,15 @@ public interface ProjectHandler extends GenericDAO<Project, Long> {
 
     public <T> List<T> selectProjectField(ProjectQuery query, String fieldName);
   
+  /**
+   * Updates only the last modified date of the project, without touching any
+   * other stored attribute. A project that does not exist is left as is.
+   *
+   * @param projectId the project id
+   * @param lastModifiedDate the new last modified date, in milliseconds
+   */
+  void updateLastModifiedDate(long projectId, long lastModifiedDate);
+
   Project removeProject(long projectId, boolean deleteChild);
 
   ListAccess<Project> findSubProjects(Project project);

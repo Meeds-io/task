@@ -36,8 +36,9 @@ public class ProjectModifiedListener extends Listener<ProjectService, ProjectDto
   public void onEvent(Event<ProjectService, ProjectDto> event) throws Exception {
     ProjectStorage storage = CommonsUtils.getService(ProjectStorage.class);
     ProjectDto data = event.getData();
-    data.setLastModifiedDate(System.currentTimeMillis());
-    storage.updateProjectNoReturn(data);
+    if (data != null) {
+      storage.updateProjectLastModifiedDate(data.getId(), System.currentTimeMillis());
+    }
   }
 
 }
