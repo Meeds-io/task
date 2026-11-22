@@ -230,7 +230,8 @@ public class TaskUtilViewPermissionTest {
   /**
    * The checks made for the signed-in user answer exactly as the checks made
    * for a given person, for each kind of person: in particular a person who
-   * is only the task's creator may see and edit it either way.
+   * is only the task's creator, outside the space of its project, may see it
+   * and not edit it either way.
    */
   @Test
   public void signedInChecksAgreeWithTheChecksForAGivenPerson() {
@@ -242,8 +243,79 @@ public class TaskUtilViewPermissionTest {
       assertEquals(who, TaskUtil.hasViewPermission(taskService, task, person), TaskUtil.hasViewPermission(taskService, task));
     }
     signIn(new Identity("creator"));
-    assertTrue(TaskUtil.hasEditPermission(taskService, task));
+    assertFalse(TaskUtil.hasEditPermission(taskService, task));
     assertTrue(TaskUtil.hasViewPermission(taskService, task));
+  }
+
+  /**
+   * The creator of a task, outside the space of its project, as the requester
+   * of a process request is: sees it and comments on it, but neither edits
+   * nor deletes it (EXO-94925).
+   */
+  @Test
+  public void letsACreatorOutsideTheSpaceSeeAndCommentButNotEditNorDelete() {
+    Identity creator = new Identity("creator", Set.of(new MembershipEntry("/spaces/other", "member")));
+    signIn(new Identity("assignee"));
+    assertTrue("view", TaskUtil.hasViewPermission(taskService, task, creator));
+    assertTrue("comment", TaskUtil.hasCommentPermission(taskService, task, creator));
+    assertFalse("edit", TaskUtil.hasEditPermission(taskService, task, creator));
+    assertFalse("delete", TaskUtil.hasDeletePermission(task, creator));
+  }
+
+  /**
+   * The creator of a task who is a member of the space of its project edits
+   * and deletes it, even when the board lets only the space's managers see
+   * it.
+   */
+  @Test
+  public void letsACreatorInTheSpaceEditAndDelete() {
+    boardOfManagersAndOneParticipant();
+    Identity creator = new Identity("creator", Set.of(new MembershipEntry(PROJECT_GROUP, "member")));
+    signIn(new Identity("outsider"));
+    assertTrue("edit", TaskUtil.hasEditPermission(taskService, task, creator));
+    assertTrue("delete", TaskUtil.hasDeletePermission(task, creator));
+    assertTrue("view", TaskUtil.hasViewPermission(taskService, task, creator));
+    assertTrue("comment", TaskUtil.hasCommentPermission(taskService, task, creator));
+  }
+
+  /**
+   * The creator of a personal task, or of a task whose project names no
+   * space, edits and deletes it.
+   */
+  @Test
+  public void letsTheCreatorEditATaskWithNoSpace() {
+    Identity creator = new Identity("creator");
+    ProjectDto project = task.getStatus().getProject();
+    project.setManager(Set.of("owner"));
+    project.setParticipator(Set.of("participant"));
+    assertTrue("project with no space: edit", TaskUtil.hasEditPermission(taskService, task, creator));
+    assertTrue("project with no space: delete", TaskUtil.hasDeletePermission(task, creator));
+    task.setStatus(null);
+    assertTrue("personal task: edit", TaskUtil.hasEditPermission(taskService, task, creator));
+    assertTrue("personal task: delete", TaskUtil.hasDeletePermission(task, creator));
+  }
+
+  /**
+   * Only the creator gains the comment right without the edit right: a
+   * person who neither edits the task nor created it does not comment, and
+   * neither does a null identity.
+   */
+  @Test
+  public void refusesTheCommentToAnOutsider() {
+    assertFalse(TaskUtil.hasCommentPermission(taskService, task, new Identity("outsider")));
+    assertFalse(TaskUtil.hasCommentPermission(taskService, task, new Identity("mentioned")));
+    assertFalse(TaskUtil.hasCommentPermission(taskService, task, null));
+    assertTrue(TaskUtil.hasCommentPermission(taskService, task, new Identity("assignee")));
+  }
+
+  /**
+   * A creator outside the space who is mentioned in a comment is told of it,
+   * as the creator may see the task.
+   */
+  @Test
+  public void letsAMentionedCreatorOutsideTheSpaceSeeTheTask() {
+    assertTrue(TaskUtil.hasViewPermissionAsMentioned(taskService, task, new Identity("creator")));
+    assertFalse(TaskUtil.hasViewPermissionAsMentioned(taskService, task, new Identity("outsider")));
   }
 
   /**

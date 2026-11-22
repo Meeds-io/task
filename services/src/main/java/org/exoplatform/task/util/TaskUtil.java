@@ -652,26 +652,49 @@ public final class TaskUtil {
   public static boolean hasEditPermission(TaskService taskService, TaskDto task) {
     return hasEditPermission(taskService, task, getSignedInIdentity());
   }
+  /**
+   * Tells whether the signed-in user may edit a task entity, by the rule of
+   * {@link #hasEditPermission(TaskService, TaskDto, Identity)}: its creator
+   * edits it only from inside the space of its project.
+   *
+   * @param taskService the service the task's coworkers are read from
+   * @param task the task entity
+   * @return true when the signed-in user may edit the task
+   */
   public static boolean hasEditPermission(TaskService taskService,Task task) {
     Identity identity = ConversationState.getCurrent().getIdentity();
     String userId = identity.getUserId();
+    Project project = task.getStatus() == null ? null : task.getStatus().getProject();
 
     if ((task.getAssignee() != null && task.getAssignee().equals(identity.getUserId())) ||
         getCoworker(taskService, task.getId()).contains(userId) ||
-        (task.getCreatedBy() != null && task.getCreatedBy().equals(userId))) {
+        (task.getCreatedBy() != null && task.getCreatedBy().equals(userId)
+            && (project == null || isInProjectSpace(project.getManager(), project.getParticipator(), identity)))) {
       return true;
     }
 
-    if (task.getStatus() != null) {
-      Project project = task.getStatus().getProject();
-      if (project.canView(identity)) {
-        return true;
-      }
+    if (project != null && project.canView(identity)) {
+      return true;
     }
 
     return UserUtil.isPlatformAdmin(identity);
   }
 
+  /**
+   * Tells whether a given person may edit a task: its assignee, a coworker, a
+   * person who may see its project, a platform administrator, or its creator
+   * while a member of the space of its project. A creator outside that space,
+   * such as the requester of a process request, keeps seeing the task and
+   * commenting on it ({@link #hasViewPermission(TaskService, TaskDto, Identity)},
+   * {@link #hasCommentPermission(TaskService, TaskDto, Identity)}) but no
+   * longer edits it. On a task with no project, or whose project names no
+   * space, the creator edits it.
+   *
+   * @param taskService the service the task's coworkers are read from
+   * @param task the task
+   * @param identity the person the check is made for, possibly null
+   * @return true when that person may edit the task; false for a null identity
+   */
   public static boolean hasEditPermission(TaskService taskService, TaskDto task, Identity identity) {
     if (identity == null) {
       return false;
@@ -679,7 +702,7 @@ public final class TaskUtil {
     String userId = identity.getUserId();
     if ((task.getAssignee() != null && task.getAssignee().equals(identity.getUserId())) ||
         getCoworker(taskService, task.getId()).contains(userId) ||
-        (task.getCreatedBy() != null && task.getCreatedBy().equals(userId))) {
+        isCreator(task, userId) && isInTaskSpace(task, identity)) {
       return true;
     }
 
@@ -739,11 +762,11 @@ public final class TaskUtil {
   }
 
   /**
-   * Tells whether a given person may see a task: allowed to edit it, or
-   * mentioned in it while a member of its project's space. A mention in a
-   * task with no project, or whose project belongs to no space, is enough on
-   * its own. Only that person is judged, whoever is signed in, and the answer
-   * does not need anyone to be signed in.
+   * Tells whether a given person may see a task: allowed to edit it, its
+   * creator, or mentioned in it while a member of its project's space. A
+   * mention in a task with no project, or whose project belongs to no space,
+   * is enough on its own. Only that person is judged, whoever is signed in,
+   * and the answer does not need anyone to be signed in.
    *
    * @param taskService the service the task's mentions and coworkers are read from
    * @param task the task
@@ -755,9 +778,34 @@ public final class TaskUtil {
       return false;
     }
     return hasEditPermission(taskService, task, identity)
+        || isCreator(task, identity.getUserId())
         || hasMentionedUser(taskService, task, identity.getUserId()) && isInTaskSpace(task, identity);
   }
 
+  /**
+   * Tells whether a given person may comment on a task: allowed to edit it,
+   * or its creator, inside or outside the space of its project, so that the
+   * requester of a process request answers on it.
+   *
+   * @param taskService the service the task's coworkers are read from
+   * @param task the task
+   * @param identity the person the check is made for, possibly null
+   * @return true when that person may comment on the task; false for a null identity
+   */
+  public static boolean hasCommentPermission(TaskService taskService, TaskDto task, Identity identity) {
+    return identity != null && (isCreator(task, identity.getUserId()) || hasEditPermission(taskService, task, identity));
+  }
+
+  /**
+   * Tells whether a person created a task.
+   *
+   * @param task the task
+   * @param userId the person's user name
+   * @return true when the task's creator is that person
+   */
+  private static boolean isCreator(TaskDto task, String userId) {
+    return task.getCreatedBy() != null && task.getCreatedBy().equals(userId);
+  }
   /**
    * Tells whether a person known to be mentioned in a comment of a task may
    * see it: the rule of {@link #hasViewPermission(TaskService, TaskDto, Identity)}
@@ -772,7 +820,8 @@ public final class TaskUtil {
    * @return true when that person may see the task; false for a null identity
    */
   public static boolean hasViewPermissionAsMentioned(TaskService taskService, TaskDto task, Identity identity) {
-    return identity != null && (isInTaskSpace(task, identity) || hasEditPermission(taskService, task, identity));
+    return identity != null && (isInTaskSpace(task, identity) || isCreator(task, identity.getUserId())
+        || hasEditPermission(taskService, task, identity));
   }
 
   /**
@@ -800,12 +849,24 @@ public final class TaskUtil {
    */
   private static boolean isInTaskSpace(TaskDto task, Identity identity) {
     ProjectDto project = task.getStatus() == null ? null : task.getStatus().getProject();
-    if (project == null) {
-      return true;
-    }
+    return project == null || isInProjectSpace(project.getManager(), project.getParticipator(), identity);
+  }
+
+  /**
+   * Tells whether a person belongs to the space a project names: a member,
+   * with any role, of one of the space groups its managers or participators
+   * name. A project that names no space group has no space, and anyone
+   * belongs to it.
+   *
+   * @param managers the project's managers, possibly null
+   * @param participators the project's participators, possibly null
+   * @param identity the person, with their memberships
+   * @return false only when the project names a space the person is in none of
+   */
+  private static boolean isInProjectSpace(Set<String> managers, Set<String> participators, Identity identity) {
     Set<String> spaceGroups = new HashSet<>();
-    addSpaceGroups(project.getManager(), spaceGroups);
-    addSpaceGroups(project.getParticipator(), spaceGroups);
+    addSpaceGroups(managers, spaceGroups);
+    addSpaceGroups(participators, spaceGroups);
     return spaceGroups.isEmpty() || spaceGroups.stream().anyMatch(identity::isMemberOf);
   }
 
@@ -844,13 +905,23 @@ public final class TaskUtil {
     return hasDeletePermission(task, getSignedInIdentity());
   }
 
+  /**
+   * Tells whether a given person may delete a task: its creator while a
+   * member of the space of its project, a person who may edit its project, or
+   * a platform administrator. A creator outside that space, such as the
+   * requester of a process request, does not delete it.
+   *
+   * @param task the task
+   * @param identity the person the check is made for, possibly null
+   * @return true when that person may delete the task; false for a null identity
+   */
   public static boolean hasDeletePermission(TaskDto task, Identity identity) {
     if (identity == null) {
       return false;
     }
     String userId = identity.getUserId();
 
-    if (task.getCreatedBy() != null && task.getCreatedBy().equals(userId)) {
+    if (isCreator(task, userId) && isInTaskSpace(task, identity)) {
       return true;
     }
 
