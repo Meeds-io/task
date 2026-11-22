@@ -1119,7 +1119,7 @@ public class TaskRestService implements ResourceContainer {
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
-    if (!TaskUtil.hasEditPermission(taskService, task, currentUserIdentity)) {//The task creator can add comments
+    if (!TaskUtil.hasCommentPermission(taskService, task, currentUserIdentity)) {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
     commentText = commentText.replaceAll(PERCENT_ENCODED_REGEX, "%25");
@@ -1158,7 +1158,7 @@ public class TaskRestService implements ResourceContainer {
     if (task == null) {
       return Response.status(Response.Status.NOT_FOUND).build();
     }
-    if (!TaskUtil.hasEditPermission(taskService, task, currentUserIdentity)) {//The task creator can add sub comments
+    if (!TaskUtil.hasCommentPermission(taskService, task, currentUserIdentity)) {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
 
