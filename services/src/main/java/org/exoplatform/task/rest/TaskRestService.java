@@ -1087,6 +1087,7 @@ public class TaskRestService implements ResourceContainer {
   @DELETE
   @Path("comments/{commentId}")
   @RolesAllowed("users")
+  @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Deletes a specific task comment by id", method = "DELETE", description = "This deletes a specific task comment by id")
   @ApiResponses(value = {
           @ApiResponse(responseCode = "200", description = "Request fulfilled"),

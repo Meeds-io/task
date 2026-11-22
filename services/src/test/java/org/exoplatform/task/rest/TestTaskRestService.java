@@ -968,6 +968,15 @@ public class TestTaskRestService {
   }
 
   @Test
+  public void testDeleteCommentDeclaresJsonProducer() throws Exception {
+    // The deletion answers the deleted CommentDto: without @Produces no JSON writer is selected for it
+    javax.ws.rs.Produces produces = TaskRestService.class.getMethod("deleteComment", long.class)
+                                                         .getAnnotation(javax.ws.rs.Produces.class);
+    assertNotNull(produces);
+    assertTrue(Arrays.asList(produces.value()).contains(javax.ws.rs.core.MediaType.APPLICATION_JSON));
+  }
+
+  @Test
   public void testAddTaskSubComment() throws Exception {
     // Given
     TaskRestService taskRestService = new TaskRestService(taskService,
