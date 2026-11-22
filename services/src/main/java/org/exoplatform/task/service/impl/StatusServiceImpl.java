@@ -142,25 +142,41 @@ public class StatusServiceImpl implements StatusService {
     }
 
     /**
-     * Removes a status, its tasks moved to another status of its project, then
-     * broadcasts {@link TaskUtil#STATUS_REMOVED} with the ids of the tasks it
-     * moved, read before the removal (EXO-94917). A removal refused, the
-     * project's last status, broadcasts nothing.
+     * Removes a status, its tasks moved to another status of its project, then,
+     * once the removal's transaction has committed, broadcasts
+     * {@link TaskUtil#STATUS_REMOVED} with the ids of the tasks it moved, read
+     * before the removal (EXO-94917). A removal refused, the project's last
+     * status, broadcasts nothing. Called inside a transaction it did not begin,
+     * the event goes out before that outer commit.
      *
      * @param statusID the status id
      * @throws Exception when the status does not exist or is the last one
      */
     @Override
-    @ExoTransactional
     public void removeStatus(long statusID) throws Exception {
-        List<Long> movedTaskIds = statusTaskIds(statusID);
-        statusStorage.removeStatus(statusID, false);
+        List<Long> movedTaskIds = removeStatusAtomically(statusID);
         broadcastStatusEvent(TaskUtil.STATUS_REMOVED, statusID, movedTaskIds);
     }
 
     /**
+     * One transaction for the removal, its event left to the caller, which
+     * broadcasts it once this method returns.
+     *
+     * @param statusID the status id
+     * @return the ids of the tasks the removal moved, read before it
+     * @throws Exception when the status does not exist or is the last one
+     */
+    @ExoTransactional
+    protected List<Long> removeStatusAtomically(long statusID) throws Exception {
+        List<Long> movedTaskIds = statusTaskIds(statusID);
+        statusStorage.removeStatus(statusID, false);
+        return movedTaskIds;
+    }
+
+    /**
      * Renames a status; when its name changed, broadcasts
-     * {@link TaskUtil#STATUS_RENAMED} with the ids of its tasks (EXO-94917).
+     * {@link TaskUtil#STATUS_RENAMED} with the ids of its tasks once the
+     * renaming's transaction has committed (EXO-94917).
      *
      * @param id the status id
      * @param name its new name, trimmed
@@ -170,26 +186,40 @@ public class StatusServiceImpl implements StatusService {
      *           project has that name
      */
     @Override
-    @ExoTransactional
     public StatusDto updateStatus(long id, String name) throws EntityNotFoundException, NotAllowedOperationOnEntityException {
         if (name == null || (name = name.trim()).isEmpty()) {
             throw new IllegalArgumentException("status name can't be null or empty");
         }
+        Update update = renameStatusAtomically(id, name);
+        broadcastRenamed(id, update);
+        return update.status();
+    }
+
+    /**
+     * One transaction for the renaming, {@link #updateStatus(long, String)}'s
+     * event left to the caller.
+     *
+     * @param id the status id
+     * @param name its new name, trimmed
+     * @return the status and, when its name changed, the ids of its tasks
+     * @throws EntityNotFoundException when the status does not exist
+     * @throws NotAllowedOperationOnEntityException when another status of its
+     *           project has that name
+     */
+    @ExoTransactional
+    protected Update renameStatusAtomically(long id, String name) throws EntityNotFoundException,
+                                                                    NotAllowedOperationOnEntityException {
         String previousName = storedName(id);
         StatusDto statusDto = statusStorage.updateStatus(id, name);
-        try {
-            listenerService.broadcast("exo.project.projectModified", null, statusDto.getProject());
-        } catch (Exception e) {
-            LOG.error("Error while broadcasting status update event", e);
-        }
-        broadcastIfRenamed(id, previousName, name);
-        return statusDto;
+        broadcastProjectModified(null, statusDto);
+        return new Update(statusDto, renamedTaskIds(id, previousName, name));
     }
 
     /**
      * Updates a status, its name or its rank; when its name changed, a move
      * changing its rank alone not being a renaming, broadcasts
-     * {@link TaskUtil#STATUS_RENAMED} with the ids of its tasks (EXO-94917).
+     * {@link TaskUtil#STATUS_RENAMED} with the ids of its tasks once the
+     * update's transaction has committed (EXO-94917).
      *
      * @param statusDto the status, its new name and rank
      * @return the status
@@ -198,22 +228,86 @@ public class StatusServiceImpl implements StatusService {
      *           project has that name
      */
     @Override
-    @ExoTransactional
     public StatusDto updateStatus(StatusDto statusDto) throws EntityNotFoundException, NotAllowedOperationOnEntityException {
         String name = statusDto.getName();
         if (name == null || (name = name.trim()).isEmpty()) {
             throw new IllegalArgumentException("status name can't be null or empty");
         }
+        Update update = updateStatusAtomically(statusDto, name);
+        broadcastRenamed(statusDto.getId(), update);
+        return update.status();
+    }
+
+    /**
+     * One transaction for the update, {@link #updateStatus(StatusDto)}'s event
+     * left to the caller.
+     *
+     * @param statusDto the status, its new name and rank
+     * @param name its new name, trimmed
+     * @return the status and, when its name changed, the ids of its tasks
+     * @throws EntityNotFoundException when the status does not exist
+     * @throws NotAllowedOperationOnEntityException when another status of its
+     *           project has that name
+     */
+    @ExoTransactional
+    protected Update updateStatusAtomically(StatusDto statusDto, String name) throws EntityNotFoundException,
+                                                                                NotAllowedOperationOnEntityException {
         long statusId = statusDto.getId();
         String previousName = storedName(statusId);
-        statusDto = statusStorage.updateStatus(statusDto);
+        StatusDto updated = statusStorage.updateStatus(statusDto);
+        broadcastProjectModified(this, updated);
+        return new Update(updated, renamedTaskIds(statusId, previousName, name));
+    }
+
+    /**
+     * A status updated and, when it was renamed, the ids of its tasks.
+     *
+     * @param status the status
+     * @param renamedTaskIds the ids of its tasks, or null when its name is the
+     *          one it had
+     */
+    protected record Update(StatusDto status, List<Long> renamedTaskIds) {
+    }
+
+    /**
+     * Broadcasts {@code exo.project.projectModified} with the status's board
+     * read again, so that the event saves no board older than the store's
+     * (pitfall project-modified-event-saves-the-board-it-carries-whole): the
+     * status's own copy of the board is sent only when the board can no
+     * longer be read. A board edit committed between that read and the
+     * listener's save may still be undone.
+     *
+     * @param source the event's source
+     * @param status the status updated
+     */
+    private void broadcastProjectModified(Object source, StatusDto status) {
+        ProjectDto project = status.getProject();
+        if (project != null && project.getId() > 0) {
+            try {
+                ProjectDto stored = projectStorage.getProject(project.getId());
+                project = stored == null ? project : stored;
+            } catch (EntityNotFoundException e) {
+                LOG.debug("Board {} of status {} not found, its copy is sent", project.getId(), status.getId());
+            }
+        }
         try {
-            listenerService.broadcast("exo.project.projectModified", this, statusDto.getProject());
+            listenerService.broadcast("exo.project.projectModified", source, project);
         } catch (Exception e) {
             LOG.error("Error while broadcasting status update event", e);
         }
-        broadcastIfRenamed(statusId, previousName, name);
-        return statusDto;
+    }
+
+    /**
+     * Broadcasts {@link TaskUtil#STATUS_RENAMED} when the update renamed the
+     * status.
+     *
+     * @param statusId the status id
+     * @param update the update's result
+     */
+    private void broadcastRenamed(long statusId, Update update) {
+        if (update.renamedTaskIds() != null) {
+            broadcastStatusEvent(TaskUtil.STATUS_RENAMED, statusId, update.renamedTaskIds());
+        }
     }
 
     /**
@@ -226,17 +320,14 @@ public class StatusServiceImpl implements StatusService {
     }
 
     /**
-     * Broadcasts {@link TaskUtil#STATUS_RENAMED} when a status's name, trimmed,
-     * is not the one it had.
-     *
      * @param statusId the status id
      * @param previousName its name before the update, or null
      * @param name its name now, trimmed
+     * @return the ids of its tasks when its name, trimmed, is not the one it
+     *         had, else null
      */
-    private void broadcastIfRenamed(long statusId, String previousName, String name) {
-        if (previousName == null || !previousName.trim().equals(name)) {
-            broadcastStatusEvent(TaskUtil.STATUS_RENAMED, statusId, statusTaskIds(statusId));
-        }
+    private List<Long> renamedTaskIds(long statusId, String previousName, String name) {
+        return previousName == null || !previousName.trim().equals(name) ? statusTaskIds(statusId) : null;
     }
 
     /**

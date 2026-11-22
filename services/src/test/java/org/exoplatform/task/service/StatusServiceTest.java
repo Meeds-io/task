@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -243,6 +244,35 @@ public class StatusServiceTest {
         statusService.updateStatus(2L, " New ");
 
         verify(listenerService).broadcast(TaskUtil.STATUS_RENAMED, 2L, List.of(31L, 32L));
+    }
+
+    /**
+     * A status renamed sends {@code exo.project.projectModified} with its
+     * board read again, never the copy its status carries, which a listener
+     * would save over a newer board edit. Mutant: the status's copy sent
+     * fails it.
+     */
+    @Test
+    public void testRenameSendsTheBoardReadAgain() throws Exception {
+        Status renamed = projectStatus(2L, "Old");
+        Project edited = TestUtils.getDefaultProject();
+        edited.setName("Board edited meanwhile");
+        // the board is edited once the status is written: only a read after the update sees it
+        AtomicReference<Project> board = new AtomicReference<>(renamed.getProject());
+        when(projectHandler.find(TestUtils.EXISTING_PROJECT_ID)).thenAnswer(call -> board.get());
+        when(statusHandler.find(2L)).thenReturn(renamed);
+        when(statusHandler.getStatuses(TestUtils.EXISTING_PROJECT_ID)).thenReturn(Arrays.asList(projectStatus(TestUtils.EXISTING_STATUS_ID, "TODO"), renamed));
+        when(statusHandler.update(any(Status.class))).thenAnswer(call -> {
+            board.set(edited);
+            return call.getArgument(0);
+        });
+        when(taskHandler.selectTaskField(any(TaskQuery.class), eq("id"))).thenReturn(new ArrayList<>(List.of(31L)));
+
+        statusService.updateStatus(2L, "New");
+
+        ArgumentCaptor<ProjectDto> sent = ArgumentCaptor.forClass(ProjectDto.class);
+        verify(listenerService).broadcast(eq("exo.project.projectModified"), any(), sent.capture());
+        assertEquals("Board edited meanwhile", sent.getValue().getName());
     }
 
     /**
