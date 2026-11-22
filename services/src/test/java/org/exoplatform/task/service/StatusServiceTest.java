@@ -119,6 +119,8 @@ public class StatusServiceTest {
         statusService = new StatusServiceImpl(daoHandler, statusStorage, projectStorage, listenerService);
 
         containerContext = mockStatic(ExoContainerContext.class);
+        // the status steps' @ContainerTransactional begins its request on the current container
+        containerContext.when(ExoContainerContext::getCurrentContainer).thenReturn(container);
         containerContext.when(() -> ExoContainerContext.getService(any())).thenAnswer(invocation -> {
           Class<?> clazz = invocation.getArgument(0, Class.class);
           if (clazz.equals(DAOHandler.class)) {
