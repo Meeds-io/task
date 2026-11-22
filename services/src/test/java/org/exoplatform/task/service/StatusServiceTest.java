@@ -36,7 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -247,35 +246,6 @@ public class StatusServiceTest {
     }
 
     /**
-     * A status renamed sends {@code exo.project.projectModified} with its
-     * board read again, never the copy its status carries, which a listener
-     * would save over a newer board edit. Mutant: the status's copy sent
-     * fails it.
-     */
-    @Test
-    public void testRenameSendsTheBoardReadAgain() throws Exception {
-        Status renamed = projectStatus(2L, "Old");
-        Project edited = TestUtils.getDefaultProject();
-        edited.setName("Board edited meanwhile");
-        // the board is edited once the status is written: only a read after the update sees it
-        AtomicReference<Project> board = new AtomicReference<>(renamed.getProject());
-        when(projectHandler.find(TestUtils.EXISTING_PROJECT_ID)).thenAnswer(call -> board.get());
-        when(statusHandler.find(2L)).thenReturn(renamed);
-        when(statusHandler.getStatuses(TestUtils.EXISTING_PROJECT_ID)).thenReturn(Arrays.asList(projectStatus(TestUtils.EXISTING_STATUS_ID, "TODO"), renamed));
-        when(statusHandler.update(any(Status.class))).thenAnswer(call -> {
-            board.set(edited);
-            return call.getArgument(0);
-        });
-        when(taskHandler.selectTaskField(any(TaskQuery.class), eq("id"))).thenReturn(new ArrayList<>(List.of(31L)));
-
-        statusService.updateStatus(2L, "New");
-
-        ArgumentCaptor<ProjectDto> sent = ArgumentCaptor.forClass(ProjectDto.class);
-        verify(listenerService).broadcast(eq("exo.project.projectModified"), any(), sent.capture());
-        assertEquals("Board edited meanwhile", sent.getValue().getName());
-    }
-
-    /**
      * A status moved, its rank changed and its name kept, trimmed or not, is
      * no renaming: no renaming event (EXO-94917). Mutants: the name check
      * left out, or inverted, fail it.
@@ -328,9 +298,9 @@ public class StatusServiceTest {
     }
 
     /**
-     * The renaming and removal events are broadcast once their transactional
-     * step has returned, that is after its commit when it began the
-     * transaction, never from inside it (EXO-94917). Mutant: either event
+     * The renaming, removal and board events are broadcast once their
+     * transactional step has returned, that is after its commit when it began
+     * the transaction, never from inside it (EXO-94917). Mutant: any of them
      * broadcast from inside its transactional step fails it.
      */
     @Test
@@ -367,11 +337,12 @@ public class StatusServiceTest {
         List<Boolean> broadcastInStep = new ArrayList<>();
         doAnswer(call -> broadcastInStep.add(inStep.get())).when(listenerService).broadcast(eq(TaskUtil.STATUS_RENAMED), any(), any());
         doAnswer(call -> broadcastInStep.add(inStep.get())).when(listenerService).broadcast(eq(TaskUtil.STATUS_REMOVED), any(), any());
+        doAnswer(call -> broadcastInStep.add(inStep.get())).when(listenerService).broadcast(eq("exo.project.projectModified"), any(), any());
 
         service.updateStatus(2L, "New");
         service.removeStatus(2L);
 
-        assertEquals(List.of(false, false), broadcastInStep);
+        assertEquals(List.of(false, false, false), broadcastInStep, "the board's, the renaming's and the removal's events");
     }
 
     /**

@@ -193,6 +193,7 @@ public class StatusServiceImpl implements StatusService {
             throw new IllegalArgumentException("status name can't be null or empty");
         }
         Update update = renameStatusAtomically(id, name);
+        broadcastProjectModified(null, update.status());
         broadcastRenamed(id, update);
         return update.status();
     }
@@ -213,7 +214,6 @@ public class StatusServiceImpl implements StatusService {
                                                                     NotAllowedOperationOnEntityException {
         String previousName = storedName(id);
         StatusDto statusDto = statusStorage.updateStatus(id, name);
-        broadcastProjectModified(null, statusDto);
         return new Update(statusDto, renamedTaskIds(id, previousName, name));
     }
 
@@ -236,6 +236,7 @@ public class StatusServiceImpl implements StatusService {
             throw new IllegalArgumentException("status name can't be null or empty");
         }
         Update update = updateStatusAtomically(statusDto, name);
+        broadcastProjectModified(this, update.status());
         broadcastRenamed(statusDto.getId(), update);
         return update.status();
     }
@@ -257,7 +258,6 @@ public class StatusServiceImpl implements StatusService {
         long statusId = statusDto.getId();
         String previousName = storedName(statusId);
         StatusDto updated = statusStorage.updateStatus(statusDto);
-        broadcastProjectModified(this, updated);
         return new Update(updated, renamedTaskIds(statusId, previousName, name));
     }
 
@@ -272,28 +272,21 @@ public class StatusServiceImpl implements StatusService {
     }
 
     /**
-     * Broadcasts {@code exo.project.projectModified} with the status's board
-     * read again, so that the event saves no board older than the store's
-     * (pitfall project-modified-event-saves-the-board-it-carries-whole): the
-     * status's own copy of the board is sent only when the board can no
-     * longer be read. A board edit committed between that read and the
-     * listener's save may still be undone.
+     * Broadcasts {@code exo.project.projectModified} with the status's board,
+     * once the update's transaction has returned, as
+     * {@code TaskServiceImpl#updateTask} does. Its listener saves that board
+     * whole (pitfall project-modified-event-saves-the-board-it-carries-whole):
+     * the board is the one this request loaded with the status, so a board
+     * edit another request committed after that load is undone. A read of
+     * the board here would not close it: it answers the entity this
+     * request's persistence context already holds.
      *
      * @param source the event's source
      * @param status the status updated
      */
     private void broadcastProjectModified(Object source, StatusDto status) {
-        ProjectDto project = status.getProject();
-        if (project != null && project.getId() > 0) {
-            try {
-                ProjectDto stored = projectStorage.getProject(project.getId());
-                project = stored == null ? project : stored;
-            } catch (EntityNotFoundException e) {
-                LOG.debug("Board {} of status {} not found, its copy is sent", project.getId(), status.getId());
-            }
-        }
         try {
-            listenerService.broadcast("exo.project.projectModified", source, project);
+            listenerService.broadcast("exo.project.projectModified", source, status.getProject());
         } catch (Exception e) {
             LOG.error("Error while broadcasting status update event", e);
         }
