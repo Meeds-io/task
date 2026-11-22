@@ -360,8 +360,9 @@ public class StatusServiceTest {
         service.updateStatus(moved);
         service.removeStatus(2L);
 
-        assertEquals(List.of(false, false, false, false, false), broadcastInStep,
-                     "the board's and the renaming's events of each update, and the removal's");
+        assertEquals("the board's and the renaming's events of each update, and the removal's",
+                     List.of(false, false, false, false, false),
+                     broadcastInStep);
     }
 
     /**
