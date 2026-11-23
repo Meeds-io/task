@@ -1488,26 +1488,12 @@ public class TaskMcpToolTest {
   }
 
   @Test
-  public void listProjectsOfASpaceTheUserIsNotPartOfShouldListAndCountNothing() throws Exception { // NOSONAR
+  public void listProjectsOfASpaceShouldMatchTheSpaceMembershipsAndTheUsers() throws Exception { // NOSONAR
     Space space = mock(Space.class);
     when(spaceService.getSpaceById(10L)).thenReturn(space);
     when(space.getGroupId()).thenReturn("/spaces/space1");
+    when(currentIdentity.getUserId()).thenReturn("mary");
     when(currentIdentity.getMemberships()).thenReturn(Collections.singletonList(new MembershipEntry("/spaces/other", "member")));
-
-    ProjectCollectionModel result = tool.listProjects(10L, null, null);
-
-    assertEquals(0, result.getProjects().size());
-    assertEquals(0L, result.getCount());
-    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
-    verify(projectService, never()).countProjects(any(ProjectQuery.class));
-  }
-
-  @Test
-  public void listProjectsOfASpaceShouldUseTheSpaceMembershipsTheUserHolds() throws Exception { // NOSONAR
-    Space space = mock(Space.class);
-    when(spaceService.getSpaceById(10L)).thenReturn(space);
-    when(space.getGroupId()).thenReturn("/spaces/space1");
-    when(currentIdentity.getMemberships()).thenReturn(Collections.singletonList(new MembershipEntry("/spaces/space1", "member")));
     when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(10))).thenReturn(Collections.emptyList());
 
     tool.listProjects(10L, null, null);
@@ -1516,8 +1502,44 @@ public class TaskMcpToolTest {
     ArgumentCaptor<ProjectQuery> countQuery = ArgumentCaptor.forClass(ProjectQuery.class);
     verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
     verify(projectService).countProjects(countQuery.capture());
-    assertEquals(Set.of("member:/spaces/space1"), conditionValues(listQuery.getValue().getCondition(), SingleCondition.IN));
-    assertEquals(Set.of("member:/spaces/space1"), conditionValues(countQuery.getValue().getCondition(), SingleCondition.IN));
+    // a project of the space that names the user, a member of another space, is matched by the user's id
+    List<Set<String>> expected = List.of(Set.of("manager:/spaces/space1", "member:/spaces/space1"),
+                                         Set.of("mary", "*:/spaces/other", "member:/spaces/other"));
+    assertEquals(expected, inConditions(listQuery.getValue().getCondition()));
+    assertEquals(expected, inConditions(countQuery.getValue().getCondition()));
+  }
+
+  @Test
+  public void listProjectsOfASpaceShouldMatchAMembershipOfAnyTypeInTheSpace() throws Exception { // NOSONAR
+    Space space = mock(Space.class);
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(space.getGroupId()).thenReturn("/spaces/space1");
+    when(currentIdentity.getUserId()).thenReturn("mary");
+    when(currentIdentity.getMemberships()).thenReturn(Collections.singletonList(new MembershipEntry("/spaces/space1")));
+
+    tool.listProjects(10L, null, null);
+
+    ArgumentCaptor<ProjectQuery> listQuery = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
+    assertEquals(List.of(Set.of("manager:/spaces/space1", "member:/spaces/space1"),
+                         Set.of("mary", "*:/spaces/space1", "manager:/spaces/space1", "member:/spaces/space1")),
+                 inConditions(listQuery.getValue().getCondition()));
+  }
+
+  // the distinct value sets the IN conditions of a query test, in order: one per condition ANDed
+  private static List<Set<String>> inConditions(Condition condition) {
+    List<Set<String>> sets = new ArrayList<>();
+    if (condition instanceof AggregateCondition aggregate) {
+      aggregate.getConditions().forEach(child -> inConditions(child).stream().filter(v -> !sets.contains(v)).forEach(sets::add));
+    } else if (condition instanceof SingleCondition<?> single && SingleCondition.IN.equals(single.getType())
+               && single.getValue() instanceof Collection<?> collection) {
+      Set<String> values = new HashSet<>();
+      collection.forEach(value -> values.add(String.valueOf(value)));
+      if (!sets.contains(values)) {
+        sets.add(values);
+      }
+    }
+    return sets;
   }
 
   // the values a query's conditions of the given type test, at any depth

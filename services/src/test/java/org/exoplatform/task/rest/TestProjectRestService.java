@@ -251,7 +251,7 @@ public class TestProjectRestService {
   }
 
   @Test
-  public void testGetProjectsOfASpaceCountsOnlyTheMembershipsTheUserHolds() throws Exception {
+  public void testGetProjectsOfASpaceMatchesTheSpaceMembershipsAndTheUsers() throws Exception {
     ProjectRestService projectRestService = new ProjectRestService(taskService,
                                                                    commentService,
                                                                    projectService,
@@ -280,8 +280,10 @@ public class TestProjectRestService {
     verify(projectService).countProjects(countQuery.capture());
     // the total is counted by the list's own query
     assertSame(listQuery.getValue(), countQuery.getValue());
-    assertEquals(new HashSet<>(Arrays.asList("member:/spaces/space1")),
-                 conditionValues(listQuery.getValue().getCondition(), SingleCondition.IN));
+    // the space's projects, and among them those the user's memberships match
+    assertEquals(Arrays.asList(new HashSet<>(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1")),
+                               new HashSet<>(Arrays.asList("mary", "*:/spaces/space1", "member:/spaces/space1"))),
+                 inConditions(listQuery.getValue().getCondition()));
     assertEquals(new HashSet<>(Arrays.asList("%pro%")), conditionValues(listQuery.getValue().getCondition(), SingleCondition.LIKE));
   }
 
@@ -307,12 +309,16 @@ public class TestProjectRestService {
 
     ArgumentCaptor<ProjectQuery> listQuery = ArgumentCaptor.forClass(ProjectQuery.class);
     verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
-    assertEquals(new HashSet<>(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1")),
-                 conditionValues(listQuery.getValue().getCondition(), SingleCondition.IN));
+    assertEquals(Arrays.asList(new HashSet<>(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1")),
+                               new HashSet<>(Arrays.asList("mary",
+                                                           "*:/spaces/space1",
+                                                           "manager:/spaces/space1",
+                                                           "member:/spaces/space1"))),
+                 inConditions(listQuery.getValue().getCondition()));
   }
 
   @Test
-  public void testGetProjectsOfASpaceTheUserIsNotPartOfOrOfAnUnknownSpaceGivesNothing() throws Exception {
+  public void testGetProjectsOfASpaceTheUserIsNotPartOfStillMatchesTheProjectsNamingTheUser() throws Exception {
     ProjectRestService projectRestService = new ProjectRestService(taskService,
                                                                    commentService,
                                                                    projectService,
@@ -330,16 +336,53 @@ public class TestProjectRestService {
                                                                     Arrays.asList(new MembershipEntry("/spaces/other",
                                                                                                       "member")))));
 
-    for (String spaceName : Arrays.asList("space1", "unknown")) {
-      Response response = projectRestService.getProjects("pro", spaceName, "ALL", 0, 10, false);
+    projectRestService.getProjects("pro", "space1", "ALL", 0, 10, false);
 
-      assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
-      JSONObject result = new JSONObject(response.getEntity().toString());
-      assertEquals(0, result.getInt("projectNumber"));
-      assertEquals(0, result.getJSONArray("projects").length());
-    }
+    ArgumentCaptor<ProjectQuery> listQuery = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
+    // the user's id is one of the values the projects of the space are matched with
+    assertEquals(Arrays.asList(new HashSet<>(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1")),
+                               new HashSet<>(Arrays.asList("mary", "*:/spaces/other", "member:/spaces/other"))),
+                 inConditions(listQuery.getValue().getCondition()));
+  }
+
+  @Test
+  public void testGetProjectsOfAnUnknownSpaceGivesNothing() throws Exception {
+    ProjectRestService projectRestService = new ProjectRestService(taskService,
+                                                                   commentService,
+                                                                   projectService,
+                                                                   statusService,
+                                                                   userService,
+                                                                   spaceService,
+                                                                   labelService,
+                                                                   identityManager,
+                                                                   favoriteService);
+    ConversationState.setCurrent(new ConversationState(new Identity("mary", Arrays.asList())));
+
+    Response response = projectRestService.getProjects("pro", "unknown", "ALL", 0, 10, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    JSONObject result = new JSONObject(response.getEntity().toString());
+    assertEquals(0, result.getInt("projectNumber"));
+    assertEquals(0, result.getJSONArray("projects").length());
     verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
     verify(projectService, never()).countProjects(any(ProjectQuery.class));
+  }
+
+  // the distinct value sets the IN conditions of a query test, in order: one per condition ANDed
+  private static List<Set<String>> inConditions(Condition condition) {
+    List<Set<String>> sets = new ArrayList<>();
+    if (condition instanceof AggregateCondition aggregate) {
+      aggregate.getConditions().forEach(child -> inConditions(child).stream().filter(s -> !sets.contains(s)).forEach(sets::add));
+    } else if (condition instanceof SingleCondition<?> single && SingleCondition.IN.equals(single.getType())
+               && single.getValue() instanceof Collection<?> collection) {
+      Set<String> values = new HashSet<>();
+      collection.forEach(value -> values.add(String.valueOf(value)));
+      if (!sets.contains(values)) {
+        sets.add(values);
+      }
+    }
+    return sets;
   }
 
   // the values a query's conditions of the given type test, at any depth
