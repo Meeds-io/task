@@ -54,7 +54,7 @@ public class TaskToolDefinitionUpgradesTest {
 
   /** How many earlier definitions of each changed tool the history of every ref holds. */
   private static final Map<String, Integer> EARLIER_DEFINITIONS      = Map.of("list_tasks",
-                                                                            37,
+                                                                            38,
                                                                             "list_assigned_tasks",
                                                                             15,
                                                                             "list_projects",
