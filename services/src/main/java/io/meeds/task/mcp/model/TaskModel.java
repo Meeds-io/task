@@ -26,8 +26,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.exoplatform.task.domain.Priority;
 
-import io.meeds.mcp.server.tool.model.UserModel;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -47,9 +45,9 @@ public class TaskModel {
 
   private String             link;
 
-  private UserModel          assignee;
+  private TaskAssigneeModel  assignee;
 
-  private List<UserModel>    coworkers;
+  private List<TaskAssigneeModel> coworkers;
 
   @JsonProperty("start_date")
   private String             startDate;

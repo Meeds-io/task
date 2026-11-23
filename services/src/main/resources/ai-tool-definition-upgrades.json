@@ -1,6 +1,28 @@
 {
   "tools": [
     {
+      "name": "get_task_by_id",
+      "replaced_definitions": [
+        "18c1f50f3f0b41b91252846d4a090eb474a244a51bd06349eb4f764d85904043",
+        "4353a59a12f1f8a48b0008d802a4e29a54d03836fb0bf815ca8e1cf45f02e625",
+        "82f38106878ddf0948df7efc14d8146ed5e3034861476072de5df170e27e236a"
+      ]
+    },
+    {
+      "name": "update_task_description",
+      "replaced_definitions": [
+        "669f2efabb79871dcdc73567ed981dc0c5d7cce231e44dd13e8c9fdf94422da5"
+      ]
+    },
+    {
+      "name": "list_task_comments_by_id",
+      "replaced_definitions": [
+        "549efa919b9cfafc36c0b9f8d12f79c71d3bad549a5729b1e897dc5e4b0fe249",
+        "6b7e175a2e56f019aa0f7f50a92980029d74a4e673e81b1f6625946dcf5c67f3",
+        "c500f0057b7fde169cee628774c85a2716b8c454118a80790244a2d4df5f95e1"
+      ]
+    },
+    {
       "name": "get_project_statistics",
       "replaced_definitions": [
         "c6c286f9618d8b69d5be10e8601627298c960e498a592527f10d568544a2f92c"

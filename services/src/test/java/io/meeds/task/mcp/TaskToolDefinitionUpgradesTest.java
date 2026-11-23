@@ -64,6 +64,12 @@ public class TaskToolDefinitionUpgradesTest {
                                                                             "search_tasks",
                                                                             4,
                                                                             "get_project_statistics",
+                                                                            1,
+                                                                            "get_task_by_id",
+                                                                            3,
+                                                                            "list_task_comments_by_id",
+                                                                            3,
+                                                                            "update_task_description",
                                                                             1);
 
   /**

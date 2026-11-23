@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
@@ -55,6 +56,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
@@ -81,13 +83,11 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
@@ -122,11 +122,11 @@ import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.service.impl.TaskServiceImpl;
 
 import io.meeds.mcp.server.model.ActingIdentity;
+import io.meeds.mcp.server.tool.util.McpToolPluginUtils;
 import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.service.PermanentLinkService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import io.meeds.social.space.plugin.SpaceAclPlugin;
-import io.meeds.social.translation.service.TranslationService;
 import io.meeds.task.mcp.model.ProjectActivityModel;
 import io.meeds.task.mcp.model.TaskChange;
 import io.meeds.task.mcp.model.TaskChangeLog;
@@ -197,22 +197,13 @@ public class TaskMcpToolTest {
   private SpaceService            spaceService;
 
   @Mock
-  private TranslationService      translationService;
-
-  @Mock
   private ResourceBundleService   resourceBundleService;
 
   @Mock
   private IdentityManager         identityManager;
 
   @Mock
-  private ProfilePropertyService  profilePropertyService;
-
-  @Mock
   private UserACL                 userAcl;
-
-  @Mock
-  private UserPortalConfigService portalConfigService;
 
   @Mock
   private PermanentLinkService    permanentLinkService;
@@ -1206,12 +1197,9 @@ public class TaskMcpToolTest {
                                                commentService,
                                                labelService,
                                                spaceService,
-                                               translationService,
                                                resourceBundleService,
                                                identityManager,
-                                               profilePropertyService,
                                                userAcl,
-                                               portalConfigService,
                                                permanentLinkService,
                                                favoriteService,
                                                spaceScopeResolver);
@@ -2245,6 +2233,124 @@ public class TaskMcpToolTest {
 
     assertEquals(1, result.getComments().size());
     assertEquals(1L, result.getCount());
+  }
+
+  /**
+   * A task read names each person on it, its assignee and its coworkers, by
+   * username and display name only, a disabled one too, and gives its
+   * description as plain text unless its markup is asked for; the comments
+   * name their authors the same way (EXO-94958). Mutants: the full profile
+   * mapped back for the coworkers or the authors; the markup by default; an
+   * unknown format accepted.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aTaskReadNamesPeopleOnlyAndGivesThePlainDescription() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(task.getAssignee()).thenReturn(OTHER_USER);
+    when(task.getCoworker()).thenReturn(new LinkedHashSet<>(List.of("mary", "paul", "lucy")));
+    when(task.getDescription()).thenReturn("<p>Ship <b>it</b> today</p><p>Second line</p>");
+    mockPerson(OTHER_USER, "John Smith", true);
+    mockPerson("mary", "Mary Jones", true);
+    mockPerson("paul", "Paul Martin", true);
+    mockPerson("lucy", "Lucy Gone", false);
+
+    TaskModel read = runWithDateFormatMockResult(() -> tool.getTaskById(TASK_ID, null));
+
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(read));
+    assertEquals(Set.of("username", "display_name"), fieldNames(json.path("assignee")));
+    assertEquals("John Smith", json.path("assignee").path("display_name").asString());
+    assertEquals(3, json.path("coworkers").size());
+    json.path("coworkers").forEach(coworker -> assertEquals(Set.of("username", "display_name"), fieldNames(coworker)));
+    assertEquals("a disabled coworker is still named", "Lucy Gone", json.path("coworkers").get(2).path("display_name").asString());
+    assertNoProfile(json.toString());
+    assertEquals("Ship it today\nSecond line", read.getDescription());
+    assertEquals(read.getDescription(), runWithDateFormatMockResult(() -> tool.getTaskById(TASK_ID, "TEXT")).getDescription());
+
+    TaskModel html = runWithDateFormatMockResult(() -> tool.getTaskById(TASK_ID, "html"));
+    assertEquals("<p>Ship <b>it</b> today</p><p>Second line</p>", html.getDescription());
+    assertThrows(IllegalArgumentException.class, () -> tool.getTaskById(TASK_ID, "markdown"));
+
+    List<CommentDto> comments = new ArrayList<>();
+    for (String author : List.of(OTHER_USER, "mary", "paul", "lucy", OTHER_USER)) {
+      CommentDto comment = mock(CommentDto.class);
+      when(comment.getId()).thenReturn((long) comments.size() + 1);
+      when(comment.getComment()).thenReturn("Comment by " + author);
+      when(comment.getCreatedTime()).thenReturn(new Date());
+      when(comment.getAuthor()).thenReturn(author);
+      when(comment.getSubComments()).thenReturn(Collections.emptyList());
+      comments.add(comment);
+    }
+    when(commentService.getCommentsWithSubs(TASK_ID, 0, 10)).thenReturn(comments);
+    when(commentService.countCommentsWithSubs(TASK_ID)).thenReturn(5);
+
+    TaskCommentCollectionModel commentList = runWithDateFormatMockResult(() -> tool.listTaskCommentsById(TASK_ID, null, null));
+
+    JsonNode commentsJson = JSON.readTree(JSON.writeValueAsString(commentList));
+    assertEquals(5, commentsJson.path("comments").size());
+    commentsJson.path("comments")
+                .forEach(comment -> assertEquals(Set.of("username", "display_name"), fieldNames(comment.path("author"))));
+    assertEquals("Mary Jones", commentsJson.path("comments").get(1).path("author").path("display_name").asString());
+    assertNoProfile(commentsJson.toString());
+  }
+
+  /**
+   * A task read's plain text is cut from the description as the user may
+   * read it, the platform's rendering for that user, never from the stored
+   * markup: a content link the user may not open reads as the rendering says
+   * (EXO-94958); its markup is the stored one, whose link carries no
+   * linked object's title, never the rendering for the user, whose titles
+   * an edit would store for every later reader. Mutants: the plain text cut
+   * from the stored description; the markup served as the user's rendering.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aTaskReadsPlainTextIsCutFromWhatTheUserMayReadAndItsMarkupIsTheStoredOne() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    String stored = "<p>See <content-link contenteditable=\"false\" style=\"display: none;\">/notes:12</content-link></p>";
+    when(task.getDescription()).thenReturn(stored);
+
+    TaskModel read;
+    TaskModel markup;
+    try (MockedStatic<McpToolPluginUtils> transformed = mockStatic(McpToolPluginUtils.class, CALLS_REAL_METHODS)) {
+      transformed.when(() -> McpToolPluginUtils.transformHtmlContent(eq(stored), any(), any()))
+                 .thenReturn("<p>See <a data-object=\"notes:12\" class=\"content-link\">Secret Q4 plan</a></p>");
+      read = runWithDateFormatMockResult(() -> tool.getTaskById(TASK_ID, null));
+      markup = runWithDateFormatMockResult(() -> tool.getTaskById(TASK_ID, "html"));
+    }
+
+    assertEquals("the plain text is the user's own rendering", "See Secret Q4 plan", read.getDescription());
+    assertEquals(stored, markup.getDescription());
+    assertFalse("the markup carries no linked object's title", markup.getDescription().contains("Secret Q4 plan"));
+  }
+
+  /**
+   * @param username a user's name
+   * @param fullName its display name
+   * @param enabled whether the user is enabled
+   */
+  private void mockPerson(String username, String fullName, boolean enabled) {
+    org.exoplatform.social.core.identity.model.Identity identity = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    Profile profile = mock(Profile.class);
+    lenient().when(identity.getProfile()).thenReturn(profile);
+    lenient().when(identity.isEnable()).thenReturn(enabled);
+    lenient().when(profile.getFullName()).thenReturn(fullName);
+    lenient().when(identityManager.getOrCreateUserIdentity(username)).thenReturn(identity);
+  }
+
+  /**
+   * @param json an answer's JSON
+   */
+  private static void assertNoProfile(String json) {
+    for (String profileField : List.of("about_me", "avatar_url", "banner_url", "profile_page_url", "experiences", "login_id")) {
+      assertFalse(profileField + " in " + json, json.contains(profileField));
+    }
   }
 
   @Test
@@ -3471,12 +3577,9 @@ public class TaskMcpToolTest {
                                            commentService,
                                            labelService,
                                            spaceService,
-                                           translationService,
                                            resourceBundleService,
                                            identityManager,
-                                           profilePropertyService,
                                            userAcl,
-                                           portalConfigService,
                                            permanentLinkService,
                                            favoriteService,
                                            spaceScopeResolver);
@@ -3511,12 +3614,9 @@ public class TaskMcpToolTest {
                                            commentService,
                                            labelService,
                                            spaceService,
-                                           translationService,
                                            resourceBundleService,
                                            identityManager,
-                                           profilePropertyService,
                                            userAcl,
-                                           portalConfigService,
                                            permanentLinkService,
                                            favoriteService,
                                            spaceScopeResolver);
@@ -5153,12 +5253,9 @@ public class TaskMcpToolTest {
             commentService,
             labelService,
             spaceService,
-            translationService,
             resourceBundleService,
             identityManager,
-            profilePropertyService,
             userAcl,
-            portalConfigService,
             permanentLinkService,
             favoriteService,
             spaceScopeResolver);

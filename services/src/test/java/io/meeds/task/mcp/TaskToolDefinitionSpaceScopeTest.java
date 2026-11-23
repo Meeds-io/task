@@ -197,7 +197,7 @@ public class TaskToolDefinitionSpaceScopeTest {
 
   /**
    * The arguments a limited task call may carry are schema properties: the
-   * comments' paging, the status of the status update, the new text of the
+   * format of a task read's description (EXO-94958), the comments' paging, the status of the status update, the new text of the
    * description update, a comment's text, a new title, the start and due
    * dates, the priority, a label and a person; reopening a task takes nothing
    * else. The only reference-shaped ones are that status and that label,
@@ -210,7 +210,7 @@ public class TaskToolDefinitionSpaceScopeTest {
   public void acceptedArgumentsAreTheExpectedSchemaProperties() {
     Map<String, SimpleToolDefinition> declared = declaredTools();
 
-    assertEquals(List.of(), allowed(declared.get("get_task_by_id")));
+    assertEquals(List.of("description_format"), allowed(declared.get("get_task_by_id")));
     assertEquals(List.of(), allowed(declared.get("complete_task")));
     assertEquals(List.of("offset", "limit"), allowed(declared.get("list_task_comments_by_id")));
     assertEquals(List.of("status_id"), allowed(declared.get("update_task_status")));

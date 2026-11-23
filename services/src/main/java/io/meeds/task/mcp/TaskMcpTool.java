@@ -20,7 +20,6 @@ package io.meeds.task.mcp;
 
 import static io.meeds.mcp.server.tool.util.McpToolPluginUtils.getInteger;
 import static io.meeds.mcp.server.tool.util.McpToolPluginUtils.transformHtmlContent;
-import static io.meeds.mcp.server.tool.util.UserToolUtils.toUserModel;
 import static io.meeds.mcp.server.util.McpToolUtils.formatDate;
 import static io.meeds.mcp.server.util.McpToolUtils.toDate;
 
@@ -67,11 +66,9 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -106,13 +103,11 @@ import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.mcp.server.plugin.McpToolPlugin;
-import io.meeds.mcp.server.tool.model.UserModel;
 import io.meeds.mcp.server.model.ActingIdentity;
 import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.model.PermanentLinkObject;
 import io.meeds.portal.permlink.service.PermanentLinkService;
 import io.meeds.social.space.plugin.SpaceAclPlugin;
-import io.meeds.social.translation.service.TranslationService;
 import io.meeds.social.util.JsonUtils;
 import io.meeds.task.mcp.model.ProjectActivityModel;
 import io.meeds.task.mcp.model.ProjectCollectionModel;
@@ -232,6 +227,15 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           MSG_SEARCH_NO_WORD              =
                                                            "A text with a word to search is mandatory: numbers are not searched, a task id goes to get_task_by_id";
 
+  /** A task read's description as plain text, the default (EXO-94958). */
+  static final String                   DESCRIPTION_FORMAT_TEXT         = "text";
+
+  /** A task read's description as its markup, for an edit of it. */
+  static final String                   DESCRIPTION_FORMAT_HTML         = "html";
+
+  private static final String           MSG_DESCRIPTION_FORMAT          =
+                                                               "Parameter 'description_format' is 'text' or 'html', not '%s'";
+
   private static final String           MSG_LABEL_NOT_FOUND             =
                                                             "Label with identifier '%s' is not found. Available project labels are:%n```json%n%s%n```";
 
@@ -319,15 +323,9 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private final IdentityManager         identityManager;
 
-  private final ProfilePropertyService  profilePropertyService;
-
-  private final TranslationService      translationService;
-
   private final ResourceBundleService   resourceBundleService;
 
   private final UserACL                 userAcl;
-
-  private final UserPortalConfigService portalConfigService;
 
   private final PermanentLinkService    permanentLinkService;
 
@@ -342,12 +340,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param commentService reads and writes the comments of a task
    * @param labelService reads and writes the labels of a project
    * @param spaceService reads the spaces
-   * @param translationService translates the labels given back to the model
    * @param resourceBundleService reads the resource bundles
    * @param identityManager reads the identities of the users
-   * @param profilePropertyService reads the profile properties of the users
    * @param userAcl checks the permissions of the current user
-   * @param portalConfigService reads the portal configuration
    * @param permanentLinkService builds the permanent links of the objects
    * @param favoriteService reads and writes the favorites
    * @param spaceScopeResolver tells the space of a project, for a run limited
@@ -359,12 +354,9 @@ public class TaskMcpTool implements McpToolPlugin {
                      CommentService commentService,
                      LabelService labelService,
                      SpaceService spaceService,
-                     TranslationService translationService,
                      ResourceBundleService resourceBundleService,
                      IdentityManager identityManager,
-                     ProfilePropertyService profilePropertyService,
                      UserACL userAcl,
-                     UserPortalConfigService portalConfigService,
                      PermanentLinkService permanentLinkService,
                      FavoriteService favoriteService,
                      TaskSpaceScopeResolver spaceScopeResolver) {
@@ -376,12 +368,9 @@ public class TaskMcpTool implements McpToolPlugin {
     this.commentService = commentService;
     this.labelService = labelService;
     this.spaceService = spaceService;
-    this.translationService = translationService;
     this.resourceBundleService = resourceBundleService;
     this.identityManager = identityManager;
-    this.profilePropertyService = profilePropertyService;
     this.userAcl = userAcl;
-    this.portalConfigService = portalConfigService;
     this.permanentLinkService = permanentLinkService;
   }
 
@@ -801,7 +790,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * the same query restricted to them, the others being those the user is a
    * coworker of only (EXO-94361). Each task comes
    * as a list item, without its description or coworkers, which
-   * {@link #getTaskById(Long)} returns; with {@code includeDescription}, with
+   * {@link #getTaskById(Long, String)} returns; with {@code includeDescription}, with
    * its description as cut plain text.
    *
    * @param offset the first task returned
@@ -936,7 +925,7 @@ public class TaskMcpTool implements McpToolPlugin {
    * manage selects nothing (EXO-94360).
    * <p>
    * Each task comes as a list item, without its description or coworkers,
-   * which {@link #getTaskById(Long)} returns; with {@code includeDescription},
+   * which {@link #getTaskById(Long, String)} returns; with {@code includeDescription},
    * with its description as plain text, cut at
    * {@value TaskDescriptionText#MAX_LENGTH} characters; with
    * {@code includeChangeLog}, each comes in full, with its change log.
@@ -1167,9 +1156,55 @@ public class TaskMcpTool implements McpToolPlugin {
     return getProjectId(task);
   }
 
-  public TaskModel getTaskById(Long taskId) throws ObjectNotFoundException, IllegalAccessException {
+  /**
+   * Reads a task in full, each person on it by name only, its description as
+   * plain text unless its markup is asked for (EXO-94958). The plain text is
+   * the description as the platform renders it for the user, a link to an
+   * object the user may not view reading as restricted; the markup is the
+   * stored one, its links as {@code /type:id} and its mentions as
+   * {@code @user}, with no linked object's title: the input an edit writes
+   * back, which carries nothing the next reader may not see.
+   *
+   * @param taskId the task, which the current user can view
+   * @param descriptionFormat {@value #DESCRIPTION_FORMAT_TEXT} or blank for
+   *          the description as plain text, {@value #DESCRIPTION_FORMAT_HTML}
+   *          for its stored markup, as a description edit needs it
+   * @return the task
+   * @throws ObjectNotFoundException when the task doesn't exist
+   * @throws IllegalAccessException when the user can't view the task
+   * @throws IllegalArgumentException when the format is neither
+   */
+  public TaskModel getTaskById(Long taskId, String descriptionFormat) throws ObjectNotFoundException, IllegalAccessException {
+    boolean html = isHtmlDescriptionFormat(descriptionFormat);
     TaskDto task = getTaskDetailById(taskId);
-    return toTaskModel(task);
+    TaskModel model = toTaskModel(task);
+    if (model == null) {
+      return null;
+    } else if (html) {
+      // the stored markup, never the rendering for this user, whose link
+      // titles an edit would store for every later reader
+      model.setDescription(StringUtils.defaultIfBlank(task.getDescription(), null));
+    } else {
+      // the text of the description as this user may read it: its links and
+      // mentions as the transformation rendered them for the user, never the
+      // stored markup's
+      model.setDescription(TaskDescriptionText.toPlainText(model.getDescription()));
+    }
+    return model;
+  }
+
+  /**
+   * @param descriptionFormat the format a task read asks for its description
+   * @return whether it asks for the markup; false for plain text, the default
+   * @throws IllegalArgumentException when the format is neither
+   */
+  private static boolean isHtmlDescriptionFormat(String descriptionFormat) {
+    if (StringUtils.isBlank(descriptionFormat) || DESCRIPTION_FORMAT_TEXT.equalsIgnoreCase(descriptionFormat.trim())) {
+      return false;
+    } else if (DESCRIPTION_FORMAT_HTML.equalsIgnoreCase(descriptionFormat.trim())) {
+      return true;
+    }
+    throw new IllegalArgumentException(MSG_DESCRIPTION_FORMAT.formatted(descriptionFormat));
   }
 
   /**
@@ -2273,9 +2308,11 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * @param username the username of an assignee, possibly blank
-   * @return the assignee's username and display name, null for none; the
-   *         username alone when the user has no profile
+   * @param username the username of a user named on a task (an assignee, a
+   *          coworker, the author of a comment or a change), possibly blank
+   * @return the user's username and display name, null for none; the
+   *         username alone when the user has no profile; a disabled user too,
+   *         by name, as a fact of the task (EXO-94958)
    */
   private TaskAssigneeModel getTaskAssignee(String username) {
     if (StringUtils.isBlank(username)) {
@@ -2575,7 +2612,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                                   .isBefore(since))
                                                           .map(c -> new TaskChangeLog("commented",
                                                                                       "commented",
-                                                                                      getUserModel(c.getAuthor()),
+                                                                                      getTaskAssignee(c.getAuthor()),
                                                                                       null,
                                                                                       formatDate(c.getCreatedTime())))
                                                           .toList();
@@ -2638,7 +2675,7 @@ public class TaskMcpTool implements McpToolPlugin {
                           status ? getStatusLabel(change.getOldValue()) : change.getOldValue(),
                           status ? getStatusLabel(newValue) : newValue,
                           formatDate(change.getCreatedTime()),
-                          getUserModel(change.getAuthor()));
+                          getTaskAssignee(change.getAuthor()));
   }
 
   /**
@@ -3409,11 +3446,11 @@ public class TaskMcpTool implements McpToolPlugin {
                          task.getTitle(),
                          transformHtmlContent(task.getDescription(), aclIdentity, locale),
                          getUrl(task),
-                         getUserModel(assignee),
+                         getTaskAssignee(assignee),
                          CollectionUtils.isEmpty(task.getCoworker()) ? null :
                                                                      task.getCoworker()
                                                                          .stream()
-                                                                         .map(this::getUserModel)
+                                                                         .map(this::getTaskAssignee)
                                                                          .toList(),
                          formatDate(task.getStartDate()),
                          formatDate(task.getEndDate()),
@@ -3484,8 +3521,8 @@ public class TaskMcpTool implements McpToolPlugin {
   private TaskChangeLog getTaskChangeLog(ChangeLogEntry changeLog) {
     return new TaskChangeLog(changeLog.getActionName(),
                              getActionLabel(changeLog.getActionName()),
-                             getUserModel(changeLog.getAuthor()),
-                             TaskService.USER_TARGET_ACTIONS.contains(changeLog.getActionName()) ? getUserModel(changeLog.getTarget()) : null,
+                             getTaskAssignee(changeLog.getAuthor()),
+                             TaskService.USER_TARGET_ACTIONS.contains(changeLog.getActionName()) ? getTaskAssignee(changeLog.getTarget()) : null,
                              formatDate(changeLog.getCreatedTime()));
   }
 
@@ -3557,7 +3594,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                                              transformHtmlContent(comment.getComment(), aclIdentity, locale),
                                                              url,
                                                              formatDate(comment.getCreatedTime()),
-                                                             getUserModel(comment.getAuthor()));
+                                                             getTaskAssignee(comment.getAuthor()));
     if (CollectionUtils.isEmpty(comment.getSubComments())) {
       return Collections.singletonList(taskCommentModel);
     } else {
@@ -3582,7 +3619,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                 transformHtmlContent(comment.getComment(), aclIdentity, locale),
                                 url,
                                 formatDate(comment.getCreatedTime()),
-                                getUserModel(comment.getAuthor()));
+                                getTaskAssignee(comment.getAuthor()));
   }
 
   /**
@@ -3601,23 +3638,6 @@ public class TaskMcpTool implements McpToolPlugin {
                    .stream()
                    .filter(userMemberships::contains)
                    .toList();
-  }
-
-  private UserModel getUserModel(String username) {
-    if (StringUtils.isBlank(username)) {
-      return null;
-    }
-    Locale locale = getCurrentUserLocale();
-    return StringUtils.isBlank(username) ? null :
-                                         toUserModel(identityManager,
-                                                     profilePropertyService,
-                                                     userAcl,
-                                                     translationService,
-                                                     portalConfigService,
-                                                     username,
-                                                     getCurrentUserName(),
-                                                     locale,
-                                                     false);
   }
 
   @SneakyThrows

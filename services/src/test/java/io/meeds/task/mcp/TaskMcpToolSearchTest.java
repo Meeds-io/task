@@ -48,11 +48,9 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
-import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.task.dto.LabelDto;
@@ -67,7 +65,6 @@ import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 
 import io.meeds.portal.permlink.service.PermanentLinkService;
-import io.meeds.social.translation.service.TranslationService;
 import io.meeds.task.mcp.model.TaskSearchCollectionModel;
 import io.meeds.task.mcp.model.TaskSearchResultModel;
 
@@ -104,22 +101,13 @@ public class TaskMcpToolSearchTest {
   private SpaceService            spaceService;
 
   @Mock
-  private TranslationService      translationService;
-
-  @Mock
   private ResourceBundleService   resourceBundleService;
 
   @Mock
   private IdentityManager         identityManager;
 
   @Mock
-  private ProfilePropertyService  profilePropertyService;
-
-  @Mock
   private UserACL                 userAcl;
-
-  @Mock
-  private UserPortalConfigService portalConfigService;
 
   @Mock
   private PermanentLinkService    permanentLinkService;
@@ -165,12 +153,9 @@ public class TaskMcpToolSearchTest {
                            commentService,
                            labelService,
                            spaceService,
-                           translationService,
                            resourceBundleService,
                            identityManager,
-                           profilePropertyService,
                            userAcl,
-                           portalConfigService,
                            permanentLinkService,
                            favoriteService,
                            spaceScopeResolver) {
