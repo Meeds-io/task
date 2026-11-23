@@ -143,6 +143,9 @@ public class TaskSearchConnectorIT {
       assertEquals(keyword, Set.of(1L), ids(keyword));
     }
     assertEquals(Set.of(1L), ids("Northwind AND support"));
+    assertEquals(Set.of(1L), ids("Renew\u3000AND"));
+    assertEquals(Set.of(1L), ids("AND\u3000Renew"));
+    assertEquals(Set.of(1L), ids("Renew AND\u3000"));
   }
 
   /**

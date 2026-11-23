@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -124,7 +125,7 @@ public class TaskSearchConnectorTest {
   public void testKeywordIsWrittenAsJsonText() throws Exception {
     JsonNode request = searchRequest(filterWithTerm("quarterly \\ \"report\" tab\there"));
 
-    assertEquals("quarterly    report  tab\there", termOf(request));
+    assertEquals("quarterly    report  tab here", termOf(request));
   }
 
   @Test
@@ -140,6 +141,14 @@ public class TaskSearchConnectorTest {
   @Test
   public void testKeywordLeadingAndTrailingOperatorWordsAreDropped() throws Exception {
     assertEquals("Renew", termOf(searchRequest(filterWithTerm("OR Renew"))));
+  }
+
+  @Test
+  public void testKeywordOperatorWordsNextToUnicodeSpacesAreDropped() throws Exception {
+    for (String keyword : new String[] { "Renew\u3000AND", "AND\u3000Renew", "Renew AND\u3000", "Renew\u00A0NOT" }) {
+      clearInvocations(client);
+      assertEquals(keyword, "Renew", termOf(searchRequest(filterWithTerm(keyword))));
+    }
   }
 
   @Test

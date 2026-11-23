@@ -121,6 +121,12 @@ public class TaskSearchConnector {
    */
   private static final String    OPERATOR_WORD                 = "(?<!\\S)(?:AND|OR|NOT)(?!\\S)";
 
+  /**
+   * Every Unicode space or separator, the ideographic space included, which
+   * the query_string grammar reads as a token separator.
+   */
+  private static final String    SPACE_CHARACTERS              = "[\\p{Z}\\s\\x1C-\\x1F]";
+
   private static final String    TERM_QUERY_REPLACEMENT        = "@term_query@";
 
   private static final String    PERMISSIONS_QUERY_REPLACEMENT = "@permission_query@";
@@ -223,7 +229,8 @@ public class TaskSearchConnector {
 
   /**
    * Turns the typed term into the text of a query_string written in a JSON
-   * string: the reserved characters, the backslash included, become spaces,
+   * string: every Unicode space becomes a plain space, the reserved characters, the
+   * backslash included, become spaces,
    * the operator words AND, OR and NOT, which the query_string grammar reads as
    * operators, become spaces too, then the rest is escaped for JSON.
    *
@@ -231,7 +238,8 @@ public class TaskSearchConnector {
    * @return the text to write between the quotes of "query"
    */
   private String escapeTerm(String text) {
-    String stripped = text.replaceAll("[\\Q+-!():^[]\"{}~*?|&/\\E\\\\]", " ")
+    String stripped = text.replaceAll(SPACE_CHARACTERS, " ")
+                          .replaceAll("[\\Q+-!():^[]\"{}~*?|&/\\E\\\\]", " ")
                           .replaceAll(OPERATOR_WORD, " ")
                           .trim();
     return JSONValue.escape(stripped);
