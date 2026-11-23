@@ -34,7 +34,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 // the totals before the lists they sum up: the default mapper would write the
 // keys in alphabetical order
-@JsonPropertyOrder({ "count", "assigned_count", "coworker_count", "managed_project_count", "project_count",
+@JsonPropertyOrder({ "count", "selected_open_count", "selected_completed_count", "assigned_count", "coworker_count", "managed_project_count", "project_count",
     "open_project_count", "idle_project_count", "overdue_count", "overdue_project_count", "personal_count",
     "projects_not_listed", "summary", "group_by", "group_count", "groups_not_listed", "groups", "projects", "tasks",
     "used_offset", "used_limit", "has_more", "next_offset" })
@@ -160,6 +160,24 @@ public class TaskCollectionModel {
   private Long    personalCount;
 
   /**
+   * With {@code group_by_project}, on a listing that keeps the open and the
+   * completed tasks both, how many of the tasks counted by {@code count} are
+   * open (EXO-94935).
+   */
+  @JsonProperty("selected_open_count")
+  @JsonInclude(Include.NON_NULL)
+  private Long    selectedOpenCount;
+
+  /**
+   * With {@code group_by_project}, on a listing that keeps the open and the
+   * completed tasks both, how many of the tasks counted by {@code count} are
+   * completed (EXO-94935).
+   */
+  @JsonProperty("selected_completed_count")
+  @JsonInclude(Include.NON_NULL)
+  private Long    selectedCompletedCount;
+
+  /**
    * With {@code group_by_project}, one sentence stating the count, the
    * filters applied and the boards, built from the fields above (EXO-94360).
    */
@@ -211,7 +229,7 @@ public class TaskCollectionModel {
    * @param nextOffset the offset of the next page, null when none remains
    */
   public TaskCollectionModel(List<?> tasks, int usedOffset, int usedLimit, long count, boolean hasMore, Integer nextOffset) {
-    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    this(tasks, usedOffset, usedLimit, count, hasMore, nextOffset, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 
 }
