@@ -128,6 +128,26 @@ public class TaskSearchConnectorTest {
   }
 
   @Test
+  public void testKeywordOperatorWordsAreDropped() throws Exception {
+    assertEquals("", termOf(searchRequest(filterWithTerm("AND"))));
+  }
+
+  @Test
+  public void testKeywordOperatorWordsAreDroppedInEveryPosition() throws Exception {
+    assertEquals("Renew", termOf(searchRequest(filterWithTerm("Renew AND"))));
+  }
+
+  @Test
+  public void testKeywordLeadingAndTrailingOperatorWordsAreDropped() throws Exception {
+    assertEquals("Renew", termOf(searchRequest(filterWithTerm("OR Renew"))));
+  }
+
+  @Test
+  public void testKeywordOperatorWordsInsideOtherWordsAreKept() throws Exception {
+    assertEquals("ANDROID Notes ORDER and or not", termOf(searchRequest(filterWithTerm("ANDROID Notes ORDER and or not"))));
+  }
+
+  @Test
   public void testKeywordIsNeverReadAsTemplate() throws Exception {
     TaskSearchFilter filter = filterWithTerm("@permission_query@ @sortQuery@ @limit@");
     filter.setSortField("date");

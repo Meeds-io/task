@@ -130,6 +130,22 @@ public class TaskSearchConnectorIT {
   }
 
   /**
+   * The operator words AND, OR and NOT of a keyword are not read as
+   * operators: the engine accepts the request in every position and searches
+   * the remaining words.
+   */
+  @Test
+  public void aKeywordWithOperatorWordsIsAccepted() {
+    for (String keyword : new String[] { "AND", "OR", "NOT" }) {
+      assertEquals(keyword, Set.of(), ids(keyword));
+    }
+    for (String keyword : new String[] { "Renew AND", "Renew OR", "OR Renew", "Renew NOT", "NOT Renew", "Renew AND support" }) {
+      assertEquals(keyword, Set.of(1L), ids(keyword));
+    }
+    assertEquals(Set.of(1L), ids("Northwind AND support"));
+  }
+
+  /**
    * The keyword is written as JSON text: quotes and control characters do not
    * break the request.
    */

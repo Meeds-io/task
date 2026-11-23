@@ -113,6 +113,14 @@ public class TaskSearchConnector {
 
   private static final String    TERM_REPLACEMENT              = "@term@";
 
+  /**
+   * The query_string operator words, read as operators only when they are a
+   * whole upper-case word: an operator with no operand makes the engine refuse
+   * the request. Dropped from the typed term rather than made lower-case, which
+   * would turn them into words every result must contain.
+   */
+  private static final String    OPERATOR_WORD                 = "(?<!\\S)(?:AND|OR|NOT)(?!\\S)";
+
   private static final String    TERM_QUERY_REPLACEMENT        = "@term_query@";
 
   private static final String    PERMISSIONS_QUERY_REPLACEMENT = "@permission_query@";
@@ -216,13 +224,16 @@ public class TaskSearchConnector {
   /**
    * Turns the typed term into the text of a query_string written in a JSON
    * string: the reserved characters, the backslash included, become spaces,
-   * then the rest is escaped for JSON.
+   * the operator words AND, OR and NOT, which the query_string grammar reads as
+   * operators, become spaces too, then the rest is escaped for JSON.
    *
    * @param text the typed term
    * @return the text to write between the quotes of "query"
    */
   private String escapeTerm(String text) {
-    String stripped = text.replaceAll("[\\Q+-!():^[]\"{}~*?|&/\\E\\\\]", " ").trim();
+    String stripped = text.replaceAll("[\\Q+-!():^[]\"{}~*?|&/\\E\\\\]", " ")
+                          .replaceAll(OPERATOR_WORD, " ")
+                          .trim();
     return JSONValue.escape(stripped);
   }
 
