@@ -1107,7 +1107,12 @@ public class TaskMcpTool implements McpToolPlugin {
                                                   Boolean.TRUE.equals(unassignedOnly),
                                                   Boolean.TRUE.equals(boardsOnly));
       if (GROUP_BY_PROJECT.equals(grouping)) {
-        setProjectCounts(collection, taskQuery, openQuery, zone, collection.getManagedProjectCount() != null);
+        setProjectCounts(collection,
+                         taskQuery,
+                         openQuery,
+                         zone,
+                         collection.getManagedProjectCount() != null,
+                         !filters.overdueOnly() && !isNarrowed(filters));
         collection.setSummary(getGroupedSummary(collection, filters));
       } else {
         collection.setGroupBy(grouping);
@@ -2865,7 +2870,10 @@ public class TaskMcpTool implements McpToolPlugin {
    * board, which counts the boards that hold open tasks too, and the overdue
    * ones among them with the rule of {@code overdue_only}; the boards left
    * out of the list and the personal tasks, on no board, are counted
-   * (EXO-94360).
+   * (EXO-94360). The overdue tasks are left out when the listing narrows
+   * the tasks a board holds (EXO-94935): they would be counted whatever its
+   * filters, so they are no part of what it counts (« 28 unassigned, 49
+   * overdue »).
    *
    * @param collection the listing's answer, to which the counts are added
    * @param taskQuery the listing's query
@@ -2875,12 +2883,16 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param managedTotals whether the answer counts the boards the user
    *          manages, which then also gives the boards with no open task and
    *          the overdue tasks of every board with the boards holding them
+   * @param withOverdue whether each board's overdue tasks are counted, and
+   *          those of every managed board: false for a listing that narrows
+   *          the tasks a board holds
    */
-  private void setProjectCounts(TaskCollectionModel collection,
+  private void setProjectCounts(TaskCollectionModel collection, // NOSONAR the listing's parts, each one its own
                                 TaskQuery taskQuery,
                                 TaskQuery openQuery,
                                 ZoneId zone,
-                                boolean managedTotals) {
+                                boolean managedTotals,
+                                boolean withOverdue) {
     List<ProjectTaskCountDto> counts = taskService.countTasksByProject(taskQuery);
     List<ProjectTaskCountDto> kept = counts.stream()
                                            .sorted(Comparator.comparingLong(ProjectTaskCountDto::getCount)
@@ -2898,12 +2910,15 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                 ProjectTaskCountDto::getCount));
     // the overdue tasks among them, so that one call gives a board's open and
     // overdue tasks
-    TaskQuery overdueQuery = openQuery.clone();
-    setOverdueOnly(overdueQuery, zone);
-    Map<Long, Long> overdue = taskService.countTasksByProject(overdueQuery)
-                                         .stream()
-                                         .collect(Collectors.toMap(ProjectTaskCountDto::getProjectId,
-                                                                   ProjectTaskCountDto::getCount));
+    Map<Long, Long> overdue = Collections.emptyMap();
+    if (withOverdue) {
+      TaskQuery overdueQuery = openQuery.clone();
+      setOverdueOnly(overdueQuery, zone);
+      overdue = taskService.countTasksByProject(overdueQuery)
+                           .stream()
+                           .collect(Collectors.toMap(ProjectTaskCountDto::getProjectId, ProjectTaskCountDto::getCount));
+    }
+    Map<Long, Long> overdueByBoard = overdue;
     // in each board's column order, as the engine returns them
     Map<Long, List<StatusTaskCountModel>> byStatus = new HashMap<>();
     taskService.countTasksByGroup(taskQuery, TaskGrouping.PROJECT_STATUS)
@@ -2918,7 +2933,8 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                                        open.getOrDefault(count.getProjectId(), 0L),
                                                                                        byStatus.getOrDefault(count.getProjectId(),
                                                                                                              Collections.emptyList()),
-                                                                                       overdue.getOrDefault(count.getProjectId(), 0L)))
+                                                                                       withOverdue ? overdueByBoard.getOrDefault(count.getProjectId(), 0L)
+                                                                                                   : null))
                                                .toList();
     long onBoards = counts.stream().mapToLong(ProjectTaskCountDto::getCount).sum();
     collection.setProjects(projects);
@@ -2929,8 +2945,10 @@ public class TaskMcpTool implements McpToolPlugin {
     if (managedTotals) {
       // the open boards are among the managed ones, through the same managers
       collection.setIdleProjectCount(Math.max(0, collection.getManagedProjectCount() - open.size()));
-      collection.setOverdueCount(overdue.values().stream().mapToLong(Long::longValue).sum());
-      collection.setOverdueProjectCount(overdue.size());
+      if (withOverdue) {
+        collection.setOverdueCount(overdue.values().stream().mapToLong(Long::longValue).sum());
+        collection.setOverdueProjectCount(overdue.size());
+      }
     }
   }
 
@@ -3355,7 +3373,8 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param count the count of the tasks a listing selects
    * @param filters the filters the listing applied
    * @return the start of a grouped listing's summary: the count, whether the
-   *         tasks are overdue or open, and the other filters
+   *         tasks are overdue, open, completed, or open and completed both
+   *         (EXO-94935), and the other filters
    */
   private static StringBuilder describeCount(long count, ListingFilters filters) {
     StringBuilder summary = new StringBuilder().append(count).append(' ');
@@ -3366,6 +3385,9 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (filters.completedOnly() && StringUtils.isBlank(filters.completedSince())) {
       // with completed_since, its own words already say the tasks are completed
       summary.append("completed ");
+    } else if (StringUtils.isBlank(filters.completedSince())) {
+      // the open and the completed ones, which a count must say (EXO-94935)
+      summary.append(count == 1 ? "open or completed " : "open and completed ");
     }
     return summary.append(count == 1 ? "task" : "tasks").append(describeFilters(filters));
   }

@@ -66,7 +66,10 @@ public class ProjectTaskCountModel {
   /**
    * The board's overdue tasks the user can access: open, due before today in
    * the user's time zone, within the listing's project and managed boards,
-   * whatever the listing's other filters (EXO-94360).
+   * whatever the listing's other filters (EXO-94360); none when a filter
+   * other than project_id, managed_only, boards_only or hide_completed_tasks
+   * narrows the listing, nor with overdue_only, since it would then count
+   * other tasks than the selected ones (EXO-94935).
    */
   @JsonProperty("overdue_count")
   @JsonInclude(Include.NON_NULL)
