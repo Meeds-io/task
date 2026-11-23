@@ -501,7 +501,7 @@
     {
       "name": "update_task_status",
       "title": "Update a Task status",
-      "description": "Update the status (AKA Dashboard UI column) of a task.",
+      "description": "Update the status (AKA Dashboard UI column) of a task: give the column as status_name, its name as the task's board shows it, or as status_id, one of the two. A name no column of the board has is refused with the board's column names.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -510,9 +510,13 @@
           },
           "status_id": {
             "type": "integer"
+          },
+          "status_name": {
+            "type": "string",
+            "description": "The column's name as the board shows it (« In Progress »), case and accents aside. Not with status_id."
           }
         },
-        "required": ["task_id", "status_id"]
+        "required": ["task_id"]
       },
       "annotations": {
         "readOnlyHint": false,
@@ -520,7 +524,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["status_id"] },
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["status_id", "status_name"] },
       "require_approval": true
     },
     {

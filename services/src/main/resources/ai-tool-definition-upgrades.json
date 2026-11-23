@@ -119,6 +119,12 @@
         "667ce69539c40342ce5c3a071eb2b86c286635d52709a1ffc2b66175b6648454",
         "69323fb78a650b8b1f46e9072f3847dbd77606f8c91c795c9d03f374f5687222"
       ]
+    },
+    {
+      "name": "update_task_status",
+      "replaced_definitions": [
+        "73e948631492f90b34a2c322cebdf1376dd605e44752272b5fa09a5a42117cc7"
+      ]
     }
   ]
 }

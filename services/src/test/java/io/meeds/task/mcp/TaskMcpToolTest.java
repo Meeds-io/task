@@ -338,7 +338,7 @@ public class TaskMcpToolTest {
     assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
     assertThrows(IllegalAccessException.class, () -> tool.addProjectLabelToTask(TASK_ID, 99L));
     assertThrows(IllegalAccessException.class, () -> tool.removeProjectLabelFromTask(TASK_ID, 99L));
-    assertThrows(IllegalAccessException.class, () -> tool.updateTaskStatus(TASK_ID, 8L));
+    assertThrows(IllegalAccessException.class, () -> tool.updateTaskStatus(TASK_ID, 8L, null));
 
     verify(taskService, never()).updateTask(any());
     verify(labelService, never()).addTaskToLabel(any(), anyLong());
@@ -727,10 +727,81 @@ public class TaskMcpToolTest {
     when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(statusService.getStatus(8L)).thenReturn(newStatus);
 
-    tool.updateTaskStatus(TASK_ID, 8L);
+    tool.updateTaskStatus(TASK_ID, 8L, null);
 
     verify(task).setStatus(newStatus);
     verify(taskService).updateTask(task);
+  }
+
+  /**
+   * A task moves to a column given by its name as the board shows it: its
+   * stored name or its label in the user's language, case, accents and spaces
+   * aside (EXO-94959). A name no column has is refused with the board's
+   * column names, one two columns have with both and their ids, and the
+   * status is given by its id or its name, never both nor neither; a task on
+   * no board has no column. Mutants: the label not compared; the accents
+   * compared; the second match ignored; both arguments accepted.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aTaskMovesToAColumnGivenByItsName() throws Exception { // NOSONAR
+    ResourceBundle bundle = new ListResourceBundle() {
+      @Override
+      protected Object[][] getContents() {
+        return new Object[][] { { "tasks.status.ToDo", "To Do" }, { "tasks.status.InProgress", "In Progress" },
+            { "tasks.status.RequestInProgress", "In Progress" } };
+      }
+    };
+    when(resourceBundleService.getResourceBundle(anyString(), any(Locale.class))).thenReturn(bundle);
+    TaskDto task = mockTaskWithProject();
+    ProjectDto project = task.getStatus().getProject();
+    StatusDto toDo = boardStatus(1L, "ToDo", project);
+    StatusDto inProgress = boardStatus(2L, "InProgress", project);
+    StatusDto validation = boardStatus(3L, "Validation régie", project);
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(List.of(toDo, inProgress, validation));
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+
+    tool.updateTaskStatus(TASK_ID, null, "in progress");
+    verify(task).setStatus(inProgress);
+    tool.updateTaskStatus(TASK_ID, null, "  VALIDATION   regie ");
+    verify(task).setStatus(validation);
+    tool.updateTaskStatus(TASK_ID, null, "todo");
+    verify(task).setStatus(toDo);
+    verify(taskService, times(3)).updateTask(task);
+
+    ObjectNotFoundException unknown = assertThrows(ObjectNotFoundException.class,
+                                                   () -> tool.updateTaskStatus(TASK_ID, null, "Doing"));
+    assertTrue(unknown.getMessage(), unknown.getMessage().contains("\"To Do\", \"In Progress\", \"Validation régie\""));
+    assertThrows(IllegalArgumentException.class, () -> tool.updateTaskStatus(TASK_ID, 2L, "In Progress"));
+    assertThrows(IllegalArgumentException.class, () -> tool.updateTaskStatus(TASK_ID, null, " "));
+
+    StatusDto requestInProgress = boardStatus(4L, "RequestInProgress", project);
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(List.of(inProgress, requestInProgress));
+    IllegalArgumentException ambiguous = assertThrows(IllegalArgumentException.class,
+                                                      () -> tool.updateTaskStatus(TASK_ID, null, "In Progress"));
+    String compact = ambiguous.getMessage().replaceAll("\\s", "");
+    assertTrue(ambiguous.getMessage(), compact.contains("\"status_id\":2") && compact.contains("\"status_id\":4"));
+
+    when(task.getStatus()).thenReturn(null);
+    assertThrows(ObjectNotFoundException.class, () -> tool.updateTaskStatus(TASK_ID, null, "To Do"));
+    verify(taskService, times(3)).updateTask(task);
+  }
+
+  /**
+   * @param id a status id
+   * @param name its stored name
+   * @param project its project
+   * @return the status
+   */
+  private static StatusDto boardStatus(long id, String name, ProjectDto project) {
+    StatusDto status = mock(StatusDto.class);
+    lenient().when(status.getId()).thenReturn(id);
+    lenient().when(status.getName()).thenReturn(name);
+    lenient().when(status.getRank()).thenReturn((int) id);
+    lenient().when(status.getProject()).thenReturn(project);
+    return status;
   }
 
   @Test
