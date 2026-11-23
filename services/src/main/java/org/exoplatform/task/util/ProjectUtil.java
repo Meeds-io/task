@@ -679,8 +679,25 @@ public final class ProjectUtil {
    * @return the identifiers of the projects
    */
   public static List<Long> getProjectIdsNamingUser(ProjectService projectService, Identity user) {
+    return getProjectIdsNamingUser(projectService, user, false);
+  }
+
+  /**
+   * Same as {@link #getProjectIdsNamingUser(ProjectService, Identity)},
+   * optionally keeping only the projects that name the user as manager.
+   *
+   * @param projectService the project service
+   * @param user the user
+   * @param managerOnly true to keep the projects naming the user as manager
+   * @return the identifiers of the projects
+   */
+  public static List<Long> getProjectIdsNamingUser(ProjectService projectService, Identity user, boolean managerOnly) {
     ProjectQuery query = new ProjectQuery();
-    query.setMembership(Collections.singletonList(user.getUserId()));
+    if (managerOnly) {
+      query.setManager(Collections.singletonList(user.getUserId()));
+    } else {
+      query.setMembership(Collections.singletonList(user.getUserId()));
+    }
     return projectService.findProjects(query, 0, -1)
                          .stream()
                          .filter(project -> project.isMemberOfProjectSpaces(user))

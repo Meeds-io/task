@@ -19,6 +19,8 @@
 package org.exoplatform.task.dao;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,6 +34,8 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.task.domain.Project;
+import org.exoplatform.task.domain.Status;
+import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.AbstractTest;
 
 public class TestProjectDAO extends AbstractTest {
@@ -194,5 +198,65 @@ public class TestProjectDAO extends AbstractTest {
     projects = pDAO.findAllByMembershipsAndKeyword(Arrays.asList("root"), "keTING", null);
     Assert.assertEquals(1, projects.getSize());
   }
-}
 
+  /**
+   * A project is selected by an identifier as well as by a membership, and
+   * the total counts the projects the page lists. Mutant: the identifiers
+   * ignored, or the total selecting the identifiers instead of counting them.
+   */
+  @Test
+  public void testNotEmptyProjectsAreSelectedByMembershipOrByIdentifier() {
+    Project spaceProject = createProjectWithOpenTasks("Space project",
+                                                      new HashSet<String>(Arrays.asList("manager:/spaces/team", "john")),
+                                                      new HashSet<String>());
+    Project keptProject = createProjectWithOpenTasks("Kept project",
+                                                     new HashSet<String>(),
+                                                     new HashSet<String>(Arrays.asList("john")));
+    // a project without open task is never listed
+    pDAO.create(new Project("Empty project", null, null, new HashSet<String>(Arrays.asList("manager:/spaces/team")), null));
+
+    List<String> teamMemberships = Arrays.asList("manager:/spaces/team");
+
+    // only the identifier selects: no membership
+    Assert.assertEquals(Arrays.asList(keptProject.getId()),
+                        ids(pDAO.findNotEmptyProjects(Collections.emptyList(), Arrays.asList(keptProject.getId()), "", 0, 20)));
+    Assert.assertEquals(1, pDAO.countNotEmptyProjects(Collections.emptyList(), Arrays.asList(keptProject.getId()), ""));
+
+    // neither a membership nor an identifier selects nothing
+    Assert.assertTrue(pDAO.findNotEmptyProjects(Collections.emptyList(), Collections.emptyList(), "", 0, 20).isEmpty());
+    Assert.assertEquals(0, pDAO.countNotEmptyProjects(Collections.emptyList(), Collections.emptyList(), ""));
+
+    // a membership alone selects the project it names
+    Assert.assertEquals(Arrays.asList(spaceProject.getId()),
+                        ids(pDAO.findNotEmptyProjects(teamMemberships, Collections.emptyList(), "", 0, 20)));
+    Assert.assertEquals(1, pDAO.countNotEmptyProjects(teamMemberships, ""));
+
+    // both select, and the total counts each project once
+    Assert.assertEquals(2, pDAO.findNotEmptyProjects(teamMemberships, Arrays.asList(keptProject.getId()), "", 0, 20).size());
+    Assert.assertEquals(2, pDAO.countNotEmptyProjects(teamMemberships, Arrays.asList(keptProject.getId()), ""));
+  }
+
+  private Project createProjectWithOpenTasks(String name, Set<String> managers, Set<String> participators) {
+    Project project = new Project(name, null, null, managers, participators);
+    project = pDAO.create(project);
+    Status status = new Status();
+    status.setName("TO DO");
+    status.setRank(1);
+    status.setProject(project);
+    daoHandler.getStatusHandler().create(status);
+    for (int i = 1; i <= 2; i++) {
+      Task task = new Task();
+      task.setTitle(name + " " + i);
+      task.setAssignee("mary");
+      task.setCreatedBy("mary");
+      task.setCreatedTime(new Date());
+      task.setStatus(status);
+      daoHandler.getTaskHandler().create(task);
+    }
+    return project;
+  }
+
+  private static List<Long> ids(List<Project> projects) {
+    return projects.stream().map(Project::getId).toList();
+  }
+}

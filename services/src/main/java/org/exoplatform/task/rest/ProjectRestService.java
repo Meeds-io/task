@@ -136,10 +136,10 @@ public class ProjectRestService implements ResourceContainer {
       List<ProjectDto> projects = new ArrayList<>();
       int projectNumber = 0;
       if (projectsFilter != null && projectsFilter.equals("MANAGED")) {
-        List<String> managers = new ArrayList<>();
-        managers.add(identity.getUserId());
+        // the query selects what the user can see: the pages and the total are consistent
         ProjectQuery projectQuery = new ProjectQuery();
-        projectQuery.setManager(managers);
+        projectQuery.setMembershipOrProjects(Collections.emptyList(),
+                                             ProjectUtil.getProjectIdsNamingUser(projectService, identity, true));
         projectQuery.setKeyword(query);
         OrderBy orderBy = new OrderBy.DESC("lastModifiedDate");
         projectQuery.setOrderBy(Arrays.asList(orderBy));
@@ -149,9 +149,11 @@ public class ProjectRestService implements ResourceContainer {
         projects = projectService.findCollaboratedProjects(identity.getUserId(), query, offset, limit);
         projectNumber = projectService.countCollaboratedProjects(identity.getUserId(), query);
       } else if (projectsFilter != null && projectsFilter.equals("WITH_TASKS")) {
-        memberships.addAll(UserUtil.getMemberships(identity));
-        projects = projectService.findNotEmptyProjects(memberships, query, offset, limit);
-        projectNumber = projectService.countNotEmptyProjects(memberships, query);
+        // the queries select what the user can see: the pages and the total are consistent
+        memberships.addAll(UserUtil.getMembershipsWithoutUserId(identity));
+        List<Long> namedProjectIds = ProjectUtil.getProjectIdsNamingUser(projectService, identity);
+        projects = projectService.findNotEmptyProjects(memberships, namedProjectIds, query, offset, limit);
+        projectNumber = projectService.countNotEmptyProjects(memberships, namedProjectIds, query);
       } else {
         ProjectQuery projectQuery = null;
         if (StringUtils.isNoneEmpty(spaceName)) {

@@ -20,6 +20,7 @@ package org.exoplatform.task.storage.impl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -163,8 +164,17 @@ public class ProjectStorageImpl implements ProjectStorage {
 
     @Override
     public List<ProjectDto> findNotEmptyProjects(List<String> memberships, String keyword,int offset ,int limit) {
+        return findNotEmptyProjects(memberships, Collections.emptyList(), keyword, offset, limit);
+    }
+
+    @Override
+    public List<ProjectDto> findNotEmptyProjects(List<String> memberships,
+                                                 List<Long> projectIds,
+                                                 String keyword,
+                                                 int offset,
+                                                 int limit) {
         try {
-            return daoHandler.getProjectHandler().findNotEmptyProjects(memberships,keyword,offset, limit).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).collect(Collectors.toList());
+            return daoHandler.getProjectHandler().findNotEmptyProjects(memberships, projectIds, keyword, offset, limit).stream().map((Project project) -> StorageUtil.projectToDto(project,this)).collect(Collectors.toList());
         } catch (Exception e) {
             return new ArrayList<>();
         }
@@ -181,8 +191,13 @@ public class ProjectStorageImpl implements ProjectStorage {
 
     @Override
     public int countNotEmptyProjects(List<String> memberships, String keyword) {
+        return countNotEmptyProjects(memberships, Collections.emptyList(), keyword);
+    }
+
+    @Override
+    public int countNotEmptyProjects(List<String> memberships, List<Long> projectIds, String keyword) {
         try {
-            return daoHandler.getProjectHandler().countNotEmptyProjects(memberships,keyword);
+            return daoHandler.getProjectHandler().countNotEmptyProjects(memberships, projectIds, keyword);
         } catch (Exception e) {
             return 0;
         }

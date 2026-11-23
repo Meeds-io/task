@@ -50,6 +50,39 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
 
   private static final Logger LOG = Logger.getLogger("ProjectDAOImpl");
 
+  /**
+   * The projects, named by a membership or selected by identifier, that hold
+   * at least one open task.
+   */
+  private static final String NOT_EMPTY_PROJECTS_FROM_WHERE =
+      "FROM TASK_PROJECTS p \n" +
+      "where \n" +
+      "lower(p.NAME) LIKE lower(concat('%', :keyword , '%'))\n" +
+      "AND\n" +
+      "(p.PROJECT_ID in (\n" +
+      "SELECT man.PROJECT_ID\n" +
+      "            FROM TASK_PROJECT_MANAGERS AS man\n" +
+      "            WHERE man.MANAGER IN (:memberships) \t\t    \n" +
+      ") or \n" +
+      "p.PROJECT_ID in (\n" +
+      "SELECT part.PROJECT_ID\n" +
+      "            FROM TASK_PROJECT_PARTICIPATORS AS part\n" +
+      "            WHERE part.PARTICIPATOR IN (:memberships) \n" +
+      ") or \n" +
+      "p.PROJECT_ID IN (:projectIds)\n" +
+      ") AND p.PROJECT_ID in (\n" +
+      "SELECT distinct(ts.PROJECT_ID)\n" +
+      "FROM TASK_STATUS AS ts\n" +
+      "WHERE ts.STATUS_ID IN(\n" +
+      "SELECT tcol.STATUS_ID FROM  \n" +
+      "(SELECT task.STATUS_ID AS STATUS_ID , COUNT(*) \n" +
+      "FROM TASK_TASKS AS task \n" +
+      "WHERE task.COMPLETED = false\n" +
+      "GROUP BY task.STATUS_ID\n" +
+      "HAVING COUNT(*)> 0) AS tcol\n" +
+      ") \n" +
+      ")\n";
+
   public ProjectDAOImpl() {
   }
 
@@ -250,34 +283,19 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
 
     @Override
     public List<Project> findNotEmptyProjects(List<String> memberships, String keyword,int offset ,int limit) {
-   Query q = getEntityManager().createNativeQuery(
-           "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
-                   "where \n" +
-                   "lower(p.NAME) LIKE lower(concat('%', :keyword , '%'))\n" +
-                   "AND\n" +
-                   "(p.PROJECT_ID in (\n" +
-                   "SELECT man.PROJECT_ID\n" +
-                   "            FROM TASK_PROJECT_MANAGERS AS man\n" +
-                   "            WHERE man.MANAGER IN (:memberships) \t\t    \n" +
-                   ") or \n" +
-                   "p.PROJECT_ID in (\n" +
-                   "SELECT part.PROJECT_ID\n" +
-                   "            FROM TASK_PROJECT_PARTICIPATORS AS part\n" +
-                   "            WHERE part.PARTICIPATOR IN (:memberships) \n" +
-                   ") ) AND p.PROJECT_ID in (\n" +
-                   "SELECT distinct(ts.PROJECT_ID)\n" +
-                   "FROM TASK_STATUS AS ts\n" +
-                   "WHERE ts.STATUS_ID IN(\n" +
-                   "SELECT tcol.STATUS_ID FROM  \n" +
-                   "(SELECT task.STATUS_ID AS STATUS_ID , COUNT(*) \n" +
-                   "FROM TASK_TASKS AS task \n" +
-                   "WHERE task.COMPLETED = false\n" +
-                   "GROUP BY task.STATUS_ID\n" +
-                   "HAVING COUNT(*)> 0) AS tcol\n" +
-                   ") \n" +
-                   ")\n");
+      return findNotEmptyProjects(memberships, Collections.emptyList(), keyword, offset, limit);
+    }
+
+    @Override
+    public List<Project> findNotEmptyProjects(List<String> memberships,
+                                              List<Long> projectIds,
+                                              String keyword,
+                                              int offset,
+                                              int limit) {
+   Query q = getEntityManager().createNativeQuery("SELECT DISTINCT(p.PROJECT_ID) " + NOT_EMPTY_PROJECTS_FROM_WHERE);
    q.setParameter("keyword", keyword);
-   q.setParameter("memberships", memberships);
+   q.setParameter("memberships", notEmpty(memberships, ""));
+   q.setParameter("projectIds", notEmpty(projectIds, -1L));
    if (limit > 0) {
        q.setFirstResult(offset).setMaxResults(limit);
    }
@@ -335,36 +353,25 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
 
     @Override
     public int countNotEmptyProjects(List<String> memberships, String keyword) {
-   Query q = getEntityManager().createNativeQuery(
-           "SELECT DISTINCT(p.PROJECT_ID) FROM TASK_PROJECTS p \n" +
-                   "where \n" +
-                   "lower(p.NAME) LIKE lower(concat('%', :keyword , '%'))\n" +
-                   "AND\n" +
-                   "(p.PROJECT_ID in (\n" +
-                   "SELECT man.PROJECT_ID\n" +
-                   "            FROM TASK_PROJECT_MANAGERS AS man\n" +
-                   "            WHERE man.MANAGER IN (:memberships) \t\t    \n" +
-                   ") or \n" +
-                   "p.PROJECT_ID in (\n" +
-                   "SELECT part.PROJECT_ID\n" +
-                   "            FROM TASK_PROJECT_PARTICIPATORS AS part\n" +
-                   "            WHERE part.PARTICIPATOR IN (:memberships) \n" +
-                   ") ) AND p.PROJECT_ID in (\n" +
-                   "SELECT distinct(ts.PROJECT_ID)\n" +
-                   "FROM TASK_STATUS AS ts\n" +
-                   "WHERE ts.STATUS_ID IN(\n" +
-                   "SELECT tcol.STATUS_ID FROM  \n" +
-                   "(SELECT task.STATUS_ID AS STATUS_ID , COUNT(*) \n" +
-                   "FROM TASK_TASKS AS task \n" +
-                   "WHERE task.COMPLETED = false\n" +
-                   "GROUP BY task.STATUS_ID\n" +
-                   "HAVING COUNT(*)> 0) AS tcol\n" +
-                   ") \n" +
-                   ")\n");
+      return countNotEmptyProjects(memberships, Collections.emptyList(), keyword);
+    }
+
+    @Override
+    public int countNotEmptyProjects(List<String> memberships, List<Long> projectIds, String keyword) {
+   Query q = getEntityManager().createNativeQuery("SELECT COUNT(DISTINCT p.PROJECT_ID) " + NOT_EMPTY_PROJECTS_FROM_WHERE);
    q.setParameter("keyword", keyword);
-   q.setParameter("memberships", memberships);
+   q.setParameter("memberships", notEmpty(memberships, ""));
+   q.setParameter("projectIds", notEmpty(projectIds, -1L));
         int result = Integer.parseInt(q.getSingleResult().toString());
         return result ;
+  }
+
+  /**
+   * A native {@code IN} list cannot be empty: an empty selection becomes a
+   * placeholder that matches nothing.
+   */
+  private static <T> List<T> notEmpty(List<T> values, T placeholder) {
+    return values == null || values.isEmpty() ? Collections.singletonList(placeholder) : values;
   }
 
   protected List<Project> findIdentitiesByIDs(List<Long> ids) {

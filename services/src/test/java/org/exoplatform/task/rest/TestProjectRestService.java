@@ -298,6 +298,87 @@ public class TestProjectRestService {
     assertFalse(valuesOf(condition, Conditions.PARTICIPATOR).contains("john"));
   }
 
+  /**
+   * The "Managed" filter selects, in the query, the projects naming the user as
+   * manager that still grant a right: the page is full whenever more projects
+   * follow, and the total is the query's. Mutant: the user's id left as manager
+   * of the query.
+   */
+  @Test
+  public void testGetManagedProjectsSelectsTheProjectsNamingTheUserOnlyWhileTheyKeepTheRight() throws Exception {
+    ProjectRestService projectRestService = projectRestService();
+    Identity john = new Identity("john", Arrays.asList(new MembershipEntry("/platform/users", "member")));
+    ConversationState.setCurrent(new ConversationState(john));
+    ProjectDto spaceProject = new ProjectDto();
+    spaceProject.setId(1);
+    spaceProject.setManager(new HashSet<>(Arrays.asList("john", "manager:/spaces/team")));
+    ProjectDto keptProject = new ProjectDto();
+    keptProject.setId(2);
+    keptProject.setManager(new HashSet<>(Arrays.asList("john")));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(spaceProject, keptProject));
+    ArgumentCaptor<ProjectQuery> query = ArgumentCaptor.forClass(ProjectQuery.class);
+    when(projectService.findProjects(query.capture(), eq(0), eq(20))).thenReturn(new ArrayList<>());
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(25);
+
+    Response response = projectRestService.getProjects("", null, "MANAGED", 0, 20, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(25, new JSONObject(response.getEntity().toString()).getInt("projectNumber"));
+    Condition condition = query.getAllValues().get(query.getAllValues().size() - 1).getCondition();
+    assertEquals(Arrays.asList(2L), valuesOf(condition, Conditions.ID));
+    assertFalse("the user's id is not a manager of the query", valuesOf(condition, Conditions.MANAGER).contains("john"));
+    assertTrue(valuesOf(condition, Conditions.PARTICIPATOR).isEmpty());
+  }
+
+  /**
+   * The "With tasks" filter selects the user's memberships without the user's
+   * id, and the projects naming the user by id that still grant a right, for
+   * both the page and the total. Mutant: the user's id left among the
+   * memberships, or the identifiers not passed.
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testGetProjectsWithTasksSelectsTheProjectsNamingTheUserOnlyWhileTheyKeepTheRight() throws Exception {
+    ProjectRestService projectRestService = projectRestService();
+    Identity john = new Identity("john", Arrays.asList(new MembershipEntry("/platform/users", "member")));
+    ConversationState.setCurrent(new ConversationState(john));
+    ProjectDto spaceProject = new ProjectDto();
+    spaceProject.setId(1);
+    spaceProject.setManager(new HashSet<>(Arrays.asList("john", "manager:/spaces/team")));
+    ProjectDto keptProject = new ProjectDto();
+    keptProject.setId(2);
+    keptProject.setParticipator(new HashSet<>(Arrays.asList("john")));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(spaceProject, keptProject));
+    ArgumentCaptor<List<String>> pageMemberships = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<List<Long>> pageIds = ArgumentCaptor.forClass(List.class);
+    when(projectService.findNotEmptyProjects(pageMemberships.capture(), pageIds.capture(), eq(""), eq(0), eq(20))).thenReturn(new ArrayList<>());
+    ArgumentCaptor<List<String>> totalMemberships = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<List<Long>> totalIds = ArgumentCaptor.forClass(List.class);
+    when(projectService.countNotEmptyProjects(totalMemberships.capture(), totalIds.capture(), eq(""))).thenReturn(25);
+
+    Response response = projectRestService.getProjects("", null, "WITH_TASKS", 0, 20, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(25, new JSONObject(response.getEntity().toString()).getInt("projectNumber"));
+    assertEquals(Arrays.asList(2L), pageIds.getValue());
+    assertEquals(Arrays.asList(2L), totalIds.getValue());
+    assertTrue(pageMemberships.getValue().contains("member:/platform/users"));
+    assertFalse("the user's id is not a membership", pageMemberships.getValue().contains("john"));
+    assertFalse("the user's id is not a membership", totalMemberships.getValue().contains("john"));
+  }
+
+  private ProjectRestService projectRestService() {
+    return new ProjectRestService(taskService,
+                                  commentService,
+                                  projectService,
+                                  statusService,
+                                  userService,
+                                  spaceService,
+                                  labelService,
+                                  identityManager,
+                                  favoriteService);
+  }
+
   private static List<Object> valuesOf(Condition condition, String field) {
     List<Object> values = new ArrayList<>();
     if (condition instanceof AggregateCondition aggregate) {

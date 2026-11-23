@@ -30,9 +30,17 @@ public interface ProjectHandler extends GenericDAO<Project, Long> {
 
     List<Project> findNotEmptyProjects(List<String> memberships, String keyword,int offset ,int limit);
 
+    /**
+     * Same as {@link #findNotEmptyProjects(List, String, int, int)}, selecting
+     * also the given projects whatever their memberships.
+     */
+    List<Project> findNotEmptyProjects(List<String> memberships, List<Long> projectIds, String keyword, int offset, int limit);
+
     int countCollaboratedProjects(String userName, String keyword);
 
     int countNotEmptyProjects(List<String> memberships, String keyword);
+
+    int countNotEmptyProjects(List<String> memberships, List<Long> projectIds, String keyword);
 
     public <T> List<T> selectProjectField(ProjectQuery query, String fieldName);
   
