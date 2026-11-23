@@ -122,8 +122,10 @@ public class TaskSearchConnector {
   private static final String    OPERATOR_WORD                 = "(?<!\\S)(?:AND|OR|NOT)(?!\\S)";
 
   /**
-   * Every Unicode space or separator, the ideographic space included, which
-   * the query_string grammar reads as a token separator.
+   * Every Unicode space or separator becomes a plain space, so the
+   * operator-word rule and {@code trim} split where the query_string grammar
+   * does (it splits on the ideographic space U+3000 as well as the ASCII
+   * ones); the other spaces are normalised the same way for consistency.
    */
   private static final String    SPACE_CHARACTERS              = "[\\p{Z}\\s\\x1C-\\x1F]";
 
