@@ -123,7 +123,8 @@
     {
       "name": "update_task_status",
       "replaced_definitions": [
-        "73e948631492f90b34a2c322cebdf1376dd605e44752272b5fa09a5a42117cc7"
+        "73e948631492f90b34a2c322cebdf1376dd605e44752272b5fa09a5a42117cc7",
+        "5491f8fc68329c237ef12f7526307e4599e392d22fcf4380d46fdb8c44f84ce5"
       ]
     }
   ]
