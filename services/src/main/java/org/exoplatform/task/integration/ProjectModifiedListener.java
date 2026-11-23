@@ -32,7 +32,7 @@ import io.meeds.common.ContainerTransactional;
 public class ProjectModifiedListener extends Listener<ProjectService, ProjectDto> {
 
   @Override
-  @ContainerTransactional
+  @ContainerTransactional(atomic = true)
   public void onEvent(Event<ProjectService, ProjectDto> event) throws Exception {
     ProjectStorage storage = CommonsUtils.getService(ProjectStorage.class);
     ProjectDto data = event.getData();

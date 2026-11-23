@@ -34,7 +34,6 @@ import jakarta.persistence.criteria.Root;
 
 import org.apache.commons.lang3.StringUtils;
 
-import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.social.core.jpa.storage.entity.IdentityEntity;
 import org.exoplatform.task.dao.OrderBy;
@@ -58,8 +57,6 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
   }
 
   @Override
-  // The caller (a listener) opens no JPA transaction, the bulk update needs one
-  @ExoTransactional
   public void updateLastModifiedDate(long projectId, long lastModifiedDate) {
     getEntityManager().createQuery("UPDATE TaskProject p SET p.lastModifiedDate = :date WHERE p.id = :id")
                       .setParameter("date", lastModifiedDate)

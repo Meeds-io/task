@@ -102,10 +102,12 @@ public class ProjectModifiedListenerTest extends AbstractTest {
     storage.removeProject(projectId, false);
     RequestLifeCycle.restartTransaction();
 
+    long boardsBefore = countBoards();
     new ProjectModifiedListener().onEvent(new Event<ProjectService, ProjectDto>("exo.project.projectModified", null, project));
     RequestLifeCycle.restartTransaction();
 
     Assert.assertNull(storage.getProject(projectId));
+    Assert.assertEquals(boardsBefore, countBoards());
   }
 
   @Test
@@ -127,6 +129,14 @@ public class ProjectModifiedListenerTest extends AbstractTest {
 
   private static Date localDate(int day) {
     return Date.from(LocalDate.of(2030, 3, day).atStartOfDay(ZoneId.systemDefault()).toInstant());
+  }
+
+  private long countBoards() {
+    EntityManagerService entityManagerService = PortalContainer.getInstance()
+                                                               .getComponentInstanceOfType(EntityManagerService.class);
+    return entityManagerService.getEntityManager()
+                               .createQuery("SELECT COUNT(p) FROM TaskProject p", Long.class)
+                               .getSingleResult();
   }
 
   private long storedLastModifiedDate(long projectId) {
