@@ -1087,10 +1087,9 @@ public class TaskRestService implements ResourceContainer {
   @DELETE
   @Path("comments/{commentId}")
   @RolesAllowed("users")
-  @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Deletes a specific task comment by id", method = "DELETE", description = "This deletes a specific task comment by id")
   @ApiResponses(value = {
-          @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "204", description = "Comment deleted, no content"),
           @ApiResponse(responseCode = "403", description = "Unauthorized operation"),
           @ApiResponse(responseCode = "404", description = "Resource not found") })
   public Response deleteComment(@Parameter(description = "Comment id", required = true) @PathParam("commentId") long commentId) {
@@ -1104,8 +1103,7 @@ public class TaskRestService implements ResourceContainer {
       return Response.status(Response.Status.FORBIDDEN).build();
     }
     commentService.removeComment(commentId);
-    transformHtml(comment, currentIdentity);
-    return Response.ok(comment).build();
+    return Response.noContent().build();
         } catch (Exception e) {
         LOG.error("Can't delete Comment {}", commentId, e);
         return Response.serverError().entity(e.getMessage()).build();
