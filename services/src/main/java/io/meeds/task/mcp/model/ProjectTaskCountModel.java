@@ -39,7 +39,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 // the board's own counts before its split by status: the default mapper would
 // write the keys in alphabetical order, by_status and its counts first
-@JsonPropertyOrder({ "project_id", "project_name", "count", "open_count", "overdue_count", "by_status" })
+@JsonPropertyOrder({ "project_id", "project_name", "count", "selected_open_count", "selected_completed_count", "open_count",
+    "overdue_count", "by_status" })
 public class ProjectTaskCountModel {
 
   @JsonProperty("project_id")
@@ -76,6 +77,22 @@ public class ProjectTaskCountModel {
   private Long                       overdueCount;
 
   /**
+   * The board's selected tasks that are open, when the listing keeps the open
+   * and the completed tasks both (EXO-94935).
+   */
+  @JsonProperty("selected_open_count")
+  @JsonInclude(Include.NON_NULL)
+  private Long                       selectedOpenCount;
+
+  /**
+   * The board's selected tasks that are completed, when the listing keeps the
+   * open and the completed tasks both (EXO-94935).
+   */
+  @JsonProperty("selected_completed_count")
+  @JsonInclude(Include.NON_NULL)
+  private Long                       selectedCompletedCount;
+
+  /**
    * A board's counts with no split by status.
    *
    * @param projectId the board
@@ -85,6 +102,25 @@ public class ProjectTaskCountModel {
    */
   public ProjectTaskCountModel(long projectId, String projectName, long count, long openCount) {
     this(projectId, projectName, count, openCount, null, null);
+  }
+
+  /**
+   * A board's counts with its split by status and its overdue tasks.
+   *
+   * @param projectId the board
+   * @param projectName the name of the board
+   * @param count the tasks of the board that the listing's filters select
+   * @param openCount every open task of the board the user can access
+   * @param byStatus the board's selected tasks status by status
+   * @param overdueCount the board's overdue tasks, or null when not counted
+   */
+  public ProjectTaskCountModel(long projectId,
+                               String projectName,
+                               long count,
+                               long openCount,
+                               List<StatusTaskCountModel> byStatus,
+                               Long overdueCount) {
+    this(projectId, projectName, count, openCount, byStatus, overdueCount, null, null);
   }
 
 }
