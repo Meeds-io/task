@@ -160,11 +160,16 @@ public class ProjectRestService implements ResourceContainer {
             projectQuery = new ProjectQuery();
             // the space's projects, among which the user's visible ones
             projectQuery.setMembership(UserUtil.getSpaceMemberships(space.getGroupId()));
-            projectQuery.setMembership(UserUtil.getMembershipsInSpace(identity, space.getGroupId()));
+            List<String> userMemberships = UserUtil.getMembershipsInSpace(identity, space.getGroupId());
+            userMemberships.removeIf(identity.getUserId()::equals);
+            projectQuery.setMembershipOrProjects(userMemberships,
+                                                 ProjectUtil.getProjectIdsNamingUser(projectService, identity));
           }
         } else {
+          // the query selects what the user can see: the pages and the total are consistent
           projectQuery = new ProjectQuery();
-          projectQuery.setMembership(UserUtil.getMemberships(identity));
+          projectQuery.setMembershipOrProjects(UserUtil.getMembershipsWithoutUserId(identity),
+                                               ProjectUtil.getProjectIdsNamingUser(projectService, identity));
         }
         if (projectQuery != null) {
           // one query for the list and its total, which counts each project once
@@ -177,7 +182,6 @@ public class ProjectRestService implements ResourceContainer {
       JSONObject global = new JSONObject();
       JSONArray projectsJsonArray = new JSONArray();
       projectsJsonArray = buildJSON(projectsJsonArray, projects, participatorParam);
-      projectNumber -= projects.size() - projectsJsonArray.length();
       global.put("projects", projectsJsonArray);
       global.put("projectNumber", projectNumber);
       return Response.ok(global.toString()).build();

@@ -518,7 +518,7 @@ public class TestTaskDAO extends AbstractTest {
     //
     query = new TaskQuery();
     Identity user = new Identity(username);
-    query.setAccessible(user);
+    query.setAccessible(user, Arrays.asList(project.getId()));
     query.setKeyword("Task");
     listTasks = tDAO.findTasks(query);
     Assert.assertEquals(1, ListUtil.getSize(listTasks));
@@ -534,12 +534,47 @@ public class TestTaskDAO extends AbstractTest {
     //
     
     query = new TaskQuery();
-    query.setAccessible(user);
+    query.setAccessible(user, Arrays.asList(project.getId()));
     query.setKeyword("Task");
     listTasks = tDAO.findTasks(query);
     Assert.assertEquals(2, ListUtil.getSize(listTasks));
   }
   
+  @Test
+  public void testAccessibleTasksOfANamedUserArePagedAndCountedOverTheProjectsTheyKeep() throws Exception {
+    Project spaceProject = new Project();
+    spaceProject.setName("Space project");
+    spaceProject.setManager(new HashSet<String>(Arrays.asList("manager:/spaces/team", "john")));
+    spaceProject = daoHandler.getProjectHandler().create(spaceProject);
+    Project keptProject = new Project();
+    keptProject.setName("Kept project");
+    keptProject.setParticipator(new HashSet<String>(Arrays.asList("john")));
+    keptProject = daoHandler.getProjectHandler().create(keptProject);
+    for (Project project : Arrays.asList(spaceProject, keptProject)) {
+      Status status = newStatusInstance("TO DO", 1);
+      status.setProject(project);
+      daoHandler.getStatusHandler().create(status);
+      for (int i = 1; i <= 3; i++) {
+        Task task = newTaskInstance(project.getName() + " " + i, "", "mary");
+        task.setStatus(status);
+        tDAO.create(task);
+      }
+    }
+
+    // john left the space: only the project that still grants him a right is selected, by its identifier
+    TaskQuery query = new TaskQuery();
+    query.setAccessible(new Identity("john"), Arrays.asList(keptProject.getId()));
+    ListAccess<Task> tasks = tDAO.findTasks(query);
+    Assert.assertEquals(3, tasks.getSize());
+    Assert.assertEquals(2, ListUtil.load(tasks, 0, 2).length);
+    Assert.assertEquals(1, ListUtil.load(tasks, 2, 2).length);
+
+    // no project grants him a right: his id alone selects nothing
+    query = new TaskQuery();
+    query.setAccessible(new Identity("john"), Arrays.asList());
+    Assert.assertEquals(0, tDAO.findTasks(query).getSize());
+  }
+
   @Test
   public void testFindTasksByLabel() throws Exception {
     Project project = new Project();

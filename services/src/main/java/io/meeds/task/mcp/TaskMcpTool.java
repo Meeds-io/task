@@ -202,8 +202,10 @@ public class TaskMcpTool implements McpToolPlugin {
                                              Integer offset,
                                              Integer limit) {
     Space space = spaceId != null && spaceId > 0 ? spaceService.getSpaceById(spaceId) : null;
-    List<ProjectModel> projects = getProjectModels(space, offset, limit);
-    long count = countProjects(space);
+    // one query for the list and its total, which counts each project once
+    ProjectQuery projectsQuery = projectsQuery(space);
+    List<ProjectModel> projects = getProjectModels(projectsQuery, offset, limit);
+    long count = projectService.countProjects(projectsQuery);
     return new ProjectCollectionModel(projects,
                                       getInteger(offset, DEFAULT_OFFSET),
                                       getInteger(limit, DEFAULT_LIMIT),
@@ -275,6 +277,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                                             getInteger(offset, DEFAULT_OFFSET),
                                                                                             getInteger(limit, DEFAULT_LIMIT));
     if (projectId == null || projectId <= 0) {
+      // a defence only: the query selects what the user can see
       tasks = filterViewableTasks(tasks);
     }
     List<? extends TaskModel> taskModels = Boolean.TRUE.equals(includeChangeLog) ?
@@ -1047,29 +1050,32 @@ public class TaskMcpTool implements McpToolPlugin {
     return tasks.stream().filter(t -> TaskUtil.canViewTask(taskService, t, identity)).toList();
   }
 
-  private long countProjects(Space space) {
-    // the same query as the list, so the total counts each project once
-    return projectService.countProjects(projectsQuery(space));
-  }
-
   private ProjectQuery projectsQuery(Space space) {
     ProjectQuery query = new ProjectQuery();
     Identity identity = getCurrentUserAclIdentity();
+    // a project naming the user by id is selected only while it grants a right
+    List<Long> projectIdsNamingUser = ProjectUtil.getProjectIdsNamingUser(projectService, identity);
     if (space == null) {
-      query.setMembership(UserUtil.getMemberships(identity));
+      query.setMembershipOrProjects(UserUtil.getMembershipsWithoutUserId(identity), projectIdsNamingUser);
     } else {
       // the space's projects, among which the user's visible ones
       query.setMembership(UserUtil.getSpaceMemberships(space.getGroupId()));
-      query.setMembership(UserUtil.getMembershipsInSpace(identity, space.getGroupId()));
+      List<String> userMemberships = UserUtil.getMembershipsInSpace(identity, space.getGroupId());
+      userMemberships.removeIf(identity.getUserId()::equals);
+      query.setMembershipOrProjects(userMemberships, projectIdsNamingUser);
     }
     query.setOrderBy(List.of(new OrderBy.DESC("lastModifiedDate")));
     return query;
   }
 
-  private List<ProjectModel> getProjectModels(Space space, Integer offset, Integer limit) {
-    List<ProjectDto> projects = projectService.findProjects(projectsQuery(space),
+  private List<ProjectModel> getProjectModels(ProjectQuery projectsQuery, Integer offset, Integer limit) {
+    List<ProjectDto> projects = projectService.findProjects(projectsQuery,
                                                             getInteger(offset, DEFAULT_OFFSET),
                                                             getInteger(limit, DEFAULT_LIMIT));
+    return toProjectModels(projects);
+  }
+
+  private List<ProjectModel> toProjectModels(List<ProjectDto> projects) {
     if (CollectionUtils.isEmpty(projects)) {
       return Collections.emptyList();
     } else {
@@ -1112,7 +1118,7 @@ public class TaskMcpTool implements McpToolPlugin {
       }
       taskQuery.setProjectIds(Collections.singletonList(projectId));
     } else {
-      taskQuery.setAccessible(aclIdentity);
+      taskQuery.setAccessible(aclIdentity, ProjectUtil.getProjectIdsNamingUser(projectService, aclIdentity));
     }
     if (overdueOnly) {
       setOverdueOnly(taskQuery, zone);

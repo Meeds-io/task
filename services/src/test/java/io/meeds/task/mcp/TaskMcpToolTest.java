@@ -87,6 +87,7 @@ import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
+import org.exoplatform.task.dao.condition.Conditions;
 import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.domain.Task;
@@ -1505,9 +1506,10 @@ public class TaskMcpToolTest {
     ArgumentCaptor<ProjectQuery> countQuery = ArgumentCaptor.forClass(ProjectQuery.class);
     verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
     verify(projectService).countProjects(countQuery.capture());
-    // a project of the space that names the user, a member of another space, is matched by the user's id
+    // the user's memberships, without the user's id: a project naming the user
+    // is selected by its id only while it grants a right
     List<Set<String>> expected = List.of(Set.of("manager:/spaces/space1", "member:/spaces/space1"),
-                                         Set.of("mary", "*:/spaces/other", "member:/spaces/other"));
+                                         Set.of("*:/spaces/other", "member:/spaces/other"));
     assertEquals(expected, inConditions(listQuery.getValue().getCondition()));
     assertEquals(expected, inConditions(countQuery.getValue().getCondition()));
   }
@@ -1525,7 +1527,7 @@ public class TaskMcpToolTest {
     ArgumentCaptor<ProjectQuery> listQuery = ArgumentCaptor.forClass(ProjectQuery.class);
     verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
     assertEquals(List.of(Set.of("manager:/spaces/space1", "member:/spaces/space1"),
-                         Set.of("mary", "*:/spaces/space1", "manager:/spaces/space1", "member:/spaces/space1")),
+                         Set.of("*:/spaces/space1", "manager:/spaces/space1", "member:/spaces/space1")),
                  inConditions(listQuery.getValue().getCondition()));
   }
 
@@ -1561,10 +1563,41 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * A user named by id on a space project's managers who left the space is
-   * matched by the memberships-based task query, which carries the bare user
-   * name; the tasks of that project are dropped, the user's own assigned
-   * task stays. Mutant: the view filter of listTasks removed.
+   * list_tasks without a project selects the tasks of the projects naming the
+   * user by id only for those that still grant a right, so its page and its
+   * count leave out the project of a space the user left. Mutant: the user's
+   * id left among the memberships, or the space project among the selected
+   * projects.
+   */
+  @Test
+  public void listTasksWithoutProjectQuerySelectsOnlyTheProjectsTheNamedUserKeeps() throws Exception {// NOSONAR
+    ProjectDto spaceProject = new ProjectDto();
+    spaceProject.setId(PROJECT_ID);
+    spaceProject.setManager(new HashSet<>(Arrays.asList(USER, "manager:/spaces/team")));
+    ProjectDto keptProject = new ProjectDto();
+    keptProject.setId(PROJECT_ID + 1);
+    keptProject.setParticipator(new HashSet<>(Arrays.asList(USER)));
+    when(currentIdentity.getMemberships()).thenReturn(Arrays.asList(new MembershipEntry("/platform/users", "member")));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(spaceProject, keptProject));
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    when(taskService.countTasks(any())).thenReturn(0);
+
+    tool.listTasks(null, false, false, null, null, null);
+
+    Condition condition = query.getValue().getCondition();
+    assertEquals(Collections.singletonList(PROJECT_ID + 1), valuesOf(condition, Conditions.TASK_PROJECT));
+    assertTrue(valuesOf(condition, Conditions.TASK_MANAGER).contains("member:/platform/users"));
+    assertFalse("the user's id is not a membership", valuesOf(condition, Conditions.TASK_MANAGER).contains(USER));
+    assertFalse(valuesOf(condition, Conditions.TASK_PARTICIPATOR).contains(USER));
+    verify(taskService).countTasks(query.getValue());
+  }
+
+  /**
+   * Defence in depth: whatever the query returns, a task the user can no
+   * longer see (a user named by id on a space project's managers who left the
+   * space) is dropped, the user's own assigned task stays. Mutant: the view
+   * filter of listTasks removed.
    */
   @Test
   public void listTasksWithoutProjectDropsTheTasksOfASpaceProjectTheNamedManagerLeft() throws Exception {// NOSONAR
@@ -1588,20 +1621,34 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * list_projects without a space drops a space project whose named manager
-   * left the space. Mutant: the view filter of the project models removed.
+   * list_projects without a space selects, besides the memberships the user
+   * holds, only the projects naming the user by id that still grant a right:
+   * the page and the count come from the same query, so they stay consistent
+   * for a user who left a space. Mutant: the user's id left among the
+   * memberships, or the space project left among the selected projects.
    */
   @Test
-  public void listProjectsDropsASpaceProjectTheNamedManagerLeft() throws Exception { // NOSONAR
+  public void listProjectsSelectsTheProjectsNamingTheUserOnlyWhileTheyKeepTheRight() throws Exception { // NOSONAR
     ProjectDto spaceProject = new ProjectDto();
     spaceProject.setId(PROJECT_ID);
     spaceProject.setManager(new HashSet<>(Arrays.asList(USER, "manager:/spaces/team")));
-    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(Collections.singletonList(spaceProject));
-    when(projectService.countProjects(any(), eq(null))).thenReturn(1);
+    ProjectDto keptProject = new ProjectDto();
+    keptProject.setId(PROJECT_ID + 1);
+    keptProject.setManager(new HashSet<>(Arrays.asList(USER)));
+    when(currentIdentity.getMemberships()).thenReturn(Arrays.asList(new MembershipEntry("/platform/users", "member")));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(spaceProject, keptProject));
+    ArgumentCaptor<ProjectQuery> query = ArgumentCaptor.forClass(ProjectQuery.class);
+    when(projectService.findProjects(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
 
-    ProjectCollectionModel result = tool.listProjects(null, null, null);
+    tool.listProjects(null, null, null);
 
-    assertTrue(result.getProjects().isEmpty());
+    ProjectQuery listQuery = query.getAllValues().get(query.getAllValues().size() - 1);
+    assertTrue(valuesOf(listQuery.getCondition(), Conditions.MANAGER).contains("member:/platform/users"));
+    assertFalse("the user's id is not a membership", valuesOf(listQuery.getCondition(), Conditions.MANAGER).contains(USER));
+    assertFalse(valuesOf(listQuery.getCondition(), Conditions.PARTICIPATOR).contains(USER));
+    assertEquals(Collections.singletonList(PROJECT_ID + 1), valuesOf(listQuery.getCondition(), Conditions.ID));
+    verify(projectService).countProjects(listQuery);
   }
 
   @Test
@@ -1869,4 +1916,24 @@ public class TaskMcpToolTest {
 
   }
 
+
+  /**
+   * The values of the conditions on a field, anywhere in a condition tree.
+   */
+  private static List<Object> valuesOf(Condition condition, String field) {
+    List<Object> values = new ArrayList<>();
+    if (condition instanceof AggregateCondition aggregate) {
+      for (Condition child : aggregate.getConditions()) {
+        values.addAll(valuesOf(child, field));
+      }
+    } else if (condition instanceof SingleCondition<?> single && field.equals(single.getField())) {
+      Object value = single.getValue();
+      if (value instanceof java.util.Collection<?> collection) {
+        values.addAll(collection);
+      } else {
+        values.add(value);
+      }
+    }
+    return values;
+  }
 }

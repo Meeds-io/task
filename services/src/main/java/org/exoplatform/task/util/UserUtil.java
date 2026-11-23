@@ -101,6 +101,21 @@ public final class UserUtil {
     return memberships;
   }
 
+  /**
+   * The memberships a user holds, without the user's own id: a project that
+   * names a user by id grants the right only under the conditions of
+   * {@code ProjectDto#isMemberOfProjectSpaces}, which a query cannot evaluate
+   * on a membership list (see {@code ProjectUtil#getProjectIdsNamingUser}).
+   *
+   * @param identity the user
+   * @return the typed and group memberships of the user
+   */
+  public static List<String> getMembershipsWithoutUserId(Identity identity) {
+    List<String> memberships = getMemberships(identity);
+    memberships.removeIf(identity.getUserId()::equals);
+    return memberships;
+  }
+
   public static List<String> getMemberships(Identity identity) {
     Map<String, List<MembershipEntry>> gms = new HashMap<String, List<MembershipEntry>>();
     for (MembershipEntry m : identity.getMemberships()) {

@@ -666,6 +666,28 @@ public final class ProjectUtil {
     return (list.size() == 0);
   }
 
+  /**
+   * The projects that name a user by id as manager or participant and grant
+   * the user a right: a project of a space grants it only while the user is
+   * member of the space ({@link ProjectDto#isMemberOfProjectSpaces}). A listing
+   * query selects these projects by identifier, next to the memberships of
+   * {@link UserUtil#getMembershipsWithoutUserId}, so that its pages and its
+   * total count only what the user can see.
+   *
+   * @param projectService the project service
+   * @param user the user
+   * @return the identifiers of the projects
+   */
+  public static List<Long> getProjectIdsNamingUser(ProjectService projectService, Identity user) {
+    ProjectQuery query = new ProjectQuery();
+    query.setMembership(Collections.singletonList(user.getUserId()));
+    return projectService.findProjects(query, 0, -1)
+                         .stream()
+                         .filter(project -> project.isMemberOfProjectSpaces(user))
+                         .map(ProjectDto::getId)
+                         .toList();
+  }
+
   private static ProjectService getProjectService() {
     ExoContainer container = ExoContainerContext.getCurrentContainer();
     return container.getComponentInstanceOfType(ProjectService.class);

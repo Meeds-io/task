@@ -31,6 +31,7 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.TaskService;
+import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.social.cms.model.ContentLinkExtension;
@@ -87,6 +88,7 @@ public class TaskContentLinkPlugin implements ContentLinkPlugin {
                                               keyword,
                                               limit)
                       .stream()
+                      .filter(task -> TaskUtil.canViewTask(taskService, task, identity))
                       .map(this::toContentLink)
                       .toList();
   }

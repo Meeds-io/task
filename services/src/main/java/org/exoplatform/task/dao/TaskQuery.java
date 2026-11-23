@@ -166,12 +166,32 @@ public class TaskQuery extends Query implements Cloneable {
     this.add(Conditions.or(eq(TASK_ASSIGNEE, username), in(TASK_MANAGER, memberships), in(TASK_PARTICIPATOR, memberships)));
   }
   
-  public void setAccessible(Identity user) {
+  /**
+   * Selects the tasks a user can access: assigned to, coworked, created or
+   * mentioned to the user, or of a project that names a membership the user
+   * holds, or that is one of the given projects. A project that names the
+   * user by id is among the given projects, not matched by the user's id: it
+   * grants the right only while the user is member of its space.
+   *
+   * @param user the user
+   * @param namedProjectIds the projects naming the user by id that grant the
+   *          user a right, may be empty
+   */
+  public void setAccessible(Identity user, List<Long> namedProjectIds) {
     this.assignee = Arrays.asList(user.getUserId());
-    List<String> memberships = UserUtil.getMemberships(user);
-    this.add(Conditions.or(eq(TASK_ASSIGNEE, user.getUserId()), in(TASK_COWORKER, assignee), eq(TASK_CREATOR, user.getUserId()),
-                           in(TASK_MANAGER, memberships), in(TASK_PARTICIPATOR, memberships),
-                           in(TASK_MENTIONED_USERS, this.assignee)));
+    List<String> memberships = UserUtil.getMembershipsWithoutUserId(user);
+    List<Condition> conditions = new LinkedList<>(Arrays.<Condition>asList(eq(TASK_ASSIGNEE, user.getUserId()),
+                                                                in(TASK_COWORKER, assignee),
+                                                                eq(TASK_CREATOR, user.getUserId()),
+                                                                in(TASK_MENTIONED_USERS, this.assignee)));
+    if (!memberships.isEmpty()) {
+      conditions.add(in(TASK_MANAGER, memberships));
+      conditions.add(in(TASK_PARTICIPATOR, memberships));
+    }
+    if (namedProjectIds != null && !namedProjectIds.isEmpty()) {
+      conditions.add(in(TASK_PROJECT, namedProjectIds));
+    }
+    this.add(Conditions.or(conditions.toArray(new Condition[conditions.size()])));
   }
 
   public void setAssigneeOrCoworkerOrInProject(String username, List<Long> projectIds) {
