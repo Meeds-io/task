@@ -22,8 +22,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.meeds.mcp.server.tool.model.UserModel;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -50,6 +48,6 @@ public class TaskCommentModel {
   @JsonProperty("created_date")
   private String    createdDate;
 
-  private UserModel author;
+  private TaskAssigneeModel author;
 
 }

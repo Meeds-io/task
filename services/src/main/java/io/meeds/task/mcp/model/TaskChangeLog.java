@@ -22,8 +22,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.meeds.mcp.server.tool.model.UserModel;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -41,10 +39,10 @@ public class TaskChangeLog {
   private String    actionLabel;
 
   @JsonProperty("action_author")
-  private UserModel actionAuthor;
+  private TaskAssigneeModel actionAuthor;
 
   @JsonProperty("action_target")
-  private UserModel actionTarget;
+  private TaskAssigneeModel actionTarget;
 
   @JsonProperty("action_date")
   private String    actionDate;

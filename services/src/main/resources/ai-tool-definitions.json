@@ -227,11 +227,16 @@
     {
       "name": "get_task_by_id",
       "title": "Get a Task",
-      "description": "Get a task by its identifier, checking access permissions, in full; list_task_comments_by_id for its comments.",
+      "description": "Get a task by its identifier, checking access permissions, in full, each person on it by username and display name; list_task_comments_by_id for its comments.",
       "input_schema": {
         "type": "object",
         "properties": {
-          "task_id": { "type": "integer" }
+          "task_id": { "type": "integer" },
+          "description_format": {
+            "type": "string",
+            "enum": ["text", "html"],
+            "description": "text (default): the description as plain text, as the user may read it. html: its stored markup (links as /type:id, mentions as @user), to edit it with update_task_description."
+          }
         },
         "required": ["task_id"]
       },
@@ -241,7 +246,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "task_id", "resolver": "task" }
+      "space_scope": { "object_arg": "task_id", "resolver": "task", "allowed_args": ["description_format"] }
     },
     {
       "name": "get_project_id_by_task_id",
@@ -264,7 +269,7 @@
     {
       "name": "list_task_comments_by_id",
       "title": "List Task comments",
-      "description": "List comments for a task by its identifier, checking access permissions, each followed by its replies.",
+      "description": "List comments for a task by its identifier, checking access permissions, each followed by its replies, each author by username and display name.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -466,7 +471,7 @@
     {
       "name": "update_task_description",
       "title": "Update a Task description",
-      "description": "Update the description of a task.",
+      "description": "Update the description of a task: it replaces the whole description, so to change part of it, read the current one first with get_task_by_id and description_format html, and keep its markup, mentions and links.",
       "input_schema": {
         "type": "object",
         "properties": {

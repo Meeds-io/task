@@ -27,8 +27,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * A user of a task in a list, its assignee or the author of its latest
- * comment: who it is, without the profile get_user_by_username returns.
+ * A user named on a task: its assignee, a coworker, the author of a comment
+ * or of a change, in a list or a task read; who it is, without the profile
+ * get_user_by_username returns (EXO-94958).
  */
 @Data
 @NoArgsConstructor

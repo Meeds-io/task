@@ -24,8 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.exoplatform.task.model.TaskFieldChange;
 
-import io.meeds.mcp.server.tool.model.UserModel;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -71,6 +69,6 @@ public class TaskChange {
   private String             date;
 
   /** Who made the change. */
-  private UserModel          author;
+  private TaskAssigneeModel  author;
 
 }
