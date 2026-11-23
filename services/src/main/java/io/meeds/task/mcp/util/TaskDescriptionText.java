@@ -18,7 +18,9 @@
  */
 package io.meeds.task.mcp.util;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -69,6 +71,53 @@ public final class TaskDescriptionText {
                              .filter(line -> !line.isEmpty())
                              .collect(Collectors.joining("\n"));
     return plainText.isEmpty() ? null : plainText;
+  }
+
+  /**
+   * The markup a description keeps that a rewrite of it must not drop
+   * silently (EXO-94958): the content links ({@code <content-link>} as the
+   * editor stores them, or {@code <a class="content-link">} and
+   * {@code <a data-object>}), and the bold text.
+   */
+  private static final String[][] KEPT_MARKUP = { { "links", "content-link, a.content-link, a[data-object]" },
+      { "bold text", "strong, b" } };
+
+  /** The name of the bold kind of {@link #KEPT_MARKUP}, held only with some text. */
+  private static final String     BOLD_TEXT   = "bold text";
+
+  /**
+   * Tells which kinds of markup a new description drops from the stored one
+   * (EXO-94958): a kind the stored description holds, content links or bold
+   * text, that the new one holds none of, as a plain text written over an
+   * HTML description does.
+   *
+   * @param stored the stored description, possibly null
+   * @param updated the new description, possibly null
+   * @return the kinds dropped, « links » then « bold text »; empty when none is
+   */
+  public static List<String> droppedMarkup(String stored, String updated) {
+    List<String> dropped = new ArrayList<>();
+    if (StringUtils.isBlank(stored)) {
+      return dropped;
+    }
+    Element storedBody = Jsoup.parseBodyFragment(stored).body();
+    Element updatedBody = Jsoup.parseBodyFragment(StringUtils.defaultString(updated)).body();
+    for (String[] kind : KEPT_MARKUP) {
+      if (holds(storedBody, kind) && !holds(updatedBody, kind)) {
+        dropped.add(kind[0]);
+      }
+    }
+    return dropped;
+  }
+
+  /**
+   * @param body a parsed description
+   * @param kind a kind of {@link #KEPT_MARKUP}, its name then its selector
+   * @return whether the description holds that markup: a content link, or a
+   *         bold element with some text, an empty one showing nothing bold
+   */
+  private static boolean holds(Element body, String[] kind) {
+    return body.select(kind[1]).stream().anyMatch(element -> !BOLD_TEXT.equals(kind[0]) || element.hasText());
   }
 
   /**

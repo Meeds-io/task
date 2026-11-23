@@ -214,7 +214,7 @@ public class TaskToolDefinitionSpaceScopeTest {
     assertEquals(List.of(), allowed(declared.get("complete_task")));
     assertEquals(List.of("offset", "limit"), allowed(declared.get("list_task_comments_by_id")));
     assertEquals(List.of("status_id"), allowed(declared.get("update_task_status")));
-    assertEquals(List.of("description"), allowed(declared.get("update_task_description")));
+    assertEquals(List.of("description", "keep_formatting"), allowed(declared.get("update_task_description")));
     assertEquals(List.of("text"), allowed(declared.get("add_task_comment")));
     assertEquals(List.of("title"), allowed(declared.get("update_task_title")));
     assertEquals(List.of("start_date", "due_date"), allowed(declared.get("set_task_dates")));
