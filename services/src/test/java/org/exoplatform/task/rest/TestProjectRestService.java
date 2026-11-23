@@ -315,7 +315,15 @@ public class TestProjectRestService {
     ProjectDto keptProject = new ProjectDto();
     keptProject.setId(2);
     keptProject.setManager(new HashSet<>(Arrays.asList("john")));
-    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(spaceProject, keptProject));
+    ProjectDto participantOnlyProject = new ProjectDto();
+    participantOnlyProject.setId(3);
+    participantOnlyProject.setParticipator(new HashSet<>(Arrays.asList("john")));
+    // the lookup answers by its own condition: the participant-only project comes back only when the lookup is not manager-only
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenAnswer(invocation -> {
+      Condition lookup = ((ProjectQuery) invocation.getArgument(0)).getCondition();
+      boolean managerOnly = valuesOf(lookup, Conditions.MANAGER).contains("john") && valuesOf(lookup, Conditions.PARTICIPATOR).isEmpty();
+      return managerOnly ? Arrays.asList(spaceProject, keptProject) : Arrays.asList(spaceProject, keptProject, participantOnlyProject);
+    });
     ArgumentCaptor<ProjectQuery> query = ArgumentCaptor.forClass(ProjectQuery.class);
     when(projectService.findProjects(query.capture(), eq(0), eq(20))).thenReturn(new ArrayList<>());
     when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(25);
@@ -325,7 +333,7 @@ public class TestProjectRestService {
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertEquals(25, new JSONObject(response.getEntity().toString()).getInt("projectNumber"));
     Condition condition = query.getAllValues().get(query.getAllValues().size() - 1).getCondition();
-    assertEquals(Arrays.asList(2L), valuesOf(condition, Conditions.ID));
+    assertEquals("a project naming the user only as participant is not selected", Arrays.asList(2L), valuesOf(condition, Conditions.ID));
     assertFalse("the user's id is not a manager of the query", valuesOf(condition, Conditions.MANAGER).contains("john"));
     assertTrue(valuesOf(condition, Conditions.PARTICIPATOR).isEmpty());
   }
