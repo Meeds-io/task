@@ -1112,7 +1112,8 @@ public class TaskMcpTool implements McpToolPlugin {
                          openQuery,
                          zone,
                          collection.getManagedProjectCount() != null,
-                         !filters.overdueOnly() && !isNarrowed(filters));
+                         !filters.overdueOnly() && !isNarrowed(filters),
+                         countsOpenAndCompleted(filters));
         collection.setSummary(getGroupedSummary(collection, filters));
       } else {
         collection.setGroupBy(grouping);
@@ -2873,7 +2874,12 @@ public class TaskMcpTool implements McpToolPlugin {
    * (EXO-94360). The overdue tasks are left out when the listing narrows
    * the tasks a board holds (EXO-94935): they would be counted whatever its
    * filters, so they are no part of what it counts (« 28 unassigned, 49
-   * overdue »).
+   * overdue »). A listing that keeps the open and the completed tasks both
+   * splits them, the total and each listed board, into the selected open
+   * tasks and the selected completed ones, which one more count of the
+   * listing's own query, its open tasks only, gives, and a count of them all
+   * when the listing holds personal tasks (EXO-94935): an adjective alone did
+   * not reach the user's answer.
    *
    * @param collection the listing's answer, to which the counts are added
    * @param taskQuery the listing's query
@@ -2886,13 +2892,16 @@ public class TaskMcpTool implements McpToolPlugin {
    * @param withOverdue whether each board's overdue tasks are counted, and
    *          those of every managed board: false for a listing that narrows
    *          the tasks a board holds
+   * @param withSplit whether the selected tasks are split into open and
+   *          completed ones: true for a listing that keeps both
    */
   private void setProjectCounts(TaskCollectionModel collection, // NOSONAR the listing's parts, each one its own
                                 TaskQuery taskQuery,
                                 TaskQuery openQuery,
                                 ZoneId zone,
                                 boolean managedTotals,
-                                boolean withOverdue) {
+                                boolean withOverdue,
+                                boolean withSplit) {
     List<ProjectTaskCountDto> counts = taskService.countTasksByProject(taskQuery);
     List<ProjectTaskCountDto> kept = counts.stream()
                                            .sorted(Comparator.comparingLong(ProjectTaskCountDto::getCount)
@@ -2950,6 +2959,40 @@ public class TaskMcpTool implements McpToolPlugin {
         collection.setOverdueProjectCount(overdue.size());
       }
     }
+    if (withSplit) {
+      setOpenAndCompletedCounts(collection, taskQuery);
+    }
+  }
+
+  /**
+   * Splits the tasks a grouped listing selects, open and completed both, into
+   * the open ones and the completed ones, in total and on each listed board,
+   * from the listing's own query restricted to its open tasks: one count by
+   * board, and, when the listing holds personal tasks, on no board, one count
+   * of them all (EXO-94935).
+   *
+   * @param collection the listing's answer, its board rows and personal tasks
+   *          counted, to which the split is added
+   * @param taskQuery the listing's query, which keeps open and completed tasks
+   */
+  private void setOpenAndCompletedCounts(TaskCollectionModel collection, TaskQuery taskQuery) {
+    TaskQuery openSelectedQuery = taskQuery.clone();
+    openSelectedQuery.setCompleted(false);
+    Map<Long, Long> openSelected = taskService.countTasksByProject(openSelectedQuery)
+                                              .stream()
+                                              .collect(Collectors.toMap(ProjectTaskCountDto::getProjectId,
+                                                                        ProjectTaskCountDto::getCount));
+    for (ProjectTaskCountModel project : collection.getProjects()) {
+      long open = Math.min(project.getCount(), openSelected.getOrDefault(project.getProjectId(), 0L));
+      project.setSelectedOpenCount(open);
+      project.setSelectedCompletedCount(project.getCount() - open);
+    }
+    long personal = collection.getPersonalCount() == null ? 0L : collection.getPersonalCount();
+    long open = personal > 0 ? countTasks(openSelectedQuery)
+                             : openSelected.values().stream().mapToLong(Long::longValue).sum();
+    open = Math.min(collection.getCount(), open);
+    collection.setSelectedOpenCount(open);
+    collection.setSelectedCompletedCount(collection.getCount() - open);
   }
 
   /**
@@ -3212,6 +3255,9 @@ public class TaskMcpTool implements McpToolPlugin {
    * « 1630 open tasks in 86 of the 105 boards the user manages; 19 have no
    * open task; 264 overdue in 30 boards », the overdue tasks only beside a
    * count no other filter narrows, and not on a call selecting them only.
+   * A listing that keeps open and completed tasks gives their split as
+   * numbers, such as « 78 tasks with no assignee: 51 open, 27 completed, in
+   * 13 boards » (EXO-94935).
    *
    * @param collection the grouped answer, its counts set
    * @param filters the filters the listing applied
@@ -3221,7 +3267,24 @@ public class TaskMcpTool implements McpToolPlugin {
     long count = collection.getCount();
     long personal = collection.getPersonalCount() == null ? 0L : collection.getPersonalCount();
     boolean openOnly = isOpenOnly(filters);
-    StringBuilder summary = describeCount(count, filters);
+    // the split of the open and the completed tasks, as numbers, when the
+    // listing counted it (EXO-94935)
+    Long openSelected = collection.getSelectedOpenCount();
+    Long completedSelected = collection.getSelectedCompletedCount();
+    boolean split = openSelected != null && completedSelected != null;
+    StringBuilder summary;
+    if (split) {
+      summary = new StringBuilder().append(count)
+                                   .append(count == 1 ? " task" : " tasks")
+                                   .append(describeFilters(filters))
+                                   .append(": ")
+                                   .append(openSelected)
+                                   .append(" open, ")
+                                   .append(completedSelected)
+                                   .append(" completed");
+    } else {
+      summary = describeCount(count, filters);
+    }
     int boards = collection.getProjectCount();
     StringBuilder where = new StringBuilder(" in ").append(boards);
     Integer managed = collection.getManagedProjectCount();
@@ -3255,9 +3318,9 @@ public class TaskMcpTool implements McpToolPlugin {
     if (personal > 0 && personal == count) {
       summary.append(", all personal, on no board");
     } else if (personal > 0) {
-      summary.append(": ").append(count - personal).append(where).append(", ").append(personal).append(" personal");
+      summary.append(split ? "; " : ": ").append(count - personal).append(where).append(", ").append(personal).append(" personal");
     } else {
-      summary.append(where);
+      summary.append(split ? "," : "").append(where);
     }
     if (collection.getProjectsNotListed() != null && collection.getProjectsNotListed() > 0) {
       summary.append("; the ").append(collection.getProjects().size()).append(" boards with the most are listed");
@@ -3370,6 +3433,16 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
+   * @param filters the filters a listing applied
+   * @return whether the listing keeps the open and the completed tasks both:
+   *         neither open only, nor completed only, nor completed since a date
+   *         (EXO-94935)
+   */
+  private static boolean countsOpenAndCompleted(ListingFilters filters) {
+    return !isOpenOnly(filters) && !filters.completedOnly() && StringUtils.isBlank(filters.completedSince());
+  }
+
+  /**
    * @param count the count of the tasks a listing selects
    * @param filters the filters the listing applied
    * @return the start of a grouped listing's summary: the count, whether the
@@ -3385,7 +3458,7 @@ public class TaskMcpTool implements McpToolPlugin {
     } else if (filters.completedOnly() && StringUtils.isBlank(filters.completedSince())) {
       // with completed_since, its own words already say the tasks are completed
       summary.append("completed ");
-    } else if (StringUtils.isBlank(filters.completedSince())) {
+    } else if (countsOpenAndCompleted(filters)) {
       // the open and the completed ones, which a count must say (EXO-94935)
       summary.append(count == 1 ? "open or completed " : "open and completed ");
     }
