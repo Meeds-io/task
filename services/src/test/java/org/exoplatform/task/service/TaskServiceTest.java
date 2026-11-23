@@ -559,7 +559,7 @@ public class TaskServiceTest {
     // A null due category must behave exactly like an empty one
     assertEquals(0, filterMyTasks(root, null).getListTasks().size());
     assertEquals(0, filterMyTasks(root, "").getListTasks().size());
-    // A real due category takes the other branch of the guard: the user is the assignee only
+    // A real due category takes the other branch of the guard: the user is the assignee or a coworker, not only mentioned
     assertEquals(0, filterMyTasks(root, "today").getListTasks().size());
 
     List<TaskQuery> queries = queryCaptor.getAllValues();
