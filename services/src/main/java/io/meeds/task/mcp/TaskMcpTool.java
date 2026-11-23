@@ -248,6 +248,18 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           MSG_STATUS_NOT_FOUND            =
                                                              "Status with identifier '%s' is not found. Available project statuses are:%n```json%n%s%n```";
 
+  private static final String           MSG_STATUS_ID_OR_NAME           =
+                                                              "Give the target column of the task as status_id or as status_name, one of the two";
+
+  private static final String           MSG_TASK_ON_NO_BOARD            =
+                                                             "Task '%s' is on no board, so it has no column to move to";
+
+  private static final String           MSG_STATUS_NAME_NOT_FOUND       =
+                                                                  "No column of the task's board is named \"%s\": its columns are \"%s\"";
+
+  private static final String           MSG_STATUS_NAME_AMBIGUOUS       =
+                                                                  "Several columns of the task's board are named \"%s\": pass the status_id of the one meant:%n```json%n%s%n```";
+
   private static final String           MSG_TASK_PROJECT_NOT_ACCESSIBLE =
                                                                         "Task project with identifier '%s' is not accessible for the user '%s'";
 
@@ -1668,28 +1680,93 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Moves a task to another status of its project.
+   * Moves a task to another status of its project, given by its id or by its
+   * name as the task's board shows it (EXO-94959).
    *
    * @param taskId the task, which the current user can edit
-   * @param statusId the target status
+   * @param statusId the target status, or null when its name is given
+   * @param statusName the target status's name, its stored name or its label
+   *          in the user's language, case, accents and spaces aside; null
+   *          when its id is given
    * @throws IllegalAccessException when the current user can't edit the task
-   * @throws ObjectNotFoundException when the task or the status doesn't exist
+   * @throws ObjectNotFoundException when the task or the status doesn't
+   *           exist, or no status of the task's board has that name
+   * @throws IllegalArgumentException when both or neither of the status's id
+   *           and name are given, or when several statuses of the board have
+   *           that name
    */
   @SneakyThrows
-  public void updateTaskStatus(Long taskId, Long statusId) throws IllegalAccessException, ObjectNotFoundException {
+  public void updateTaskStatus(Long taskId, Long statusId, String statusName) throws IllegalAccessException,
+                                                                              ObjectNotFoundException {
+    boolean byName = StringUtils.isNotBlank(statusName);
+    if (byName == (statusId != null)) {
+      throw new IllegalArgumentException(MSG_STATUS_ID_OR_NAME);
+    }
     TaskDto task = getTask(taskId);
     if (task == null) {
       throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
     } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId, getCurrentUserName()));
     }
-    StatusDto status = statusService.getStatus(statusId);
+    StatusDto status = byName ? findStatusByName(task, statusName) : statusService.getStatus(statusId);
     if (status == null || status.getProject().getId() != getProjectId(task)) {
       throw new ObjectNotFoundException(MSG_STATUS_NOT_FOUND.formatted(statusId,
                                                                        JsonUtils.toJsonString(getProjectStatuses(getProjectId(task)))));
     }
     task.setStatus(status);
     taskService.updateTask(task);
+  }
+
+  /**
+   * Finds the status of a task's board that has a name: its stored name or
+   * its label in the user's language, as the board shows a default status
+   * (« In Progress » for {@code InProgress}), compared with case, accents
+   * and spaces left aside.
+   *
+   * @param task the task, whose board's statuses are searched
+   * @param statusName the name asked for
+   * @return the only status of the board with that name
+   * @throws ObjectNotFoundException when the task is on no board, or no
+   *           status of its board has that name; the message names the
+   *           board's statuses
+   * @throws IllegalArgumentException when several statuses of the board have
+   *           that name; the message names them with their ids
+   */
+  private StatusDto findStatusByName(TaskDto task, String statusName) throws ObjectNotFoundException {
+    long projectId = getProjectId(task);
+    List<StatusDto> statuses = projectId == 0 ? Collections.emptyList() : statusService.getStatuses(projectId);
+    if (CollectionUtils.isEmpty(statuses)) {
+      throw new ObjectNotFoundException(MSG_TASK_ON_NO_BOARD.formatted(task.getId()));
+    }
+    String asked = toComparableStatusName(statusName);
+    List<StatusDto> matching = statuses.stream()
+                                       .filter(status -> asked.equals(toComparableStatusName(status.getName()))
+                                                         || asked.equals(toComparableStatusName(getStatusLabel(status.getName()))))
+                                       .toList();
+    if (matching.isEmpty()) {
+      throw new ObjectNotFoundException(MSG_STATUS_NAME_NOT_FOUND.formatted(statusName.strip(),
+                                                                            statuses.stream()
+                                                                                    .map(status -> getStatusLabel(status.getName()))
+                                                                                    .collect(Collectors.joining("\", \""))));
+    } else if (matching.size() > 1) {
+      throw new IllegalArgumentException(MSG_STATUS_NAME_AMBIGUOUS.formatted(statusName.strip(),
+                                                                             JsonUtils.toJsonString(matching.stream()
+                                                                                                            .map(this::toProjectStatusModel)
+                                                                                                            .toList())));
+    }
+    return matching.get(0);
+  }
+
+  /**
+   * @param name a status name or label, possibly null
+   * @return the name as a status name is compared: without its accents, its
+   *         case or its spaces; empty for none
+   */
+  static String toComparableStatusName(String name) {
+    if (name == null) {
+      return "";
+    }
+    return StringUtils.stripAccents(name).replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
   }
 
   /**

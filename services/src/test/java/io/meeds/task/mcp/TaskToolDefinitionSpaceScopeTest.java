@@ -197,10 +197,11 @@ public class TaskToolDefinitionSpaceScopeTest {
 
   /**
    * The arguments a limited task call may carry are schema properties: the
-   * format of a task read's description (EXO-94958), the comments' paging, the status of the status update, the new text of the
-   * description update, a comment's text, a new title, the start and due
-   * dates, the priority, a label and a person; reopening a task takes nothing
-   * else. The only reference-shaped ones are that status and that label,
+   * format of a task read's description (EXO-94958), the comments' paging,
+   * the status of the status update, by its id or its name (EXO-94959), the
+   * new text of the description update, a comment's text, a new title, the
+   * start and due dates, the priority, a label and a person; reopening a
+   * task takes nothing else. The only reference-shaped ones are that status and that label,
    * which {@code TaskMcpTool} accepts only when they belong to the project of
    * the task, the one the resolver reads the space of; the person, the
    * assignee or a coworker, it accepts in a limited call only when they are
@@ -213,7 +214,7 @@ public class TaskToolDefinitionSpaceScopeTest {
     assertEquals(List.of("description_format"), allowed(declared.get("get_task_by_id")));
     assertEquals(List.of(), allowed(declared.get("complete_task")));
     assertEquals(List.of("offset", "limit"), allowed(declared.get("list_task_comments_by_id")));
-    assertEquals(List.of("status_id"), allowed(declared.get("update_task_status")));
+    assertEquals(List.of("status_id", "status_name"), allowed(declared.get("update_task_status")));
     assertEquals(List.of("description", "keep_formatting"), allowed(declared.get("update_task_description")));
     assertEquals(List.of("text"), allowed(declared.get("add_task_comment")));
     assertEquals(List.of("title"), allowed(declared.get("update_task_title")));
