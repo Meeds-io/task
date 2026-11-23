@@ -559,10 +559,17 @@ public class TaskServiceTest {
     // A null due category must behave exactly like an empty one
     assertEquals(0, filterMyTasks(root, null).getListTasks().size());
     assertEquals(0, filterMyTasks(root, "").getListTasks().size());
+    // A real due category takes the other branch of the guard: the user is the assignee only
+    assertEquals(0, filterMyTasks(root, "today").getListTasks().size());
 
     List<TaskQuery> queries = queryCaptor.getAllValues();
-    assertEquals(queries.get(0).getAssignee(), queries.get(queries.size() - 1).getAssignee());
+    // each call builds the query of the list and the one of its count
+    assertEquals(0, queries.size() % 3);
+    int perCall = queries.size() / 3;
+    assertEquals(queries.get(0).getAssignee(), queries.get(perCall).getAssignee());
     assertEquals(List.of("root"), queries.get(0).getAssignee());
+    assertNull("a due category must not list the tasks where the user is only mentioned",
+               queries.get(2 * perCall).getAssignee());
   }
 
   private TasksList filterMyTasks(Identity identity, String dueCategory) throws Exception {
