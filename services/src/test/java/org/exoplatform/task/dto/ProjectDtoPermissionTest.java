@@ -61,7 +61,8 @@ public class ProjectDtoPermissionTest {
 
   @Test
   public void namedUserStillSpaceMemberKeepsRights() {
-    Identity member = identity("member:/spaces/team");
+    // redactor:/spaces/team matches no group entry: only the named entry can grant
+    Identity member = identity("redactor:/spaces/team");
     assertTrue(spaceProject().canView(member));
     assertTrue(spaceProject().canEdit(member));
   }
@@ -69,7 +70,7 @@ public class ProjectDtoPermissionTest {
   @Test
   public void namedParticipantStillSpaceMemberKeepsView() {
     ProjectDto project = project(set("manager:/spaces/team"), set(USER, "member:/spaces/team"));
-    assertTrue(project.canView(identity("member:/spaces/team")));
+    assertTrue(project.canView(identity("redactor:/spaces/team")));
   }
 
   @Test
@@ -108,6 +109,22 @@ public class ProjectDtoPermissionTest {
     Identity notMember = identity("member:/platform/users");
     assertTrue(project.canView(notMember));
     assertTrue(project.canEdit(notMember));
+  }
+
+  @Test
+  public void isMemberOfProjectSpacesFollowsSpaceMembership() {
+    assertTrue(spaceProject().isMemberOfProjectSpaces(identity("redactor:/spaces/team")));
+    assertFalse(spaceProject().isMemberOfProjectSpaces(identity("member:/spaces/other")));
+    assertFalse(spaceProject().isMemberOfProjectSpaces(null));
+    assertTrue(project(set(USER), set()).isMemberOfProjectSpaces(identity("member:/platform/users")));
+  }
+
+  @Test
+  public void identityWithoutMembershipsGrantsNoGroupRight() {
+    Identity noMemberships = org.mockito.Mockito.mock(Identity.class);
+    org.mockito.Mockito.when(noMemberships.getUserId()).thenReturn(USER);
+    org.mockito.Mockito.when(noMemberships.getMemberships()).thenReturn(null);
+    assertFalse(spaceProject().canView(noMemberships));
   }
 
   @Test

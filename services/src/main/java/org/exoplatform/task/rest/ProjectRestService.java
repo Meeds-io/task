@@ -177,6 +177,7 @@ public class ProjectRestService implements ResourceContainer {
       JSONObject global = new JSONObject();
       JSONArray projectsJsonArray = new JSONArray();
       projectsJsonArray = buildJSON(projectsJsonArray, projects, participatorParam);
+      projectNumber -= projects.size() - projectsJsonArray.length();
       global.put("projects", projectsJsonArray);
       global.put("projectNumber", projectNumber);
       return Response.ok(global.toString()).build();

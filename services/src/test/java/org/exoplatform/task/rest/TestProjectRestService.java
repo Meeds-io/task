@@ -207,9 +207,11 @@ public class TestProjectRestService {
 
     ProjectDto project1 = new ProjectDto();
     project1.setName("project1");
+    project1.setManager(java.util.Collections.singleton("root"));
     projectService.createProject(project1);
     ProjectDto project2 = new ProjectDto();
     project2.setName("project2");
+    project2.setManager(java.util.Collections.singleton("root"));
     projectService.createProject(project2);
     ProjectDto project3 = new ProjectDto();
     project3.setName("project3");

@@ -123,9 +123,11 @@ public class ProjectDto implements Serializable {
                 }
             }
 
-            for (MembershipEntry entry :  user.getMemberships()) {
-                if (memberships.contains(entry)) {
-                    return true;
+            if (user.getMemberships() != null) {
+                for (MembershipEntry entry :  user.getMemberships()) {
+                    if (memberships.contains(entry)) {
+                        return true;
+                    }
                 }
             }
         }
@@ -134,18 +136,22 @@ public class ProjectDto implements Serializable {
     }
 
     /**
-     * A project belongs to a space when its manager entries
-     * reference a space group (manager entries only). A user named by id on such a project keeps the
-     * right only while member of one of those spaces. A project outside any
-     * space is not concerned.
+     * A project belongs to a space when its manager entries reference a space
+     * group. A user named by id on such a project keeps the right only while
+     * member of one of those spaces. A project outside any space is not
+     * concerned. Every check that matches a user by id against the project's
+     * manager or participant entries applies this condition.
+     *
+     * @param user the identity of the user named by id
+     * @return false when the project belongs to a space the user has left
      */
-    private boolean isMemberOfProjectSpaces(Identity user) {
+    public boolean isMemberOfProjectSpaces(Identity user) {
         Set<String> spaceGroups = new HashSet<String>();
         collectSpaceGroups(getManager(), spaceGroups);
         if (spaceGroups.isEmpty()) {
             return true;
         }
-        if (user.getMemberships() != null) {
+        if (user != null && user.getMemberships() != null) {
             for (MembershipEntry entry : user.getMemberships()) {
                 if (spaceGroups.contains(entry.getGroup())) {
                     return true;

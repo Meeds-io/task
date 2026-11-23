@@ -677,10 +677,14 @@ public final class ProjectUtil {
     if (project.getParticipator() == null) {
       return false;
     }
-    if (project.getParticipator().contains(userName)) {
+    Identity userIdentity = userAcl.getUserIdentity(userName);
+    if (userIdentity == null) {
+      return false;
+    }
+    if (project.getParticipator().contains(userName) && project.isMemberOfProjectSpaces(userIdentity)) {
       return true;
     } else {
-      Collection<MembershipEntry> memberships = userAcl.getUserIdentity(userName).getMemberships();
+      Collection<MembershipEntry> memberships = userIdentity.getMemberships();
       for (String per : project.getParticipator()) {
         MembershipEntry entry = MembershipEntry.parse(per);
         if (entry != null) {

@@ -703,6 +703,22 @@ public final class TaskUtil {
     return hasMentionedUser(taskService, task, userId) || hasEditPermission(taskService, task);
   }
 
+  /**
+   * Whether the given identity can see the task, whatever the current
+   * conversation state: mentioned, or granted by the task or its project.
+   * A user named by id on a space project's managers or participants sees
+   * the project's tasks only while member of the space.
+   *
+   * @param taskService the task service
+   * @param task the task
+   * @param identity the identity to check
+   * @return true when the identity can see the task
+   */
+  public static boolean canViewTask(TaskService taskService, TaskDto task, Identity identity) {
+    return identity != null
+           && (hasMentionedUser(taskService, task, identity.getUserId()) || hasEditPermission(taskService, task, identity));
+  }
+
   private static boolean hasMentionedUser(TaskService taskService, TaskDto task, String userId) {
     Set<String> mentionedUsers = taskService.getMentionedUsers(task.getId());
     return mentionedUsers.contains(userId);

@@ -47,6 +47,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
@@ -990,6 +991,7 @@ public class TaskMcpToolTest {
   @Test
   public void listTasksOverdueOnlySelectsOpenTasksDueBeforeTodayInTheUsersZone() throws Exception {// NOSONAR
     TaskDto task = mockTask();
+    when(task.getAssignee()).thenReturn(USER);
     when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-09-28T00:00:00+02:00")));
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
@@ -1466,6 +1468,7 @@ public class TaskMcpToolTest {
   @Test
   public void listProjectsShouldUseProjectCountAndReturnCollection() throws Exception { // NOSONAR
     ProjectDto project = mock(ProjectDto.class);
+    when(project.canView(currentIdentity)).thenReturn(true);
 
     when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(10))).thenReturn(Collections.singletonList(project));
     when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
@@ -1555,6 +1558,50 @@ public class TaskMcpToolTest {
       }
     }
     return values;
+  }
+
+  /**
+   * A user named by id on a space project's managers who left the space is
+   * matched by the memberships-based task query, which carries the bare user
+   * name; the tasks of that project are dropped, the user's own assigned
+   * task stays. Mutant: the view filter of listTasks removed.
+   */
+  @Test
+  public void listTasksWithoutProjectDropsTheTasksOfASpaceProjectTheNamedManagerLeft() throws Exception {// NOSONAR
+    ProjectDto spaceProject = new ProjectDto();
+    spaceProject.setManager(new HashSet<>(Arrays.asList(USER, "manager:/spaces/team")));
+    spaceProject.setParticipator(Collections.singleton("member:/spaces/team"));
+    StatusDto status = new StatusDto();
+    status.setProject(spaceProject);
+    TaskDto departedTask = mock(TaskDto.class);
+    when(departedTask.getId()).thenReturn(77L);
+    when(departedTask.getStatus()).thenReturn(status);
+    TaskDto ownTask = mockTask();
+    when(ownTask.getAssignee()).thenReturn(USER);
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Arrays.asList(departedTask, ownTask));
+    when(taskService.countTasks(any())).thenReturn(2);
+
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null);
+
+    assertEquals(1, result.getTasks().size());
+    assertEquals(TASK_ID, result.getTasks().get(0).getId());
+  }
+
+  /**
+   * list_projects without a space drops a space project whose named manager
+   * left the space. Mutant: the view filter of the project models removed.
+   */
+  @Test
+  public void listProjectsDropsASpaceProjectTheNamedManagerLeft() throws Exception { // NOSONAR
+    ProjectDto spaceProject = new ProjectDto();
+    spaceProject.setId(PROJECT_ID);
+    spaceProject.setManager(new HashSet<>(Arrays.asList(USER, "manager:/spaces/team")));
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(Collections.singletonList(spaceProject));
+    when(projectService.countProjects(any(), eq(null))).thenReturn(1);
+
+    ProjectCollectionModel result = tool.listProjects(null, null, null);
+
+    assertTrue(result.getProjects().isEmpty());
   }
 
   @Test

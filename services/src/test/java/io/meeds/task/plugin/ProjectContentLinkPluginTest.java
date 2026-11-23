@@ -83,10 +83,12 @@ public class ProjectContentLinkPluginTest {
     ProjectDto project1 = mock(ProjectDto.class);
     when(project1.getId()).thenReturn(1L);
     when(project1.getName()).thenReturn("Project 1");
+    when(project1.canView(identity)).thenReturn(true);
 
     ProjectDto project2 = mock(ProjectDto.class);
     when(project2.getId()).thenReturn(2L);
     when(project2.getName()).thenReturn("Project 2");
+    when(project2.canView(identity)).thenReturn(true);
 
     List<ProjectDto> projects = Arrays.asList(project1, project2);
 
@@ -115,6 +117,23 @@ public class ProjectContentLinkPluginTest {
       assertEquals("Project 2", r2.getTitle());
       assertEquals(plugin.getExtension().getIcon(), r2.getIcon());
       assertEquals(plugin.getExtension().isDrawer(), r2.isDrawer());
+    }
+  }
+
+  @Test
+  public void testSearchShouldDropProjectsTheUserCanNoLongerView() {
+    ProjectDto visible = mock(ProjectDto.class);
+    when(visible.getId()).thenReturn(1L);
+    when(visible.getName()).thenReturn("Visible");
+    when(visible.canView(identity)).thenReturn(true);
+    ProjectDto hidden = mock(ProjectDto.class);
+    when(hidden.canView(identity)).thenReturn(false);
+    when(projectService.findProjects(anyList(), eq("p"), any(), eq(0), eq(10))).thenReturn(Arrays.asList(hidden, visible));
+    try (MockedStatic<UserUtil> mocked = mockStatic(UserUtil.class)) {
+      mocked.when(() -> UserUtil.getMemberships(identity)).thenReturn(Collections.singletonList("john"));
+      List<ContentLinkSearchResult> results = plugin.search("p", identity, Locale.ENGLISH, 0, 10);
+      assertEquals(1, results.size());
+      assertEquals("1", results.get(0).getObjectId());
     }
   }
 

@@ -81,6 +81,7 @@ import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.util.ProjectUtil;
+import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.mcp.server.plugin.McpToolPlugin;
@@ -273,6 +274,9 @@ public class TaskMcpTool implements McpToolPlugin {
                                                            taskService.findLastUpdatedTasks(taskQuery,
                                                                                             getInteger(offset, DEFAULT_OFFSET),
                                                                                             getInteger(limit, DEFAULT_LIMIT));
+    if (projectId == null || projectId <= 0) {
+      tasks = filterViewableTasks(tasks);
+    }
     List<? extends TaskModel> taskModels = Boolean.TRUE.equals(includeChangeLog) ?
                                                                                   tasks.stream()
                                                                                        .map(t -> toTaskWithChangeLogModel(t, null, zone, today))
@@ -1033,6 +1037,16 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
+  /**
+   * The tasks matched through the user's memberships, which include the bare
+   * user name, are kept only when the user can still see them (a user named on
+   * a space project who left the space no longer does).
+   */
+  private List<TaskDto> filterViewableTasks(List<TaskDto> tasks) {
+    Identity identity = getCurrentUserAclIdentity();
+    return tasks.stream().filter(t -> TaskUtil.canViewTask(taskService, t, identity)).toList();
+  }
+
   private long countProjects(Space space) {
     // the same query as the list, so the total counts each project once
     return projectService.countProjects(projectsQuery(space));
@@ -1059,7 +1073,9 @@ public class TaskMcpTool implements McpToolPlugin {
     if (CollectionUtils.isEmpty(projects)) {
       return Collections.emptyList();
     } else {
+      Identity identity = getCurrentUserAclIdentity();
       return projects.stream()
+                     .filter(p -> p.canView(identity))
                      .map(this::toProjectModel)
                      .toList();
     }
