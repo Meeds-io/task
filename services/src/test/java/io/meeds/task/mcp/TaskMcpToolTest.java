@@ -739,8 +739,11 @@ public class TaskMcpToolTest {
    * aside (EXO-94959). A name no column has is refused with the board's
    * column names, one two columns have with both and their ids, and the
    * status is given by its id or its name, never both nor neither; a task on
-   * no board has no column. Mutants: the label not compared; the accents
-   * compared; the second match ignored; both arguments accepted.
+   * no board has no column; the definition asks for the column the user
+   * named, so a name no column has (« Doing ») is refused with the columns,
+   * and nothing moves. Mutants: the label not compared; the accents
+   * compared; the second match ignored; both arguments accepted; the refusal
+   * of a name no column has dropped.
    *
    * @throws Exception never
    */
@@ -774,6 +777,7 @@ public class TaskMcpToolTest {
     ObjectNotFoundException unknown = assertThrows(ObjectNotFoundException.class,
                                                    () -> tool.updateTaskStatus(TASK_ID, null, "Doing"));
     assertTrue(unknown.getMessage(), unknown.getMessage().contains("\"To Do\", \"In Progress\", \"Validation régie\""));
+    verify(taskService, times(3)).updateTask(task);
     assertThrows(IllegalArgumentException.class, () -> tool.updateTaskStatus(TASK_ID, 2L, "In Progress"));
     assertThrows(IllegalArgumentException.class, () -> tool.updateTaskStatus(TASK_ID, null, " "));
 

@@ -72,7 +72,7 @@ public class TaskToolDefinitionUpgradesTest {
                                                                             "update_task_description",
                                                                             3,
                                                                             "update_task_status",
-                                                                            1);
+                                                                            2);
 
   /**
    * The definitions feature/rtd shipped before EXO-94250, which the
