@@ -233,6 +233,12 @@ public class TaskMcpTool implements McpToolPlugin {
   /** A task read's description as its markup, for an edit of it. */
   static final String                   DESCRIPTION_FORMAT_HTML         = "html";
 
+  private static final String           MSG_DESCRIPTION_DROPS_MARKUP    =
+                                                                  "This text drops the description's %s: read it with "
+                                                                      + "get_task_by_id and description_format html and edit that "
+                                                                      + "markup, or pass keep_formatting false only when the user "
+                                                                      + "asked for plain text";
+
   private static final String           MSG_DESCRIPTION_FORMAT          =
                                                                "Parameter 'description_format' is 'text' or 'html', not '%s'";
 
@@ -1423,13 +1429,36 @@ public class TaskMcpTool implements McpToolPlugin {
     return toTaskModel(task);
   }
 
-  public TaskModel updateTaskDescription(long taskId, String description) throws ObjectNotFoundException, IllegalAccessException {
+  /**
+   * Replaces the description of a task the current user can edit. A new
+   * description that drops the content links or the bold text the stored one
+   * holds, as a plain text read with description_format text and written
+   * back does, is refused unless {@code keepFormatting} is false, for a user
+   * who asked for plain text (EXO-94958).
+   *
+   * @param taskId the task
+   * @param description its new description, HTML supported
+   * @param keepFormatting false to write a description that drops the stored
+   *          links or formatting; null or true refuses such a description
+   * @return the updated task
+   * @throws ObjectNotFoundException when the task doesn't exist
+   * @throws IllegalAccessException when the current user can't edit it
+   * @throws IllegalArgumentException when the description drops the stored
+   *           links or formatting and {@code keepFormatting} is not false
+   */
+  public TaskModel updateTaskDescription(long taskId,
+                                         String description,
+                                         Boolean keepFormatting) throws ObjectNotFoundException, IllegalAccessException {
     TaskDto task = getTask(taskId);
     if (task == null) {
       throw new ObjectNotFoundException(MSG_TASK_NOT_FOUND.formatted(taskId));
     } else if (!userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(taskId), getCurrentUserName())) {
       throw new IllegalAccessException(MSG_TASK_NOT_EDITABLE.formatted(taskId,
                                                                        getCurrentUserName()));
+    }
+    List<String> dropped = TaskDescriptionText.droppedMarkup(task.getDescription(), description);
+    if (!dropped.isEmpty() && !Boolean.FALSE.equals(keepFormatting)) {
+      throw new IllegalArgumentException(MSG_DESCRIPTION_DROPS_MARKUP.formatted(String.join(" and ", dropped)));
     }
     task.setDescription(description);
     task = taskService.updateTask(task);

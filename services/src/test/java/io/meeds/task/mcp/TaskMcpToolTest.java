@@ -145,6 +145,7 @@ import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
 import io.meeds.task.mcp.model.TaskListItemModel;
 import io.meeds.task.mcp.model.TaskModel;
+import io.meeds.task.mcp.util.TaskDescriptionText;
 import io.meeds.task.plugin.TaskAclPlugin;
 
 import lombok.SneakyThrows;
@@ -1902,10 +1903,54 @@ public class TaskMcpToolTest {
     when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
     when(taskService.updateTask(task)).thenReturn(task);
 
-    runWithDateFormatMockResult(() -> tool.updateTaskDescription(TASK_ID, "New description"));
+    runWithDateFormatMockResult(() -> tool.updateTaskDescription(TASK_ID, "New description", null));
 
     verify(task).setDescription("New description");
     verify(taskService).updateTask(task);
+  }
+
+  /**
+   * A description rewritten from its plain text would drop the content link
+   * and the bold text the stored one holds (EXO-94958, LIVE-94958 Q3): it is
+   * refused, naming what it drops and how to keep it, and nothing is saved; a
+   * rewrite that keeps that markup is saved, and so is the plain text with
+   * keep_formatting false, for a user who asked for it. Mutants: the check
+   * dropped; keep_formatting false not honoured; the bold not compared; an
+   * empty bold element counted.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aDescriptionRewriteThatDropsItsLinksOrBoldIsRefused() throws Exception { // NOSONAR
+    String stored = "<div><strong>zz-94958 fixture:</strong> review on the board <content-link contenteditable=\"false\" "
+        + "style=\"display:none\">/project:152</content-link> - checked twice.</div>";
+    TaskDto task = mockTask();
+    when(task.getDescription()).thenReturn(stored);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasEditPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    String plain = "zz-94958 fixture: review on the board L5 rig board - checked twice.\nChecked on the rig";
+
+    IllegalArgumentException refused = assertThrows(IllegalArgumentException.class,
+                                                    () -> tool.updateTaskDescription(TASK_ID, plain, null));
+    assertTrue(refused.getMessage(), refused.getMessage().contains("drops the description's links and bold text"));
+    assertTrue(refused.getMessage(), refused.getMessage().contains("description_format html"));
+    assertThrows(IllegalArgumentException.class, () -> tool.updateTaskDescription(TASK_ID, plain, true));
+    IllegalArgumentException noBold = assertThrows(IllegalArgumentException.class,
+                                                   () -> tool.updateTaskDescription(TASK_ID,
+                                                                                    stored.replace("<strong>", "").replace("</strong>", ""),
+                                                                                    null));
+    assertTrue(noBold.getMessage(), noBold.getMessage().contains("drops the description's bold text"));
+    verify(taskService, never()).updateTask(task);
+
+    String kept = stored + "<div>Checked on the rig</div>";
+    runWithDateFormatMockResult(() -> tool.updateTaskDescription(TASK_ID, kept, null));
+    verify(task).setDescription(kept);
+    runWithDateFormatMockResult(() -> tool.updateTaskDescription(TASK_ID, plain, false));
+    verify(task).setDescription(plain);
+    verify(taskService, times(2)).updateTask(task);
+    assertEquals("an empty bold element shows nothing bold", List.of(),
+                 TaskDescriptionText.droppedMarkup("<p>a <b></b> b</p>", "a b"));
   }
 
   @Test
