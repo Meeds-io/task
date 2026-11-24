@@ -471,7 +471,7 @@
     {
       "name": "update_task_description",
       "title": "Update a Task description",
-      "description": "Update the description of a task: it replaces the whole description, so to change part of it, read the current one first with get_task_by_id and description_format html, and keep its markup, mentions and links. A text that drops the stored links or bold text is refused; pass keep_formatting false only when the user asked for plain text.",
+      "description": "Update the description of a task: it replaces the whole description, so to change part of it, read the current one first with get_task_by_id and description_format html, and keep its markup, mentions and links. A text that drops the stored content links (the links to a note, a document or another platform object) or bold text is refused, other links and formatting are not checked; pass keep_formatting false only when the user asked for plain text.",
       "input_schema": {
         "type": "object",
         "properties": {
