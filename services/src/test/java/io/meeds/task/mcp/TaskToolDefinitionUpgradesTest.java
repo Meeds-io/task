@@ -70,7 +70,7 @@ public class TaskToolDefinitionUpgradesTest {
                                                                             "list_task_comments_by_id",
                                                                             4,
                                                                             "update_task_description",
-                                                                            2);
+                                                                            3);
 
   /**
    * The definitions feature/rtd shipped before EXO-94250, which the
@@ -204,6 +204,15 @@ public class TaskToolDefinitionUpgradesTest {
                                                                               "a07994a95ff0c02af1b3e933138f3ae9d2717e5352b052f44d9697e9c50bc126");
 
   /**
+   * The definition of update_task_description EXO-94958 shipped before it
+   * named the content links as the links it guards, which the integration
+   * rigs that carried EXO-94958 stored.
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_CONTENT_LINKS =
+                                                                       Map.of("update_task_description",
+                                                                              "2d4e6244c08e3f9acdaaf60736812bbdcebc09fc7dc9b1640e053c4bbfe5b4b1");
+
+  /**
    * The definition of list_tasks the integration branch of this change carried
    * before boards_only reached the no-assignee clause (EXO-94747), which an
    * instance built from that branch stored.
@@ -262,7 +271,8 @@ public class TaskToolDefinitionUpgradesTest {
                                                 DEFINITIONS_BEFORE_94747,
                                                 DEFINITIONS_OF_94747_INTEGRATION,
                                                 DEFINITIONS_OF_94516_BRANCH,
-                                                DEFINITIONS_BEFORE_95049)) {
+                                                DEFINITIONS_BEFORE_95049,
+                                                DEFINITIONS_BEFORE_CONTENT_LINKS)) {
         if (pinned.containsKey(name)) {
           assertTrue(name, digests.contains(pinned.get(name)));
         }
