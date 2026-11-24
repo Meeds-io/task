@@ -143,6 +143,7 @@ import io.meeds.task.mcp.model.TaskGroupCountModel;
 import io.meeds.task.mcp.model.StatusTaskCountModel;
 import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
+import io.meeds.task.mcp.model.TaskCommentModel;
 import io.meeds.task.mcp.model.TaskListItemModel;
 import io.meeds.task.mcp.model.TaskModel;
 import io.meeds.task.mcp.util.TaskDescriptionText;
@@ -2373,6 +2374,68 @@ public class TaskMcpToolTest {
     assertEquals("the plain text is the user's own rendering", "See Secret Q4 plan", read.getDescription());
     assertEquals(stored, markup.getDescription());
     assertFalse("the markup carries no linked object's title", markup.getDescription().contains("Secret Q4 plan"));
+  }
+
+  /**
+   * A task's comments, their replies and the answer to a new comment are
+   * read as plain text (EXO-95049): no tag or entity is left, a link reads as
+   * its text, and the text is cut from the platform's rendering for the
+   * reader, so a link to an object the reader may not view reads as that
+   * rendering says, never as the stored markup. Mutants: a comment left as
+   * the rendering's markup; a reply left as markup; the plain text cut from
+   * the stored comment instead of the rendering.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aTasksCommentsReadAsPlainTextWithTheirLinksAsText() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    String storedComment = "<div><p>See <content-link contenteditable=\"false\">/notes:12</content-link> &amp; <b>ship</b></p></div>";
+    String storedReply = "<p>Done&nbsp;<content-link contenteditable=\"false\">/notes:13</content-link></p>";
+    CommentDto comment = new CommentDto();
+    comment.setId(41L);
+    comment.setAuthor(OTHER_USER);
+    comment.setComment(storedComment);
+    comment.setCreatedTime(new Date());
+    CommentDto reply = new CommentDto();
+    reply.setId(42L);
+    reply.setAuthor(USER);
+    reply.setComment(storedReply);
+    reply.setCreatedTime(new Date());
+    reply.setParentComment(comment);
+    comment.setSubComments(List.of(reply));
+    when(commentService.getCommentsWithSubs(TASK_ID, 0, 10)).thenReturn(List.of(comment));
+    when(commentService.countCommentsWithSubs(TASK_ID)).thenReturn(2);
+    String storedNew = "<p>New <i>one</i></p>";
+    CommentDto added = new CommentDto();
+    added.setId(43L);
+    added.setAuthor(USER);
+    added.setComment(storedNew);
+    added.setCreatedTime(new Date());
+    when(commentService.addComment(task, USER, storedNew)).thenReturn(added);
+
+    TaskCommentCollectionModel read;
+    TaskCommentModel answer;
+    try (MockedStatic<McpToolPluginUtils> transformed = mockStatic(McpToolPluginUtils.class, CALLS_REAL_METHODS)) {
+      transformed.when(() -> McpToolPluginUtils.transformHtmlContent(eq(storedComment), any(), any()))
+                 .thenReturn("<div><p>See <a data-object=\"notes:12\" class=\"content-link\">Q4 plan</a> &amp; <b>ship</b></p></div>");
+      transformed.when(() -> McpToolPluginUtils.transformHtmlContent(eq(storedReply), any(), any()))
+                 .thenReturn("<p>Done&nbsp;<span class=\"content-link\">Restricted</span></p>");
+      read = runWithDateFormatMockResult(() -> tool.listTaskCommentsById(TASK_ID, null, null));
+      answer = runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, storedNew));
+    }
+
+    assertEquals(2, read.getComments().size());
+    assertEquals("the link reads as its text in the reader's rendering", "See Q4 plan & ship", read.getComments().get(0).getText());
+    assertEquals("a reply is plain text too", "Done Restricted", read.getComments().get(1).getText());
+    assertEquals(Long.valueOf(41L), read.getComments().get(1).getParentCommentId());
+    assertEquals("New one", answer.getText());
+    String json = JSON.writeValueAsString(read);
+    for (String markup : List.of("<", "&amp;", "&nbsp;", "/notes:")) {
+      assertFalse(markup + " in " + json, json.contains(markup));
+    }
   }
 
   /**
