@@ -233,6 +233,14 @@ public class TaskMcpTool implements McpToolPlugin {
   /** A task read's description as its markup, for an edit of it. */
   static final String                   DESCRIPTION_FORMAT_HTML         = "html";
 
+  /**
+   * What the summary of a grouped call with a limit of 1 adds (EXO-95037):
+   * that call is made for the counts and lists no task, so nothing in its
+   * answer names one.
+   */
+  static final String                   COUNTS_ONLY_SUMMARY             =
+                                                                    "; counts only, no task is listed (a limit above 1 lists them)";
+
   private static final String           MSG_DESCRIPTION_DROPS_MARKUP    =
                                                                   "This text drops the description's %s: read it with "
                                                                       + "get_task_by_id and description_format html and edit that "
@@ -1064,11 +1072,15 @@ public class TaskMcpTool implements McpToolPlugin {
       taskModels = tasks.stream().map(t -> toTaskWithChangeLogModel(t, null, zone, today)).toList();
     }
     TaskCollectionModel collection = toTaskCollection(taskModels, usedOffset, usedLimit, countTasks(taskQuery));
+    boolean countsOnly = grouping != null && usedLimit == 1;
     if (grouping != null) {
-      if (usedLimit == 1) {
-        // a call for the counts, its one task aside, asks no next page (EXO-94360)
+      if (countsOnly) {
+        // a call for the counts asks no next page (EXO-94360) and lists no
+        // task (EXO-95037): a single task read as a sample of a board was
+        // presented as the board's tasks
         collection.setHasMore(false);
         collection.setNextOffset(null);
+        collection.setTasks(Collections.emptyList());
       }
       TaskQuery openQuery = getTaskQuery(projectId, true, false, zone);
       setManagedBy(openQuery, managerMemberships);
@@ -1105,6 +1117,9 @@ public class TaskMcpTool implements McpToolPlugin {
           setGroupCounts(collection, taskQuery, openQuery, grouping);
         }
         collection.setSummary(getGroupsSummary(collection, filters));
+      }
+      if (countsOnly) {
+        collection.setSummary(collection.getSummary() + COUNTS_ONLY_SUMMARY);
       }
     }
     return collection;
