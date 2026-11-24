@@ -4684,8 +4684,8 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * A grouped call with a limit of 1 is made for the counts: it returns at
-   * most one task and says no next page remains, though more tasks match; a
+   * A grouped call with a limit of 1 is made for the counts: it lists no
+   * task (EXO-95037) and says no next page remains, though more tasks match; a
    * grouped call reading a real page, and an ungrouped call with a limit of
    * 1, keep has_more and next_offset (EXO-94360). Mutants: has_more left on
    * the counting call; has_more dropped on every grouped call; the rule
@@ -4719,6 +4719,44 @@ public class TaskMcpToolTest {
     TaskCollectionModel plain = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
     assertTrue(plain.isHasMore());
     assertEquals(Integer.valueOf(1), plain.getNextOffset());
+  }
+
+  /**
+   * A grouped call with a limit of 1, made for the counts, lists no task and
+   * its summary says so (EXO-95037): a single task read as a sample of a
+   * board was presented as that board's tasks. A grouped call reading a page
+   * lists its tasks, and an ungrouped call with a limit of 1 lists its one
+   * task, neither saying « counts only ». Mutants: the sample task kept; the
+   * summary left as is; the rule applied to an ungrouped call or a grouped
+   * page.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aGroupedCountingCallListsNoTaskAndSaysSo() throws Exception { // NOSONAR
+    List<TaskDto> ten = new ArrayList<>();
+    for (long id = 1; id <= 10; id++) {
+      ten.add(mockTaskWithProject(id, new Date()));
+    }
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(1))).thenReturn(ten.subList(0, 1));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(ten);
+    when(taskService.countTasks(any())).thenReturn(25);
+    when(taskService.countTasksByProject(any())).thenReturn(List.of(new ProjectTaskCountDto(8L, "Alpha", 25L)));
+
+    TaskCollectionModel counting = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 1, null, null, null, null, null, null, null, null, null, true, null, null, null, null, null, null));
+    assertTrue(counting.getTasks().isEmpty());
+    assertTrue(counting.getSummary(), counting.getSummary().endsWith(TaskMcpTool.COUNTS_ONLY_SUMMARY));
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(counting));
+    assertEquals(0, json.path("tasks").size());
+    assertEquals(25, json.path("count").asInt());
+
+    TaskCollectionModel page = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 10, null, null, null, null, null, null, null, null, null, true, null, null, null, null, null, null));
+    assertEquals(10, page.getTasks().size());
+    assertFalse(page.getSummary(), page.getSummary().contains(TaskMcpTool.COUNTS_ONLY_SUMMARY));
+
+    TaskCollectionModel plain = runWithDateFormatMockResult(() -> tool.listTasks(null, true, false, null, 0, 1, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+    assertEquals(1, plain.getTasks().size());
+    assertNull(plain.getSummary());
   }
 
   /**
@@ -4828,7 +4866,7 @@ public class TaskMcpToolTest {
     assertNull(result.getProjects());
     assertNull(result.getPersonalCount());
     assertFalse(result.isHasMore());
-    assertEquals("13 tasks, by assignee: ann 5, john 5, unassigned 3", result.getSummary());
+    assertEquals("13 tasks, by assignee: ann 5, john 5, unassigned 3" + TaskMcpTool.COUNTS_ONLY_SUMMARY, result.getSummary());
     verify(taskService, never()).countTasksByProject(any());
     JsonNode json = JSON.readTree(JSON.writeValueAsString(result));
     assertEquals("assignee", json.path("group_by").asText());
@@ -5816,7 +5854,7 @@ public class TaskMcpToolTest {
     assertFalse(selectsOnBoardsOnly(listed.getAllValues().get(1)));
     assertFalse(selectsOnBoardsOnly(grouped.getAllValues().get(3)));
     assertEquals(List.of("John", "unassigned"), result.getGroups().stream().map(TaskGroupCountModel::getName).toList());
-    assertEquals("7 open tasks on boards, by assignee: John 5, unassigned 2", result.getSummary());
+    assertEquals("7 open tasks on boards, by assignee: John 5, unassigned 2" + TaskMcpTool.COUNTS_ONLY_SUMMARY, result.getSummary());
   }
 
   /**
