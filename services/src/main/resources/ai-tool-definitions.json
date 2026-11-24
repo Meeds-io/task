@@ -269,7 +269,7 @@
     {
       "name": "list_task_comments_by_id",
       "title": "List Task comments",
-      "description": "List comments for a task by its identifier, checking access permissions, each followed by its replies, each author by username and display name.",
+      "description": "List comments for a task by its identifier, checking access permissions, each followed by its replies, each author by username and display name, each text as plain text, a link as its text.",
       "input_schema": {
         "type": "object",
         "properties": {

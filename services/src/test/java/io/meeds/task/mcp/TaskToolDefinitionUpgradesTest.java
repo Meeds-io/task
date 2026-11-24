@@ -68,7 +68,7 @@ public class TaskToolDefinitionUpgradesTest {
                                                                             "get_task_by_id",
                                                                             3,
                                                                             "list_task_comments_by_id",
-                                                                            3,
+                                                                            4,
                                                                             "update_task_description",
                                                                             2);
 
@@ -195,6 +195,15 @@ public class TaskToolDefinitionUpgradesTest {
                                                                               "69323fb78a650b8b1f46e9072f3847dbd77606f8c91c795c9d03f374f5687222");
 
   /**
+   * The definition of list_task_comments_by_id EXO-94958 shipped before its
+   * comments read as plain text (EXO-95049), which the integration rigs that
+   * carried EXO-94958 stored.
+   */
+  private static final Map<String, String>  DEFINITIONS_BEFORE_95049      =
+                                                                       Map.of("list_task_comments_by_id",
+                                                                              "a07994a95ff0c02af1b3e933138f3ae9d2717e5352b052f44d9697e9c50bc126");
+
+  /**
    * The definition of list_tasks the integration branch of this change carried
    * before boards_only reached the no-assignee clause (EXO-94747), which an
    * instance built from that branch stored.
@@ -252,7 +261,8 @@ public class TaskToolDefinitionUpgradesTest {
                                                 DEFINITIONS_OF_94538_BRANCH,
                                                 DEFINITIONS_BEFORE_94747,
                                                 DEFINITIONS_OF_94747_INTEGRATION,
-                                                DEFINITIONS_OF_94516_BRANCH)) {
+                                                DEFINITIONS_OF_94516_BRANCH,
+                                                DEFINITIONS_BEFORE_95049)) {
         if (pinned.containsKey(name)) {
           assertTrue(name, digests.contains(pinned.get(name)));
         }

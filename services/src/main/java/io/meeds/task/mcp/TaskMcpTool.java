@@ -3612,6 +3612,14 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
+  /**
+   * Maps a comment, then each of its replies, as an assistant reads them.
+   *
+   * @param comment the comment
+   * @param taskId its task
+   * @param url its task's link
+   * @return the comment followed by its replies
+   */
   private List<TaskCommentModel> toTaskCommentModels(CommentDto comment, long taskId, String url) {
     org.exoplatform.services.security.Identity aclIdentity = getCurrentUserAclIdentity();
     Locale locale = getCurrentUserLocale();
@@ -3620,7 +3628,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                                              comment.getParentComment() == null ? null :
                                                                                                 comment.getParentComment()
                                                                                                        .getId(),
-                                                             transformHtmlContent(comment.getComment(), aclIdentity, locale),
+                                                             commentText(comment, aclIdentity, locale),
                                                              url,
                                                              formatDate(comment.getCreatedTime()),
                                                              getTaskAssignee(comment.getAuthor()));
@@ -3637,6 +3645,33 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
+  /**
+   * A comment's text as the plain text an assistant reads (EXO-95049): cut
+   * from the platform's rendering of the comment for the reader, as a task's
+   * description is, so a link reads as its text and one to an object the
+   * reader may not view reads as the rendering says, never as the stored
+   * markup; one line per block, no tag or entity left.
+   *
+   * @param comment the comment
+   * @param aclIdentity the reader
+   * @param locale the reader's language
+   * @return its plain text, null when it holds no text
+   */
+  private static String commentText(CommentDto comment,
+                                     org.exoplatform.services.security.Identity aclIdentity,
+                                     Locale locale) {
+    return TaskDescriptionText.toPlainText(transformHtmlContent(comment.getComment(), aclIdentity, locale));
+  }
+
+  /**
+   * Maps one comment or reply as an assistant reads it: its author by name,
+   * its text as plain text.
+   *
+   * @param comment the comment
+   * @param taskId its task
+   * @param url its task's link
+   * @return the model
+   */
   private TaskCommentModel toTaskCommentModel(CommentDto comment, long taskId, String url) {
     org.exoplatform.services.security.Identity aclIdentity = getCurrentUserAclIdentity();
     Locale locale = getCurrentUserLocale();
@@ -3645,7 +3680,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                 comment.getParentComment() == null ? null :
                                                                    comment.getParentComment()
                                                                           .getId(),
-                                transformHtmlContent(comment.getComment(), aclIdentity, locale),
+                                commentText(comment, aclIdentity, locale),
                                 url,
                                 formatDate(comment.getCreatedTime()),
                                 getTaskAssignee(comment.getAuthor()));
