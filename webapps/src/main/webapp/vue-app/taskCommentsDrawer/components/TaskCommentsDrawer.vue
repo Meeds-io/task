@@ -119,6 +119,10 @@ export default {
       type: Boolean,
       default: false
     },
+    hasMoreComments: {
+      type: Boolean,
+      default: false
+    },
     showTaskCommentDrawer: {
       type: Boolean,
       default: false
@@ -138,9 +142,6 @@ export default {
   computed: {
     isEditorActive() {
       return !this.comments.length;
-    },
-    hasMoreComments() {
-      return this.comments.length < this.commentsTotal;
     }
   },
   watch: {

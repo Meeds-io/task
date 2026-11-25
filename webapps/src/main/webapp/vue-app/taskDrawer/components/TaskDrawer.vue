@@ -230,6 +230,7 @@
         :comments="comments"
         :comments-total="commentsTotal"
         :loading-comments="loadingComments"
+        :has-more-comments="hasMoreComments"
         @load-more-comments="loadMoreComments"
         @confirmDialogOpened="isDrawerClose = false"
         @confirmDialogClosed="isDrawerClose = true" />
@@ -270,6 +271,7 @@ export default {
       commentsPageSize: 20,
       commentsFirstPageSize: 300,
       commentsDuplicates: 0,
+      commentsExhausted: false,
       loadingComments: false,
       subEditorIsOpen: false,
       taskPriority: 'NONE',
@@ -301,6 +303,9 @@ export default {
     };
   },
   computed: {
+    hasMoreComments() {
+      return !this.commentsExhausted && this.comments.length + this.commentsDuplicates < this.commentsTotal;
+    },
     confirmDrawerClose() {
       return this.isDrawerClose;
     },
@@ -706,12 +711,13 @@ export default {
     getTaskComments() {
       this.commentsTotal = 0;
       this.commentsDuplicates = 0;
+      this.commentsExhausted = false;
       return this.loadCommentsPage(0);
     },
     loadMoreComments() {
       // Comments come newest first, so the ones already loaded (including those added
       // meanwhile) are exactly the first ones: the next page is the older comments
-      if (!this.loadingComments && this.comments.length < this.commentsTotal) {
+      if (!this.loadingComments && this.hasMoreComments) {
         this.loadCommentsPage(this.comments.length + this.commentsDuplicates);
       }
     },
@@ -719,12 +725,17 @@ export default {
       const taskId = this.task.id;
       this.loadingComments = true;
       const requestId = this.commentsRequestId = (this.commentsRequestId || 0) + 1;
-      return this.$taskDrawerApi.getTaskCommentsPage(taskId, offset, offset ? this.commentsPageSize : this.commentsFirstPageSize)
+      const limit = offset ? this.commentsPageSize : this.commentsFirstPageSize;
+      return this.$taskDrawerApi.getTaskCommentsPage(taskId, offset, limit)
         .then(({comments, total}) => {
           if (requestId !== this.commentsRequestId || taskId !== this.task.id) {
             return; // superseded by a more recent request, or another task is displayed now
           }
           this.commentsTotal = total;
+          // A page shorter than asked for is the end of the list, whatever the total says:
+          // the comments added by someone else since the first page are never fetched, so the
+          // total can stay above what can be loaded
+          this.commentsExhausted = comments.length < limit;
           if (!offset) {
             this.comments = comments;
             return;
@@ -735,8 +746,10 @@ export default {
           const displayed = new Set(this.comments.map(item => item.comment.id));
           const older = comments.filter(item => !displayed.has(item.comment.id));
           this.commentsDuplicates += comments.length - older.length;
-          // each page is oldest first: an older page goes above the ones already displayed
-          this.comments = older.concat(this.comments);
+          if (older.length) {
+            // each page is oldest first: an older page goes above the ones already displayed
+            this.comments = older.concat(this.comments);
+          }
         })
         .finally(() => {
           if (requestId === this.commentsRequestId) {
