@@ -269,6 +269,7 @@ export default {
       commentsTotal: 0,
       commentsPageSize: 20,
       commentsFirstPageSize: 300,
+      commentsDuplicates: 0,
       loadingComments: false,
       subEditorIsOpen: false,
       taskPriority: 'NONE',
@@ -704,13 +705,14 @@ export default {
     },
     getTaskComments() {
       this.commentsTotal = 0;
+      this.commentsDuplicates = 0;
       return this.loadCommentsPage(0);
     },
     loadMoreComments() {
       // Comments come newest first, so the ones already loaded (including those added
       // meanwhile) are exactly the first ones: the next page is the older comments
       if (!this.loadingComments && this.comments.length < this.commentsTotal) {
-        this.loadCommentsPage(this.comments.length);
+        this.loadCommentsPage(this.comments.length + this.commentsDuplicates);
       }
     },
     loadCommentsPage(offset) {
@@ -723,8 +725,18 @@ export default {
             return; // superseded by a more recent request, or another task is displayed now
           }
           this.commentsTotal = total;
+          if (!offset) {
+            this.comments = comments;
+            return;
+          }
+          // The list is paged by position: a comment added by someone else since the first page
+          // moves every older one down, so a page can hold comments already displayed. They are
+          // left out, and counted so that the next page starts after them.
+          const displayed = new Set(this.comments.map(item => item.comment.id));
+          const older = comments.filter(item => !displayed.has(item.comment.id));
+          this.commentsDuplicates += comments.length - older.length;
           // each page is oldest first: an older page goes above the ones already displayed
-          this.comments = offset ? comments.concat(this.comments) : comments;
+          this.comments = older.concat(this.comments);
         })
         .finally(() => {
           if (requestId === this.commentsRequestId) {

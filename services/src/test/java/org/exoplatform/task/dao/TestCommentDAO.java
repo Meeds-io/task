@@ -138,6 +138,32 @@ public class TestCommentDAO extends AbstractTest {
   }
 
   @Test
+  public void testCommentsCreatedAtTheSameTimeArePagedWithoutOverlap() throws Exception {
+    Task task = taskDAO.create(newDefaultSimpleTask());
+    Date sameTime = new Date();
+    for (int i = 0; i < 5; i++) {
+      Comment comment = newDefaultSimpleComment(task);
+      comment.setCreatedTime(sameTime);
+      commentDAO.create(comment);
+    }
+
+    ListAccess<Comment> comments = commentDAO.findComments(task.getId());
+    List<Long> ids = new java.util.ArrayList<>();
+    for (int offset = 0; offset < 5; offset += 2) {
+      for (Comment comment : comments.load(offset, 2)) {
+        ids.add(comment.getId());
+      }
+    }
+
+    Assert.assertEquals(5, ids.size());
+    Assert.assertEquals(5, new java.util.HashSet<>(ids).size());
+    // the newest first: by time, then by id
+    for (int i = 1; i < ids.size(); i++) {
+      Assert.assertTrue(ids.get(i - 1) > ids.get(i));
+    }
+  }
+
+  @Test
   public void testCreateSubComment() {
     Task task = newDefaultSimpleTask();
     task = taskDAO.create(task);

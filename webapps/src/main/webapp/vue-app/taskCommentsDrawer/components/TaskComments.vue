@@ -142,6 +142,7 @@ export default {
             if ( comment === this.comment) {
               if ( this.comment.comment.id === this.commentToDelete ) {
                 this.comments.splice(index, 1);
+                this.$root.$emit('update-task-comments', Math.max(this.commentsTotal - 1, this.comments.length), this.task.id);
               } else {
                 comment.subComments.forEach((subComment,index) => {
                   if ( subComment.comment.id === this.commentToDelete) {

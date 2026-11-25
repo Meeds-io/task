@@ -485,7 +485,7 @@ public class TaskRestService implements ResourceContainer {
       }
       taskQuery.setProjectIds(allProjectIds);
       taskQuery.setCompleted(completed);
-      List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
+      List<TaskDto> tasks = taskService.findTasks(taskQuery, Math.max(offset, 0), limit);
       if (returnSize) {
         tasks.forEach(t -> transformHtml(t, currentUser));
         JSONObject tasksSizeJsonObject = new JSONObject();

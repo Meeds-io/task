@@ -23,6 +23,7 @@ import jakarta.persistence.TypedQuery;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -112,7 +113,7 @@ public class LabelDAOImpl extends CommonJPADAO<Label, Long> implements LabelHand
   /** The pattern of the names containing the keyword, with its wildcards taken literally. */
   private static String toLikePattern(String keyword) {
     return "%" + keyword.trim()
-                        .toLowerCase()
+                        .toLowerCase(Locale.ROOT)
                         .replace("!", "!!")
                         .replace("%", "!%")
                         .replace("_", "!_") + "%";

@@ -266,6 +266,10 @@ export default {
       // them from the call above, and the Gantt tab fetches them when it is opened
       if (this.taskViewTabName === 'gantt') {
         this.getAllProjectTasks(this.project.id);
+      } else {
+        // do not keep the chart of the previous project until the Gantt tab is opened
+        this.allProjectTasks = [];
+        this.$root.$emit('gantt-displayed', []);
       }
     }
   },

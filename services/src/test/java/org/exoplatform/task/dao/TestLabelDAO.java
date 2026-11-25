@@ -194,8 +194,10 @@ public class TestLabelDAO extends AbstractTest {
     Assert.assertEquals(0, tasks.getSize());
   }
   
+  // The labels come back by id, which HSQLDB also gives by insertion: this pins that pages are complete
+  // and do not overlap, not that the ORDER BY is there.
   @Test
-  public void testLabelsPagesAreStableAndComplete() throws Exception {
+  public void testLabelsPagesAreComplete() throws Exception {
     Project project = new Project();
     project.setName("pagedProject");
     taskService.getProjectHandler().create(project);

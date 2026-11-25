@@ -221,6 +221,10 @@ public class TestTaskRestService {
     // no limit means everything
     taskRestService.getTasksByProjectId(1L, 0, 0, false, false, false);
     verify(taskService).findTasks(any(TaskQuery.class), eq(0), eq(-1));
+
+    // a negative offset is no offset
+    taskRestService.getTasksByProjectId(1L, -3, 10, false, false, false);
+    verify(taskService).findTasks(any(TaskQuery.class), eq(0), eq(10));
   }
 
   @Test

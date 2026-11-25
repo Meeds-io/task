@@ -56,8 +56,8 @@
             class="autoLoadComments"
             style="height: 1px"></div>
           <div
-            v-for="(item, i) in comments"
-            :key="i"
+            v-for="item in comments"
+            :key="item.comment.id"
             class="pe-0 ps-0 TaskCommentItem">
             <task-comments
               :task="task"

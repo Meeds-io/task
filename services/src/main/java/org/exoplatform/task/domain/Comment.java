@@ -51,7 +51,7 @@ import lombok.EqualsAndHashCode;
 @NamedQuery(name = "Comment.countCommentsWithSubs",
     query = "SELECT count(c) FROM TaskComment c WHERE c.task.id = :taskId")
 @NamedQuery(name = "Comment.findCommentsOfTask",
-    query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL ORDER BY c.createdTime DESC")
+    query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId AND c.parentComment IS NULL ORDER BY c.createdTime DESC, c.id DESC")
 @NamedQuery(name = "Comment.findLastCommentOfTask",
     query = "SELECT c FROM TaskComment c WHERE c.task.id = :taskId ORDER BY c.createdTime DESC")
 @NamedQuery(name = "Comment.findSubCommentsOfComments",
