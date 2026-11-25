@@ -229,6 +229,7 @@
         :comments="comments"
         @confirmDialogOpened="isDrawerClose = false"
         @confirmDialogClosed="isDrawerClose = true" />
+      <object-reactions-drawer />
       <task-changes-drawer
         ref="taskChangesDrawer"
         :task="task"

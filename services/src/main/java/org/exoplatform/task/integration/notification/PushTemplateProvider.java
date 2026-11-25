@@ -59,6 +59,7 @@ import org.exoplatform.social.core.identity.model.Profile;
     @TemplateConfig(pluginId = TaskCompletedPlugin.ID, template = "war:/notification/templates/push/TaskCompletedPlugin.gtmpl"),
     @TemplateConfig(pluginId = TaskCommentPlugin.ID, template = "war:/notification/templates/push/TaskCommentPlugin.gtmpl"),
     @TemplateConfig(pluginId = TaskMentionPlugin.ID, template = "war:/notification/templates/push/TaskMentionPlugin.gtmpl"),
+    @TemplateConfig(pluginId = TaskReactionPlugin.ID, template = "war:/notification/templates/push/TaskReactionPlugin.gtmpl"),
     @TemplateConfig(pluginId = TaskEditionPlugin.ID, template = "war:/notification/templates/push/TaskEditionPlugin.gtmpl") })
 public class PushTemplateProvider extends TemplateProvider {
 
@@ -72,6 +73,7 @@ public class PushTemplateProvider extends TemplateProvider {
     this.templateBuilders.put(PluginKey.key(TaskCompletedPlugin.ID), new TemplateBuilder());
     this.templateBuilders.put(PluginKey.key(TaskCommentPlugin.ID), new CommentTemplateBuilder());
     this.templateBuilders.put(PluginKey.key(TaskMentionPlugin.ID), new TemplateBuilder());
+    this.templateBuilders.put(PluginKey.key(TaskReactionPlugin.ID), new TemplateBuilder());
     this.templateBuilders.put(PluginKey.key(TaskEditionPlugin.ID), new TemplateBuilder());
   }
 
@@ -134,6 +136,8 @@ public class PushTemplateProvider extends TemplateProvider {
       templateContext.put("TASK_URL", taskUrl);
       templateContext.put("PROJECT_URL", projectUrl);
       templateContext.put("TASK_TITLE", encoder.encode(taskTitle));
+      String reaction = notification.getValueOwnerParameter(NotificationUtils.REACTION_EMOJI);
+      templateContext.put("REACTION", reaction == null ? "" : encoder.encode(reaction));
       UserService userService = CommonsUtils.getService(UserService.class);
       templateContext.put("DUE_DATE", TemplateUtils.format(dueDate, userService.getUserTimezone(notification.getTo())));
       //

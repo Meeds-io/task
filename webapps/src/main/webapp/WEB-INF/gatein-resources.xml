@@ -133,6 +133,9 @@
       <path>/js/taskDrawer.bundle.js</path>
     </script>
     <depends>
+      <module>ActivityReactions</module>
+    </depends>
+    <depends>
       <module>vue</module>
     </depends>
     <depends>
@@ -162,6 +165,9 @@
       <minify>false</minify>
       <path>/js/taskCommentsDrawer.bundle.js</path>
     </script>
+    <depends>
+      <module>ActivityReactions</module>
+    </depends>
     <depends>
       <module>commonVueComponents</module>
     </depends>
