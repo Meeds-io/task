@@ -51,14 +51,20 @@ public class TaskCommentReactionObjectPlugin implements ReactionObjectPlugin {
 
   public static final String OBJECT_TYPE = TaskCommentAclPlugin.OBJECT_TYPE;
 
-  @Autowired
-  private ReactionService    reactionService;
+  private final ReactionService reactionService;
+
+  private final CommentService commentService;
+
+  private final UserACL userAcl;
 
   @Autowired
-  private CommentService     commentService;
-
-  @Autowired
-  private UserACL            userAcl;
+  public TaskCommentReactionObjectPlugin(ReactionService reactionService,
+                                         CommentService commentService,
+                                         UserACL userAcl) {
+    this.reactionService = reactionService;
+    this.commentService = commentService;
+    this.userAcl = userAcl;
+  }
 
   @PostConstruct
   public void init() {

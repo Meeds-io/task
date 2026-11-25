@@ -23,19 +23,28 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Set;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Answers;
 import org.mockito.InjectMocks;
+import org.mockito.MockedStatic;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import org.exoplatform.commons.api.notification.NotificationContext;
+import org.exoplatform.commons.api.notification.command.NotificationCommand;
+import org.exoplatform.commons.api.notification.model.PluginKey;
+import org.exoplatform.commons.api.notification.command.NotificationExecutor;
+import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.listener.Event;
@@ -44,9 +53,12 @@ import org.exoplatform.task.dto.CommentDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.CommentService;
+import org.exoplatform.task.integration.notification.NotificationUtils;
+import org.exoplatform.task.integration.notification.TaskReactionPlugin;
 import org.exoplatform.task.service.TaskService;
 
 import io.meeds.social.reaction.model.Reaction;
+import io.meeds.social.reaction.model.ReactionOption;
 import io.meeds.social.reaction.service.ReactionService;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
@@ -80,6 +92,7 @@ public class TaskReactionNotificationListenerTest {
     task.setId(9L);
     task.setCreatedBy("creator");
     task.setAssignee("assignee");
+    task.setCoworker(Set.of("author"));
     comment = new CommentDto();
     comment.setId(5L);
     comment.setAuthor("author");
@@ -101,6 +114,25 @@ public class TaskReactionNotificationListenerTest {
   @Test
   public void onlyTheCommentAuthorIsNotified() {
     assertEquals(Set.of("author"), listener.getReceivers(task, comment, "john"));
+  }
+
+  @Test
+  public void theAuthorOfACommentOnATaskWithNoProjectMustStillWorkOnIt() {
+    comment.setAuthor("former");
+    assertTrue(listener.getReceivers(task, comment, "john").isEmpty());
+
+    task.setCoworker(Set.of("former"));
+    assertEquals(Set.of("former"), listener.getReceivers(task, comment, "john"));
+
+    task.setCoworker(null);
+    task.setWatcher(Set.of("former"));
+    assertEquals(Set.of("former"), listener.getReceivers(task, comment, "john"));
+
+    task.setWatcher(null);
+    comment.setAuthor("assignee");
+    assertEquals(Set.of("assignee"), listener.getReceivers(task, comment, "john"));
+    comment.setAuthor("creator");
+    assertEquals(Set.of("creator"), listener.getReceivers(task, comment, "john"));
   }
 
   @Test
@@ -156,6 +188,57 @@ public class TaskReactionNotificationListenerTest {
     verify(reactionService, never()).getReactionOptions();
     verify(taskService).getTask(9L);
     verify(commentService).getComment(any(Long.class));
+  }
+
+  @Test
+  public void aReactionOnACommentNotifiesItsAuthorWithTheEmojiOfTheOption() throws Exception {
+    when(reactionService.getReactionOptions()).thenReturn(List.of(new ReactionOption("love",
+                                                                                      "\u2764\uFE0F",
+                                                                                      "l",
+                                                                                      "l",
+                                                                                      "l",
+                                                                                      1,
+                                                                                      null)));
+    NotificationCommand command = mock(NotificationCommand.class);
+    NotificationExecutor executor = mock(NotificationExecutor.class);
+    NotificationContext ctx = mock(NotificationContext.class, Answers.RETURNS_SELF);
+    when(ctx.getNotificationExecutor()).thenReturn(executor);
+    when(ctx.makeCommand(PluginKey.key(TaskReactionPlugin.ID))).thenReturn(command);
+    when(executor.with(command)).thenReturn(executor);
+    try (MockedStatic<NotificationContextImpl> context = mockStatic(NotificationContextImpl.class)) {
+      context.when(NotificationContextImpl::cloneInstance).thenReturn(ctx);
+
+      listener.onEvent(new Event<>(ReactionService.REACTION_CREATED_EVENT_NAME,
+                                   new Reaction(1L, "love", "taskComment", "5"),
+                                   "john"));
+
+      verify(ctx).append(NotificationUtils.TASK, task);
+      verify(ctx).append(NotificationUtils.COMMENT, comment);
+      verify(ctx).append(NotificationUtils.CREATOR, "john");
+      verify(ctx).append(NotificationUtils.RECEIVERS, Set.of("author"));
+      verify(ctx).append(NotificationUtils.REACTION_EMOJI_ARG, "\u2764\uFE0F");
+      verify(executor).execute(ctx);
+    }
+  }
+
+  @Test
+  public void aFreeEmojiIsItsOwnEmoji() throws Exception {
+    NotificationCommand command = mock(NotificationCommand.class);
+    NotificationExecutor executor = mock(NotificationExecutor.class);
+    NotificationContext ctx = mock(NotificationContext.class, Answers.RETURNS_SELF);
+    when(ctx.getNotificationExecutor()).thenReturn(executor);
+    when(ctx.makeCommand(PluginKey.key(TaskReactionPlugin.ID))).thenReturn(command);
+    when(executor.with(command)).thenReturn(executor);
+    try (MockedStatic<NotificationContextImpl> context = mockStatic(NotificationContextImpl.class)) {
+      context.when(NotificationContextImpl::cloneInstance).thenReturn(ctx);
+
+      listener.onEvent(new Event<>(ReactionService.REACTION_CREATED_EVENT_NAME,
+                                   new Reaction(1L, "\uD83D\uDE80", "taskComment", "5"),
+                                   "john"));
+
+      verify(ctx).append(NotificationUtils.REACTION_EMOJI_ARG, "\uD83D\uDE80");
+      verify(executor).execute(ctx);
+    }
   }
 
 }

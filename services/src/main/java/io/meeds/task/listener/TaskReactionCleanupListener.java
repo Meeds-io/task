@@ -40,11 +40,16 @@ import jakarta.annotation.PostConstruct;
 @Component
 public class TaskReactionCleanupListener extends Listener<Object, Object> {
 
-  @Autowired
-  private PortalContainer     container;
+  private final PortalContainer container;
+
+  private final ReactionService reactionService;
 
   @Autowired
-  private ReactionService reactionService;
+  public TaskReactionCleanupListener(PortalContainer container,
+                                     ReactionService reactionService) {
+    this.container = container;
+    this.reactionService = reactionService;
+  }
 
   @PostConstruct
   public void init() {

@@ -20,6 +20,8 @@ package org.exoplatform.task.integration.notification;
 
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.container.xml.InitParams;
@@ -49,7 +51,7 @@ public class TaskReactionPlugin extends AbstractNotificationPlugin {
     CommentDto comment = ctx.value(NotificationUtils.COMMENT);
     NotificationInfo info = super.makeNotification(ctx);
     info.with(NotificationUtils.TASKS, String.valueOf(task.getId()));
-    info.with(NotificationUtils.REACTION_EMOJI, String.valueOf(ctx.value(NotificationUtils.REACTION_EMOJI_ARG)));
+    info.with(NotificationUtils.REACTION_EMOJI, StringUtils.defaultString(ctx.value(NotificationUtils.REACTION_EMOJI_ARG)));
     info.with(NotificationUtils.COMMENT_TEXT, MentionUtils.substituteUsernames(getPortalOwner(), comment.getComment()));
     return info;
   }

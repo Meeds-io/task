@@ -57,20 +57,28 @@ import jakarta.annotation.PostConstruct;
 @Component
 public class TaskReactionNotificationListener extends Listener<Reaction, String> {
 
-  @Autowired
-  private PortalContainer container;
+  private final PortalContainer container;
+
+  private final ReactionService reactionService;
+
+  private final TaskService taskService;
+
+  private final CommentService commentService;
+
+  private final UserACL userAcl;
 
   @Autowired
-  private ReactionService reactionService;
-
-  @Autowired
-  private TaskService     taskService;
-
-  @Autowired
-  private CommentService  commentService;
-
-  @Autowired
-  private UserACL         userAcl;
+  public TaskReactionNotificationListener(PortalContainer container,
+                                          ReactionService reactionService,
+                                          TaskService taskService,
+                                          CommentService commentService,
+                                          UserACL userAcl) {
+    this.container = container;
+    this.reactionService = reactionService;
+    this.taskService = taskService;
+    this.commentService = commentService;
+    this.userAcl = userAcl;
+  }
 
   @PostConstruct
   public void init() {
@@ -120,6 +128,9 @@ public class TaskReactionNotificationListener extends Listener<Reaction, String>
     if (task.getStatus() != null && task.getStatus().getProject() != null) {
       ProjectDto project = task.getStatus().getProject();
       receivers.removeIf(user -> !ProjectUtil.isProjectParticipant(userAcl, user, project));
+    } else {
+      // A task with no project is only seen by those who work on it
+      receivers.removeIf(user -> !isTaskParticipant(task, user));
     }
     return receivers;
   }
@@ -131,6 +142,13 @@ public class TaskReactionNotificationListener extends Listener<Reaction, String>
                           .map(ReactionOption::getEmoji)
                           .findFirst()
                           .orElse(reactionId);
+  }
+
+  private boolean isTaskParticipant(TaskDto task, String user) {
+    return StringUtils.equals(task.getCreatedBy(), user)
+           || StringUtils.equals(task.getAssignee(), user)
+           || task.getCoworker() != null && task.getCoworker().contains(user)
+           || task.getWatcher() != null && task.getWatcher().contains(user);
   }
 
 }
