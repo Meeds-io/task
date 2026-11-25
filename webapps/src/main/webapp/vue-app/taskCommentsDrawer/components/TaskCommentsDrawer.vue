@@ -51,6 +51,11 @@
           v-if="this.comments && this.comments.length"
           class="TaskCommentContent">
           <div
+            v-if="hasMoreComments"
+            v-auto-load="{handler: loadOlderComments, reobserve: true}"
+            class="autoLoadComments"
+            style="height: 1px"></div>
+          <div
             v-for="(item, i) in comments"
             :key="i"
             class="pe-0 ps-0 TaskCommentItem">
@@ -58,6 +63,7 @@
               :task="task"
               :comment="item"
               :comments="comments"
+              :comments-total="commentsTotal"
               :last-comment="commentId"
               :show-new-comment-editor="showNewCommentEditor"
               @confirmDialogOpened="$emit('confirmDialogOpened')"
@@ -82,7 +88,12 @@
   </exo-drawer>
 </template>
 <script>
+import autoLoad from '../../../js/autoLoad.js';
+
 export default {
+  directives: {
+    'auto-load': autoLoad,
+  },
   props: {
     comment: {
       type: Object,
@@ -97,6 +108,14 @@ export default {
       }
     },
     task: {
+      type: Boolean,
+      default: false
+    },
+    commentsTotal: {
+      type: Number,
+      default: 0
+    },
+    loadingComments: {
       type: Boolean,
       default: false
     },
@@ -119,7 +138,29 @@ export default {
   computed: {
     isEditorActive() {
       return !this.comments.length;
+    },
+    hasMoreComments() {
+      return this.comments.length < this.commentsTotal;
     }
+  },
+  watch: {
+    loadingComments(loading) {
+      // the element that scrolls is the drawer's own content, as in openEditorToBottom
+      const container = document.querySelector('#taskCommentDrawer .drawerContent');
+      if (!container) {
+        return;
+      }
+      if (loading) {
+        this.scrollBeforeLoad = {top: container.scrollTop, height: container.scrollHeight};
+      } else if (this.scrollBeforeLoad) {
+        // older comments were inserted above the displayed ones: keep what the user reads in place
+        const before = this.scrollBeforeLoad;
+        this.scrollBeforeLoad = null;
+        this.$nextTick(() => {
+          container.scrollTop = before.top + (container.scrollHeight - before.height);
+        });
+      }
+    },
   },
   mounted() {
     this.$root.$on('displayTaskComment', (commentId, isNewComment) => {
@@ -141,6 +182,11 @@ export default {
     }
   },
   methods: {
+    loadOlderComments() {
+      if (!this.loadingComments) {
+        this.$emit('load-more-comments');
+      }
+    },
     addTaskComment() {
       let comment = this.$refs.commentEditor.getMessage() || '';
       comment = comment.length && this.urlVerify(comment) || '';
@@ -151,7 +197,7 @@ export default {
         })
         .then(() => {
           this.comments.push(this.newComment);
-          this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
+          this.$root.$emit('update-task-comments', Math.max(this.commentsTotal, this.comments.length - 1) + 1, this.task.id);
         })
         .finally(() => {
           this.$root.$emit('task-comment-created');

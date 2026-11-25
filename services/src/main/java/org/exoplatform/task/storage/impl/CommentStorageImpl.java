@@ -168,4 +168,9 @@ public class CommentStorageImpl implements CommentStorage {
       return daoHandler.getCommentHandler().getCommentsSummaries(taskIds);
     }
 
+    @Override
+    public Map<Long, Integer> countCommentsByTasks(Collection<Long> taskIds) {
+      return daoHandler.getCommentHandler().countCommentsByTasks(taskIds);
+    }
+
 }

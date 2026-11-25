@@ -141,4 +141,9 @@ public class CommentServiceImpl implements CommentService {
       return commentStorage.getCommentsSummaries(taskIds);
     }
 
+    @Override
+    public Map<Long, Integer> countCommentsByTasks(Collection<Long> taskIds) {
+      return commentStorage.countCommentsByTasks(taskIds);
+    }
+
 }

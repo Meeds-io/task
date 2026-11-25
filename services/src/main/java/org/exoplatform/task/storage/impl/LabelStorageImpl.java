@@ -66,6 +66,75 @@ public class LabelStorageImpl implements LabelStorage {
   }
 
   @Override
+  public List<LabelDto> findLabelsByUser(String username, String keyword, int offset, int limit) {
+    try {
+      return Arrays.stream(daoHandler.getLabelHandler().findLabelsByUser(username, keyword).load(offset, limit))
+                   .map(StorageUtil::labelToDto)
+                   .toList();
+    } catch (Exception e) {
+      LOG.warn("Error searching labels of user {}", username, e);
+      return new ArrayList<>();
+    }
+  }
+
+  @Override
+  public List<LabelDto> findLabelsByProject(long projectId,
+                                            Identity currentUser,
+                                            ProjectStorage projectStorage,
+                                            String keyword,
+                                            int offset,
+                                            int limit) {
+    try {
+      return Arrays.stream(daoHandler.getLabelHandler().findLabelsByProject(projectId, keyword).load(offset, limit))
+                   .map((Label label) -> StorageUtil.labelToDto(label, currentUser, projectStorage))
+                   .toList();
+    } catch (Exception e) {
+      LOG.warn("Error searching labels of project {}", projectId, e);
+      return new ArrayList<>();
+    }
+  }
+
+  @Override
+  public int countLabelsByUser(String username, String keyword) {
+    try {
+      return daoHandler.getLabelHandler().findLabelsByUser(username, keyword).getSize();
+    } catch (Exception e) {
+      LOG.warn("Error counting labels of user {}", username, e);
+      return 0;
+    }
+  }
+
+  @Override
+  public int countLabelsByProject(long projectId, String keyword) {
+    try {
+      return daoHandler.getLabelHandler().findLabelsByProject(projectId, keyword).getSize();
+    } catch (Exception e) {
+      LOG.warn("Error counting labels of project {}", projectId, e);
+      return 0;
+    }
+  }
+
+  @Override
+  public int countLabelsByUser(String username) {
+    try {
+      return daoHandler.getLabelHandler().findLabelsByUser(username).getSize();
+    } catch (Exception e) {
+      LOG.warn("Error counting labels of user {}", username, e);
+      return 0;
+    }
+  }
+
+  @Override
+  public int countLabelsByProject(long projectId) {
+    try {
+      return daoHandler.getLabelHandler().findLabelsByProject(projectId).getSize();
+    } catch (Exception e) {
+      LOG.warn("Error counting labels of project {}", projectId, e);
+      return 0;
+    }
+  }
+
+  @Override
   public List<LabelDto> findLabelsByProject(long projectId, Identity currentUser, ProjectStorage projectStorage, int offset, int limit) {
     try {
       return Arrays.asList(daoHandler.getLabelHandler().findLabelsByProject(projectId).load(offset, limit))

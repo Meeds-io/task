@@ -29,11 +29,14 @@ import org.exoplatform.task.dto.CommentsSummaryDto;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.TypedQuery;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,6 +58,12 @@ public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements Comme
    */
   private static final String LATEST_COMMENTS_QUERY = "SELECT c.task.id, c.createdTime, c.author, c.id FROM TaskComment c"
       + " WHERE c.task.id IN (:taskIds) AND c.createdTime IN (:createdTimes)";
+
+  private static final String TOP_LEVEL_COUNTS_QUERY = "SELECT c.task.id, count(c) FROM TaskComment c"
+      + " WHERE c.task.id IN (:taskIds) AND c.parentComment IS NULL GROUP BY c.task.id";
+
+  /** Tasks per query, under the limit some databases put on the size of an IN list. */
+  private static final int    COUNTS_CHUNK_SIZE         = 500;
 
   @Override
   public void delete(Comment entity) {
@@ -128,6 +137,23 @@ public class CommentDAOImpl extends CommonJPADAO<Comment, Long> implements Comme
     } catch (NoResultException e) {
       return 0;
     }
+  }
+
+  @Override
+  public Map<Long, Integer> countCommentsByTasks(Collection<Long> taskIds) {
+    if (taskIds == null || taskIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<Long, Integer> counts = new HashMap<>();
+    List<Long> ids = new ArrayList<>(new LinkedHashSet<>(taskIds));
+    for (int from = 0; from < ids.size(); from += COUNTS_CHUNK_SIZE) {
+      TypedQuery<Object[]> query = getEntityManager().createQuery(TOP_LEVEL_COUNTS_QUERY, Object[].class);
+      query.setParameter("taskIds", ids.subList(from, Math.min(from + COUNTS_CHUNK_SIZE, ids.size())));
+      for (Object[] row : query.getResultList()) {
+        counts.put(((Number) row[0]).longValue(), ((Number) row[1]).intValue());
+      }
+    }
+    return counts;
   }
 
   /**

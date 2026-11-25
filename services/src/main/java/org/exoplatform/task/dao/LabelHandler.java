@@ -31,6 +31,22 @@ public interface LabelHandler extends GenericDAO<Label, Long> {
   
   ListAccess<Label> findLabelsByProject(long projectId);
 
+  /**
+   * @param username the owner of the labels
+   * @param keyword text the name of a label contains, whatever its case; a
+   *          blank keyword matches every label
+   * @return the labels of the user matching the keyword, by creation order
+   */
+  ListAccess<Label> findLabelsByUser(String username, String keyword);
+
+  /**
+   * @param projectId the project of the labels
+   * @param keyword text the name of a label contains, whatever its case; a
+   *          blank keyword matches every label
+   * @return the labels of the project matching the keyword, by creation order
+   */
+  ListAccess<Label> findLabelsByProject(long projectId, String keyword);
+
   ListAccess<Label> findLabelsByTask(long taskId, long projectId);
 
   ListAccess<Label> findLabels(LabelQuery query);

@@ -31,6 +31,22 @@ import io.meeds.task.domain.LabelField;
 public interface LabelService {
   List<LabelDto> findLabelsByUser(String username, int offset, int limit);
 
+  /**
+   * Same as the listing without keyword, keeping the labels whose name contains
+   * the keyword, whatever its case.
+   */
+  List<LabelDto> findLabelsByUser(String username, String keyword, int offset, int limit);
+
+  List<LabelDto> findLabelsByProject(long projectId, Identity currentUser, String keyword, int offset, int limit);
+
+  int countLabelsByUser(String username, String keyword);
+
+  int countLabelsByProject(long projectId, String keyword);
+
+  int countLabelsByUser(String username);
+
+  int countLabelsByProject(long projectId);
+
   List<LabelDto> findLabelsByProject(long projectId, Identity currentUser, int offset, int limit);
 
   List<LabelDto> findLabelsByTask(TaskDto task, long projectId, Identity currentUser, int offset, int limit);

@@ -262,7 +262,11 @@ export default {
       this.getStatusByProject(this.project.id);
       this.tasksList=[];
       this.getTasksByProject(this.project.id,'');
-      this.getAllProjectTasks(this.project.id);
+      // Only the Gantt chart uses the tasks of the whole project: other views have
+      // them from the call above, and the Gantt tab fetches them when it is opened
+      if (this.taskViewTabName === 'gantt') {
+        this.getAllProjectTasks(this.project.id);
+      }
     }
   },
   created() {

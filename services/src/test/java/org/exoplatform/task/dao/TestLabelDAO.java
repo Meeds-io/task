@@ -195,6 +195,55 @@ public class TestLabelDAO extends AbstractTest {
   }
   
   @Test
+  public void testLabelsPagesAreStableAndComplete() throws Exception {
+    Project project = new Project();
+    project.setName("pagedProject");
+    taskService.getProjectHandler().create(project);
+    for (int i = 0; i < 5; i++) {
+      lblDAO.create(new Label("paged label " + i, "pager", project));
+    }
+
+    ListAccess<Label> byUser = lblDAO.findLabelsByUser("pager");
+    Assert.assertEquals(5, byUser.getSize());
+    List<String> paged = new java.util.ArrayList<>();
+    for (int offset = 0; offset < 5; offset += 2) {
+      for (Label l : byUser.load(offset, 2)) {
+        paged.add(l.getName());
+      }
+    }
+    Assert.assertEquals(List.of("paged label 0", "paged label 1", "paged label 2", "paged label 3", "paged label 4"), paged);
+
+    ListAccess<Label> byProject = lblDAO.findLabelsByProject(project.getId());
+    Assert.assertEquals(5, byProject.getSize());
+    Assert.assertEquals("paged label 2", byProject.load(2, 2)[0].getName());
+    Assert.assertEquals(0, byProject.load(5, 2).length);
+  }
+
+  @Test
+  public void testSearchLabelsByNameIsCaseInsensitiveAndLiteral() throws Exception {
+    Project project = new Project();
+    project.setName("searchProject");
+    taskService.getProjectHandler().create(project);
+    for (String name : new String[] { "Bug fix", "bugzilla", "100% done", "a_b", "axb", "Other" }) {
+      lblDAO.create(new Label(name, "searcher", project));
+    }
+    lblDAO.create(new Label("bug of someone else", "someone", project));
+
+    Assert.assertEquals(2, lblDAO.findLabelsByUser("searcher", "BUG").getSize());
+    Assert.assertEquals("Bug fix", lblDAO.findLabelsByUser("searcher", "bug").load(0, 1)[0].getName());
+    // the user's own labels only
+    Assert.assertEquals(3, lblDAO.findLabelsByProject(project.getId(), "bug").getSize());
+    // % and _ are taken literally, not as wildcards
+    Assert.assertEquals(1, lblDAO.findLabelsByUser("searcher", "%").getSize());
+    Assert.assertEquals(1, lblDAO.findLabelsByUser("searcher", "a_b").getSize());
+    Assert.assertEquals(0, lblDAO.findLabelsByUser("searcher", "zzz").getSize());
+    // a blank keyword is no search
+    Assert.assertEquals(6, lblDAO.findLabelsByUser("searcher", " ").getSize());
+    // the search pages like the listing
+    Assert.assertEquals(1, lblDAO.findLabelsByUser("searcher", "bug").load(1, 5).length);
+  }
+
+  @Test
   public void testQuery() throws Exception {
     Project project = new Project();
     project.setName("project1");

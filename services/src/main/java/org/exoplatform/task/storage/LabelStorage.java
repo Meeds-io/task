@@ -31,6 +31,23 @@ public interface LabelStorage {
 
   List<LabelDto> findLabelsByUser(String username, int offset, int limit);
 
+  List<LabelDto> findLabelsByUser(String username, String keyword, int offset, int limit);
+
+  List<LabelDto> findLabelsByProject(long projectId,
+                                     Identity currentUser,
+                                     ProjectStorage projectStorage,
+                                     String keyword,
+                                     int offset,
+                                     int limit);
+
+  int countLabelsByUser(String username, String keyword);
+
+  int countLabelsByProject(long projectId, String keyword);
+
+  int countLabelsByUser(String username);
+
+  int countLabelsByProject(long projectId);
+
   List<LabelDto> findLabelsByProject(long projectId, Identity currentUser, ProjectStorage projectStorage, int offset, int limit);
 
   List<LabelDto> findLabelsByTask(TaskDto task, long projectId, Identity currentUser, ProjectStorage projectStorage, int offset, int limit);

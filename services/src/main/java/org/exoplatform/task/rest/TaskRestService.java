@@ -20,10 +20,14 @@ package org.exoplatform.task.rest;
 
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Optional;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -107,6 +111,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class TaskRestService implements ResourceContainer {
 
   private static final int DEFAULT_LIMIT = 20;
+
+  private static final String TOTAL_COUNT_HEADER = "X-Total-Count";
 
   private static final Log LOG           = ExoLogger.getLogger(TaskRestService.class);
 
@@ -281,7 +287,7 @@ public class TaskRestService implements ResourceContainer {
       }
       tasks.forEach(t -> transformHtml(t, currentId));
       return Response.ok(new PaginatedTaskList(tasks.stream()
-                                                    .map(task -> getTaskDetails(task, currentId))
+                                                    .map(detailsMapper(currentId, tasks))
                                                     .toList(),
                                                tasksSize))
                      .build();
@@ -432,7 +438,7 @@ public class TaskRestService implements ResourceContainer {
           && !TaskUtil.DUEDATE.equalsIgnoreCase(groupBy)
           && !TaskUtil.NONE.equalsIgnoreCase(groupBy)) {
         Map<GroupKey, List<TaskEntity>> groupTasks = TaskUtil.groupTasks(taskList.stream()
-                                                                                 .map(task -> getTaskDetails(task, currIdentity))
+                                                                                 .map(detailsMapper(currIdentity, taskList))
                                                                                  .toList(),
                                                                          groupBy,
                                                                          currIdentity,
@@ -441,7 +447,7 @@ public class TaskRestService implements ResourceContainer {
                                                                          userService);
         return Response.ok(new FiltreTaskList(groupTasks)).build();
       }
-      return Response.ok(new PaginatedTaskList(taskList.stream().map(task -> getTaskDetails(task, currIdentity)).toList(),
+      return Response.ok(new PaginatedTaskList(taskList.stream().map(detailsMapper(currIdentity, taskList)).toList(),
                                                tasksSize))
                      .build();
     } catch (Exception e) {
@@ -479,21 +485,21 @@ public class TaskRestService implements ResourceContainer {
       }
       taskQuery.setProjectIds(allProjectIds);
       taskQuery.setCompleted(completed);
-      List<TaskDto> tasks = taskService.findTasks(taskQuery, limit, offset);
+      List<TaskDto> tasks = taskService.findTasks(taskQuery, offset, limit);
       if (returnSize) {
         tasks.forEach(t -> transformHtml(t, currentUser));
         JSONObject tasksSizeJsonObject = new JSONObject();
         if (returnDetails) {
           tasksSizeJsonObject.put("tasks",
                                   tasks.stream()
-                                       .map(task -> getTaskDetails(task, currentUser))
+                                       .map(detailsMapper(currentUser, tasks))
                                        .toList());
         } else {
           tasksSizeJsonObject.put("tasks", tasks);
         }
         return Response.ok(tasksSizeJsonObject).build();
       } else if (returnDetails) {
-        return Response.ok(tasks.stream().map(task -> getTaskDetails(task, currentUser)).toList())
+        return Response.ok(tasks.stream().map(detailsMapper(currentUser, tasks)).toList())
                        .build();
       } else {
         tasks.forEach(t -> transformHtml(t, currentUser));
@@ -676,10 +682,21 @@ public class TaskRestService implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Gets labels of the authenticated user", method = "GET", description = "This returns labels of the authenticated user")
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
-  public Response getLabels() {
+  public Response getLabels(@Parameter(description = "Offset, only applied together with a positive limit") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                            @Parameter(description = "Limit, a value lower than 1 returns all the labels") @Schema(defaultValue = "-1") @QueryParam("limit") int limit,
+                            @Parameter(description = "Text the label names contain, whatever its case") @QueryParam("q") String query) {
     try {
     String currentUser = ConversationState.getCurrent().getIdentity().getUserId();
-    return Response.ok(labelService.findLabelsByUser(currentUser, 0, -1)).build();
+    int pageOffset = Math.max(offset, 0);
+    int pageLimit = limit < 1 ? -1 : limit;
+    if (StringUtils.isBlank(query)) {
+      return Response.ok(labelService.findLabelsByUser(currentUser, pageOffset, pageLimit))
+                     .header(TOTAL_COUNT_HEADER, labelService.countLabelsByUser(currentUser))
+                     .build();
+    }
+    return Response.ok(labelService.findLabelsByUser(currentUser, query, pageOffset, pageLimit))
+                   .header(TOTAL_COUNT_HEADER, labelService.countLabelsByUser(currentUser, query))
+                   .build();
         } catch (Exception e) {
         LOG.error("Can't get Labels", e);
         return Response.serverError().entity(e.getMessage()).build();
@@ -691,7 +708,10 @@ public class TaskRestService implements ResourceContainer {
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Gets labels of the given project", method = "GET", description = "This returns labels of the given project")
   @ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Request fulfilled") })
-  public Response getLabelsByProjectId(@Parameter(description = "project id", required = true) @PathParam("id") long id) {
+  public Response getLabelsByProjectId(@Parameter(description = "project id", required = true) @PathParam("id") long id,
+                                       @Parameter(description = "Offset, only applied together with a positive limit") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                                       @Parameter(description = "Limit, a value lower than 1 returns all the labels") @Schema(defaultValue = "-1") @QueryParam("limit") int limit,
+                                       @Parameter(description = "Text the label names contain, whatever its case") @QueryParam("q") String query) {
     try {
       Identity currentUser = ConversationState.getCurrent().getIdentity();
       ProjectDto project = projectService.getProject(id);
@@ -701,7 +721,16 @@ public class TaskRestService implements ResourceContainer {
       if (!project.canView(currentUser)) {
         return Response.status(Response.Status.FORBIDDEN).build();
       }
-    return Response.ok(labelService.findLabelsByProject(id, currentUser,0, -1)).build();
+    int pageOffset = Math.max(offset, 0);
+    int pageLimit = limit < 1 ? -1 : limit;
+    if (StringUtils.isBlank(query)) {
+      return Response.ok(labelService.findLabelsByProject(id, currentUser, pageOffset, pageLimit))
+                     .header(TOTAL_COUNT_HEADER, labelService.countLabelsByProject(id))
+                     .build();
+    }
+    return Response.ok(labelService.findLabelsByProject(id, currentUser, query, pageOffset, pageLimit))
+                   .header(TOTAL_COUNT_HEADER, labelService.countLabelsByProject(id, query))
+                   .build();
         } catch (Exception e) {
         LOG.error("Can't get Labels", e);
         return Response.serverError().entity(e.getMessage()).build();
@@ -969,7 +998,7 @@ public class TaskRestService implements ResourceContainer {
           @ApiResponse(responseCode = "403", description = "Unauthorized operation"), 
           @ApiResponse(responseCode = "404", description = "Resource not found") })
   public Response getTaskComments(@Parameter(description = "Task id", required = true) @PathParam("id") long id,
-                                  @Parameter(description = "Offset") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
+                                  @Parameter(description = "Offset, only applied together with a positive limit; comments are listed from the newest") @Schema(defaultValue = "0") @QueryParam("offset") int offset,
                                   @Parameter(description = "Limit") @Schema(defaultValue = "-1") @QueryParam("limit") int limit) {
     try {
     Identity currentUserIdentity = ConversationState.getCurrent().getIdentity();
@@ -998,7 +1027,10 @@ public class TaskRestService implements ResourceContainer {
       }
     }
     Collections.reverse(commentModelsList);
-    return Response.ok(commentModelsList).build();
+    // Total of top level comments, so that a client paging the list knows when it is complete
+    return Response.ok(commentModelsList)
+                   .header(TOTAL_COUNT_HEADER, commentService.countComments(id))
+                   .build();
         } catch (Exception e) {
         LOG.error("Can't get Task {} Comments", id, e);
         return Response.serverError().entity(e.getMessage()).build();
@@ -1184,12 +1216,35 @@ public class TaskRestService implements ResourceContainer {
   }
 
 
-  private TaskEntity getTaskDetails(TaskDto task, Identity userIdentity) {
+  /**
+   * Builds the mapper of the tasks of one response. The space of a project is
+   * the same for each of its tasks, so it is resolved once per project instead
+   * of once per task.
+   */
+  private Function<TaskDto, TaskEntity> detailsMapper(Identity userIdentity, Collection<TaskDto> tasks) {
+    Map<Long, Optional<SpaceEntity>> spacesByProject = new ConcurrentHashMap<>();
+    // The comments of all the tasks of a response are counted at once, rather than with a
+    // query per task: a task absent from the result has no comment, and when the batch
+    // fails each task falls back on its own count
+    Map<Long, Integer> batchCounts = null;
+    try {
+      batchCounts = commentService.countCommentsByTasks(tasks.stream().map(TaskDto::getId).toList());
+    } catch (Exception e) {
+      LOG.warn("Error retrieving the comments count of {} tasks, counting them one by one", tasks.size(), e);
+    }
+    Map<Long, Integer> commentCounts = batchCounts;
+    return task -> getTaskDetails(task, userIdentity, spacesByProject, commentCounts);
+  }
+
+  private TaskEntity getTaskDetails(TaskDto task,
+                                    Identity userIdentity,
+                                    Map<Long, Optional<SpaceEntity>> spacesByProject,
+                                    Map<Long, Integer> commentCounts) {
 
     long taskId = task.getId();
     int commentCount;
     try {
-      commentCount = commentService.countComments(taskId);
+      commentCount = commentCounts == null ? commentService.countComments(taskId) : commentCounts.getOrDefault(taskId, 0);
     } catch (Exception e) {
       LOG.warn("Error retrieving task '{}' comments count", taskId, e);
       commentCount = 0;
@@ -1203,7 +1258,9 @@ public class TaskRestService implements ResourceContainer {
       } catch (Exception e) {
         LOG.warn("Error retrieving task '{}' labels", taskId, e);
       }
-      SpaceEntity space = getProjectSpace(task.getStatus().getProject());
+      ProjectDto project = task.getStatus().getProject();
+      SpaceEntity space = spacesByProject.computeIfAbsent(project.getId(), id -> Optional.ofNullable(getProjectSpace(project)))
+                                         .orElse(null);
       taskEntity.setLabels(labels);
       taskEntity.setSpace(space);
     }

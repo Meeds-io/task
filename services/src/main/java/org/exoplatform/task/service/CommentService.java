@@ -76,4 +76,14 @@ public interface CommentService {
    */
   Map<Long, CommentsSummaryDto> getCommentsSummaries(Collection<Long> taskIds);
 
+  /**
+   * Counts the top level comments of several tasks in one query per chunk of
+   * tasks, the same number as {@code countComments} gives for each of them.
+   *
+   * @param taskIds the tasks
+   * @return the number of top level comments of each task that has some; the
+   *         tasks without comments are absent
+   */
+  Map<Long, Integer> countCommentsByTasks(Collection<Long> taskIds);
+
 }

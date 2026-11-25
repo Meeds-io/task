@@ -201,7 +201,8 @@
             class="pt-2 taskCommentsAndChanges">
             <task-view-all-comments
               :task="task"
-              :comments="comments" />
+              :comments="comments"
+              :comments-total="commentsTotal" />
           </v-flex>
         </div>
       </template>
@@ -227,6 +228,9 @@
         ref="taskCommentDrawer"
         :task="task"
         :comments="comments"
+        :comments-total="commentsTotal"
+        :loading-comments="loadingComments"
+        @load-more-comments="loadMoreComments"
         @confirmDialogOpened="isDrawerClose = false"
         @confirmDialogClosed="isDrawerClose = true" />
       <task-changes-drawer
@@ -262,6 +266,10 @@ export default {
       saveDescription: '',
       logs: [],
       comments: [],
+      commentsTotal: 0,
+      commentsPageSize: 20,
+      commentsFirstPageSize: 300,
+      loadingComments: false,
       subEditorIsOpen: false,
       taskPriority: 'NONE',
       labelsToAdd: [],
@@ -344,6 +352,11 @@ export default {
     }
   },
   created() {
+    this.$root.$on('update-task-comments', (total, taskId) => {
+      if (this.task && this.task.id === taskId) {
+        this.commentsTotal = total;
+      }
+    });
     $(document).on('mousedown', () => {
       if (this.displayActionMenu) {
         window.setTimeout(() => {
@@ -690,11 +703,34 @@ export default {
       return this.logs;
     },
     getTaskComments() {
-      this.$taskDrawerApi.getTaskComments(this.task.id).then(
-        (data) => {
-          this.comments = data;
+      this.commentsTotal = 0;
+      return this.loadCommentsPage(0);
+    },
+    loadMoreComments() {
+      // Comments come newest first, so the ones already loaded (including those added
+      // meanwhile) are exactly the first ones: the next page is the older comments
+      if (!this.loadingComments && this.comments.length < this.commentsTotal) {
+        this.loadCommentsPage(this.comments.length);
+      }
+    },
+    loadCommentsPage(offset) {
+      const taskId = this.task.id;
+      this.loadingComments = true;
+      const requestId = this.commentsRequestId = (this.commentsRequestId || 0) + 1;
+      return this.$taskDrawerApi.getTaskCommentsPage(taskId, offset, offset ? this.commentsPageSize : this.commentsFirstPageSize)
+        .then(({comments, total}) => {
+          if (requestId !== this.commentsRequestId || taskId !== this.task.id) {
+            return; // superseded by a more recent request, or another task is displayed now
+          }
+          this.commentsTotal = total;
+          // each page is oldest first: an older page goes above the ones already displayed
+          this.comments = offset ? comments.concat(this.comments) : comments;
+        })
+        .finally(() => {
+          if (requestId === this.commentsRequestId) {
+            this.loadingComments = false;
+          }
         });
-      return this.comments;
     },
     getTaskSpace() {
       if (this.taskProjectId) {

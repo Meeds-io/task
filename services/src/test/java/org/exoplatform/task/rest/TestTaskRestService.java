@@ -30,6 +30,7 @@ import org.exoplatform.task.TestUtils;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.model.User;
+import org.exoplatform.task.rest.model.TaskEntity;
 import org.exoplatform.task.rest.model.PaginatedTaskList;
 import org.exoplatform.task.rest.model.ViewState;
 import org.exoplatform.task.util.CommentUtil;
@@ -201,6 +202,65 @@ public class TestTaskRestService {
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
   }
+  @Test
+  public void testGetTasksByProjectIdPassesOffsetThenLimit() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService, commentService, projectService, statusService,
+                                                          userService, spaceService, labelService, favoriteService,
+                                                          identityManager);
+    Identity root = new Identity("root");
+    ConversationState.setCurrent(new ConversationState(root));
+    ProjectDto project = new ProjectDto();
+    project.setId(1L);
+    project.setManager(new HashSet<>(List.of("root")));
+    when(projectService.getProject(1L)).thenReturn(project);
+    when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(new ArrayList<>());
+
+    taskRestService.getTasksByProjectId(1L, 40, 20, false, false, false);
+    verify(taskService).findTasks(any(TaskQuery.class), eq(40), eq(20));
+
+    // no limit means everything
+    taskRestService.getTasksByProjectId(1L, 0, 0, false, false, false);
+    verify(taskService).findTasks(any(TaskQuery.class), eq(0), eq(-1));
+  }
+
+  @Test
+  public void testTaskDetailsUseTheBatchCommentCountsAndFallBackOnEachTask() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService, commentService, projectService, statusService,
+                                                          userService, spaceService, labelService, favoriteService,
+                                                          identityManager);
+    Identity root = new Identity("root");
+    ConversationState.setCurrent(new ConversationState(root));
+    ProjectDto project = new ProjectDto();
+    project.setId(1L);
+    project.setManager(new HashSet<>(List.of("root")));
+    when(projectService.getProject(1L)).thenReturn(project);
+    TaskDto first = new TaskDto();
+    first.setId(11L);
+    TaskDto second = new TaskDto();
+    second.setId(12L);
+    when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenReturn(new ArrayList<>(List.of(first, second)));
+    when(commentService.countCommentsByTasks(any())).thenReturn(java.util.Map.of(11L, 4));
+
+    Response response = taskRestService.getTasksByProjectId(1L, 0, 0, false, false, true);
+
+    List<?> details = (List<?>) response.getEntity();
+    assertEquals(2, details.size());
+    assertEquals(4L, ((TaskEntity) details.get(0)).getCommentCount());
+    // no comment counted for it: none
+    assertEquals(0L, ((TaskEntity) details.get(1)).getCommentCount());
+    verify(commentService, never()).countComments(anyLong());
+
+    // the batch fails: each task is counted on its own
+    when(commentService.countCommentsByTasks(any())).thenThrow(new IllegalStateException("db"));
+    when(commentService.countComments(11L)).thenReturn(2);
+    when(commentService.countComments(12L)).thenReturn(5);
+
+    details = (List<?>) taskRestService.getTasksByProjectId(1L, 0, 0, false, false, true).getEntity();
+
+    assertEquals(2L, ((TaskEntity) details.get(0)).getCommentCount());
+    assertEquals(5L, ((TaskEntity) details.get(1)).getCommentCount());
+  }
+
   @Test
   public void testGetTaskById() throws Exception {
     // Given
@@ -478,13 +538,84 @@ public class TestTaskRestService {
 
     when(labelService.findLabelsByUser(root.getUserId(), 0, -1)).thenReturn(labels);
     // When
-    Response response = taskRestService.getLabels();
+    Response response = taskRestService.getLabels(0, -1, null);
 
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     List<LabelDto> labelList = (List<LabelDto>) response.getEntity();
     assertNotNull(labelList);
     assertEquals(3, labelList.size());
+  }
+
+  @Test
+  public void testGetLabelsPaginated() {
+    TaskRestService taskRestService = new TaskRestService(taskService, commentService, projectService, statusService,
+                                                          userService, spaceService, labelService, favoriteService,
+                                                          identityManager);
+    Identity root = new Identity("root");
+    ConversationState.setCurrent(new ConversationState(root));
+    LabelDto label = new LabelDto();
+    label.setId(4);
+    when(labelService.findLabelsByUser("root", 2, 1)).thenReturn(List.of(label));
+    when(labelService.countLabelsByUser("root")).thenReturn(3);
+
+    Response response = taskRestService.getLabels(2, 1, null);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(1, ((List<?>) response.getEntity()).size());
+    assertEquals("3", String.valueOf(response.getMetadata().getFirst("X-Total-Count")));
+    verify(labelService).findLabelsByUser("root", 2, 1);
+  }
+
+  @Test
+  public void testGetLabelsNormalizesInvalidPaging() {
+    TaskRestService taskRestService = new TaskRestService(taskService, commentService, projectService, statusService,
+                                                          userService, spaceService, labelService, favoriteService,
+                                                          identityManager);
+    ConversationState.setCurrent(new ConversationState(new Identity("root")));
+    when(labelService.findLabelsByUser("root", 0, -1)).thenReturn(new ArrayList<>());
+
+    Response response = taskRestService.getLabels(-5, 0, null);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    verify(labelService).findLabelsByUser("root", 0, -1);
+  }
+
+  @Test
+  public void testGetLabelsByProjectIdPaginated() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService, commentService, projectService, statusService,
+                                                          userService, spaceService, labelService, favoriteService,
+                                                          identityManager);
+    Identity root = new Identity("root");
+    ConversationState.setCurrent(new ConversationState(root));
+    ProjectDto project = mock(ProjectDto.class);
+    when(project.canView(root)).thenReturn(true);
+    when(projectService.getProject(7L)).thenReturn(project);
+    when(labelService.findLabelsByProject(7L, root, 20, 10)).thenReturn(List.of(new LabelDto()));
+    when(labelService.countLabelsByProject(7L)).thenReturn(21);
+
+    Response response = taskRestService.getLabelsByProjectId(7L, 20, 10, null);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals("21", String.valueOf(response.getMetadata().getFirst("X-Total-Count")));
+    verify(labelService).findLabelsByProject(7L, root, 20, 10);
+  }
+
+  @Test
+  public void testGetLabelsWithSearchKeyword() {
+    TaskRestService taskRestService = new TaskRestService(taskService, commentService, projectService, statusService,
+                                                          userService, spaceService, labelService, favoriteService,
+                                                          identityManager);
+    ConversationState.setCurrent(new ConversationState(new Identity("root")));
+    when(labelService.findLabelsByUser("root", "bug", 0, 20)).thenReturn(List.of(new LabelDto()));
+    when(labelService.countLabelsByUser("root", "bug")).thenReturn(7);
+
+    Response response = taskRestService.getLabels(0, 20, "bug");
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals("7", String.valueOf(response.getMetadata().getFirst("X-Total-Count")));
+    verify(labelService).findLabelsByUser("root", "bug", 0, 20);
+    verify(labelService, never()).findLabelsByUser("root", 0, 20);
   }
 
   @Test
@@ -869,6 +1000,26 @@ public class TestTaskRestService {
 
     response = taskRestService.getTaskComments(1, 0, 1);
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+  }
+
+  @Test
+  public void testGetTaskCommentsPaginatedWithTotal() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService, commentService, projectService, statusService,
+                                                          userService, spaceService, labelService, favoriteService,
+                                                          identityManager);
+    ConversationState.setCurrent(new ConversationState(new Identity("john")));
+    TaskDto task = new TaskDto();
+    task.setId(1);
+    task.setCreatedBy("john");
+    when(taskService.getTask(1)).thenReturn(task);
+    when(commentService.getCommentsWithSubs(1, 40, 20)).thenReturn(new ArrayList<>());
+    when(commentService.countComments(1)).thenReturn(95);
+
+    Response response = taskRestService.getTaskComments(1, 40, 20);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals("95", String.valueOf(response.getMetadata().getFirst("X-Total-Count")));
+    verify(commentService).getCommentsWithSubs(1, 40, 20);
   }
 
   @Test

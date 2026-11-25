@@ -73,6 +73,36 @@ public class LabelServiceImpl implements LabelService {
     }
 
     @Override
+    public List<LabelDto> findLabelsByUser(String username, String keyword, int offset, int limit) {
+        return labelStorage.findLabelsByUser(username, keyword, offset, limit);
+    }
+
+    @Override
+    public List<LabelDto> findLabelsByProject(long projectId, Identity currentUser, String keyword, int offset, int limit) {
+        return labelStorage.findLabelsByProject(projectId, currentUser, projectStorage, keyword, offset, limit);
+    }
+
+    @Override
+    public int countLabelsByUser(String username, String keyword) {
+        return labelStorage.countLabelsByUser(username, keyword);
+    }
+
+    @Override
+    public int countLabelsByProject(long projectId, String keyword) {
+        return labelStorage.countLabelsByProject(projectId, keyword);
+    }
+
+    @Override
+    public int countLabelsByUser(String username) {
+        return labelStorage.countLabelsByUser(username);
+    }
+
+    @Override
+    public int countLabelsByProject(long projectId) {
+        return labelStorage.countLabelsByProject(projectId);
+    }
+
+    @Override
     public List<LabelDto> findLabelsByProject(long projectId, Identity currentUser, int offset, int limit) {
         return labelStorage.findLabelsByProject(projectId,  currentUser,projectStorage, offset,limit);
     }
