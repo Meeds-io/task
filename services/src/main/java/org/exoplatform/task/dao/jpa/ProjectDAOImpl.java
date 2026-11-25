@@ -57,6 +57,14 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
   }
 
   @Override
+  public void updateLastModifiedDate(long projectId, long lastModifiedDate) {
+    getEntityManager().createQuery("UPDATE TaskProject p SET p.lastModifiedDate = :date WHERE p.id = :id")
+                      .setParameter("date", lastModifiedDate)
+                      .setParameter("id", projectId)
+                      .executeUpdate();
+  }
+
+  @Override
   public void delete(Project entity) {
     Project p = getEntityManager().find(Project.class, entity.getId());
     if (p != null) {           

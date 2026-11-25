@@ -67,6 +67,16 @@ public interface ProjectStorage {
     void updateProjectNoReturn(ProjectDto project);
 
     /**
+     * Updates the last modified date of the project with given id, leaving
+     * every other stored attribute (managers, participants, settings) as is.
+     * A project that does not exist is left as is.
+     *
+     * @param projectId the project id
+     * @param lastModifiedDate the new last modified date, in milliseconds
+     */
+    void updateProjectLastModifiedDate(long projectId, long lastModifiedDate);
+
+    /**
      * Remove the project with given <code>projectId</code>,
      * and also its descendants if <code>deleteChild</code> is true.
      *

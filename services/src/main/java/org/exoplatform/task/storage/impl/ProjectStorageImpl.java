@@ -96,6 +96,11 @@ public class ProjectStorageImpl implements ProjectStorage {
     }
 
     @Override
+    public void updateProjectLastModifiedDate(long projectId, long lastModifiedDate) {
+        daoHandler.getProjectHandler().updateLastModifiedDate(projectId, lastModifiedDate);
+    }
+
+    @Override
     public void removeProject(long projectId, boolean deleteChild) throws EntityNotFoundException {
         ProjectDto project = getProject(projectId);
         if (project == null) throw new EntityNotFoundException(projectId, Project.class);
