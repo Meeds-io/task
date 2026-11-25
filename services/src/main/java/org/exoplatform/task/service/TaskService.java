@@ -27,17 +27,37 @@ import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.model.TaskFieldChange;
 import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskChangeFilter;
+import org.exoplatform.task.model.TaskChanges;
 import org.exoplatform.task.model.TaskSearchFilter;
+import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.util.TaskUtil;
 
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 
 
 public interface TaskService {
+
+    /** The most hits a text search reads, the most relevant first. */
+    int    TEXT_SEARCH_WINDOW  = 100;
+
+    /** The code of the refusal of a text search holding no word with letters. */
+    String TEXT_SEARCH_NO_WORD = "task.search.noWord";
+
+    /**
+     * The change log actions whose target is a user, an assignee or a
+     * coworker; the other actions name a status, a project or nothing there
+     * (EXO-91902).
+     */
+    List<String> USER_TARGET_ACTIONS = List.of("assign", "unassign", "assignCoworker", "unassignCoworker");
+
 
     /**
      * Create a new task.
@@ -186,6 +206,60 @@ public interface TaskService {
 
     List<ChangeLogEntry> getTaskLogs(long taskId, int offset, int limit) throws Exception;
 
+    /**
+     * Narrows a task query with the conditions of a change filter
+     * (EXO-91902): the tasks whose status, project, due date, assignee or
+     * completion changed since a date, an assignee change counting only on a
+     * task created before it; the tasks completed since a date; those
+     * assigned to one user; those in one status; the completed tasks left out
+     * on demand, unless the completed ones are asked for.
+     *
+     * @param query the query to narrow, already scoped to what the user can see
+     * @param filter the change filter, possibly null
+     */
+    void addChangeFilter(TaskQuery query, TaskChangeFilter filter);
+
+    /**
+     * Builds the query of the tasks a user is assigned to or a coworker of,
+     * narrowed by a change filter (EXO-91902).
+     *
+     * @param username the user
+     * @param filter the change filter, possibly null
+     * @return the query
+     */
+    TaskQuery getAssignedTasksQuery(String username, TaskChangeFilter filter);
+
+    /**
+     * Rebuilds the changes of a task since a date from its whole change log
+     * (EXO-91902), oldest first: its status, project, due date, assignee and
+     * completion changes, each with its old and new value when the log tells
+     * it. On demand, also its newest change log entries, at most a hundred.
+     *
+     * @param task the task
+     * @param since the earliest date of the changes, included; required
+     * @param includeChangeLog whether its newest change log entries come too
+     * @return its changes
+     * @throws IllegalArgumentException when since is null
+     * @throws Exception when its change log can't be read
+     */
+    TaskChanges getTaskChanges(TaskDto task, Date since, boolean includeChangeLog) throws Exception;
+
+    /**
+     * Rebuilds the changes since a date of several tasks, as
+     * {@link #getTaskChanges(TaskDto, Date, boolean)} does for one, from a
+     * fixed number of queries whatever the number of tasks: their change log
+     * entries logged at or after the date, and, for each task, the latest
+     * entry before it that tells the status, the project or the assignee the
+     * first change since then left.
+     *
+     * @param tasks the tasks
+     * @param since the earliest date of the changes, included; required
+     * @return the changes of each task, oldest first, by task id; a task with
+     *         none maps to an empty list
+     * @throws IllegalArgumentException when since is null
+     */
+    Map<Long, List<TaskFieldChange>> getTasksChanges(List<TaskDto> tasks, Date since);
+
     //TODO: should use via #findTasks(TaskQuery)?
     TaskDto findTaskByActivityId(String activityId);
 
@@ -257,6 +331,42 @@ public interface TaskService {
      * @return a list of task IDs
      */
     public List<TaskDto> findTasks(TaskSearchFilter taskFilter);
+
+    /**
+     * Searches the tasks a user can view by a text in their title or
+     * description, ignoring case and accents, through the same index and the
+     * same permissions as {@link #findTasks(TaskSearchFilter)}: the user and
+     * their memberships. The text is reduced to its words, lower-cased letters
+     * and digits without accents, and must hold a word with letters, since the
+     * index does not search numbers. With a project, only the tasks of that
+     * project, which the user must be able to view. The open tasks come first,
+     * in the order of relevance; the completed ones are left out unless asked
+     * for, and then come after every open one. Each hit is checked again
+     * against the task's own view permission and, with a project, against the
+     * task's project, so a task the index still lists for a user who lost
+     * access to it is never returned. The search reads the
+     * {@value #TEXT_SEARCH_WINDOW} most relevant hits at most.
+     *
+     * @param text the text searched: every word in the title, or every word in
+     *          the description
+     * @param projectId the project, null for every task the user can view
+     * @param includeCompleted whether the completed tasks are returned, after
+     *          the open ones
+     * @param limit the most tasks returned, bounded between 1 and
+     *          {@value #TEXT_SEARCH_WINDOW}
+     * @param identity the user who searches
+     * @return the tasks found, the limit used, and whether more may match
+     * @throws ObjectNotFoundException when the project doesn't exist
+     * @throws IllegalAccessException when the user can't view the project
+     * @throws IllegalArgumentException with the code
+     *           {@value #TEXT_SEARCH_NO_WORD} when the text holds no word with
+     *           letters
+     */
+    TaskTextSearchResult searchTasks(String text,
+                                     Long projectId,
+                                     boolean includeCompleted,
+                                     int limit,
+                                     Identity identity) throws ObjectNotFoundException, IllegalAccessException;
 
     /**
      * Find tasks switch last update date computed from Task Logs and Task

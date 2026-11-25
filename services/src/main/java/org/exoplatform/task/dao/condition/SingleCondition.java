@@ -29,9 +29,16 @@ public class SingleCondition<T> extends Condition implements Cloneable {
   public static final String IS_EMPTY = "empty";
   public static final String NOT_NULL = "not_null";
   public static final String LIKE = "like";
+  public static final String CONTAINS = "contains";
   public static final String IN = "in";
   public static final String IS_TRUE = "is_true";
   public static final String IS_FALSE = "is_false";
+
+  /**
+   * A task has a change log entry of one of some actions at or after a date;
+   * the value is a {@link LoggedSince}, the field {@link Conditions#TASK_LOGS}.
+   */
+  public static final String LOGGED_SINCE = "logged_since";
 
   final String type;
   final String field;

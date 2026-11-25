@@ -38,7 +38,11 @@ import org.exoplatform.task.domain.Status;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.*;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskChangeFilter;
+import org.exoplatform.task.model.TaskChanges;
+import org.exoplatform.task.model.TaskFieldChange;
 import org.exoplatform.task.model.TaskSearchFilter;
+import org.exoplatform.task.model.TaskTextSearchResult;
 import org.exoplatform.task.service.TaskPayload;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
@@ -47,21 +51,33 @@ import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.util.ProjectUtil;
 import org.exoplatform.task.util.StorageUtil;
 import org.exoplatform.task.util.TaskUtil;
+import org.exoplatform.task.util.UserUtil;
 
 import io.meeds.common.ContainerTransactional;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.exoplatform.task.util.TaskUtil.*;
-
 
 @Singleton
 public class TaskServiceImpl implements TaskService {
 
-    private static final Log LOG = ExoLogger.getExoLogger(TaskServiceImpl.class);
+    /** The actions whose latest entry tells the status a task is in */
+    private static final List<String> STATUS_ACTIONS   = List.of("created", "edit_status", "edit_project", "remove_project");
 
+    /** The actions whose latest entry tells the project a task is in */
+    private static final List<String> PROJECT_ACTIONS  = List.of("edit_project", "remove_project");
+
+    /** The actions whose latest entry tells the assignee of a task */
+    private static final List<String> ASSIGNEE_ACTIONS = List.of("assign", "unassign");
+
+    /** The most change log entries a task's changes come with (EXO-91902). */
+    private static final int CHANGE_LOG_LIMIT = 100;
+
+    private static final Log LOG = ExoLogger.getExoLogger(TaskServiceImpl.class);
 
     @Inject
     private TaskStorage taskStorage;
@@ -160,7 +176,6 @@ public class TaskServiceImpl implements TaskService {
         return daoHandler.getCommentHandler().findMentionedUsersOfTask(taskId);
     }
 
-
     @Override
     public ChangeLogEntry addTaskLog(long id, String username, String actionName, String target) throws EntityNotFoundException {
         ChangeLogEntry log = new ChangeLogEntry();
@@ -174,6 +189,84 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public List<ChangeLogEntry> getTaskLogs(long taskId, int offset, int limit) throws Exception {
         return taskStorage.getTaskLogs(taskId,  offset,  limit);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void addChangeFilter(TaskQuery query, TaskChangeFilter filter) {
+        if (filter == null) {
+            return;
+        }
+        if (filter.isHideCompleted() && filter.getCompletedSince() == null) {
+            query.setCompleted(false);
+        }
+        query.setChangedSince(filter.getChangedSince());
+        query.setCompletedSince(filter.getCompletedSince());
+        if (StringUtils.isNotBlank(filter.getAssignee())) {
+            query.setAssignee(Collections.singletonList(filter.getAssignee().trim()));
+        }
+        query.setStatusId(filter.getStatusId());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public TaskQuery getAssignedTasksQuery(String username, TaskChangeFilter filter) {
+        TaskQuery query = new TaskQuery();
+        query.setAssigneeOrCoworker(Collections.singletonList(username));
+        addChangeFilter(query, filter);
+        return query;
+    }
+
+    /**
+     * {@inheritDoc} The whole change log is read: the task may have been
+     * selected on an entry the newest ones do not hold, and an old value is
+     * the new value of an earlier entry.
+     */
+    @Override
+    public TaskChanges getTaskChanges(TaskDto task, Date since, boolean includeChangeLog) throws Exception {
+        if (since == null) {
+            throw new IllegalArgumentException("task.changes.noDate");
+        }
+        List<ChangeLogEntry> logs = getTaskLogs(task.getId(), 0, -1);
+        List<ChangeLogEntry> changeLog = includeChangeLog ? logs.subList(0, Math.min(logs.size(), CHANGE_LOG_LIMIT)) : null;
+        return new TaskChanges(getTaskChanges(task, logs, since), changeLog);
+    }
+
+    /**
+     * {@inheritDoc} The entries before the date that the changes since then
+     * read are the latest status, project and assignee entries: the status a
+     * task left is that of its latest creation, move or project change, its
+     * project that of its latest project change, its assignee that of its
+     * latest assignment. A completion or due date change since the date reads
+     * only the entries after it.
+     */
+    @Override
+    public Map<Long, List<TaskFieldChange>> getTasksChanges(List<TaskDto> tasks, Date since) {
+        if (since == null) {
+            throw new IllegalArgumentException("task.changes.noDate");
+        }
+        Map<Long, List<TaskFieldChange>> changes = new HashMap<>();
+        if (tasks == null || tasks.isEmpty()) {
+            return changes;
+        }
+        List<Long> taskIds = tasks.stream().map(TaskDto::getId).distinct().toList();
+        Map<Long, List<ChangeLogEntry>> logs = new HashMap<>();
+        Set<Long> readEntries = new HashSet<>();
+        Stream.of(taskStorage.getTaskLogsSince(taskIds, since),
+                  taskStorage.getLatestTaskLogsBefore(taskIds, since, STATUS_ACTIONS),
+                  taskStorage.getLatestTaskLogsBefore(taskIds, since, PROJECT_ACTIONS),
+                  taskStorage.getLatestTaskLogsBefore(taskIds, since, ASSIGNEE_ACTIONS))
+              .flatMap(List::stream)
+              .filter(log -> readEntries.add(log.getId()))
+              .forEach(log -> logs.computeIfAbsent(log.getTask().getId(), id -> new ArrayList<>()).add(log));
+        for (TaskDto task : tasks) {
+            changes.put(task.getId(), getTaskChanges(task, logs.get(task.getId()), since));
+        }
+        return changes;
     }
 
 
@@ -227,12 +320,10 @@ public class TaskServiceImpl implements TaskService {
         return taskStorage.countUncompletedTasks(user);
     }
 
-
     @Override
     public List<TaskDto> getWatchedTasks(String user, int limit) {
         return taskStorage.getWatchedTasks(user, limit);
     }
-
 
     @Override
     public Long countWatchedTasks(String user) {
@@ -240,30 +331,25 @@ public class TaskServiceImpl implements TaskService {
     }
 
 
-
     @Override
     public List<TaskDto> getAssignedTasks(String user, int limit) {
         return taskStorage.getAssignedTasks(user, limit);
     }
-
 
     @Override
     public Long countAssignedTasks(String user) {
         return taskStorage.countWatchedTasks(user);
     }
 
-
     @Override
     public List<TaskDto> getCollaboratedTasks(String user, int limit) {
         return taskStorage.getCollaboratedTasks(user, limit);
     }
 
-
     @Override
     public Long countCollaboratedTasks(String user) {
         return taskStorage.countCollaboratedTasks(user);
     }
-
 
 
     @Override
@@ -275,6 +361,44 @@ public class TaskServiceImpl implements TaskService {
             throw new IllegalArgumentException("query parameter is mandatory");
         }
         return taskStorage.findTasks(user, memberships, query, limit);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public TaskTextSearchResult searchTasks(String text,
+                                            Long projectId,
+                                            boolean includeCompleted,
+                                            int limit,
+                                            Identity identity) throws ObjectNotFoundException, IllegalAccessException {
+      String words = TaskUtil.toSearchWords(text);
+      if (!words.matches(".*\\p{L}.*")) {
+        throw new IllegalArgumentException(TEXT_SEARCH_NO_WORD);
+      }
+      if (projectId != null) {
+        checkCanViewProject(projectId, identity);
+      }
+      int max = Math.clamp(limit, 1, TEXT_SEARCH_WINDOW);
+      TaskSearchFilter filter = new TaskSearchFilter(identity.getUserId(),
+                                                     words,
+                                                     UserUtil.getMemberships(identity),
+                                                     null,
+                                                     null,
+                                                     0,
+                                                     TEXT_SEARCH_WINDOW);
+      if (projectId != null) {
+        filter.setProjectIds(Collections.singletonList(projectId));
+      }
+      List<TaskDto> hits = findTasks(filter);
+      List<TaskDto> found = new ArrayList<>();
+      collectSearchHits(hits, projectId, false, identity, found, max + 1);
+      if (includeCompleted) {
+        collectSearchHits(hits, projectId, true, identity, found, max + 1);
+      }
+      // a full window may hide matches ranked below it, whatever the filters kept
+      boolean hasMore = found.size() > max || hits.size() >= TEXT_SEARCH_WINDOW;
+      return new TaskTextSearchResult(found.size() > max ? new ArrayList<>(found.subList(0, max)) : found, max, hasMore);
     }
 
     @Override
@@ -337,7 +461,6 @@ public class TaskServiceImpl implements TaskService {
     public Set<String> getWatchersOfTask(TaskDto task) {
         return taskStorage.getWatchersOfTask(task);
     }
-
 
     @Override
     public List<Object[]> countTaskStatusByProject(long projectId) {
@@ -500,7 +623,6 @@ public class TaskServiceImpl implements TaskService {
         }
 
 
-
         List<TaskDto> listTasks = null;
         long tasksSize = 0;
         if ((spaceProjectIds != null  && spaceProjectIds.isEmpty()) || ( projectId == 0 && allProjectIds.isEmpty()) ||
@@ -524,6 +646,155 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public List<Long> getAllIds(int offset, int limit) {
       return taskStorage.getAllIds(offset, limit);
+    }
+
+    /**
+     * Tells the status, project, due date, assignee and completion changes of
+     * a task at or after a date, oldest first, from its change log. The log
+     * records the new status, project and assignee of each change, so the old
+     * value is the new value of the previous change of the same field. The
+     * creation entry records the status the task was created in, so a first
+     * move tells the status it left; a creation entry logged before that has
+     * none, and neither does a move after a project change, whose new status
+     * is not logged: the old value is then none. The log records no due date:
+     * the latest due date change carries the current due date, the earlier
+     * ones none. A completion entry is logged on each completion and each
+     * reopening, so the latest one carries the current completion and the
+     * earlier ones alternate. An assignee change of a task created at or after
+     * the date is left out, as {@link TaskQuery#setChangedSince(Date)} leaves
+     * it out: a task created with an assignee logs that assignment at its
+     * creation.
+     *
+     * @param task the task
+     * @param logs its change log entries, in any order
+     * @param since the earliest date of the changes, included
+     * @return the changes
+     */
+    List<TaskFieldChange> getTaskChanges(TaskDto task, List<ChangeLogEntry> logs, Date since) {
+        if (logs == null || logs.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<ChangeLogEntry> chronological = logs.stream()
+                                                 .sorted(Comparator.comparingLong(ChangeLogEntry::getCreatedTime)
+                                                                   .thenComparingLong(ChangeLogEntry::getId))
+                                                 .toList();
+        long completions = chronological.stream().filter(l -> TaskQuery.COMPLETION_ACTION.equals(l.getActionName())).count();
+        ChangeLogEntry lastDueDateChange = chronological.stream()
+                                                        .filter(l -> TaskQuery.DUE_DATE_CHANGE_ACTION.equals(l.getActionName()))
+                                                        .reduce((first, second) -> second)
+                                                        .orElse(null);
+        List<TaskFieldChange> changes = new ArrayList<>();
+        String status = null;
+        String project = null;
+        String assignee = null;
+        long completionsLeft = completions;
+        boolean createdBefore = task.getCreatedTime() != null && task.getCreatedTime().before(since);
+        for (ChangeLogEntry log : chronological) {
+            String action = log.getActionName();
+            boolean listed = log.getCreatedTime() >= since.getTime();
+            String target = StringUtils.trimToNull(log.getTarget());
+            String field = null;
+            String oldValue = null;
+            String newValue = null;
+            Date newDate = null;
+            if ("created".equals(action)) {
+                // the status a task is created in, logged since EXO-91902; none before
+                status = target;
+            } else if ("edit_status".equals(action)) {
+                field = TaskFieldChange.FIELD_STATUS;
+                oldValue = status;
+                newValue = target;
+                status = target;
+            } else if ("edit_project".equals(action) || "remove_project".equals(action)) {
+                field = TaskFieldChange.FIELD_PROJECT;
+                oldValue = project;
+                newValue = "edit_project".equals(action) ? target : null;
+                project = newValue;
+                status = null;
+            } else if (("assign".equals(action) || "unassign".equals(action)) && !createdBefore) {
+                assignee = "assign".equals(action) ? target : null;
+            } else if ("assign".equals(action) || "unassign".equals(action)) {
+                field = TaskFieldChange.FIELD_ASSIGNEE;
+                oldValue = "assign".equals(action) ? assignee : target;
+                newValue = "assign".equals(action) ? target : null;
+                assignee = newValue;
+            } else if (TaskQuery.DUE_DATE_CHANGE_ACTION.equals(action)) {
+                field = TaskFieldChange.FIELD_DUE_DATE;
+                newDate = log == lastDueDateChange ? task.getDueDate() : null;
+            } else if (TaskQuery.COMPLETION_ACTION.equals(action)) {
+                completionsLeft--;
+                // the latest entry is the current completion, and each earlier one its opposite
+                boolean completed = task.isCompleted() == (completionsLeft % 2 == 0);
+                field = TaskFieldChange.FIELD_COMPLETED;
+                oldValue = String.valueOf(!completed);
+                newValue = String.valueOf(completed);
+            }
+            if (field != null && listed) {
+                changes.add(new TaskFieldChange(field, oldValue, newValue, newDate, log.getCreatedTime(), log.getAuthor()));
+            }
+        }
+        return changes;
+    }
+
+    /**
+     * Checks that a project exists and that a user can view it.
+     *
+     * @param projectId the project
+     * @param identity the user
+     * @throws ObjectNotFoundException when the project doesn't exist
+     * @throws IllegalAccessException when the user can't view the project
+     */
+    private void checkCanViewProject(long projectId, Identity identity) throws ObjectNotFoundException, IllegalAccessException {
+      ProjectDto project;
+      try {
+        project = ExoContainerContext.getService(ProjectService.class).getProject(projectId);
+      } catch (EntityNotFoundException e) {
+        project = null;
+      }
+      if (project == null) {
+        throw new ObjectNotFoundException("Project " + projectId + " not found");
+      } else if (!project.canView(identity)) {
+        throw new IllegalAccessException("User " + identity.getUserId() + " cannot view project " + projectId);
+      }
+    }
+
+    /**
+     * Adds to the tasks found the search hits of one completion state, in their
+     * order of relevance, that belong to the project searched, when there is
+     * one, and that the user can view, until there are enough.
+     *
+     * @param hits the search hits, the most relevant first
+     * @param projectId the project searched, null for any
+     * @param completed the completion state of the hits added
+     * @param identity the user who searches
+     * @param found the tasks found so far, completed by this call
+     * @param enough how many tasks found are enough
+     */
+    private void collectSearchHits(List<TaskDto> hits,
+                                   Long projectId,
+                                   boolean completed,
+                                   Identity identity,
+                                   List<TaskDto> found,
+                                   int enough) {
+      for (TaskDto task : hits) {
+        if (found.size() >= enough) {
+          return;
+        }
+        if (task.isCompleted() == completed
+            && (projectId == null || projectId.equals(getProjectIdOrNull(task)))
+            && TaskUtil.hasViewPermission(this, task, identity)) {
+          found.add(task);
+        }
+      }
+    }
+
+    /**
+     * @param task a task
+     * @return the identifier of its project, null for a personal task
+     */
+    private Long getProjectIdOrNull(TaskDto task) {
+      StatusDto status = task.getStatus();
+      return status == null || status.getProject() == null ? null : status.getProject().getId();
     }
 
     private boolean canViewProject(long projectId, Identity identity) {

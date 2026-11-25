@@ -1,0 +1,76 @@
+/**
+ * This file is part of the Meeds project (https://meeds.io/).
+ *
+ * Copyright (C) 2026 Meeds Association contact@meeds.io
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+package io.meeds.task.mcp.model;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.exoplatform.task.model.TaskFieldChange;
+
+import io.meeds.mcp.server.tool.model.UserModel;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * One change of a task listed with {@code changed_since} or
+ * {@code completed_since} (EXO-91902): which field changed, its value
+ * before and after when the change log tells it, when and by whom.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(value = Include.NON_EMPTY)
+public class TaskChange {
+
+  /** The status of a task: its column in its project. */
+  public static final String FIELD_STATUS    = TaskFieldChange.FIELD_STATUS;
+
+  /** The project of a task, when it moved to another or out of any. */
+  public static final String FIELD_PROJECT   = TaskFieldChange.FIELD_PROJECT;
+
+  /** The due date of a task. */
+  public static final String FIELD_DUE_DATE  = TaskFieldChange.FIELD_DUE_DATE;
+
+  /** The assignee of a task, a username. */
+  public static final String FIELD_ASSIGNEE  = TaskFieldChange.FIELD_ASSIGNEE;
+
+  /** Whether a task is completed, {@code true} or {@code false}. */
+  public static final String FIELD_COMPLETED = TaskFieldChange.FIELD_COMPLETED;
+
+  /** The field that changed, one of the {@code FIELD_*} names. */
+  private String             field;
+
+  /** Its value before the change; none when not recorded. */
+  @JsonProperty("old_value")
+  private String             oldValue;
+
+  /** Its value after the change; none when not recorded or removed. */
+  @JsonProperty("new_value")
+  private String             newValue;
+
+  /** The date of the change. */
+  private String             date;
+
+  /** Who made the change. */
+  private UserModel          author;
+
+}

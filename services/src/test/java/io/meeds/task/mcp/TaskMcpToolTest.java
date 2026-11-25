@@ -20,17 +20,20 @@ package io.meeds.task.mcp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -54,7 +57,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.TimeZone;
 
 import jakarta.persistence.NoResultException;
@@ -74,46 +79,65 @@ import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.services.security.Identity;
+import org.exoplatform.services.security.MembershipEntry;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
+import org.exoplatform.task.dao.condition.LoggedSince;
 import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.domain.Task;
+import org.exoplatform.task.dto.ChangeLogEntry;
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.CommentsSummaryDto;
 import org.exoplatform.task.dto.LabelDto;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
+import org.exoplatform.task.model.TaskChanges;
+import org.exoplatform.task.model.TaskFieldChange;
 import org.exoplatform.task.service.CommentService;
 import org.exoplatform.task.service.LabelService;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
 import org.exoplatform.task.service.TaskService;
+import org.exoplatform.task.service.impl.TaskServiceImpl;
 
+import io.meeds.mcp.server.model.ActingIdentity;
 import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.service.PermanentLinkService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import io.meeds.social.space.plugin.SpaceAclPlugin;
 import io.meeds.social.translation.service.TranslationService;
 import io.meeds.task.mcp.model.ProjectActivityModel;
+import io.meeds.task.mcp.model.TaskChange;
+import io.meeds.task.mcp.model.TaskChangeLog;
+import io.meeds.task.mcp.model.TaskWithChangeLogModel;
+import io.meeds.task.mcp.model.TaskWithChangesModel;
 import io.meeds.task.mcp.model.ProjectCollectionModel;
 import io.meeds.task.mcp.model.ProjectLabel;
+import io.meeds.task.mcp.model.ProjectListItemModel;
 import io.meeds.task.mcp.model.ProjectModel;
 import io.meeds.task.mcp.model.ProjectStatisticsModel;
 import io.meeds.task.mcp.model.ProjectStatus;
 import io.meeds.task.mcp.model.TaskCollectionModel;
 import io.meeds.task.mcp.model.TaskCommentCollectionModel;
+import io.meeds.task.mcp.model.TaskListItemModel;
 import io.meeds.task.mcp.model.TaskModel;
 import io.meeds.task.plugin.TaskAclPlugin;
 
 import lombok.SneakyThrows;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TaskMcpToolTest {
@@ -138,6 +162,8 @@ public class TaskMcpToolTest {
   private static final ZoneId     USER_ZONE    = ZoneId.of("Europe/Paris");
 
   private static final LocalDate  TODAY        = LocalDate.of(2026, 10, 8);
+
+  private static final JsonMapper JSON         = JsonMapper.builder().build();
 
   @Mock
   private ProjectService          projectService;
@@ -182,6 +208,15 @@ public class TaskMcpToolTest {
   private FavoriteService         favoriteService;
 
   @Mock
+  private TaskSpaceScopeResolver  spaceScopeResolver;
+
+  private boolean                 currentSpaceScoped;
+
+  private Long                    currentScopeSpaceId;
+
+  private boolean                 scopeUnreadable;
+
+  @Mock
   private Identity                currentIdentity;
 
   private TaskMcpTool             tool;
@@ -198,6 +233,18 @@ public class TaskMcpToolTest {
     };
     lenient().when(resourceBundleService.getResourceBundle(anyString(), any(Locale.class))).thenReturn(emptyBundle);
     lenient().when(permanentLinkService.getLink(any())).thenReturn("/task-link");
+
+    // the query building is the task service's: the real one narrows the
+    // query the tool builds
+    TaskServiceImpl queryBuilder = new TaskServiceImpl(null, null, null);
+    lenient().doAnswer(invocation -> {
+      queryBuilder.addChangeFilter(invocation.getArgument(0), invocation.getArgument(1));
+      return null;
+    }).when(taskService).addChangeFilter(any(), any());
+    lenient().when(taskService.getAssignedTasksQuery(anyString(), any()))
+             .thenAnswer(invocation -> queryBuilder.getAssignedTasksQuery(invocation.getArgument(0), invocation.getArgument(1)));
+    lenient().when(taskService.getTaskChanges(any(), any(), anyBoolean())).thenReturn(new TaskChanges(List.of(), null));
+    lenient().when(taskService.getTasksChanges(any(), any())).thenReturn(Map.of());
 
     tool = new TestableTaskMcpTool();
   }
@@ -260,6 +307,96 @@ public class TaskMcpToolTest {
 
     verify(task).setAssignee("john");
     verify(taskService).updateTask(task);
+  }
+
+  /**
+   * In a call limited to a space, a task is assigned to, or gets as a
+   * coworker, a member of that space only: a person who can access the task
+   * through the project's participants but isn't a member is refused, and so
+   * is anyone when the call's identity can't be read. A call that isn't
+   * limited keeps the task's access rule alone.
+   * Mutants: the membership check removed, applied to one tool only, run on
+   * an unlimited call, or an unreadable identity taken as unlimited.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void peopleOfACallLimitedToASpaceAreMembersOfIt() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    Identity johnIdentity = mock(Identity.class);
+    Space space = mock(Space.class);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
+    lenient().when(taskService.updateTask(task)).thenReturn(task);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+
+    currentScopeSpaceId = 12L;
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, never()).updateTask(any());
+
+    currentScopeSpaceId = 13L;
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+
+    currentScopeSpaceId = null;
+    scopeUnreadable = true;
+    assertThrows(IllegalAccessException.class, () -> tool.assignTask(TASK_ID, OTHER_USER));
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, never()).updateTask(any());
+
+    scopeUnreadable = false;
+    currentScopeSpaceId = 12L;
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    verify(taskService, times(2)).updateTask(task);
+
+    currentScopeSpaceId = null;
+    lenient().when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    verify(taskService, times(3)).updateTask(task);
+  }
+
+  /**
+   * In a call limited to a space, a super manager of that space counts as one
+   * of its people, as for the platform's space rules: the task is assigned to
+   * them, they are added as a coworker and a comment may mention them,
+   * though they aren't a member.
+   * Mutant: the super-manager clause removed.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aSuperManagerOfTheScopeSpaceCountsAsOneOfItsPeople() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    Identity johnIdentity = mock(Identity.class);
+    Space space = mock(Space.class);
+    CommentDto comment = mock(CommentDto.class);
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), OTHER_USER)).thenReturn(true);
+    when(taskService.updateTask(task)).thenReturn(task);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+    when(spaceService.isSuperManager(space, OTHER_USER)).thenReturn(true);
+    String mention = "Please check @" + OTHER_USER;
+    when(commentService.addComment(task, USER, mention)).thenReturn(comment);
+    when(comment.getId()).thenReturn(22L);
+    when(comment.getComment()).thenReturn(mention);
+    when(comment.getCreatedTime()).thenReturn(new Date());
+    when(comment.getAuthor()).thenReturn(USER);
+
+    currentScopeSpaceId = 12L;
+    runWithDateFormatMockResult(() -> tool.assignTask(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskCoworker(TASK_ID, OTHER_USER));
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mention));
+
+    verify(taskService, times(2)).updateTask(task);
+    verify(commentService).addComment(task, USER, mention);
   }
 
   @Test
@@ -378,6 +515,54 @@ public class TaskMcpToolTest {
     when(labelService.getLabel(99L)).thenReturn(null);
 
     tool.addProjectLabelToTask(TASK_ID, 99L);
+  }
+
+  /**
+   * A label of the task's project is put on and taken off the task.
+   * Mutant: the project comparison inverted.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void labelOfTheTaskProjectIsPutOnAndTakenOffTheTask() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    LabelDto label = projectLabel(PROJECT_ID);
+    when(labelService.getLabel(99L)).thenReturn(label);
+
+    tool.addProjectLabelToTask(TASK_ID, 99L);
+    tool.removeProjectLabelFromTask(TASK_ID, 99L);
+
+    verify(labelService).addTaskToLabel(task, 99L);
+    verify(labelService).removeTaskFromLabel(task, 99L);
+  }
+
+  /**
+   * A label of another project, or a label in no project, is neither put on
+   * nor taken off a task of a project: in a call limited to the space of the
+   * task's project, the label is the only argument beside the task, and it
+   * must not reach a project of another space.
+   * Mutants: the check removed, or applied to the add or the remove only.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void labelOfAnotherProjectIsRefusedOnATaskOfAProject() throws Exception {// NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    LabelDto otherProjectLabel = projectLabel(PROJECT_ID + 1);
+    LabelDto noProjectLabel = mock(LabelDto.class);
+    when(labelService.getLabel(98L)).thenReturn(otherProjectLabel);
+    when(labelService.getLabel(97L)).thenReturn(noProjectLabel);
+
+    for (long labelId : new long[] { 98L, 97L }) {
+      assertThrows(ObjectNotFoundException.class, () -> tool.addProjectLabelToTask(TASK_ID, labelId));
+      assertThrows(ObjectNotFoundException.class, () -> tool.removeProjectLabelFromTask(TASK_ID, labelId));
+    }
+    verify(labelService, never()).addTaskToLabel(any(), anyLong());
+    verify(labelService, never()).removeTaskFromLabel(any(), anyLong());
   }
 
   @Test
@@ -944,7 +1129,8 @@ public class TaskMcpToolTest {
                                                userAcl,
                                                portalConfigService,
                                                permanentLinkService,
-                                               favoriteService);
+                                               favoriteService,
+                                               spaceScopeResolver);
     ZoneId profileZone = ZoneId.systemDefault().equals(ZoneId.of("Pacific/Kiritimati")) ? ZoneId.of("Pacific/Pago_Pago")
                                                                                        : ZoneId.of("Pacific/Kiritimati");
     try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
@@ -991,7 +1177,7 @@ public class TaskMcpToolTest {
     when(taskService.findTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, null, false, true, null, null, null, null, null, null, null, null));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -1000,7 +1186,7 @@ public class TaskMcpToolTest {
     verify(taskService, never()).findLastUpdatedTasks(any(), anyInt(), anyInt());
     verify(taskService).countTasks(query.getValue());
     assertEquals(1L, result.getCount());
-    assertEquals(Integer.valueOf(10), result.getTasks().get(0).getDaysOverdue());
+    assertEquals(Integer.valueOf(10), ((TaskListItemModel) result.getTasks().get(0)).getDaysOverdue());
   }
 
   /**
@@ -1013,7 +1199,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(4);
 
-    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, true, false, null, null, null, null, null, null, null, null, null);
 
     assertNull(findDueDateBefore(query.getValue()));
     assertTrue(selectsOpenTasksOnly(query.getValue()));
@@ -1034,14 +1220,352 @@ public class TaskMcpToolTest {
     when(taskService.findTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, true));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, 5, true, null, null, null));
 
     assertEquals(Date.from(Instant.parse("2026-10-08T00:00:00+02:00")), findDueDateBefore(query.getValue()));
     assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
     assertMostOverdueFirst(query.getValue());
     verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
     assertEquals(1L, result.getCount());
-    assertEquals(Integer.valueOf(1), result.getTasks().get(0).getDaysOverdue());
+    assertEquals(Integer.valueOf(1), ((TaskListItemModel) result.getTasks().get(0)).getDaysOverdue());
+  }
+
+  /**
+   * changed_since on list_tasks of a project narrows the project's tasks to
+   * those with a status, project, due date, assignee or completion change
+   * at or after the start of that day in the user's time zone, completed
+   * tasks included, counted by the same query; each task carries its
+   * changes as the task service rebuilds them since that same date; with
+   * hide_completed_tasks, only the open ones. Mutants: the filter not
+   * passed, or with the date read in UTC; the plain models returned.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksChangedSinceListsTheTasksThatMovedWithTheirOldAndNewStatus() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    TaskDto task = mockTaskWithProject();
+    ArgumentCaptor<Date> since = ArgumentCaptor.forClass(Date.class);
+    when(taskService.getTasksChanges(eq(List.of(task)), since.capture()))
+        .thenReturn(Map.of(TASK_ID, List.of(new TaskFieldChange(TaskFieldChange.FIELD_STATUS,
+                                                                 "ToDo",
+                                                                 "InProgress",
+                                                                 null,
+                                                                 Instant.parse("2026-10-06T10:00:00Z").toEpochMilli(),
+                                                                 USER))));
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID,
+                                                                                  true,
+                                                                                  false,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  "2026-10-01",
+                                                                                  null,
+                                                                                  null,
+                                                                                  null, null));
+
+    List<Condition> conjunction = conjunction(query.getValue());
+    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
+    assertChangedSince(query.getValue(), Date.from(Instant.parse("2026-09-30T22:00:00Z")));
+    assertEquals(Date.from(Instant.parse("2026-09-30T22:00:00Z")), since.getValue());
+    assertTrue("hide_completed_tasks keeps the completed tasks out", selectsOpenTasksOnly(query.getValue()));
+    verify(taskService).countTasks(query.getValue());
+    assertEquals(1L, result.getCount());
+    TaskListItemModel model = (TaskListItemModel) result.getTasks().get(0);
+    assertEquals(1, model.getChanges().size());
+    TaskChange change = model.getChanges().get(0);
+    assertEquals(TaskChange.FIELD_STATUS, change.getField());
+    assertEquals("ToDo", change.getOldValue());
+    assertEquals("InProgress", change.getNewValue());
+    verify(taskService, never()).getTaskChanges(any(), any(), anyBoolean());
+  }
+
+  /**
+   * completed_since selects the completed tasks with a completion entry at
+   * or after the date, whatever hide_completed_tasks says, which would
+   * otherwise select the open tasks only and so nothing. Mutants: the
+   * completed condition dropped; hide_completed_tasks applied too.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksCompletedSinceSelectsTheTasksCompletedSinceThatDate() throws Exception { // NOSONAR
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(null, true, false, null, null, null, null, null, "2026-10-05T08:00:00Z", null, null, null);
+
+    LoggedSince loggedSince = findLoggedSince(query.getValue());
+    assertEquals(List.of("mark_done"), loggedSince.actionNames());
+    assertEquals(Date.from(Instant.parse("2026-10-05T08:00:00Z")), loggedSince.since());
+    assertTrue(conjunction(query.getValue()).stream()
+                                            .anyMatch(c -> c instanceof SingleCondition<?> single
+                                                           && SingleCondition.IS_TRUE.equals(single.getType())
+                                                           && "completed".equals(single.getField())));
+    assertFalse(selectsOpenTasksOnly(query.getValue()));
+    assertTrue("only the tasks the user can access", scopedToTheUser(query.getValue()));
+  }
+
+  /**
+   * assignee and status_id narrow the accessible tasks: both are members of
+   * the query's conjunction, beside the accessibility; a blank assignee
+   * adds no condition. Mutants: either filter dropped, the assignee
+   * untrimmed, a blank assignee matching nobody.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksNarrowsByAssigneeAndStatus() throws Exception { // NOSONAR
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(null, false, false, null, null, null, null, null, null, " john ", 8L, null);
+    tool.listTasks(null, false, false, null, null, null, null, null, null, " ", null, null);
+
+    List<Condition> filtered = conjunction(query.getAllValues().get(0));
+    assertTrue(filtered.stream()
+                       .anyMatch(c -> c instanceof AggregateCondition aggregate && AggregateCondition.OR.equals(aggregate.getType())));
+    assertTrue(filtered.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "assignee", List.of(OTHER_USER))));
+    assertTrue(filtered.stream().anyMatch(c -> isSingle(c, SingleCondition.EQ, "status.id", 8L)));
+    List<Condition> unfiltered = conjunction(query.getAllValues().get(1));
+    assertTrue(unfiltered.stream()
+                         .noneMatch(c -> c instanceof SingleCondition<?> single
+                                         && ("assignee".equals(single.getField()) || "status.id".equals(single.getField()))));
+  }
+
+  /**
+   * changed_since on list_assigned_tasks queries the tasks the user is
+   * assigned to or a coworker of with a change since the date, completed
+   * ones included, the last updated first, counted by the same query, each
+   * with its changes. Mutant: the plain uncompleted list.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listAssignedTasksChangedSinceQueriesTheChangedTasks() throws Exception { // NOSONAR
+    TaskDto task = mockTask();
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(5))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, 5, null, "2026-10-01", null, null));
+
+    assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
+    assertChangedSince(query.getValue(), Date.from(Instant.parse("2026-09-30T22:00:00Z")));
+    assertFalse(selectsOpenTasksOnly(query.getValue()));
+    verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
+    verify(taskService).countTasks(query.getValue());
+    assertEquals(1L, result.getCount());
+    assertTrue("a compact item with its changes", ((TaskListItemModel) result.getTasks().get(0)).getChanges() != null);
+  }
+
+  /**
+   * The change log listed resolves a target as a user for an assignment
+   * entry only: a creation or a status entry names a status there, which is
+   * never looked up as a user. Mutant: every target looked up.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void onlyAnAssignmentEntryHasAUserTarget() throws Exception { // NOSONAR
+    TaskDto task = mockTask();
+    when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(List.of(log(3, "assign", OTHER_USER, "2026-10-06T10:00:00Z"),
+                                                                                      log(2, "edit_status", "Done", "2026-10-05T10:00:00Z"),
+                                                                                      log(1, "created", "ToDo", "2026-10-04T10:00:00Z")));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+
+    runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null));
+
+    verify(identityManager).getOrCreateUserIdentity(OTHER_USER);
+    verify(identityManager, never()).getOrCreateUserIdentity("ToDo");
+    verify(identityManager, never()).getOrCreateUserIdentity("Done");
+  }
+
+  /**
+   * A date is the start of that day in the user's time zone also on a day
+   * whose midnight the zone skips: in America/Sao_Paulo on 2018-11-04 the
+   * day starts at 01:00 local, 03:00 UTC. Mutant: midnight read as UTC.
+   */
+  @Test
+  public void aSinceDateStartsWhenTheDayStartsInTheUsersZone() { // NOSONAR
+    assertEquals(Date.from(Instant.parse("2018-11-04T03:00:00Z")),
+                 tool.parseSince("2018-11-04", "changed_since", ZoneId.of("America/Sao_Paulo")));
+  }
+
+  /**
+   * A change the task service rebuilt is mapped for the user: a default
+   * status in the user's language, a due date and the change's date in the
+   * user's format, its author as a user. Mutants: the status label skipped;
+   * the due date read from the value instead of the date.
+   */
+  @Test
+  public void aChangeIsMappedForTheUser() { // NOSONAR
+    ResourceBundle bundle = new ListResourceBundle() {
+      @Override
+      protected Object[][] getContents() {
+        return new Object[][] { { "tasks.status.ToDo", "To do" }, { "tasks.status.InProgress", "In progress" } };
+      }
+    };
+    when(resourceBundleService.getResourceBundle(anyString(), any(Locale.class))).thenReturn(bundle);
+    Date due = Date.from(Instant.parse("2026-10-20T00:00:00Z"));
+
+    TaskChange status;
+    TaskChange dueDate;
+    TaskChange project;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(() -> McpToolUtils.formatDate(any(Long.class)))
+            .thenAnswer(invocation -> Instant.ofEpochMilli(invocation.<Long> getArgument(0)).toString());
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> invocation.<Date> getArgument(0).toInstant().toString());
+      status = tool.toTaskChange(new TaskFieldChange(TaskFieldChange.FIELD_STATUS, "ToDo", "InProgress", null, 0L, USER));
+      dueDate = tool.toTaskChange(new TaskFieldChange(TaskFieldChange.FIELD_DUE_DATE, null, null, due, 1000L, USER));
+      project = tool.toTaskChange(new TaskFieldChange(TaskFieldChange.FIELD_PROJECT, null, "ToDo", null, 0L, USER));
+    }
+
+    assertEquals("To do", status.getOldValue());
+    assertEquals("In progress", status.getNewValue());
+    assertEquals("1970-01-01T00:00:00Z", status.getDate());
+    assertEquals("2026-10-20T00:00:00Z", dueDate.getNewValue());
+    assertEquals("1970-01-01T00:00:01Z", dueDate.getDate());
+    assertEquals("a project name is never a status label", "ToDo", project.getNewValue());
+  }
+
+  /**
+   * With a date and include_change_log, the change log returned is the one
+   * the task service returns, mapped; without include_change_log, none.
+   * Mutant: the change log not passed to the model.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void theChangeLogListedWithADateIsTheServicesOne() throws Exception { // NOSONAR
+    TaskDto task = mockTask();
+    ChangeLogEntry entry = log(1, "edit_title", "", "2026-10-02T00:00:00Z");
+    when(taskService.getTaskChanges(eq(task), any(), eq(true))).thenReturn(new TaskChanges(List.of(), List.of(entry)));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null,
+                                                                                  false,
+                                                                                  true,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  null,
+                                                                                  "2026-09-01",
+                                                                                  null,
+                                                                                  null,
+                                                                                  null, null));
+
+    List<TaskChangeLog> changeLogs = ((TaskWithChangesModel) result.getTasks().get(0)).getChangeLogs();
+    assertEquals(1, changeLogs.size());
+    assertEquals("edit_title", changeLogs.get(0).getActionId());
+  }
+
+  /**
+   * overdue_only lists open tasks and completed_since completed ones: asked
+   * together, on either tool, the call is refused instead of answering
+   * nothing. Mutant: the check dropped.
+   */
+  @Test
+  public void overdueOnlyAndCompletedSinceAreRefusedTogether() throws Exception { // NOSONAR
+    assertThrows(IllegalArgumentException.class,
+                 () -> tool.listTasks(null, null, false, true, null, null, null, null, "2026-10-01", null, null, null));
+    assertThrows(IllegalArgumentException.class, () -> tool.listAssignedTasks(null, 5, true, null, "2026-10-01", null));
+    verify(taskService, never()).findTasks(any(), anyInt(), anyInt());
+  }
+
+  /**
+   * A date is the start of that day in the user's time zone, a date and
+   * time with an offset is that instant, and one without is read in the
+   * user's time zone; anything else is refused with a message naming the
+   * argument and the expected forms. Mutants: a date read in UTC, an offset
+   * ignored.
+   */
+  @Test
+  public void sinceArgumentsAreDatesInTheUsersZone() { // NOSONAR
+    assertNull(tool.parseSince("  ", "changed_since", USER_ZONE));
+    assertEquals(Date.from(Instant.parse("2026-10-13T22:00:00Z")), tool.parseSince(" 2026-10-14 ", "changed_since", USER_ZONE));
+    assertEquals(Date.from(Instant.parse("2026-10-14T07:00:00Z")),
+                 tool.parseSince("2026-10-14T09:00:00+02:00", "changed_since", USER_ZONE));
+    assertEquals(Date.from(Instant.parse("2026-10-14T09:00:00Z")), tool.parseSince("2026-10-14T09:00:00Z", "changed_since", USER_ZONE));
+    assertEquals(Date.from(Instant.parse("2026-10-14T07:00:00Z")), tool.parseSince("2026-10-14T09:00", "changed_since", USER_ZONE));
+    IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                                                  () -> tool.parseSince("last week", "completed_since", USER_ZONE));
+    assertTrue(error.getMessage(), error.getMessage().startsWith("completed_since must be a date such as 2026-10-14"));
+  }
+
+  /**
+   * @param id the entry identifier
+   * @param actionName its action
+   * @param target its target
+   * @param date its ISO 8601 instant
+   * @return a change log entry by the test user
+   */
+  private static ChangeLogEntry log(long id, String actionName, String target, String date) {
+    ChangeLogEntry entry = new ChangeLogEntry();
+    entry.setId(id);
+    entry.setAuthor(USER);
+    entry.setActionName(actionName);
+    entry.setTarget(target);
+    entry.setCreatedTime(Instant.parse(date).toEpochMilli());
+    return entry;
+  }
+
+  /**
+   * Asserts the changed_since condition of a query: a status, project, due
+   * date or completion entry at or after the date, or an assignee entry at
+   * or after it on a task created before it. Mutants it kills: another
+   * action list; the creation date condition dropped, inverted or on
+   * another date; the two branches joined by a conjunction.
+   *
+   * @param query a task query
+   * @param since the expected date
+   */
+  private static void assertChangedSince(TaskQuery query, Date since) {
+    AggregateCondition changed = conjunction(query).stream()
+                                                   .filter(c -> c instanceof AggregateCondition aggregate
+                                                                && AggregateCondition.OR.equals(aggregate.getType())
+                                                                && aggregate.getConditions()
+                                                                            .stream()
+                                                                            .anyMatch(m -> m instanceof SingleCondition<?> single
+                                                                                           && SingleCondition.LOGGED_SINCE.equals(single.getType())))
+                                                   .map(AggregateCondition.class::cast)
+                                                   .findFirst()
+                                                   .orElseThrow();
+    assertEquals(2, changed.getConditions().size());
+    SingleCondition<?> others = (SingleCondition<?>) changed.getConditions().get(0);
+    assertEquals(new LoggedSince(List.of("edit_status", "edit_project", "remove_project", "edit_duedate", "mark_done"), since),
+                 others.getValue());
+    AggregateCondition assignee = (AggregateCondition) changed.getConditions().get(1);
+    assertEquals(AggregateCondition.AND, assignee.getType());
+    assertEquals(new LoggedSince(List.of("assign", "unassign"), since), ((SingleCondition<?>) assignee.getConditions().get(0)).getValue());
+    assertTrue(isSingle(assignee.getConditions().get(1), SingleCondition.LT, "createdTime", since));
+  }
+
+  /**
+   * @param query a task query
+   * @return the value of its change log condition, failing when it has none
+   */
+  private static LoggedSince findLoggedSince(TaskQuery query) {
+    List<Condition> conditions = new ArrayList<>();
+    conditions.add(query.getCondition());
+    for (int i = 0; i < conditions.size(); i++) {
+      Condition condition = conditions.get(i);
+      if (condition instanceof AggregateCondition aggregate) {
+        conditions.addAll(aggregate.getConditions());
+      } else if (condition instanceof SingleCondition<?> single && SingleCondition.LOGGED_SINCE.equals(single.getType())) {
+        return (LoggedSince) single.getValue();
+      }
+    }
+    fail("No change log condition in the query");
+    return null;
   }
 
   /**
@@ -1127,25 +1651,38 @@ public class TaskMcpToolTest {
     ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
     when(taskService.findTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.emptyList());
 
-    skippingTool.listAssignedTasks(5, true);
+    skippingTool.listAssignedTasks(null, 5, true, null, null, null);
 
     assertEquals(Date.from(Instant.parse("2018-11-04T03:00:00Z")), findDueDateBefore(query.getValue()));
     assertEquals(1, ZonedDateTime.ofInstant(findDueDateBefore(query.getValue()).toInstant(), saoPaulo).getHour());
   }
 
+  /**
+   * Without a filter, list_assigned_tasks lists the open tasks the user is
+   * assigned to or a coworker of, the most recently active first, counted by
+   * the same query. Mutants: the completed tasks kept; the count of another
+   * query.
+   *
+   * @throws Exception never
+   */
   @Test
   public void listAssignedTasksShouldReturnCollection() throws Exception {// NOSONAR
     TaskDto task = mockTask();
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(5))).thenReturn(Collections.singletonList(task));
+    when(taskService.countTasks(any())).thenReturn(1);
 
-    when(taskService.getUncompletedTasks(USER, 5)).thenReturn(Collections.singletonList(task));
-    when(taskService.countUncompletedTasks(USER)).thenReturn(1L);
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, 5, null, null, null, null));
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(5, null));
-
+    assertTrue("only the tasks the user is assigned to or a coworker of", scopedToTheUser(query.getValue()));
+    assertTrue("only the open tasks", selectsOpenTasksOnly(query.getValue()));
+    verify(taskService).countTasks(query.getValue());
+    verify(taskService, never()).getUncompletedTasks(anyString(), anyInt());
     assertEquals(1, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
     assertEquals(5, result.getUsedLimit());
     assertEquals(1L, result.getCount());
+    assertFalse(result.isHasMore());
   }
 
   @Test
@@ -1153,7 +1690,7 @@ public class TaskMcpToolTest {
     when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(Collections.emptyList());
     when(taskService.countTasks(any())).thenReturn(0);
 
-    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null);
+    TaskCollectionModel result = tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null);
 
     assertEquals(0, result.getTasks().size());
     assertEquals(0, result.getUsedOffset());
@@ -1282,6 +1819,27 @@ public class TaskMcpToolTest {
     assertEquals(OTHER_USER, created.getAllValues().get(2).getAssignee());
   }
 
+  /**
+   * A status id that isn't one of the project's statuses is refused and no
+   * task is created: the space scope relies on it to keep a creation inside
+   * the project.
+   * Mutant: the status is taken by id from anywhere.
+   */
+  @Test
+  public void createTaskInProjectRefusesAStatusOfAnotherProject() throws Exception {// NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    StatusDto own = mock(StatusDto.class);
+
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(own.getId()).thenReturn(3L);
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(Collections.singletonList(own));
+
+    assertThrows(IllegalStateException.class,
+                 () -> tool.createTaskInProject(PROJECT_ID, "Task", null, null, null, null, null, null, 99L));
+    verify(taskService, never()).createTask(any(TaskDto.class));
+  }
+
   @Test
   public void createTaskInProjectShouldUseDefaultStatusAndCreateTask() throws Exception {// NOSONAR
     ProjectDto project = mock(ProjectDto.class);
@@ -1354,6 +1912,55 @@ public class TaskMcpToolTest {
     verify(commentService).addComment(task, USER, COMMENT);
   }
 
+  /**
+   * In a call limited to a space, a comment that mentions a user who isn't a
+   * member of that space is refused, since each mention is notified; one
+   * that mentions members only, or no one, is added, the space being loaded
+   * once per comment, not per mention. A call that isn't limited may mention
+   * anyone, as before. When the call's identity can't be read, a comment that
+   * mentions someone is refused, and one that mentions no one is added.
+   * Mutants: the mention check removed, applied to the first mention only,
+   * or refusing a comment without mentions when the identity can't be read.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCommentOfACallLimitedToASpaceMentionsItsMembersOnly() throws Exception {// NOSONAR
+    TaskDto task = mockTask();
+    CommentDto comment = mock(CommentDto.class);
+    Space space = mock(Space.class);
+    String mentionsAMember = "Please check @mary";
+    String mentionsAnOutsider = "Please check @mary and @" + OTHER_USER;
+    when(taskService.getTask(TASK_ID)).thenReturn(task);
+    when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
+    when(commentService.addComment(eq(task), eq(USER), anyString())).thenReturn(comment);
+    when(comment.getId()).thenReturn(22L);
+    when(comment.getComment()).thenReturn(COMMENT);
+    when(comment.getCreatedTime()).thenReturn(new Date());
+    when(comment.getAuthor()).thenReturn(USER);
+    when(spaceService.getSpaceById(12L)).thenReturn(space);
+    when(spaceService.isMember(space, "mary")).thenReturn(true);
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(false);
+
+    currentScopeSpaceId = 12L;
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskComment(TASK_ID, mentionsAnOutsider));
+    verify(commentService, never()).addComment(any(), any(), any());
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mentionsAMember));
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, COMMENT));
+    verify(commentService).addComment(task, USER, mentionsAMember);
+    verify(commentService).addComment(task, USER, COMMENT);
+
+    currentScopeSpaceId = null;
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, mentionsAnOutsider));
+    verify(commentService).addComment(task, USER, mentionsAnOutsider);
+    verify(spaceService, times(2)).getSpaceById(12L);
+
+    scopeUnreadable = true;
+    assertThrows(IllegalAccessException.class, () -> tool.addTaskComment(TASK_ID, mentionsAMember));
+    runWithDateFormatMockResult(() -> tool.addTaskComment(TASK_ID, COMMENT));
+    verify(commentService, times(2)).addComment(task, USER, COMMENT);
+  }
+
   @Test
   public void listTaskCommentsByIdShouldReturnFlattenedComments() throws Exception {// NOSONAR
     TaskDto task = mockTask();
@@ -1379,7 +1986,7 @@ public class TaskMcpToolTest {
   @Test
   public void removeProjectLabelFromTaskShouldDelegateToLabelService() throws Exception {// NOSONAR
     TaskDto task = mockTaskWithProject();
-    LabelDto label = mock(LabelDto.class);
+    LabelDto label = projectLabel(PROJECT_ID);
 
     when(taskService.getTask(TASK_ID)).thenReturn(task);
     when(userAcl.hasAccessPermission(TaskAclPlugin.OBJECT_TYPE, String.valueOf(TASK_ID), USER)).thenReturn(true);
@@ -1459,29 +2066,1095 @@ public class TaskMcpToolTest {
     tool.createProjectLabel(PROJECT_ID, "Bug");
   }
 
+  /**
+   * list_projects returns compact items, the project's identifier, name,
+   * space and link, counted by the project count: the description, statuses
+   * and labels are neither read nor serialized. The count is that of a
+   * project query of the memberships in the order of the list, which counts
+   * each project once, not that of the named query that counts a project once
+   * per manager and participant. Mutants: the full project model listed; the
+   * statuses or labels read for each project; the count read from the named
+   * query.
+   *
+   * @throws Exception never
+   */
   @Test
   public void listProjectsShouldUseProjectCountAndReturnCollection() throws Exception { // NOSONAR
     ProjectDto project = mock(ProjectDto.class);
 
     when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10)))
                                                                             .thenReturn(Collections.singletonList(project));
-    when(projectService.countProjects(any(), eq(null))).thenReturn(1);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
 
     when(project.getId()).thenReturn(PROJECT_ID);
     when(project.getName()).thenReturn(PROJECT_NAME);
-    when(project.getDescription()).thenReturn("");
+    lenient().when(project.getDescription()).thenReturn("<p>A long description</p>");
     when(project.getManager()).thenReturn(Collections.emptySet());
-    when(statusService.getStatuses(PROJECT_ID)).thenReturn(Collections.emptyList());
-    when(labelService.findLabelsByProject(PROJECT_ID, currentIdentity, 0, 100))
-                                                                               .thenReturn(Collections.emptyList());
 
-    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, null));
 
     assertEquals(1, result.getProjects().size());
     assertEquals(0, result.getUsedOffset());
     assertEquals(10, result.getUsedLimit());
     assertEquals(1L, result.getCount());
-    verify(projectService).countProjects(any(), eq(null));
+    assertFalse(result.isHasMore());
+    assertNull(result.getNextOffset());
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).countProjects(counted.capture());
+    verify(projectService, never()).countProjects(any(), any());
+    assertNameQuery(counted.getValue(), null);
+    ProjectListItemModel item = result.getProjects().get(0);
+    assertEquals(PROJECT_ID, item.getId());
+    assertEquals(PROJECT_NAME, item.getName());
+    assertTrue(item.getUrl().endsWith("/task-link"));
+    verify(statusService, never()).getStatuses(anyLong());
+    verify(labelService, never()).findLabelsByProject(anyLong(), any(), anyInt(), anyInt());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(result));
+    assertEquals(Set.of("project_id", "name", "url"), fieldNames(json.path("projects").path(0)));
+    assertFalse("no next_offset on the last page", json.has("next_offset"));
+    assertFalse(json.path("has_more").asBoolean());
+  }
+
+  /**
+   * get_project_by_id keeps the full project: its description, statuses and
+   * labels. Mutant: the list item returned.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void getProjectByIdReturnsTheFullProject() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(project.getId()).thenReturn(PROJECT_ID);
+    when(project.getName()).thenReturn(PROJECT_NAME);
+    when(project.getDescription()).thenReturn("A description");
+    when(project.getManager()).thenReturn(Collections.emptySet());
+    StatusDto status = mock(StatusDto.class);
+    when(status.getId()).thenReturn(8L);
+    when(status.getName()).thenReturn("ToDo");
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(List.of(status));
+    LabelDto label = mock(LabelDto.class);
+    when(label.getId()).thenReturn(3L);
+    when(label.getName()).thenReturn(LABEL_NAME);
+    when(labelService.findLabelsByProject(PROJECT_ID, currentIdentity, 0, 100)).thenReturn(List.of(label));
+
+    ProjectModel model = runWithDateFormatMockResult(() -> tool.getProjectById(PROJECT_ID));
+
+    assertEquals(1, model.getAllowedStatusList().size());
+    assertEquals(LABEL_NAME, model.getAllowedLabelList().get(0).getName());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(model));
+    assertTrue(json.has("allowed_status_list"));
+    assertTrue(json.has("allowed_label_list"));
+  }
+
+  /**
+   * name reaches the project list and the project count with the same
+   * keyword, trimmed, and a blank name is no keyword; in a run limited to a
+   * space, the scan of the space's projects reads the keyword too. Mutants:
+   * the keyword dropped from the list, from the count or from the scan; the
+   * list and the count given different keywords.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByNamePassesTheSameKeywordToTheListAndTheCount() throws Exception { // NOSONAR
+    when(projectService.findProjects(any(), any(), any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
+
+    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Q3 Roadmap  "));
+    verify(projectService).findProjects(any(), eq("Q3 Roadmap"), any(), eq(0), eq(10));
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService, times(2)).countProjects(counted.capture());
+    assertAllWordsQuery(counted.getAllValues().get(0), "%q3%", "%roadmap%");
+    assertNameQuery(counted.getAllValues().get(1), AggregateCondition.OR, "%q3%", "%roadmap%");
+
+    runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, " "));
+    verify(projectService).findProjects(any(), eq(null), any(), eq(0), eq(10));
+    verify(projectService, times(3)).countProjects(counted.capture());
+    assertNameQuery(counted.getAllValues().get(counted.getAllValues().size() - 1), null);
+    verify(projectService, never()).countProjects(any(), any());
+
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Q3 Roadmap"));
+    verify(projectService).findProjects(any(), eq("Q3 Roadmap"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+  }
+
+  /**
+   * A one-word name selects the same projects whether all or any of its words
+   * are asked for: when none holds it, the empty result is returned without
+   * reading the list or the count by any word, in a plain run as in a run
+   * limited to a space. Mutant: the fallback run for one word.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByOneWordNameNeverFallsBack() throws Exception { // NOSONAR
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, null, null, "  Roadmap "));
+    assertTrue(result.getProjects().isEmpty());
+    assertEquals(0L, result.getCount());
+    assertFalse(result.isHasMore());
+    verify(projectService, times(1)).countProjects(any(ProjectQuery.class));
+
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectCollectionModel ofSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Roadmap"));
+    assertTrue(ofSpace.getProjects().isEmpty());
+    assertEquals(0L, ofSpace.getCount());
+    verify(projectService, times(2)).countProjects(any(ProjectQuery.class));
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+  }
+
+  /**
+   * When a project's name holds every word of name, the list and the count
+   * come from one query: the memberships of the plain list, every word as a
+   * case-insensitive part of the name, the most recently modified first; the
+   * list by any one word is never read. Mutants: the any-word list or count
+   * read although a project holds every word; the words joined by OR; the
+   * memberships or the order dropped from the query.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByNameListsOnlyTheProjectsHoldingAllItsWords() throws Exception { // NOSONAR
+    ProjectDto board = listedProject(1L, null);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(1);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(2), eq(5))).thenReturn(List.of(board));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 "));
+
+    assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, result.getCount());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).countProjects(any(), any());
+    ArgumentCaptor<ProjectQuery> listed = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(listed.capture(), eq(2), eq(5));
+    ArgumentCaptor<ProjectQuery> counted = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).countProjects(counted.capture());
+    for (ProjectQuery query : List.of(listed.getValue(), counted.getValue())) {
+      assertAllWordsQuery(query, "%big%", "%board%", "%50%");
+    }
+  }
+
+  /**
+   * When no project's name holds every word of name, the list and the count
+   * are those of any one word, with the same keyword, offset and limit as
+   * before. Mutants: no fallback; the fallback given another keyword, offset
+   * or limit.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsByNameFallsBackToAnyWordWhenNoneHoldsThemAll() throws Exception { // NOSONAR
+    ProjectDto onboarding = listedProject(4L, null);
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0, 3);
+    when(projectService.findProjects(any(), eq("Big Board 50"), any(), eq(2), eq(5))).thenReturn(List.of(onboarding));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(null, 2, 5, " Big Board 50 "));
+
+    assertEquals(List.of(4L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(3L, result.getCount());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+  }
+
+  /**
+   * In a run limited to a space, the scan reads the projects holding every
+   * word of name when the space has some, and keeps those of the space with
+   * the exact has_more; the scan by any one word is never read. Mutants: the
+   * any-word scan read although a project of the space holds every word;
+   * has_more lost on that path.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsOfASpaceByNameScansTheProjectsHoldingAllItsWords() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> projects = List.of(listedProject(1L, 10L), listedProject(2L, 11L), listedProject(3L, 10L));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(3);
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(projects);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 1, "Big Board"));
+
+    assertEquals(List.of(1L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertTrue(result.isHasMore());
+    assertEquals(Integer.valueOf(1), result.getNextOffset());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    ArgumentCaptor<ProjectQuery> scanned = ArgumentCaptor.forClass(ProjectQuery.class);
+    verify(projectService).findProjects(scanned.capture(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+    assertAllWordsQuery(scanned.getValue(), "%big%", "%board%");
+  }
+
+  /**
+   * In a run limited to a space, the scan reads the projects holding any one
+   * word of name when no project holds them all, and also when those holding
+   * them all are none of the space's. Mutants: no fallback; the fallback
+   * only on a zero count, so that a space whose projects hold one word lists
+   * nothing.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsOfASpaceByNameFallsBackToAnyWordWhenTheSpaceHasNoneHoldingThemAll() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectDto onboarding = listedProject(4L, 10L);
+    ProjectDto ofOtherSpace = listedProject(2L, 11L);
+    when(projectService.findProjects(any(), eq("Big Board"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                           .thenReturn(List.of(onboarding));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(0, 1);
+    when(projectService.findProjects(any(ProjectQuery.class),
+                                     eq(0),
+                                     eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(List.of(ofOtherSpace));
+
+    ProjectCollectionModel none = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board"));
+    assertEquals(List.of(4L), none.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, none.getCount());
+    verify(projectService, never()).findProjects(any(ProjectQuery.class), anyInt(), anyInt());
+
+    ProjectCollectionModel otherSpace = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, "Big Board"));
+    assertEquals(List.of(4L), otherSpace.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(1L, otherSpace.getCount());
+    verify(projectService, times(2)).findProjects(any(), eq("Big Board"), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+  }
+
+  /**
+   * @param query a query of the projects holding all the words of a name
+   * @param likes the patterns each word must match, lower-cased
+   */
+  private void assertAllWordsQuery(ProjectQuery query, String... likes) {
+    assertNameQuery(query, AggregateCondition.AND, likes);
+  }
+
+  /**
+   * @param query a query of the projects of the memberships, by name words
+   *          or not, the most recently modified first
+   * @param wordsType how the name words are combined, {@link AggregateCondition#AND}
+   *          or {@link AggregateCondition#OR}; null when the query has no name
+   *          condition
+   * @param likes the patterns each word must match, lower-cased
+   */
+  private void assertNameQuery(ProjectQuery query, String wordsType, String... likes) {
+    assertEquals(1, query.getOrderBy().size());
+    assertEquals("lastModifiedDate", query.getOrderBy().get(0).getFieldName());
+    assertFalse(query.getOrderBy().get(0).isAscending());
+    List<Condition> conditions = ((AggregateCondition) query.getCondition()).getConditions();
+    assertEquals(wordsType == null ? 1 : 2, conditions.size());
+    AggregateCondition membership = (AggregateCondition) conditions.get(0);
+    assertEquals(AggregateCondition.OR, membership.getType());
+    assertEquals(List.of("manager", "participator"),
+                 membership.getConditions().stream().map(c -> ((SingleCondition<?>) c).getField()).toList());
+    Object roles = ((SingleCondition<?>) membership.getConditions().get(0)).getValue();
+    assertFalse(((List<?>) roles).isEmpty());
+    assertEquals(roles, ((SingleCondition<?>) membership.getConditions().get(1)).getValue());
+    if (wordsType == null) {
+      return;
+    }
+    AggregateCondition words = (AggregateCondition) conditions.get(1);
+    assertEquals(wordsType, words.getType());
+    assertEquals(List.of(likes), words.getConditions().stream().map(c -> ((SingleCondition<?>) c).getValue()).toList());
+    words.getConditions()
+         .forEach(c -> assertEquals(SingleCondition.LIKE, ((SingleCondition<?>) c).getType()));
+  }
+
+  /**
+   * In a run limited to a space, has_more is exact although the count is only
+   * what the scan kept: a full page with one more project kept says more
+   * remain, from the next offset, and the page that reaches the end of the
+   * scan says none remain. Mutant: has_more read from the page being full.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunSaysWhetherMoreRemain() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> projects = new ArrayList<>();
+    for (long id = 1; id <= 4; id++) {
+      projects.add(listedProject(id, 10L));
+    }
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(projects);
+
+    ProjectCollectionModel first = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2, null));
+    assertTrue(first.isHasMore());
+    assertEquals(Integer.valueOf(2), first.getNextOffset());
+
+    ProjectCollectionModel last = runWithDateFormatMockResult(() -> tool.listProjects(10L, 2, 2, null));
+    assertEquals(List.of(3L, 4L), last.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertFalse(last.isHasMore());
+    assertNull(last.getNextOffset());
+  }
+
+  /**
+   * list_tasks returns compact items: the task's identifier, title, link,
+   * completion, project, status, labels, assignee as a username and a display
+   * name, due date, creation date (the full task's), days overdue, priority,
+   * comments count with the replies, and the date and author of the latest
+   * comment; no description, no coworkers, and no user profile read for the
+   * coworkers. With include_change_log, the full task, whose comments count
+   * holds the replies too. Mutants: the full model listed; the coworkers
+   * looked up; the assignee's display name not read; the creation date
+   * dropped; the latest comment dropped; the full task counting the top-level
+   * comments only.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listTasksReturnsCompactItemsAndTheFullTaskWithTheChangeLog() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject();
+    when(task.getAssignee()).thenReturn(OTHER_USER);
+    lenient().when(task.getCoworker()).thenReturn(Set.of("mary"));
+    lenient().when(task.getDescription()).thenReturn("<p>A long description</p>");
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-01T10:00:00Z")));
+    when(task.getPriority()).thenReturn(Priority.HIGH);
+    when(commentService.countComments(TASK_ID)).thenReturn(1);
+    when(commentService.countCommentsWithSubs(TASK_ID)).thenReturn(3);
+    when(commentService.getCommentsSummaries(List.of(TASK_ID))).thenReturn(Map.of(TASK_ID,
+                                                                                   new CommentsSummaryDto(TASK_ID,
+                                                                                                          3,
+                                                                                                          new Date(),
+                                                                                                          "paul",
+                                                                                                          55L)));
+    org.exoplatform.social.core.identity.model.Identity paul = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    Profile paulProfile = mock(Profile.class);
+    when(paul.getProfile()).thenReturn(paulProfile);
+    when(paulProfile.getFullName()).thenReturn("Paul Martin");
+    when(identityManager.getOrCreateUserIdentity("paul")).thenReturn(paul);
+    org.exoplatform.social.core.identity.model.Identity john = mock(org.exoplatform.social.core.identity.model.Identity.class);
+    Profile johnProfile = mock(Profile.class);
+    when(john.getProfile()).thenReturn(johnProfile);
+    when(johnProfile.getFullName()).thenReturn("John Smith");
+    when(identityManager.getOrCreateUserIdentity(OTHER_USER)).thenReturn(john);
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null));
+
+    TaskListItemModel item = (TaskListItemModel) result.getTasks().get(0);
+    assertEquals(TASK_ID, item.getId());
+    assertEquals("Task " + TASK_ID, item.getTitle());
+    assertEquals(Long.valueOf(PROJECT_ID), item.getProjectId());
+    assertEquals(PROJECT_NAME, item.getProjectName());
+    assertEquals(8L, item.getStatus().getId());
+    assertEquals(OTHER_USER, item.getAssignee().getUsername());
+    assertEquals("John Smith", item.getAssignee().getDisplayName());
+    assertEquals("2024-01-01T00:00:00Z", item.getDueDate());
+    assertEquals(Integer.valueOf(7), item.getDaysOverdue());
+    assertEquals(Priority.HIGH, item.getPriority());
+    assertEquals(3, item.getCommentsCount());
+    assertEquals("2024-01-01T00:00:00Z", item.getLastCommentDate());
+    assertEquals("paul", item.getLastCommentAuthor().getUsername());
+    assertEquals("Paul Martin", item.getLastCommentAuthor().getDisplayName());
+    assertNull("no changes without changed_since", item.getChanges());
+    verify(identityManager, never()).getOrCreateUserIdentity("mary");
+    verify(taskService, never()).getTaskLogs(anyLong(), anyInt(), anyInt());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(item));
+    assertEquals(Set.of("task_id",
+                        "title",
+                        "link",
+                        "completed",
+                        "project_id",
+                        "project_name",
+                        "status",
+                        "assignee",
+                        "due_date",
+                        "created_date",
+                        "days_overdue",
+                        "priority",
+                        "comments_count",
+                        "last_comment_date",
+                        "last_comment_author"),
+                 fieldNames(json));
+    assertEquals(Set.of("username", "display_name"), fieldNames(json.path("assignee")));
+    assertEquals(Set.of("username", "display_name"), fieldNames(json.path("last_comment_author")));
+
+    TaskCollectionModel full = runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null));
+
+    TaskModel fullTask = (TaskModel) full.getTasks().get(0);
+    assertTrue(fullTask instanceof TaskWithChangeLogModel);
+    assertEquals("A long description", fullTask.getDescription().replaceAll("<[^>]+>", "").trim());
+    assertEquals(1, fullTask.getCoworkers().size());
+    assertEquals("the full task counts the replies", 3, fullTask.getCommentsCount());
+    assertNotNull(item.getCreatedDate());
+    assertEquals("the same creation date as the full task", fullTask.getCreatedDate(), item.getCreatedDate());
+  }
+
+  /**
+   * The full task of a listing with include_change_log has one "commented"
+   * entry per comment, each reply included, as its comments count does.
+   * Mutant: the top-level comments read without their replies.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void theChangeLogOfAFullTaskHoldsTheReplies() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject();
+    CommentDto comment = new CommentDto();
+    comment.setAuthor(OTHER_USER);
+    comment.setCreatedTime(Date.from(Instant.parse("2026-10-01T10:00:00Z")));
+    CommentDto reply = new CommentDto();
+    reply.setAuthor(OTHER_USER);
+    reply.setCreatedTime(Date.from(Instant.parse("2026-10-02T10:00:00Z")));
+    comment.setSubComments(List.of(reply));
+    when(commentService.countComments(TASK_ID)).thenReturn(1);
+    when(commentService.countCommentsWithSubs(TASK_ID)).thenReturn(2);
+    when(commentService.getCommentsWithSubs(TASK_ID, 0, 1)).thenReturn(List.of(comment));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    TaskCollectionModel full = runWithDateFormatMockResult(() -> tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null));
+
+    TaskWithChangeLogModel fullTask = (TaskWithChangeLogModel) full.getTasks().get(0);
+    assertEquals(2, fullTask.getCommentsCount());
+    assertEquals(2, fullTask.getChangeLogs().stream().filter(l -> "commented".equals(l.getActionId())).count());
+  }
+
+  /**
+   * The comments of a page of 100 tasks are read in one call, whatever the
+   * number of tasks, never task by task; a commented task carries the date of
+   * its latest comment, not its own creation or due date, and a task without
+   * comments carries neither a latest comment date nor its author. Mutants:
+   * the comments counted task by task; the latest comment's date swapped for
+   * the task's creation or due date.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aPageOfTasksReadsItsCommentsInOneQuery() throws Exception { // NOSONAR
+    List<TaskDto> tasks = new ArrayList<>();
+    for (long id = 1; id <= 100; id++) {
+      tasks.add(mockTaskWithProject(id, new Date()));
+    }
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(100))).thenReturn(tasks);
+    when(taskService.countTasks(any())).thenReturn(100);
+    List<Long> taskIds = tasks.stream().map(TaskDto::getId).toList();
+    when(commentService.getCommentsSummaries(taskIds)).thenReturn(Map.of(1L,
+                                                                         new CommentsSummaryDto(1L,
+                                                                                                16,
+                                                                                                Date.from(Instant.parse("2026-09-01T07:00:00Z")),
+                                                                                                OTHER_USER,
+                                                                                                9L)));
+    when(tasks.get(0).getDueDate()).thenReturn(Date.from(Instant.parse("2026-12-01T00:00:00Z")));
+
+    TaskCollectionModel result;
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getUserTimeZone).thenReturn(TimeZone.getTimeZone("UTC"));
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> ((Date) invocation.getArgument(0)).toInstant().toString());
+      result = tool.listTasks(null, false, false, null, 0, 100, null, null, null, null, null, null);
+    }
+
+    assertEquals(100, result.getTasks().size());
+    verify(commentService).getCommentsSummaries(taskIds);
+    verify(commentService, never()).countComments(anyLong());
+    verify(commentService, never()).countCommentsWithSubs(anyLong());
+    TaskListItemModel commented = (TaskListItemModel) result.getTasks().get(0);
+    assertEquals(16, commented.getCommentsCount());
+    assertEquals("2026-09-01T07:00:00Z", commented.getLastCommentDate());
+    assertEquals(OTHER_USER, commented.getLastCommentAuthor().getUsername());
+    JsonNode uncommented = JSON.readTree(JSON.writeValueAsString(result.getTasks().get(1)));
+    assertFalse(uncommented.has("last_comment_date"));
+    assertFalse(uncommented.has("last_comment_author"));
+    assertEquals(0, uncommented.path("comments_count").asInt());
+  }
+
+  /**
+   * A compact item of list_tasks and of list_assigned_tasks carries the
+   * task's creation date, the one the full task carries, not its due date, so
+   * that the tasks created since a date are found. Mutants: the creation date
+   * dropped; the due date given instead.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCompactItemCarriesTheCreationDateOfTheFullTask() throws Exception { // NOSONAR
+    Date createdTime = Date.from(Instant.parse("2026-10-12T08:30:00Z"));
+    TaskDto task = mockTaskWithProject(TASK_ID, createdTime);
+    when(task.getDueDate()).thenReturn(Date.from(Instant.parse("2026-10-30T10:00:00Z")));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getUserTimeZone).thenReturn(TimeZone.getTimeZone("UTC"));
+      mocked.when(() -> McpToolUtils.formatDate(any(Date.class)))
+            .thenAnswer(invocation -> ((Date) invocation.getArgument(0)).toInstant().toString());
+
+      TaskListItemModel item = (TaskListItemModel) tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, null)
+                                                       .getTasks()
+                                                       .get(0);
+      TaskModel fullTask = (TaskModel) tool.listTasks(null, false, true, null, null, null, null, null, null, null, null, null)
+                                           .getTasks()
+                                           .get(0);
+      TaskListItemModel assigned = (TaskListItemModel) tool.listAssignedTasks(null, null, null, null, null, null).getTasks().get(0);
+
+      assertEquals("2026-10-12T08:30:00Z", item.getCreatedDate());
+      assertEquals(fullTask.getCreatedDate(), item.getCreatedDate());
+      assertEquals("2026-10-12T08:30:00Z", assigned.getCreatedDate());
+      assertEquals("2026-10-12T08:30:00Z", JSON.readTree(JSON.writeValueAsString(item)).path("created_date").asText());
+    }
+  }
+
+  /**
+   * The description of an opportunity card, as the editor stores it: a
+   * mention, entities and one qualification line per paragraph, list item or
+   * line break.
+   */
+  private static final String QUALIFICATION_HTML  = "<p>Contact: <a class=\"user-suggester\" href=\"/portal/dw/profile/john\">@john</a>"
+      + " &amp; Co&nbsp;Ltd</p><ul><li>Users: 500</li><li>Competition: <a href=\"https://example.org\">none</a></li></ul>"
+      + "<p>Planning: Q1<br>Budget: 50 k&euro;</p>";
+
+  /**
+   * The plain text of {@link #QUALIFICATION_HTML}.
+   */
+  private static final String QUALIFICATION_TEXT  = "Contact: @john & Co Ltd\nUsers: 500\nCompetition: none\nPlanning: Q1\nBudget: 50 k\u20ac";
+
+  /**
+   * The keys of a compact item of {@link #mockTaskWithProject(long, Date)}
+   * listed without include_description.
+   */
+  private static final Set<String> DEFAULT_ITEM_KEYS = Set.of("task_id",
+                                                              "title",
+                                                              "link",
+                                                              "completed",
+                                                              "project_id",
+                                                              "project_name",
+                                                              "status",
+                                                              "created_date",
+                                                              "comments_count");
+
+  /**
+   * Without include_description, null or false, a compact item of list_tasks
+   * and of list_assigned_tasks keeps its keys: neither description nor
+   * description_truncated, and the description is not even read. Mutants:
+   * the description always added; a false truncation flag serialised.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCompactItemHasNoDescriptionWithoutIncludeDescription() throws Exception { // NOSONAR
+    TaskDto task = mockTaskWithProject(TASK_ID, Date.from(Instant.parse("2026-10-12T08:30:00Z")));
+    lenient().when(task.getDescription()).thenReturn(QUALIFICATION_HTML);
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(task));
+    when(taskService.countTasks(any())).thenReturn(1);
+
+    for (Boolean includeDescription : new Boolean[] { null, false }) {
+      TaskListItemModel listed = (TaskListItemModel) runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, includeDescription)).getTasks()
+                                                                                                                                                                                      .get(0);
+      TaskListItemModel assigned = (TaskListItemModel) runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, null, null, null, null, includeDescription)).getTasks()
+                                                                                                                                                                  .get(0);
+
+      assertEquals(DEFAULT_ITEM_KEYS, fieldNames(JSON.readTree(JSON.writeValueAsString(listed))));
+      assertEquals(DEFAULT_ITEM_KEYS, fieldNames(JSON.readTree(JSON.writeValueAsString(assigned))));
+    }
+    verify(task, never()).getDescription();
+  }
+
+  /**
+   * With include_description, a compact item of list_tasks and of
+   * list_assigned_tasks carries its description as plain text: the tags and
+   * entities removed, a mention and a link kept as their text, unresolved,
+   * one line per block. A short one comes whole, without
+   * description_truncated; a long one is cut at 500 characters at most, at a
+   * word boundary, with description_truncated true. Mutants: the HTML kept;
+   * no cut; a cut inside a word; the flag missing or always set.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aCompactItemCarriesItsDescriptionAsCutPlainTextOnRequest() throws Exception { // NOSONAR
+    String longText = "lorem ipsum dolor sit amet consectetur ".repeat(20).strip();
+    TaskDto shortTask = mockTaskWithProject(TASK_ID, Date.from(Instant.parse("2026-10-12T08:30:00Z")));
+    when(shortTask.getDescription()).thenReturn(QUALIFICATION_HTML);
+    TaskDto longTask = mockTaskWithProject(TASK_ID + 1, Date.from(Instant.parse("2026-10-12T08:30:00Z")));
+    when(longTask.getDescription()).thenReturn("<p>" + longText + "</p>");
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(List.of(shortTask, longTask));
+    when(taskService.countTasks(any())).thenReturn(2);
+
+    List<?> listed = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, null, null, null, null, null, null, true)).getTasks();
+    List<?> assigned = runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, null, null, null, null, true)).getTasks();
+
+    for (List<?> items : List.of(listed, assigned)) {
+      JsonNode shortItem = JSON.readTree(JSON.writeValueAsString(items.get(0)));
+      Set<String> withDescription = new HashSet<>(DEFAULT_ITEM_KEYS);
+      withDescription.add("description");
+      assertEquals(withDescription, fieldNames(shortItem));
+      assertEquals(QUALIFICATION_TEXT, shortItem.path("description").asString());
+
+      JsonNode longItem = JSON.readTree(JSON.writeValueAsString(items.get(1)));
+      withDescription.add("description_truncated");
+      assertEquals(withDescription, fieldNames(longItem));
+      assertTrue(longItem.path("description_truncated").asBoolean());
+      String cut = longItem.path("description").asString();
+      assertTrue(cut.length() <= 500);
+      assertTrue(cut.length() > 450);
+      assertTrue(longText.startsWith(cut));
+      assertEquals("cut at a word boundary", ' ', longText.charAt(cut.length()));
+    }
+  }
+
+  /**
+   * A limit above the most a list returns is cut to it, on every list tool,
+   * and a limit not positive is the default one. Mutants: the comparison
+   * inverted or dropped; a negative limit passed on.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aListLimitAboveTheMostIsCutToIt() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    when(projectService.findProjects(any(), any(), any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+
+    TaskCollectionModel tasks = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, 101, null, null, null, null, null, null));
+    verify(taskService).findLastUpdatedTasks(any(), eq(0), eq(100));
+    assertEquals(100, tasks.getUsedLimit());
+
+    runWithDateFormatMockResult(() -> tool.listAssignedTasks(null, 101, null, null, null, null));
+    verify(taskService, times(2)).findLastUpdatedTasks(any(), eq(0), eq(100));
+
+    ProjectCollectionModel projects = runWithDateFormatMockResult(() -> tool.listProjects(null, null, 101, null));
+    verify(projectService).findProjects(any(), any(), any(), eq(0), eq(100));
+    assertEquals(100, projects.getUsedLimit());
+
+    runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, null, 100, null, null, null, null, null, null));
+    verify(taskService, times(3)).findLastUpdatedTasks(any(), eq(0), eq(100));
+
+    assertEquals(100, TaskMcpTool.getLimit(101));
+    assertEquals(100, TaskMcpTool.getLimit(100));
+    assertEquals(99, TaskMcpTool.getLimit(99));
+    assertEquals(10, TaskMcpTool.getLimit(-2));
+    assertEquals(10, TaskMcpTool.getLimit(null));
+    assertEquals(0, TaskMcpTool.getOffset(-4));
+  }
+
+  /**
+   * A full page with more tasks after it says has_more, with the offset of
+   * the next page; the last page, and an empty one past the end, say none
+   * remain and carry no next_offset. Mutants: has_more always true or
+   * false; next_offset left on the last page; the page size ignored.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void aPageSaysWhetherMoreTasksRemainAndFromWhichOffset() throws Exception { // NOSONAR
+    List<TaskDto> ten = new ArrayList<>();
+    for (long id = 1; id <= 10; id++) {
+      ten.add(mockTaskWithProject(id, new Date()));
+    }
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(10))).thenReturn(ten);
+    when(taskService.findLastUpdatedTasks(any(), eq(20), eq(10))).thenReturn(ten.subList(0, 5));
+    when(taskService.findLastUpdatedTasks(any(), eq(30), eq(10))).thenReturn(Collections.emptyList());
+    when(taskService.countTasks(any())).thenReturn(25);
+
+    TaskCollectionModel first = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 0, 10, null, null, null, null, null, null));
+    assertTrue(first.isHasMore());
+    assertEquals(Integer.valueOf(10), first.getNextOffset());
+    JsonNode json = JSON.readTree(JSON.writeValueAsString(first));
+    assertTrue(json.path("has_more").asBoolean());
+    assertEquals(10, json.path("next_offset").asInt());
+    assertEquals(25, json.path("count").asInt());
+    assertEquals(10, json.path("used_limit").asInt());
+
+    TaskCollectionModel last = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 20, 10, null, null, null, null, null, null));
+    assertFalse(last.isHasMore());
+    assertNull(last.getNextOffset());
+    assertFalse(JSON.readTree(JSON.writeValueAsString(last)).has("next_offset"));
+
+    TaskCollectionModel past = runWithDateFormatMockResult(() -> tool.listTasks(null, false, false, null, 30, 10, null, null, null, null, null, null));
+    assertFalse(past.isHasMore());
+    assertNull(past.getNextOffset());
+
+    assertEquals(Integer.valueOf(10), TaskMcpTool.getNextOffset(10, 0, 11));
+    assertNull(TaskMcpTool.getNextOffset(10, 0, 10));
+    assertNull(TaskMcpTool.getNextOffset(0, 5, 10));
+  }
+
+  /**
+   * list_assigned_tasks pages with its offset, on the plain list and on a
+   * filtered one. Mutant: the offset dropped (the first page read again).
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listAssignedTasksOffsetReachesTheQuery() throws Exception { // NOSONAR
+    when(taskService.findLastUpdatedTasks(any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    when(taskService.findTasks(any(), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listAssignedTasks(20, 10, null, null, null, null));
+    verify(taskService).findLastUpdatedTasks(any(), eq(20), eq(10));
+    assertEquals(20, result.getUsedOffset());
+
+    runWithDateFormatMockResult(() -> tool.listAssignedTasks(30, 10, true, null, null, null));
+    verify(taskService).findTasks(any(), eq(30), eq(10));
+  }
+
+  /**
+   * list_unscheduled_tasks returns compact items and says when more
+   * unscheduled tasks were found than the limit let through, without a
+   * next_offset since the tool takes no offset. Mutant: has_more read from
+   * the page alone.
+   *
+   * @throws Exception never
+   */
+  @Test
+  public void listUnscheduledTasksSaysWhenMoreWereFound() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    List<TaskDto> three = List.of(mockTaskWithProject(1L, new Date()),
+                                  mockTaskWithProject(2L, new Date()),
+                                  mockTaskWithProject(3L, new Date()));
+    when(taskService.findLastUpdatedTasks(any(), eq(0), eq(100))).thenReturn(three);
+
+    TaskCollectionModel more = runWithDateFormatMockResult(() -> tool.listUnscheduledTasks(PROJECT_ID, 2, null));
+    assertEquals(2, more.getTasks().size());
+    assertTrue(more.getTasks().get(0) instanceof TaskListItemModel);
+    assertTrue(more.isHasMore());
+    assertNull(more.getNextOffset());
+
+    TaskCollectionModel all = runWithDateFormatMockResult(() -> tool.listUnscheduledTasks(PROJECT_ID, 3, null));
+    assertEquals(3, all.getTasks().size());
+    assertFalse(all.isHasMore());
+  }
+
+  /**
+   * @param node a JSON object
+   * @return the names of its fields
+   */
+  private static Set<String> fieldNames(JsonNode node) {
+    Set<String> names = new HashSet<>();
+    node.propertyNames().forEach(names::add);
+    return names;
+  }
+
+  /**
+   * A project carries its description in the description and its permanent
+   * link in the url, not the one in the other's place.
+   * Mutant: the description and the link are passed in each other's position.
+   */
+  @Test
+  public void getProjectByIdShouldKeepTheDescriptionAndTheUrlEachInItsOwnField() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    when(project.getId()).thenReturn(PROJECT_ID);
+    when(project.getName()).thenReturn(PROJECT_NAME);
+    when(project.getDescription()).thenReturn("Reworks the Shortcuts portlet");
+    when(project.getManager()).thenReturn(Collections.emptySet());
+    when(statusService.getStatuses(PROJECT_ID)).thenReturn(Collections.emptyList());
+    when(labelService.findLabelsByProject(PROJECT_ID, currentIdentity, 0, 100)).thenReturn(Collections.emptyList());
+    when(permanentLinkService.getLink(any())).thenReturn("/project-link");
+
+    ProjectModel model = runWithDateFormatMockResult(() -> tool.getProjectById(PROJECT_ID));
+
+    assertTrue(model.getDescription(), model.getDescription().contains("Reworks the Shortcuts portlet"));
+    assertTrue(model.getUrl(), model.getUrl().endsWith("/project-link"));
+  }
+
+  /**
+   * In a run limited to a space, the query gets the user's roles of that space
+   * group and nothing of the user's other memberships, and only the projects
+   * the space scope resolver gives to that space are returned: the list and
+   * the project lookup agree. The scan reached the end, so the count is that
+   * of the selection.
+   * Mutant: the space is ignored and the user's own memberships are used; or
+   * a project of another space or of none is kept.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunKeepsTheProjectsTheResolverGivesToIt() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectDto inSpace = listedProject(1L, 10L);
+    ProjectDto inOtherSpace = listedProject(2L, 11L);
+    ProjectDto inNoSpace = listedProject(3L, null);
+    ProjectDto inSpaceToo = listedProject(4L, 10L);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(List.of(inSpace,
+                                                                                                                          inOtherSpace,
+                                                                                                                          inNoSpace,
+                                                                                                                          inSpaceToo));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+
+    assertEquals(List.of(1L, 4L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
+    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK));
+    assertEquals(List.of("member:/spaces/test"), memberships.getValue());
+  }
+
+  /**
+   * An interactive or unscoped caller keeps every project of a space they
+   * belong to: the plain paged query is used, the resolver is never asked.
+   * Mutant: the resolver filter is applied to every call.
+   */
+  @Test
+  public void listProjectsOfASpaceOutsideALimitedRunIsNotNarrowed() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = false;
+    ProjectDto inSpace = listedProject(1L, 10L);
+    ProjectDto shared = listedProject(2L, null);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(10))).thenReturn(List.of(inSpace, shared));
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(2);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+
+    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    verify(spaceScopeResolver, never()).spaceOfProject(any());
+    ArgumentCaptor<List<String>> memberships = ArgumentCaptor.forClass(List.class);
+    verify(projectService).findProjects(memberships.capture(), eq(null), any(), eq(0), eq(10));
+    assertEquals(List.of("member:/spaces/test"), memberships.getValue());
+  }
+
+  /**
+   * The page is cut from the projects of the space, after the selection, and
+   * the offset and limit given back are the ones used: a negative offset is
+   * none, and a limit not positive the default one.
+   * Mutant: the page is cut before the selection, or the offset is ignored.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunPagesTheSelection() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectDto other = listedProject(2L, 11L);
+    ProjectDto first = listedProject(1L, 10L);
+    ProjectDto second = listedProject(3L, 10L);
+    ProjectDto third = listedProject(4L, 10L);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(List.of(other,
+                                                                                                                          first,
+                                                                                                                          second,
+                                                                                                                          third));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 1, 1, null));
+
+    assertEquals(List.of(3L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(3L, result.getCount());
+    assertEquals(1, result.getUsedOffset());
+    assertEquals(1, result.getUsedLimit());
+
+    ProjectCollectionModel clamped = runWithDateFormatMockResult(() -> tool.listProjects(10L, -4, -2, null));
+    assertEquals(List.of(1L, 3L, 4L), clamped.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(0, clamped.getUsedOffset());
+    assertEquals(10, clamped.getUsedLimit());
+  }
+
+  /**
+   * A scan stops as soon as one more project than the page asks for is kept:
+   * the second chunk is never read, projects after that one are never mapped
+   * nor asked of the resolver, and the count is the number kept, more than
+   * the page.
+   * Mutant: the whole chunk or every chunk is read.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunStopsOnceThePageIsFilled() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> chunk = new ArrayList<>();
+    for (long id = 1; id <= TaskMcpTool.SPACE_SCAN_CHUNK; id++) {
+      chunk.add(listedProject(id, 10L));
+    }
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(chunk);
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 0, 2, null));
+
+    assertEquals(List.of(1L, 2L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(3L, result.getCount());
+    verify(projectService, times(1)).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(spaceScopeResolver, never()).spaceOfProject(chunk.get(3));
+  }
+
+  /**
+   * A scan reads the next chunk while the page isn't filled, and its count is
+   * exact once it reached the end (a chunk shorter than asked).
+   * Mutant: only the first chunk is read.
+   */
+  @Test
+  public void listProjectsOfASpaceInALimitedRunReadsSeveralChunks() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    List<ProjectDto> firstChunk = new ArrayList<>();
+    for (long id = 1; id <= TaskMcpTool.SPACE_SCAN_CHUNK; id++) {
+      firstChunk.add(listedProject(id, 11L));
+    }
+    ProjectDto mine = listedProject(100L, 10L);
+    ProjectDto minetoo = listedProject(101L, 10L);
+    ProjectDto theirs = listedProject(102L, 11L);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK))).thenReturn(firstChunk);
+    when(projectService.findProjects(any(), eq(null), any(), eq(TaskMcpTool.SPACE_SCAN_CHUNK), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                                                  .thenReturn(List.of(mine,
+                                                                                                                                                      minetoo,
+                                                                                                                                                      theirs));
+
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+
+    assertEquals(List.of(100L, 101L), result.getProjects().stream().map(ProjectListItemModel::getId).toList());
+    assertEquals(2L, result.getCount());
+    verify(projectService, times(2)).findProjects(any(), any(), any(), anyInt(), anyInt());
+  }
+
+  /**
+   * A space none of whose reachable projects belong to it lists nothing in a
+   * limited run, and a space the user reaches no project of ends the scan at
+   * once.
+   */
+  @Test
+  public void listProjectsOfASpaceWithNoProjectOfItsOwnIsEmpty() throws Exception { // NOSONAR
+    givenSpaceTheUserIsMemberOf();
+    currentSpaceScoped = true;
+    ProjectDto other = listedProject(2L, 11L);
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(List.of(other));
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+    assertEquals(0, result.getProjects().size());
+    assertEquals(0L, result.getCount());
+
+    when(projectService.findProjects(any(), eq(null), any(), eq(0), eq(TaskMcpTool.SPACE_SCAN_CHUNK)))
+                                                                                                      .thenReturn(Collections.emptyList());
+    result = runWithDateFormatMockResult(() -> tool.listProjects(10L, null, null, null));
+    assertEquals(0L, result.getCount());
+  }
+
+  /**
+   * A call is limited to a space when its acting identity carries a space
+   * scope, and also when its identity can't be read: it is then never taken
+   * for an unlimited one. Runs the real {@code isSpaceScoped}, which the
+   * other tests stub.
+   * Mutant: an unreadable identity, a null one or the scope's presence is
+   * read the other way.
+   */
+  @Test
+  public void aCallIsLimitedToASpaceWhenItsIdentityCarriesAScopeOrCantBeRead() {// NOSONAR
+    TaskMcpTool realTool = new TaskMcpTool(projectService,
+                                           statusService,
+                                           taskService,
+                                           commentService,
+                                           labelService,
+                                           spaceService,
+                                           translationService,
+                                           resourceBundleService,
+                                           identityManager,
+                                           profilePropertyService,
+                                           userAcl,
+                                           portalConfigService,
+                                           permanentLinkService,
+                                           favoriteService,
+                                           spaceScopeResolver);
+    ActingIdentity limited = mock(ActingIdentity.class);
+    when(limited.spaceScope()).thenReturn(7L);
+    ActingIdentity unlimited = mock(ActingIdentity.class);
+    when(unlimited.spaceScope()).thenReturn(null);
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(limited);
+      assertTrue(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(unlimited);
+      assertFalse(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(null);
+      assertFalse(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenThrow(new IllegalStateException("refused"));
+      assertTrue(realTool.isSpaceScoped());
+    }
+  }
+
+  /**
+   * The space a call is limited to is the one its acting identity carries,
+   * none for an identity without a scope or no identity, and an identity that
+   * can't be read fails the read rather than passing for an unlimited call.
+   * Runs the real {@code getScopeSpaceId}, which the other tests stub.
+   * Mutants: the scope not read, or the read failure swallowed.
+   */
+  @Test
+  public void theScopeSpaceIsTheOneTheActingIdentityCarries() {// NOSONAR
+    TaskMcpTool realTool = new TaskMcpTool(projectService,
+                                           statusService,
+                                           taskService,
+                                           commentService,
+                                           labelService,
+                                           spaceService,
+                                           translationService,
+                                           resourceBundleService,
+                                           identityManager,
+                                           profilePropertyService,
+                                           userAcl,
+                                           portalConfigService,
+                                           permanentLinkService,
+                                           favoriteService,
+                                           spaceScopeResolver);
+    ActingIdentity limited = mock(ActingIdentity.class);
+    when(limited.spaceScope()).thenReturn(7L);
+    ActingIdentity unlimited = mock(ActingIdentity.class);
+    when(unlimited.spaceScope()).thenReturn(null);
+    try (MockedStatic<McpToolUtils> mocked = mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(limited);
+      assertEquals(Long.valueOf(7L), realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(unlimited);
+      assertNull(realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(null);
+      assertNull(realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenThrow(new IllegalStateException("refused"));
+      assertThrows(IllegalStateException.class, realTool::getScopeSpaceId);
+    }
+  }
+
+  /**
+   * Gives a space 10 whose group the user holds the member role of.
+   */
+  private void givenSpaceTheUserIsMemberOf() {
+    Space space = mock(Space.class);
+    lenient().when(space.getGroupId()).thenReturn("/spaces/test");
+    lenient().when(space.getId()).thenReturn("10");
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(currentIdentity.getMemberships()).thenReturn(List.of(new MembershipEntry("/spaces/test", "member"),
+                                                              new MembershipEntry("/spaces/other", "manager")));
+  }
+
+  /**
+   * @param id a project id
+   * @param spaceId the space the resolver gives the project, or null
+   * @return a project the tool can render
+   */
+  private ProjectDto listedProject(long id, Long spaceId) throws Exception {
+    ProjectDto project = mock(ProjectDto.class);
+    lenient().when(project.getId()).thenReturn(id);
+    lenient().when(project.getName()).thenReturn(PROJECT_NAME);
+    lenient().when(project.getDescription()).thenReturn("");
+    lenient().when(project.getManager()).thenReturn(Collections.emptySet());
+    lenient().when(statusService.getStatuses(id)).thenReturn(Collections.emptyList());
+    lenient().when(labelService.findLabelsByProject(id, currentIdentity, 0, 100)).thenReturn(Collections.emptyList());
+    lenient().when(spaceScopeResolver.spaceOfProject(project)).thenReturn(spaceId);
+    return project;
+  }
+
+  /**
+   * Given a space the user isn't a member of, the list is empty and the
+   * project service is not asked: an empty list of memberships would select
+   * every project.
+   * Mutant: the space memberships aren't intersected with the user's.
+   */
+  @Test
+  public void listProjectsOfASpaceTheUserIsNotMemberOfIsEmpty() throws Exception { // NOSONAR
+    Space space = mock(Space.class);
+    when(space.getGroupId()).thenReturn("/spaces/test");
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(currentIdentity.getMemberships()).thenReturn(List.of(new MembershipEntry("/spaces/other", "member")));
+
+    for (boolean scoped : new boolean[] { false, true }) {
+      currentSpaceScoped = scoped;
+      assertEquals(0L, runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20, null)).getCount());
+    }
+    ProjectCollectionModel result = runWithDateFormatMockResult(() -> tool.listProjects(10L, 5, 20, null));
+
+    assertEquals(0, result.getProjects().size());
+    assertEquals(0L, result.getCount());
+    assertEquals(5, result.getUsedOffset());
+    assertEquals(20, result.getUsedLimit());
+    verify(projectService, never()).findProjects(any(), any(), any(), anyInt(), anyInt());
+    verify(projectService, never()).countProjects(any(), any());
   }
 
   @Test
@@ -1495,12 +3168,60 @@ public class TaskMcpToolTest {
                                                                 .thenReturn(Collections.singletonList(task));
     when(taskService.countTasks(any())).thenReturn(1);
 
-    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null));
+    TaskCollectionModel result = runWithDateFormatMockResult(() -> tool.listTasks(PROJECT_ID, true, false, null, null, null, null, null, null, null, null, null));
 
     assertEquals(1, result.getTasks().size());
     assertEquals(1L, result.getCount());
     verify(projectService, atLeastOnce()).getProject(PROJECT_ID);
     verify(taskService).findLastUpdatedTasks(any(), eq(0), eq(10));
+  }
+
+  /**
+   * A title narrows the tasks of the project: the query keeps the project
+   * condition and adds, beside it in the same conjunction, a literal,
+   * case-insensitive title match on the trimmed title. The count runs on that
+   * same query.
+   * Mutants: the title not passed to the query, passed untrimmed, passed as a
+   * LIKE pattern, or joined to the project by a disjunction.
+   */
+  @Test
+  public void listTasksNarrowsTheProjectByTitle() throws Exception { // NOSONAR
+    ProjectDto project = mock(ProjectDto.class);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canView(currentIdentity)).thenReturn(true);
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(PROJECT_ID, false, false, null, null, null, "  Live Check 2 ", null, null, null, null, null);
+
+    List<Condition> conjunction = conjunction(query.getValue());
+    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.IN, "status.project.id", List.of(PROJECT_ID))));
+    assertTrue(conjunction.stream().anyMatch(c -> isSingle(c, SingleCondition.CONTAINS, "title", "Live Check 2")));
+    verify(taskService).countTasks(query.getValue());
+  }
+
+  /**
+   * Without a project, a title narrows the tasks the user can access: the
+   * accessibility disjunction and the title match are both members of the
+   * query's conjunction, so the title never widens what is listed. A blank
+   * title adds no condition.
+   * Mutants: the title added as an alternative to the accessibility, or a
+   * blank title matching every title.
+   */
+  @Test
+  public void listTasksNarrowsTheAccessibleTasksByTitle() throws Exception { // NOSONAR
+    ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskService.findLastUpdatedTasks(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listTasks(null, false, false, null, null, null, "Live", null, null, null, null, null);
+    tool.listTasks(null, false, false, null, null, null, "  ", null, null, null, null, null);
+
+    List<Condition> withTitle = conjunction(query.getAllValues().get(0));
+    assertTrue(withTitle.stream()
+                        .anyMatch(c -> c instanceof AggregateCondition aggregate && AggregateCondition.OR.equals(aggregate.getType())));
+    assertTrue(withTitle.stream().anyMatch(c -> isSingle(c, SingleCondition.CONTAINS, "title", "Live")));
+    List<Condition> blank = conjunction(query.getAllValues().get(1));
+    assertTrue(blank.stream().noneMatch(c -> c instanceof SingleCondition<?> single && "title".equals(single.getField())));
   }
 
   @Test(expected = IllegalAccessException.class)
@@ -1510,14 +3231,14 @@ public class TaskMcpToolTest {
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(false);
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null, null);
   }
 
   @Test(expected = ObjectNotFoundException.class)
   public void listTasksWithProjectWhenProjectServiceThrowsEntityNotFoundShouldThrowObjectNotFound() throws Exception { // NOSONAR
     when(projectService.getProject(PROJECT_ID)).thenThrow(new EntityNotFoundException(PROJECT_ID, ProjectDto.class));
 
-    tool.listTasks(PROJECT_ID, false, false, null, 0, 10);
+    tool.listTasks(PROJECT_ID, false, false, null, 0, 10, null, null, null, null, null, null);
   }
 
   @Test
@@ -1540,6 +3261,18 @@ public class TaskMcpToolTest {
 
     assertEquals(1, result.getLastUpdatedTasks().size());
     assertEquals(1, result.getOtherUncompletedTasks().size());
+  }
+
+  /**
+   * @param projectId a project id
+   * @return a label of that project
+   */
+  private LabelDto projectLabel(long projectId) {
+    LabelDto label = mock(LabelDto.class);
+    ProjectDto project = mock(ProjectDto.class);
+    lenient().when(project.getId()).thenReturn(projectId);
+    lenient().when(label.getProject()).thenReturn(project);
+    return label;
   }
 
   @SneakyThrows
@@ -1571,14 +3304,14 @@ public class TaskMcpToolTest {
   @SneakyThrows
   private TaskDto mockTask() {
     TaskDto task = mock(TaskDto.class);
-    when(task.getId()).thenReturn(TASK_ID);
-    when(task.getTitle()).thenReturn("Task title");
-    when(task.getDescription()).thenReturn("");
-    when(task.getCreatedTime()).thenReturn(new Date());
-    when(task.getPriority()).thenReturn(null);
-    when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(Collections.emptyList());
-    when(commentService.getLastComment(TASK_ID)).thenReturn(null);
-    when(commentService.countComments(TASK_ID)).thenReturn(0);
+    lenient().when(task.getId()).thenReturn(TASK_ID);
+    lenient().when(task.getTitle()).thenReturn("Task title");
+    lenient().when(task.getDescription()).thenReturn("");
+    lenient().when(task.getCreatedTime()).thenReturn(new Date());
+    lenient().when(task.getPriority()).thenReturn(null);
+    lenient().when(taskService.getTaskLogs(eq(TASK_ID), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+    lenient().when(commentService.getLastComment(TASK_ID)).thenReturn(null);
+    lenient().when(commentService.countComments(TASK_ID)).thenReturn(0);
     return task;
   }
 
@@ -1653,7 +3386,21 @@ public class TaskMcpToolTest {
             userAcl,
             portalConfigService,
             permanentLinkService,
-            favoriteService);
+            favoriteService,
+            spaceScopeResolver);
+    }
+
+    @Override
+    protected boolean isSpaceScoped() {
+      return currentSpaceScoped;
+    }
+
+    @Override
+    protected Long getScopeSpaceId() {
+      if (scopeUnreadable) {
+        throw new IllegalStateException("No acting identity");
+      }
+      return currentScopeSpaceId;
     }
 
     @Override
@@ -1721,6 +3468,30 @@ public class TaskMcpToolTest {
       }
     }
     return false;
+  }
+
+  /**
+   * @param query a task query
+   * @return the members of its root conjunction
+   */
+  private static List<Condition> conjunction(TaskQuery query) {
+    AggregateCondition root = (AggregateCondition) query.getCondition();
+    assertEquals(AggregateCondition.AND, root.getType());
+    return root.getConditions();
+  }
+
+  /**
+   * @param condition a condition
+   * @param type the expected type
+   * @param field the expected field
+   * @param value the expected value
+   * @return whether it is a single condition of that type, field and value
+   */
+  private static boolean isSingle(Condition condition, String type, String field, Object value) {
+    return condition instanceof SingleCondition<?> single
+           && type.equals(single.getType())
+           && field.equals(single.getField())
+           && value.equals(single.getValue());
   }
 
   /**

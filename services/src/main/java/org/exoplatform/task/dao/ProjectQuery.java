@@ -61,6 +61,29 @@ public class ProjectQuery extends Query {
     return this;
   }
 
+  /**
+   * Selects the projects whose name holds every word of the given words,
+   * each one ignoring case and anywhere in the name. The words are split on
+   * spaces and lower-cased as {@link #setKeyword(String)} does, which selects
+   * the projects whose name holds any one of them.
+   *
+   * @param words words of the name, separated by spaces; null or blank adds
+   *          no condition
+   * @return this query
+   */
+  public ProjectQuery setNameWords(String words) {
+    if (words != null && !words.trim().isEmpty()) {
+      List<Condition> keys = new LinkedList<>();
+      for (String k : words.split(" ")) {
+        if (!(k = k.trim()).isEmpty()) {
+          keys.add(Conditions.like(Conditions.NAME, "%" + k.toLowerCase() + "%"));
+        }
+      }
+      this.add(Conditions.and(keys.toArray(new Condition[keys.size()])));
+    }
+    return this;
+  }
+
   public ProjectQuery setParent(Long parentId) {
     if (parentId != null && parentId > 0) {
       this.add(Conditions.eq(Conditions.PARENT_ID, parentId));
