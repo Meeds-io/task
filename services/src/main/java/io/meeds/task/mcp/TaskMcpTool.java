@@ -149,9 +149,6 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           MSG_SPACE_PROJECT_MANAGER       =
                                                                 "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can be named a manager of the project. Choose a member of the space.";
 
-  private static final String           MSG_SPACE_PROJECT_SPACE_MANAGER =
-                                                                        "Parameter 'username': the user '%s' is a manager of the space '%s' but not one of its members, and only a member of the space can be named a manager of the task project with identifier '%s'. As a manager of the space, the user already manages the project.";
-
   private static final String           MSG_SPACE_PROJECT_SPACE_REMOVAL =
                                                                         "Task project with identifier '%s' belongs to the space '%s': the space cannot be removed from the project's %s.";
 
@@ -908,8 +905,8 @@ public class TaskMcpTool implements McpToolPlugin {
   /**
    * Applies the project form's rules to a project of a space: no participant
    * is added by name, a manager is chosen among the members of the space, the
-   * space's own entries are not removed, and a user who holds the right
-   * through the space is not removed by name.
+   * space's own entries are not removed, and a user who is not named but
+   * holds the right through the space is not removed by name.
    */
   private void checkSpaceProjectMembership(ProjectDto project,
                                            Space space,
@@ -922,8 +919,7 @@ public class TaskMcpTool implements McpToolPlugin {
       String message = canViewProject(project, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
       throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
     } else if (add && !spaceService.isMember(space, username)) {
-      String message = holdsThroughSpace(entries, space, username) ? MSG_SPACE_PROJECT_SPACE_MANAGER : MSG_SPACE_PROJECT_MANAGER;
-      throw new IllegalArgumentException(message.formatted(username, space.getDisplayName(), project.getId()));
+      throw new IllegalArgumentException(MSG_SPACE_PROJECT_MANAGER.formatted(username, space.getDisplayName(), project.getId()));
     } else if (!add && isSpaceMembership(username, space)) {
       throw new IllegalAccessException(MSG_SPACE_PROJECT_SPACE_REMOVAL.formatted(project.getId(),
                                                                                  space.getDisplayName(),
@@ -945,8 +941,8 @@ public class TaskMcpTool implements McpToolPlugin {
   /**
    * @return true when one of the entries names the space's members and the
    *         user is a member of the space, names its managers and the user is
-   *         a manager of the space, or names the whole space and the user is in
-   *         it
+   *         a manager of the space, or names the whole space and the user is a
+   *         member of it, the members of a space including its managers
    */
   private boolean holdsThroughSpace(Set<String> entries, Space space, String username) {
     return entries.stream()
@@ -954,8 +950,7 @@ public class TaskMcpTool implements McpToolPlugin {
                   .map(entry -> entry.substring(0, entry.indexOf(':')))
                   .anyMatch(type -> (SpaceUtils.MEMBER.equals(type) && spaceService.isMember(space, username))
                                     || (SpaceUtils.MANAGER.equals(type) && spaceService.isManager(space, username))
-                                    || ("*".equals(type)
-                                        && (spaceService.isMember(space, username) || spaceService.isManager(space, username))));
+                                    || ("*".equals(type) && spaceService.isMember(space, username)));
   }
 
   private boolean isSpaceMembership(String permission, Space space) {

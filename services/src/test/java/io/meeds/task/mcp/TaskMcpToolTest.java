@@ -998,43 +998,6 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * As in the project form, a manager of the space who is not one of its
-   * members is not offered as a project manager.
-   */
-  @Test
-  public void setProjectManagerOnSpaceProjectShouldRefuseSpaceManagerWhoIsNoMember() throws Exception {// NOSONAR
-    Space space = mockSpace();
-    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
-    when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
-
-    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
-                                               () -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
-
-    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is a manager of the space '" + SPACE_NAME + "' but not one of its members"));
-    assertTrue(e.getMessage().endsWith("As a manager of the space, the user already manages the project."));
-    verify(project, never()).setManager(any());
-    verify(projectService, never()).updateProject(any());
-  }
-
-  /**
-   * A manager of the space is told that they already manage the project only
-   * when the project's managers name the space's managers.
-   */
-  @Test
-  public void setProjectManagerOnSpaceProjectManagedByTheSpaceMembersShouldNotTellSpaceManagerTheyManageIt() throws Exception {// NOSONAR
-    Space space = mockSpace();
-    ProjectDto project = mockEditableProject(Set.of(SPACE_MEMBERS), Set.of(SPACE_MEMBERS));
-    lenient().when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
-
-    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
-                                               () -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
-
-    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not a member of the space '" + SPACE_NAME + "'"));
-    verify(project, never()).setManager(any());
-    verify(projectService, never()).updateProject(any());
-  }
-
-  /**
    * A member of the space whom the project's entries give no view right is
    * told they have no access: the refusal reads the project's view check,
    * never the user's role in the space.
@@ -1053,24 +1016,6 @@ public class TaskMcpToolTest {
     assertTrue(e.getMessage().endsWith("The user '" + OTHER_USER + "' has no access to the project."));
     verify(project, never()).setParticipator(any());
     verify(projectService, never()).updateProject(any());
-  }
-
-
-  /**
-   * An entry naming the whole space gives its right to a manager of the space
-   * too: such a user, not a member, is told they already manage the project.
-   */
-  @Test
-  public void setProjectManagerOnSpaceProjectManagedByTheWholeSpaceShouldTellSpaceManagerTheyManageIt() throws Exception {// NOSONAR
-    Space space = mockSpace();
-    ProjectDto project = mockEditableProject(Set.of("*:" + SPACE_GROUP_ID), Set.of(SPACE_MEMBERS));
-    when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
-
-    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
-                                               () -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
-
-    assertTrue(e.getMessage().endsWith("As a manager of the space, the user already manages the project."));
-    verify(project, never()).setManager(any());
   }
 
   @Test
@@ -1212,23 +1157,6 @@ public class TaskMcpToolTest {
     runWithDateFormatMockResult(() -> tool.removeProjectManager(PROJECT_ID, OTHER_USER));
 
     verify(project).setManager(Set.of(SPACE_MANAGERS));
-    verify(projectService).updateProject(project);
-  }
-
-  /**
-   * The space's members entry gives no right to a manager of the space who is
-   * not one of its members: the removal is not refused.
-   */
-  @Test
-  public void removeProjectMemberOnSpaceProjectShouldNotRefuseSpaceManagerWhoIsNoSpaceMember() throws Exception {// NOSONAR
-    Space space = mockSpace();
-    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
-    lenient().when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
-    when(projectService.updateProject(project)).thenReturn(project);
-
-    runWithDateFormatMockResult(() -> tool.removeProjectMember(PROJECT_ID, OTHER_USER));
-
-    verify(project).setParticipator(Set.of(SPACE_MEMBERS));
     verify(projectService).updateProject(project);
   }
 
@@ -2341,7 +2269,6 @@ public class TaskMcpToolTest {
     void run() throws E;
 
   }
-
 
   /**
    * The values of the conditions on a field, anywhere in a condition tree.
