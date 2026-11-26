@@ -868,6 +868,12 @@ public class TaskMcpToolTest {
   }
 
   @Test
+  public void addProjectMemberWhenUsernameIsOnlyAMentionPrefixShouldThrowException() throws Exception {// NOSONAR
+    assertThrows(IllegalArgumentException.class, () -> tool.addProjectMember(PROJECT_ID, "@"));
+    verify(projectService, never()).updateProject(any());
+  }
+
+  @Test
   public void addProjectMemberShouldPersistProject() throws Exception {// NOSONAR
     ProjectDto project = mock(ProjectDto.class);
     when(projectService.getProject(PROJECT_ID)).thenReturn(project);
@@ -897,7 +903,8 @@ public class TaskMcpToolTest {
 
   /**
    * A username {@code UserACL#getUserIdentity} resolves to no identity (it
-   * does so for the anonymous username only; a named user gets an identity)
+   * does so for a blank or the anonymous username only; a named user gets an
+   * identity)
    * is refused as having no access without asking the project, whose
    * {@code ProjectDto#hasPermission} dereferences the identity it is given.
    */

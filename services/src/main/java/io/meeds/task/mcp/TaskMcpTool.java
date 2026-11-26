@@ -882,10 +882,10 @@ public class TaskMcpTool implements McpToolPlugin {
                                                String username,
                                                boolean add,
                                                boolean manager) throws ObjectNotFoundException, IllegalAccessException {
+    username = username != null && username.startsWith("@") ? username.substring(1) : username;
     if (StringUtils.isBlank(username)) {
       throw new IllegalArgumentException("Parameter 'username' is mandatory");
     }
-    username = username.startsWith("@") ? username.substring(1) : username;
     ProjectDto project = getEditableProject(projectId);
     Space space = getProjectSpace(project);
     if (space != null) {
