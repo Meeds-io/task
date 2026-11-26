@@ -42,6 +42,7 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.stream.Stream;
 
 import jakarta.persistence.NoResultException;
 
@@ -144,10 +145,10 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                     "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is not a member of the space: invite them to the space to give them access to the project.";
 
   private static final String           MSG_SPACE_PROJECT_PARTICIPATING =
-                                                                        "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is a member or a manager of the space and already has access to the project.";
+                                                                        "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' already has access to the project.";
 
   private static final String           MSG_SPACE_PROJECT_NO_ACCESS     =
-                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is in the space, but the project's entries for the space do not give them access.";
+                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' has no access to the project, and it cannot be given by name.";
 
   private static final String           MSG_SPACE_PROJECT_MANAGER       =
                                                                 "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can be named a manager of the project. Choose a member of the space, or invite the user to the space first.";
@@ -923,12 +924,12 @@ public class TaskMcpTool implements McpToolPlugin {
     String listName = manager ? "managers" : "participants";
     if (add && !manager) {
       String message;
-      if (hasAccessThroughSpace(project, space, username)) {
+      if (canViewProject(project, username)) {
         message = MSG_SPACE_PROJECT_PARTICIPATING;
-      } else if (spaceService.isMember(space, username) || spaceService.isManager(space, username)) {
-        message = MSG_SPACE_PROJECT_NO_ACCESS;
-      } else {
+      } else if (!spaceService.isMember(space, username) && namesSpaceMembers(project, space)) {
         message = MSG_SPACE_PROJECT_PARTICIPANT;
+      } else {
+        message = MSG_SPACE_PROJECT_NO_ACCESS;
       }
       throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
     } else if (add && !spaceService.isMember(space, username)) {
@@ -946,9 +947,21 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
-  private boolean hasAccessThroughSpace(ProjectDto project, Space space, String username) {
-    return holdsThroughSpace(safeSet(project.getParticipator()), space, username)
-        || holdsThroughSpace(safeSet(project.getManager()), space, username);
+  private boolean canViewProject(ProjectDto project, String username) {
+    Identity identity = userAcl.getUserIdentity(username);
+    return identity != null && project.canView(identity);
+  }
+
+  /**
+   * @return true when one of the project's entries gives its right to every
+   *         member of the space, so that a user invited to the space gets
+   *         access to the project
+   */
+  private boolean namesSpaceMembers(ProjectDto project, Space space) {
+    return Stream.concat(safeSet(project.getParticipator()).stream(), safeSet(project.getManager()).stream())
+                 .filter(entry -> isSpaceMembership(entry, space))
+                 .map(entry -> entry.substring(0, entry.indexOf(':')))
+                 .anyMatch(type -> SpaceUtils.MEMBER.equals(type) || "*".equals(type));
   }
 
   /**

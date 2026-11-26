@@ -892,14 +892,16 @@ public class TaskMcpToolTest {
   }
 
   @Test
-  public void addProjectMemberOnSpaceProjectShouldTellSpaceMemberAlreadyParticipates() throws Exception {// NOSONAR
-    Space space = mockSpace();
+  public void addProjectMemberOnSpaceProjectShouldTellUserWithAccessTheyAlreadyHaveIt() throws Exception {// NOSONAR
+    mockSpace();
     ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
-    when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
+    Identity johnIdentity = mock(Identity.class);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(project.canView(johnIdentity)).thenReturn(true);
 
     IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
 
-    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is a member or a manager of the space and already has access to the project"));
+    assertTrue(e.getMessage().endsWith("The user '" + OTHER_USER + "' already has access to the project."));
     verify(project, never()).setParticipator(any());
     verify(projectService, never()).updateProject(any());
   }
@@ -1003,27 +1005,27 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * A manager of the space who is not one of its members has no access when
-   * the project names the space only by its members entry: the refusal does
-   * not tell them they have one.
+   * A manager of the space who is not one of its members has no access to a
+   * project naming the space only by its members entry, and is told that an
+   * invitation to the space gives it.
    */
   @Test
-  public void addProjectMemberOnSpaceProjectNamingOnlyTheSpaceMembersShouldNotTellSpaceManagerTheyHaveAccess() throws Exception {// NOSONAR
+  public void addProjectMemberOnSpaceProjectNamingOnlyTheSpaceMembersShouldTellSpaceManagerToBeInvited() throws Exception {// NOSONAR
     Space space = mockSpace();
     ProjectDto project = mockEditableProject(Set.of(SPACE_MEMBERS), Set.of(SPACE_MEMBERS));
     lenient().when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
 
     IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
 
-    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is in the space, but the project's entries for the space do not give them access"));
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not a member of the space: invite them to the space"));
     verify(project, never()).setParticipator(any());
     verify(projectService, never()).updateProject(any());
   }
 
   /**
-   * A member of the space has no access when the project names neither the
-   * space's members nor a manager entry they hold: the refusal does not tell
-   * them to join the space they are in.
+   * A member of the space has no access to a project naming neither the
+   * space's members nor the user: the refusal does not tell them to join the
+   * space they are in.
    */
   @Test
   public void addProjectMemberOnSpaceProjectWithoutTheSpaceMembersShouldTellSpaceMemberTheyHaveNoAccess() throws Exception {// NOSONAR
@@ -1033,20 +1035,40 @@ public class TaskMcpToolTest {
 
     IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
 
-    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is in the space, but the project's entries for the space do not give them access"));
+    assertTrue(e.getMessage().endsWith("The user '" + OTHER_USER + "' has no access to the project, and it cannot be given by name."));
     verify(project, never()).setParticipator(any());
     verify(projectService, never()).updateProject(any());
   }
 
+  /**
+   * A member of the space is never told to be invited to it. Unreachable with
+   * today's view rule, where the space's members entry gives a member access:
+   * the pin keeps the message true if that rule ever refuses a member.
+   */
   @Test
-  public void addProjectMemberOnSpaceProjectShouldTellSpaceManagerWhoIsNoMemberTheyHaveAccess() throws Exception {// NOSONAR
+  public void addProjectMemberOnSpaceProjectShouldNotTellSpaceMemberToBeInvited() throws Exception {// NOSONAR
     Space space = mockSpace();
     ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
-    when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
 
     IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
 
-    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is a member or a manager of the space and already has access to the project"));
+    assertTrue(e.getMessage().endsWith("The user '" + OTHER_USER + "' has no access to the project, and it cannot be given by name."));
+    verify(projectService, never()).updateProject(any());
+  }
+
+  /**
+   * A user outside the space is told to be invited only when the project's
+   * entries give the space's members access.
+   */
+  @Test
+  public void addProjectMemberOnSpaceProjectWithoutTheSpaceMembersShouldNotTellUserOutsideSpaceToBeInvited() throws Exception {// NOSONAR
+    mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of());
+
+    IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
+
+    assertTrue(e.getMessage().endsWith("The user '" + OTHER_USER + "' has no access to the project, and it cannot be given by name."));
     verify(project, never()).setParticipator(any());
     verify(projectService, never()).updateProject(any());
   }
