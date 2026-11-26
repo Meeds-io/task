@@ -20,6 +20,7 @@ package org.exoplatform.task.dao;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -101,6 +102,80 @@ public class TestProjectDAO extends AbstractTest {
 
     projects = pDAO.findAllByMembershipsAndKeyword(Arrays.asList("root"), "test parenT ProJecT", null);
     Assert.assertEquals(initialSize + 1, projects.getSize());
+  }
+
+  @Test
+  public void testProjectQueryCountsEachProjectOnce() throws Exception {
+    // one project matching through its manager and both its participators, and a second project
+    pDAO.create(new Project("Campaign plan",
+                            null,
+                            null,
+                            new HashSet<>(Arrays.asList("manager:/spaces/space1")),
+                            new HashSet<>(Arrays.asList("member:/spaces/space1", "john"))));
+    pDAO.create(new Project("Campaign budget", null, null, new HashSet<>(Arrays.asList("manager:/spaces/space1")), null));
+
+    for (String keyword : Arrays.asList(null, "campaign")) {
+      ProjectQuery query = new ProjectQuery();
+      query.setMembership(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1"));
+      query.setKeyword(keyword);
+      query.setOrderBy(Arrays.asList(new OrderBy.DESC("lastModifiedDate")));
+
+      ListAccess<Project> projects = pDAO.findProjects(query);
+
+      Assert.assertEquals(2, projects.getSize());
+      Assert.assertEquals(2, projects.load(0, 10).length);
+    }
+  }
+
+  @Test
+  public void testSpaceProjectsAreListedOverTheSpaceAndTheUsersMemberships() throws Exception {
+    Set<String> spaceMemberships = new HashSet<>(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1"));
+    // naming the user by id, who is not a member of the space: matched through two participators and a manager
+    pDAO.create(new Project("Space named", null, null,
+                            new HashSet<>(Arrays.asList("manager:/spaces/space1", "john")),
+                            new HashSet<>(Arrays.asList("member:/spaces/space1", "john"))));
+    // shared with the group the user holds
+    pDAO.create(new Project("Space member", null, null,
+                            new HashSet<>(Arrays.asList("manager:/spaces/space1")),
+                            new HashSet<>(Arrays.asList("member:/spaces/space1"))));
+    // a space project the user cannot see
+    pDAO.create(new Project("Space hidden", null, null,
+                            new HashSet<>(Arrays.asList("manager:/spaces/space1")),
+                            new HashSet<>(Arrays.asList("mary"))));
+    // naming the user among its managers, next to the space's manager role, with no participator the user holds
+    pDAO.create(new Project("Space manager named", null, null,
+                            new HashSet<>(Arrays.asList("manager:/spaces/space1", "john")),
+                            new HashSet<>(Arrays.asList("mary"))));
+    // a project the user can see, outside the space
+    pDAO.create(new Project("Other named", null, null, new HashSet<>(Arrays.asList("john")), null));
+
+    for (String keyword : Arrays.asList(null, "space")) {
+      ProjectQuery query = new ProjectQuery();
+      query.setMembership(new LinkedList<>(spaceMemberships));
+      query.setMembership(Arrays.asList("john", "*:/spaces/other", "member:/spaces/space1"));
+      query.setKeyword(keyword);
+      query.setOrderBy(Arrays.asList(new OrderBy.DESC("lastModifiedDate")));
+
+      ListAccess<Project> projects = pDAO.findProjects(query);
+      Assert.assertEquals(3, projects.getSize());
+      Set<String> names = new HashSet<>();
+      for (Project project : projects.load(0, 10)) {
+        names.add(project.getName());
+      }
+      Assert.assertEquals(new HashSet<>(Arrays.asList("Space named", "Space member", "Space manager named")), names);
+    }
+
+    ProjectQuery nonMember = new ProjectQuery();
+    nonMember.setMembership(new LinkedList<>(spaceMemberships));
+    nonMember.setMembership(Arrays.asList("john"));
+    ListAccess<Project> projects = pDAO.findProjects(nonMember);
+    // each condition has its own joins: the space's manager role and the user's id are two rows of the managers
+    Assert.assertEquals(2, projects.getSize());
+    Set<String> nonMemberNames = new HashSet<>();
+    for (Project project : projects.load(0, 10)) {
+      nonMemberNames.add(project.getName());
+    }
+    Assert.assertEquals(new HashSet<>(Arrays.asList("Space named", "Space manager named")), nonMemberNames);
   }
 
   @Test

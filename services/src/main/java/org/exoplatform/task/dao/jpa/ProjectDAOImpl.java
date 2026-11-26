@@ -27,10 +27,12 @@ import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -161,6 +163,29 @@ public class ProjectDAOImpl extends CommonJPADAO<Project, Long> implements Proje
   @Override
   public ListAccess<Project> findProjects(ProjectQuery query) {
     return findEntities(query, Project.class);
+  }
+
+  /**
+   * A condition on the managers or the participators is an {@code EXISTS}
+   * over the collection, not a join: each condition of a query adds one, so
+   * joins would multiply the rows of a project by the size of every
+   * collection before the {@code DISTINCT}.
+   */
+  @Override
+  protected <T> Predicate buildSingleCondition(SingleCondition<T> condition,
+                                               Root<Project> root,
+                                               CriteriaBuilder cb,
+                                               CriteriaQuery query) {
+    String field = condition.getField();
+    if (SingleCondition.IN.equals(condition.getType())
+        && (Conditions.MANAGER.equals(field) || Conditions.PARTICIPATOR.equals(field))) {
+      Subquery<Integer> subquery = query.subquery(Integer.class);
+      Root<Project> correlated = subquery.correlate(root);
+      Join<Project, String> values = correlated.join(field);
+      subquery.select(cb.literal(1)).where(values.in((Collection<?>) condition.getValue()));
+      return cb.exists(subquery);
+    }
+    return super.buildSingleCondition(condition, root, cb, query);
   }
 
   protected Path buildPath(SingleCondition condition, Root<Project> root) {

@@ -65,6 +65,7 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.favorite.FavoriteService;
 import org.exoplatform.social.metadata.favorite.model.Favorite;
 import org.exoplatform.task.dao.OrderBy;
+import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Priority;
 import org.exoplatform.task.dto.ChangeLogEntry;
@@ -199,9 +200,9 @@ public class TaskMcpTool implements McpToolPlugin {
   public ProjectCollectionModel listProjects(Long spaceId,
                                              Integer offset,
                                              Integer limit) {
-    List<String> memberships = getMemberships(spaceId);
-    List<ProjectModel> projects = getProjectModels(memberships, offset, limit);
-    long count = countProjects(memberships);
+    Space space = spaceId != null && spaceId > 0 ? spaceService.getSpaceById(spaceId) : null;
+    List<ProjectModel> projects = getProjectModels(space, offset, limit);
+    long count = countProjects(space);
     return new ProjectCollectionModel(projects,
                                       getInteger(offset, DEFAULT_OFFSET),
                                       getInteger(limit, DEFAULT_LIMIT),
@@ -1032,14 +1033,27 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
-  private long countProjects(List<String> memberships) {
-    return projectService.countProjects(memberships, null);
+  private long countProjects(Space space) {
+    // the same query as the list, so the total counts each project once
+    return projectService.countProjects(projectsQuery(space));
   }
 
-  private List<ProjectModel> getProjectModels(List<String> memberships, Integer offset, Integer limit) {
-    List<ProjectDto> projects = projectService.findProjects(memberships,
-                                                            null,
-                                                            new OrderBy.DESC("lastModifiedDate"),
+  private ProjectQuery projectsQuery(Space space) {
+    ProjectQuery query = new ProjectQuery();
+    Identity identity = getCurrentUserAclIdentity();
+    if (space == null) {
+      query.setMembership(UserUtil.getMemberships(identity));
+    } else {
+      // the space's projects, among which the user's visible ones
+      query.setMembership(UserUtil.getSpaceMemberships(space.getGroupId()));
+      query.setMembership(UserUtil.getMembershipsInSpace(identity, space.getGroupId()));
+    }
+    query.setOrderBy(List.of(new OrderBy.DESC("lastModifiedDate")));
+    return query;
+  }
+
+  private List<ProjectModel> getProjectModels(Space space, Integer offset, Integer limit) {
+    List<ProjectDto> projects = projectService.findProjects(projectsQuery(space),
                                                             getInteger(offset, DEFAULT_OFFSET),
                                                             getInteger(limit, DEFAULT_LIMIT));
     if (CollectionUtils.isEmpty(projects)) {
@@ -1545,17 +1559,6 @@ public class TaskMcpTool implements McpToolPlugin {
                                 url,
                                 formatDate(comment.getCreatedTime()),
                                 getUserModel(comment.getAuthor()));
-  }
-
-  private List<String> getMemberships(Long spaceId) {
-    Space space = spaceId != null && spaceId > 0 ? spaceService.getSpaceById(spaceId) : null;
-    List<String> memberships;
-    if (space == null) {
-      memberships = UserUtil.getMemberships(getCurrentUserAclIdentity());
-    } else {
-      memberships = UserUtil.getSpaceMemberships(space.getGroupId());
-    }
-    return memberships;
   }
 
   private UserModel getUserModel(String username) {
