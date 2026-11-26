@@ -446,6 +446,18 @@ public class ProjectServiceTest {
     }
 
     @Test
+    public void testDeleteProjectFailingMidwayDoesNotAnnounceATaskItCannotCheck() throws Exception {
+        ProjectStorage storage = storageOfProject(3L);
+        when(taskService.findTasks(any(TaskQuery.class), eq(0), anyInt())).thenReturn(List.of(task(11L)));
+        when(taskService.getTask(11L)).thenThrow(new IllegalStateException("db down"));
+        doThrow(new IllegalStateException("db down")).when(storage).removeProject(3L, false);
+
+        assertThrows(IllegalStateException.class, () -> projectService.removeProject(3L, false));
+
+        verify(listenerService, never()).broadcast(eq(TaskUtil.TASK_DELETED), any(), any());
+    }
+
+    @Test
     public void testDeleteProjectStillDeletesWhenItsTasksCannotBeListed() throws Exception {
         ProjectStorage storage = storageOfProject(3L);
         when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenThrow(new IllegalStateException("db"));
