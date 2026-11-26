@@ -984,6 +984,24 @@ public class TaskMcpToolTest {
     verify(projectService, never()).updateProject(any());
   }
 
+  /**
+   * A manager of the space is told that they already manage the project only
+   * when the project's managers name the space's managers.
+   */
+  @Test
+  public void setProjectManagerOnSpaceProjectManagedByTheSpaceMembersShouldNotTellSpaceManagerTheyManageIt() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MEMBERS), Set.of(SPACE_MEMBERS));
+    lenient().when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
+
+    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                                               () -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
+
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not a member of the space '" + SPACE_NAME + "'"));
+    verify(project, never()).setManager(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
   @Test
   public void addProjectMemberOnSpaceProjectShouldTellSpaceManagerWhoIsNoMemberTheyHaveAccess() throws Exception {// NOSONAR
     Space space = mockSpace();

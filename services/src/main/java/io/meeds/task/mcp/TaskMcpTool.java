@@ -922,7 +922,7 @@ public class TaskMcpTool implements McpToolPlugin {
       String message = isSpaceMember(space, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
       throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
     } else if (add && !spaceService.isMember(space, username)) {
-      String message = spaceService.isManager(space, username) ? MSG_SPACE_PROJECT_SPACE_MANAGER : MSG_SPACE_PROJECT_MANAGER;
+      String message = holdsThroughSpace(entries, space, username) ? MSG_SPACE_PROJECT_SPACE_MANAGER : MSG_SPACE_PROJECT_MANAGER;
       throw new IllegalArgumentException(message.formatted(username, space.getDisplayName(), project.getId()));
     } else if (!add && isSpaceMembership(username, space)) {
       throw new IllegalAccessException(MSG_SPACE_PROJECT_SPACE_REMOVAL.formatted(project.getId(),
