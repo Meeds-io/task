@@ -45,8 +45,16 @@ import lombok.EqualsAndHashCode;
   query = "SELECT count(*) FROM TaskLabel lbl inner join lbl.tasks m WHERE lbl.project.id = :projectId AND m.task.id = :taskid")
 @NamedQuery(name = "Label.findLabelsByProject",
   query = "SELECT lbl FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id")
+@NamedQuery(name = "Label.searchLabelsByProject",
+  query = "SELECT lbl FROM TaskLabel lbl WHERE lbl.project.id = :projectId AND LOWER(lbl.name) LIKE :keyword ESCAPE '!' ORDER BY lbl.id")
+@NamedQuery(name = "Label.searchLabelsByProjectCount",
+  query = "SELECT count(*) FROM TaskLabel lbl WHERE lbl.project.id = :projectId AND LOWER(lbl.name) LIKE :keyword ESCAPE '!'")
+@NamedQuery(name = "Label.searchLabelsByUser",
+  query = "SELECT lbl FROM TaskLabel lbl WHERE lbl.username = :username AND LOWER(lbl.name) LIKE :keyword ESCAPE '!' ORDER BY lbl.id")
+@NamedQuery(name = "Label.searchLabelsByUserCount",
+  query = "SELECT count(*) FROM TaskLabel lbl WHERE lbl.username = :username AND LOWER(lbl.name) LIKE :keyword ESCAPE '!'")
 @NamedQuery(name = "Label.findLabelsByProjectCount",
-  query = "SELECT count(*) FROM TaskLabel lbl WHERE lbl.project.id = :projectId ORDER BY lbl.id")
+  query = "SELECT count(*) FROM TaskLabel lbl WHERE lbl.project.id = :projectId")
 @Data
 public class Label implements Serializable {
 

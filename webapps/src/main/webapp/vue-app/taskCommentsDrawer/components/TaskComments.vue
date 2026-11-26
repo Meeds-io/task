@@ -67,6 +67,10 @@ export default {
       type: Object,
       default: () => null
     },
+    commentsTotal: {
+      type: Number,
+      default: 0
+    },
     lastComment: {
       type: String,
       default: ''
@@ -116,7 +120,7 @@ export default {
             return this.$refs.commentEditor.saveAttachments(comment.comment.id);
           })
           .then( () => {
-            this.$root.$emit('update-task-comments',this.comments.length,this.task.id);
+            this.$root.$emit('update-task-comments', Math.max(this.commentsTotal, this.comments.length - 1) + 1, this.task.id);
           }).finally(() => {
             this.$root.$emit('task-comment-created');
           });
@@ -138,6 +142,7 @@ export default {
             if ( comment === this.comment) {
               if ( this.comment.comment.id === this.commentToDelete ) {
                 this.comments.splice(index, 1);
+                this.$root.$emit('update-task-comments', Math.max(this.commentsTotal - 1, this.comments.length), this.task.id);
               } else {
                 comment.subComments.forEach((subComment,index) => {
                   if ( subComment.comment.id === this.commentToDelete) {

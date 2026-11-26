@@ -21,12 +21,17 @@ package org.exoplatform.task.dao.jpa;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.task.dao.LabelHandler;
 import org.exoplatform.task.dao.LabelQuery;
+import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.domain.Label;
 
 public class LabelDAOImpl extends CommonJPADAO<Label, Long> implements LabelHandler {
@@ -62,6 +67,8 @@ public class LabelDAOImpl extends CommonJPADAO<Label, Long> implements LabelHand
   public ListAccess<Label> findLabelsByUser(String username) {
     LabelQuery query = new LabelQuery();
     query.setUserName(username);
+    // A stable order is required so that consecutive pages never overlap or skip labels
+    query.setOrderBy(Collections.singletonList(new OrderBy.ASC("id")));
     return findLabels(query);
   }
 
@@ -73,6 +80,43 @@ public class LabelDAOImpl extends CommonJPADAO<Label, Long> implements LabelHand
     TypedQuery<Long> count = getEntityManager().createNamedQuery("Label.findLabelsByProjectCount", Long.class);
     count.setParameter("projectId", projectId);
     return new JPAQueryListAccess<Label>(Label.class, count, query);
+  }
+
+  @Override
+  public ListAccess<Label> findLabelsByUser(String username, String keyword) {
+    if (StringUtils.isBlank(keyword)) {
+      return findLabelsByUser(username);
+    }
+    TypedQuery<Label> query = getEntityManager().createNamedQuery("Label.searchLabelsByUser", Label.class);
+    query.setParameter("username", username);
+    query.setParameter("keyword", toLikePattern(keyword));
+    TypedQuery<Long> count = getEntityManager().createNamedQuery("Label.searchLabelsByUserCount", Long.class);
+    count.setParameter("username", username);
+    count.setParameter("keyword", toLikePattern(keyword));
+    return new JPAQueryListAccess<Label>(Label.class, count, query);
+  }
+
+  @Override
+  public ListAccess<Label> findLabelsByProject(long projectId, String keyword) {
+    if (StringUtils.isBlank(keyword)) {
+      return findLabelsByProject(projectId);
+    }
+    TypedQuery<Label> query = getEntityManager().createNamedQuery("Label.searchLabelsByProject", Label.class);
+    query.setParameter("projectId", projectId);
+    query.setParameter("keyword", toLikePattern(keyword));
+    TypedQuery<Long> count = getEntityManager().createNamedQuery("Label.searchLabelsByProjectCount", Long.class);
+    count.setParameter("projectId", projectId);
+    count.setParameter("keyword", toLikePattern(keyword));
+    return new JPAQueryListAccess<Label>(Label.class, count, query);
+  }
+
+  /** The pattern of the names containing the keyword, with its wildcards taken literally. */
+  private static String toLikePattern(String keyword) {
+    return "%" + keyword.trim()
+                        .toLowerCase(Locale.ROOT)
+                        .replace("!", "!!")
+                        .replace("%", "!%")
+                        .replace("_", "!_") + "%";
   }
 
   @Override

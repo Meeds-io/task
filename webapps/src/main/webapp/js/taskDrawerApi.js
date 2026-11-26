@@ -269,6 +269,24 @@ export function getTaskComments(taskId) {
   });
 }
 
+export async function getTaskCommentsPage(taskId, offset, limit) {
+  const resp = await fetch(`/portal/rest/tasks/comments/${taskId}?offset=${offset}&limit=${limit}`, {
+    method: 'GET',
+    credentials: 'include',
+  });
+  if (!resp?.ok) {
+    throw new Error('Error when getting task comments');
+  }
+  const comments = await resp.json();
+  const header = resp.headers.get('X-Total-Count');
+  let total = header ? Number(header) : Number.NaN;
+  if (Number.isNaN(total)) {
+    // Without a usable total header, assume that a full page may be followed by another one
+    total = offset + comments.length + (comments.length >= limit ? 1 : 0);
+  }
+  return {comments, total};
+}
+
 export function addTaskComments(taskId, comment) {
   return fetch(`/portal/rest/tasks/comments/${taskId}`, {
     method: 'POST',

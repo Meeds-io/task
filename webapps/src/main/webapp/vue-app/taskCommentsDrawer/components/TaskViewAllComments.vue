@@ -1,7 +1,7 @@
 <template>
   <div class="taskComments">
     <div v-if="comments && comments.length" class="taskCommentNumber d-flex pb-3">
-      <span class="ViewAllCommentLabel" @click="$root.$emit('displayTaskComment')">{{ $t('comment.message.viewAllComment') }} ({{ comments.length }})</span>
+      <span class="ViewAllCommentLabel" @click="$root.$emit('displayTaskComment')">{{ $t('comment.message.viewAllComment') }} ({{ displayedTotal }})</span>
       <div
         :title="$t('comment.message.addYourComment')"
         class="addCommentBtn ps-3"
@@ -34,6 +34,16 @@ export default {
     task: {
       type: Object,
       default: null,
+    },
+    commentsTotal: {
+      type: Number,
+      default: 0
+    }
+  },
+  computed: {
+    displayedTotal() {
+      // the comments are loaded by pages: the link counts all of them, not only those loaded
+      return Math.max(this.commentsTotal, this.comments.length);
     }
   },
   methods: {

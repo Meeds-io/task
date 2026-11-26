@@ -19,6 +19,7 @@
 package org.exoplatform.task.dao;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +86,81 @@ public class TestCommentDAO extends AbstractTest {
     Assert.assertEquals(1, comments.length);
     comment = comments[0];
     Assert.assertEquals(username, comment.getAuthor());
+  }
+
+  @Test
+  public void testCountCommentsByTasksMatchesTheCountOfEachTask() throws Exception {
+    Task withComments = taskDAO.create(newDefaultSimpleTask());
+    Task withReplies = taskDAO.create(newDefaultSimpleTask());
+    Task withoutComments = taskDAO.create(newDefaultSimpleTask());
+    for (int i = 0; i < 3; i++) {
+      commentDAO.create(newDefaultSimpleComment(withComments));
+    }
+    Comment parent = commentDAO.create(newDefaultSimpleComment(withReplies));
+    for (int i = 0; i < 4; i++) {
+      Comment reply = newDefaultSimpleComment(withReplies);
+      reply.setParentComment(parent);
+      commentDAO.create(reply);
+    }
+
+    Map<Long, Integer> counts = commentDAO.countCommentsByTasks(Arrays.asList(withComments.getId(),
+                                                                              withReplies.getId(),
+                                                                              withoutComments.getId(),
+                                                                              withComments.getId()));
+
+    Assert.assertEquals(2, counts.size());
+    Assert.assertEquals(3, (int) counts.get(withComments.getId()));
+    // replies are not counted, as in the count of a single task
+    Assert.assertEquals(1, (int) counts.get(withReplies.getId()));
+    Assert.assertNull(counts.get(withoutComments.getId()));
+    for (Task task : Arrays.asList(withComments, withReplies, withoutComments)) {
+      Assert.assertEquals(commentDAO.findComments(task.getId()).getSize(), (int) counts.getOrDefault(task.getId(), 0));
+    }
+    Assert.assertTrue(commentDAO.countCommentsByTasks(Collections.emptyList()).isEmpty());
+  }
+
+  @Test
+  public void testCountCommentsByTasksWithMoreTasksThanOneChunk() {
+    List<Long> ids = new java.util.ArrayList<>();
+    for (int i = 0; i < 520; i++) {
+      Task task = taskDAO.create(newDefaultSimpleTask());
+      ids.add(task.getId());
+      if (i % 100 == 0) {
+        commentDAO.create(newDefaultSimpleComment(task));
+      }
+    }
+
+    Map<Long, Integer> counts = commentDAO.countCommentsByTasks(ids);
+
+    Assert.assertEquals(6, counts.size());
+    Assert.assertEquals(1, (int) counts.get(ids.get(0)));
+    Assert.assertEquals(1, (int) counts.get(ids.get(500)));
+  }
+
+  @Test
+  public void testCommentsCreatedAtTheSameTimeArePagedWithoutOverlap() throws Exception {
+    Task task = taskDAO.create(newDefaultSimpleTask());
+    Date sameTime = new Date();
+    for (int i = 0; i < 5; i++) {
+      Comment comment = newDefaultSimpleComment(task);
+      comment.setCreatedTime(sameTime);
+      commentDAO.create(comment);
+    }
+
+    ListAccess<Comment> comments = commentDAO.findComments(task.getId());
+    List<Long> ids = new java.util.ArrayList<>();
+    for (int offset = 0; offset < 5; offset += 2) {
+      for (Comment comment : comments.load(offset, 2)) {
+        ids.add(comment.getId());
+      }
+    }
+
+    Assert.assertEquals(5, ids.size());
+    Assert.assertEquals(5, new java.util.HashSet<>(ids).size());
+    // the newest first: by time, then by id
+    for (int i = 1; i < ids.size(); i++) {
+      Assert.assertTrue(ids.get(i - 1) > ids.get(i));
+    }
   }
 
   @Test
