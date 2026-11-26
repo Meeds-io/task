@@ -37,9 +37,11 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
+import org.exoplatform.task.service.TaskPayload;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.util.StorageUtil;
+import org.exoplatform.task.util.TaskUtil;
 
 @Singleton
 public class ProjectServiceImpl implements ProjectService {
@@ -47,6 +49,8 @@ public class ProjectServiceImpl implements ProjectService {
   private static final Log   LOG          = ExoLogger.getExoLogger(ProjectServiceImpl.class);
 
   public static final String PREFIX_CLONE = "Copy of ";
+
+  private static final int  PAGE_SIZE = 200;
 
   @Inject
   private ProjectStorage     projectStorage;
@@ -129,7 +133,84 @@ public class ProjectServiceImpl implements ProjectService {
     ProjectDto project = getProject(id);
     if (project == null)
       throw new EntityNotFoundException(id, ProjectDto.class);
-    projectStorage.removeProject(id, deleteChild);
+    List<TaskDto> tasks = getTasksOfProjects(getProjectIdsToDelete(id, deleteChild));
+    try {
+      projectStorage.removeProject(id, deleteChild);
+    } catch (RuntimeException | EntityNotFoundException e) {
+      // The storage deletes the tasks one by one, each in its own transaction: when it fails midway, the listeners
+      // still learn about the tasks that are gone
+      announceDeletedTasks(tasks.stream().filter(this::isDeleted).toList());
+      throw e;
+    }
+    // The deletion isn't instantaneous: a task moved to another project meanwhile still exists and isn't announced
+    announceDeletedTasks(tasks.stream().filter(this::isDeleted).toList());
+  }
+
+  /**
+   * The tasks of a project are deleted with it by the storage, which sends no
+   * event of its own: the listeners of a deleted task (search index, content
+   * links, reactions of the comments, gamification) learn it here. Only the
+   * tasks listed before the deletion are announced: one created during the
+   * deletion isn't.
+   */
+  private void announceDeletedTasks(List<TaskDto> tasks) {
+    tasks.forEach(task -> TaskUtil.broadcastEvent(listenerService, TaskUtil.TASK_DELETED, null, new TaskPayload(null, task)));
+  }
+
+  private boolean isDeleted(TaskDto task) {
+    try {
+      taskService.getTask(task.getId());
+      return false;
+    } catch (EntityNotFoundException e) {
+      return true;
+    } catch (RuntimeException e) {
+      LOG.warn("Unable to tell whether the task {} is deleted: its listeners won't be told", task.getId(), e);
+      return false;
+    }
+  }
+
+  private List<Long> getProjectIdsToDelete(long projectId, boolean deleteChild) {
+    List<Long> projectIds = new ArrayList<>(List.of(projectId));
+    if (deleteChild) {
+      // The sub-projects, their statuses and their tasks go with the project
+      try {
+        for (int i = 0; i < projectIds.size(); i++) {
+          int offset = 0;
+          List<ProjectDto> children;
+          do {
+            children = projectStorage.getSubProjects(projectIds.get(i), offset, PAGE_SIZE);
+            children.forEach(child -> projectIds.add(child.getId()));
+            offset += children.size();
+          } while (children.size() == PAGE_SIZE);
+        }
+      } catch (Exception e) {
+        LOG.warn("Unable to list the sub-projects of the project {} before its deletion: the listeners of a deleted task "
+                 + "won't be told of the tasks of those not listed",
+                 projectId,
+                 e);
+      }
+    }
+    return projectIds;
+  }
+
+  private List<TaskDto> getTasksOfProjects(List<Long> projectIds) {
+    TaskQuery query = new TaskQuery();
+    query.setProjectIds(projectIds);
+    // A stable order, so the pages neither repeat nor skip a task
+    query.setOrderBy(List.of(new OrderBy("id", true)));
+    List<TaskDto> tasks = new ArrayList<>();
+    try {
+      List<TaskDto> page;
+      do {
+        page = taskService.findTasks(query, tasks.size(), PAGE_SIZE);
+        tasks.addAll(page);
+      } while (page.size() == PAGE_SIZE);
+    } catch (Exception e) {
+      LOG.warn("Unable to list the tasks of the projects {} before their deletion: the listeners of a deleted task won't be told",
+               projectIds,
+               e);
+    }
+    return tasks;
   }
 
   @Override
