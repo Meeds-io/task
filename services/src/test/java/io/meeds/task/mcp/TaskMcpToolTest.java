@@ -973,12 +973,13 @@ public class TaskMcpToolTest {
   public void setProjectManagerOnSpaceProjectShouldRefuseSpaceManagerWhoIsNoMember() throws Exception {// NOSONAR
     Space space = mockSpace();
     ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
-    lenient().when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
+    when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
 
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                                                () -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
 
-    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not a member of the space '" + SPACE_NAME + "'"));
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is a manager of the space '" + SPACE_NAME + "' but not one of its members"));
+    assertTrue(e.getMessage().endsWith("As a manager of the space, the user already manages the project."));
     verify(project, never()).setManager(any());
     verify(projectService, never()).updateProject(any());
   }

@@ -147,7 +147,10 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                         "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is a member or a manager of the space and already has access to the project.";
 
   private static final String           MSG_SPACE_PROJECT_MANAGER       =
-                                                                "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can manage the project. Choose a member of the space, or invite the user to the space first.";
+                                                                "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can be named a manager of the project. Choose a member of the space, or invite the user to the space first.";
+
+  private static final String           MSG_SPACE_PROJECT_SPACE_MANAGER =
+                                                                        "Parameter 'username': the user '%s' is a manager of the space '%s' but not one of its members, and only a member of the space can be named a manager of the task project with identifier '%s'. As a manager of the space, the user already manages the project.";
 
   private static final String           MSG_SPACE_PROJECT_SPACE_REMOVAL =
                                                                         "Task project with identifier '%s' belongs to the space '%s': the space cannot be removed from the project's %s.";
@@ -919,9 +922,8 @@ public class TaskMcpTool implements McpToolPlugin {
       String message = isSpaceMember(space, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
       throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
     } else if (add && !spaceService.isMember(space, username)) {
-      throw new IllegalArgumentException(MSG_SPACE_PROJECT_MANAGER.formatted(username,
-                                                                             space.getDisplayName(),
-                                                                             project.getId()));
+      String message = spaceService.isManager(space, username) ? MSG_SPACE_PROJECT_SPACE_MANAGER : MSG_SPACE_PROJECT_MANAGER;
+      throw new IllegalArgumentException(message.formatted(username, space.getDisplayName(), project.getId()));
     } else if (!add && isSpaceMembership(username, space)) {
       throw new IllegalAccessException(MSG_SPACE_PROJECT_SPACE_REMOVAL.formatted(project.getId(),
                                                                                  space.getDisplayName(),
