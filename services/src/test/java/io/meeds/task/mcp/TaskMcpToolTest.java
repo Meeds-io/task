@@ -1008,10 +1008,15 @@ public class TaskMcpToolTest {
     verify(projectService, never()).updateProject(any());
   }
 
+  /**
+   * A user named among the participants is removed, also when the user is a
+   * member of the space.
+   */
   @Test
   public void removeProjectMemberOnSpaceProjectShouldRemoveNamedUser() throws Exception {// NOSONAR
-    mockSpace();
+    Space space = mockSpace();
     ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS, OTHER_USER));
+    lenient().when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
     when(projectService.updateProject(project)).thenReturn(project);
 
     runWithDateFormatMockResult(() -> tool.removeProjectMember(PROJECT_ID, "@john"));
@@ -1020,15 +1025,83 @@ public class TaskMcpToolTest {
     verify(projectService).updateProject(project);
   }
 
+  /**
+   * A user named among the managers is removed, also when the user is a
+   * manager of the space.
+   */
   @Test
   public void removeProjectManagerOnSpaceProjectShouldRemoveNamedUser() throws Exception {// NOSONAR
-    mockSpace();
+    Space space = mockSpace();
     ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS, OTHER_USER), Set.of(SPACE_MEMBERS));
+    lenient().when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
     when(projectService.updateProject(project)).thenReturn(project);
 
     runWithDateFormatMockResult(() -> tool.removeProjectManager(PROJECT_ID, OTHER_USER));
 
     verify(project).setManager(Set.of(SPACE_MANAGERS));
+    verify(projectService).updateProject(project);
+  }
+
+  @Test
+  public void removeProjectMemberOnSpaceProjectShouldRefuseSpaceMemberNotNamed() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
+
+    IllegalAccessException e = assertThrows(IllegalAccessException.class,
+                                            () -> tool.removeProjectMember(PROJECT_ID, OTHER_USER));
+
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not named among the project's participants"));
+    assertTrue(e.getMessage().endsWith("through their membership of the space, which this tool does not change."));
+    verify(project, never()).setParticipator(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
+  @Test
+  public void removeProjectManagerOnSpaceProjectShouldRefuseSpaceManagerNotNamed() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
+
+    IllegalAccessException e = assertThrows(IllegalAccessException.class,
+                                            () -> tool.removeProjectManager(PROJECT_ID, OTHER_USER));
+
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not named among the project's managers"));
+    verify(project, never()).setManager(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
+  /**
+   * The space's managers entry gives no right to a member of the space who is
+   * not one of its managers: the removal is not refused.
+   */
+  @Test
+  public void removeProjectManagerOnSpaceProjectShouldNotRefuseSpaceMemberWhoIsNoSpaceManager() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    lenient().when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
+    when(projectService.updateProject(project)).thenReturn(project);
+
+    runWithDateFormatMockResult(() -> tool.removeProjectManager(PROJECT_ID, OTHER_USER));
+
+    verify(project).setManager(Set.of(SPACE_MANAGERS));
+    verify(projectService).updateProject(project);
+  }
+
+  /**
+   * The space's members entry gives no right to a manager of the space who is
+   * not one of its members: the removal is not refused.
+   */
+  @Test
+  public void removeProjectMemberOnSpaceProjectShouldNotRefuseSpaceManagerWhoIsNoSpaceMember() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    lenient().when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
+    when(projectService.updateProject(project)).thenReturn(project);
+
+    runWithDateFormatMockResult(() -> tool.removeProjectMember(PROJECT_ID, OTHER_USER));
+
+    verify(project).setParticipator(Set.of(SPACE_MEMBERS));
     verify(projectService).updateProject(project);
   }
 

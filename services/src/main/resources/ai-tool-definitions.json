@@ -756,7 +756,7 @@
     {
       "name": "remove_project_member",
       "title": "Remove a Project member",
-      "description": "Remove a user from the participants of a task project. The space of a project of a space cannot be removed from its participants.",
+      "description": "Remove a user from the participants of a task project. On a project of a space, the space cannot be removed from its participants, and a member of the space who is not named among them participates through the space: the call is refused for both.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -796,7 +796,7 @@
     {
       "name": "remove_project_manager",
       "title": "Remove a Project manager",
-      "description": "Remove a user from the managers of a task project. The space of a project of a space cannot be removed from its managers.",
+      "description": "Remove a user from the managers of a task project. On a project of a space, the space cannot be removed from its managers, and a manager of the space who is not named among them manages the project through the space: the call is refused for both.",
       "input_schema": {
         "type": "object",
         "properties": {
