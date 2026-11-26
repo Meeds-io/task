@@ -42,7 +42,6 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.stream.Stream;
 
 import jakarta.persistence.NoResultException;
 
@@ -142,16 +141,14 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           MSG_PROJECT_WITHOUT_STATUS      = "Task project with identifier '%s' has no status";
 
   private static final String           MSG_SPACE_PROJECT_PARTICIPANT   =
-                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is not a member of the space: invite them to the space to give them access to the project.";
+                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' has no access to the project.";
 
   private static final String           MSG_SPACE_PROJECT_PARTICIPATING =
                                                                         "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' already has access to the project.";
 
-  private static final String           MSG_SPACE_PROJECT_NO_ACCESS     =
-                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' has no access to the project, and it cannot be given by name.";
 
   private static final String           MSG_SPACE_PROJECT_MANAGER       =
-                                                                "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can be named a manager of the project. Choose a member of the space, or invite the user to the space first.";
+                                                                "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can be named a manager of the project. Choose a member of the space.";
 
   private static final String           MSG_SPACE_PROJECT_SPACE_MANAGER =
                                                                         "Parameter 'username': the user '%s' is a manager of the space '%s' but not one of its members, and only a member of the space can be named a manager of the task project with identifier '%s'. As a manager of the space, the user already manages the project.";
@@ -923,14 +920,7 @@ public class TaskMcpTool implements McpToolPlugin {
     Set<String> entries = manager ? safeSet(project.getManager()) : safeSet(project.getParticipator());
     String listName = manager ? "managers" : "participants";
     if (add && !manager) {
-      String message;
-      if (canViewProject(project, username)) {
-        message = MSG_SPACE_PROJECT_PARTICIPATING;
-      } else if (!spaceService.isMember(space, username) && namesSpaceMembers(project, space)) {
-        message = MSG_SPACE_PROJECT_PARTICIPANT;
-      } else {
-        message = MSG_SPACE_PROJECT_NO_ACCESS;
-      }
+      String message = canViewProject(project, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
       throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
     } else if (add && !spaceService.isMember(space, username)) {
       String message = holdsThroughSpace(entries, space, username) ? MSG_SPACE_PROJECT_SPACE_MANAGER : MSG_SPACE_PROJECT_MANAGER;
@@ -952,29 +942,21 @@ public class TaskMcpTool implements McpToolPlugin {
     return identity != null && project.canView(identity);
   }
 
-  /**
-   * @return true when one of the project's entries gives its right to every
-   *         member of the space, so that a user invited to the space gets
-   *         access to the project
-   */
-  private boolean namesSpaceMembers(ProjectDto project, Space space) {
-    return Stream.concat(safeSet(project.getParticipator()).stream(), safeSet(project.getManager()).stream())
-                 .filter(entry -> isSpaceMembership(entry, space))
-                 .map(entry -> entry.substring(0, entry.indexOf(':')))
-                 .anyMatch(type -> SpaceUtils.MEMBER.equals(type) || "*".equals(type));
-  }
 
   /**
    * @return true when one of the entries names the space's members and the
-   *         user is a member of the space, or names its managers and the user
-   *         is a manager of the space
+   *         user is a member of the space, names its managers and the user is
+   *         a manager of the space, or names the whole space and the user is in
+   *         it
    */
   private boolean holdsThroughSpace(Set<String> entries, Space space, String username) {
     return entries.stream()
                   .filter(entry -> isSpaceMembership(entry, space))
                   .map(entry -> entry.substring(0, entry.indexOf(':')))
                   .anyMatch(type -> (SpaceUtils.MEMBER.equals(type) && spaceService.isMember(space, username))
-                                    || (SpaceUtils.MANAGER.equals(type) && spaceService.isManager(space, username)));
+                                    || (SpaceUtils.MANAGER.equals(type) && spaceService.isManager(space, username))
+                                    || ("*".equals(type)
+                                        && (spaceService.isMember(space, username) || spaceService.isManager(space, username))));
   }
 
   private boolean isSpaceMembership(String permission, Space space) {
