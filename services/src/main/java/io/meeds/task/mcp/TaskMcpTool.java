@@ -140,6 +140,15 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private static final String           MSG_PROJECT_WITHOUT_STATUS      = "Task project with identifier '%s' has no status";
 
+  private static final String           MSG_SPACE_PROJECT_PARTICIPANT   =
+                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. To give the user '%s' access to the project, invite them to the space.";
+
+  private static final String           MSG_SPACE_PROJECT_MANAGER       =
+                                                                "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can manage the project. Choose a member of the space, or invite the user to the space first.";
+
+  private static final String           MSG_SPACE_PROJECT_SPACE_REMOVAL =
+                                                                        "Task project with identifier '%s' belongs to the space '%s': the space cannot be removed from the project's %s.";
+
   private final ProjectService          projectService;
 
   private final StatusService           statusService;
@@ -868,6 +877,10 @@ public class TaskMcpTool implements McpToolPlugin {
     }
     username = username.startsWith("@") ? username.substring(1) : username;
     ProjectDto project = getEditableProject(projectId);
+    Space space = getProjectSpace(project);
+    if (space != null) {
+      checkSpaceProjectMembership(project, space, username, add, manager);
+    }
     Set<String> members = new HashSet<>(manager ? safeSet(project.getManager()) : safeSet(project.getParticipator()));
     if (add) {
       members.add(username);
@@ -881,6 +894,36 @@ public class TaskMcpTool implements McpToolPlugin {
     }
     project = projectService.updateProject(project);
     return toProjectModel(project);
+  }
+
+  /**
+   * Applies the project form's rules to a project of a space: its participants
+   * are the members of the space, its managers are chosen among them, and the
+   * space's own entries are not removed.
+   */
+  private void checkSpaceProjectMembership(ProjectDto project,
+                                           Space space,
+                                           String username,
+                                           boolean add,
+                                           boolean manager) throws IllegalAccessException {
+    if (add && !manager) {
+      throw new IllegalAccessException(MSG_SPACE_PROJECT_PARTICIPANT.formatted(project.getId(),
+                                                                               space.getDisplayName(),
+                                                                               username));
+    } else if (add && !spaceService.isMember(space, username) && !spaceService.isManager(space, username)) {
+      throw new IllegalArgumentException(MSG_SPACE_PROJECT_MANAGER.formatted(username,
+                                                                             space.getDisplayName(),
+                                                                             project.getId()));
+    } else if (!add && isSpaceMembership(username, space)) {
+      throw new IllegalAccessException(MSG_SPACE_PROJECT_SPACE_REMOVAL.formatted(project.getId(),
+                                                                                 space.getDisplayName(),
+                                                                                 manager ? "managers" : "participants"));
+    }
+  }
+
+  private boolean isSpaceMembership(String permission, Space space) {
+    int index = permission.indexOf(':');
+    return index > -1 && space.getGroupId().equals(permission.substring(index + 1));
   }
 
   private Set<String> safeSet(Set<String> set) {
@@ -1662,16 +1705,22 @@ public class TaskMcpTool implements McpToolPlugin {
     return task;
   }
 
+  /**
+   * @param project a project
+   * @return the space whose group one of the project's manager entries names,
+   *         or null for a project outside any space
+   */
   private Space getProjectSpace(ProjectDto project) {
-    Space space = null;
-    for (String permission : project.getManager()) {
+    for (String permission : safeSet(project.getManager())) {
       int index = permission.indexOf(':');
       if (index > -1) {
-        String groupId = permission.substring(index + 1);
-        space = spaceService.getSpaceByGroupId(groupId);
+        Space space = spaceService.getSpaceByGroupId(permission.substring(index + 1));
+        if (space != null) {
+          return space;
+        }
       }
     }
-    return space;
+    return null;
   }
 
   private long getProjectId(TaskDto task) {

@@ -53,6 +53,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.Locale;
@@ -140,6 +141,14 @@ public class TaskMcpToolTest {
   private static final String     PROJECT_NAME = "Project";
 
   private static final String     LABEL_NAME   = "Feature";
+
+  private static final String     SPACE_GROUP_ID = "/spaces/marketing";
+
+  private static final String     SPACE_NAME     = "Marketing";
+
+  private static final String     SPACE_MANAGERS = "manager:" + SPACE_GROUP_ID;
+
+  private static final String     SPACE_MEMBERS  = "member:" + SPACE_GROUP_ID;
 
   private static final ZoneId     USER_ZONE    = ZoneId.of("Europe/Paris");
 
@@ -850,6 +859,130 @@ public class TaskMcpToolTest {
     when(projectService.updateProject(project)).thenReturn(project);
     runWithDateFormatMockResult(() -> tool.addProjectMember(PROJECT_ID, "@john"));
     verify(project).setParticipator(any());
+    verify(projectService).updateProject(project);
+  }
+
+  @Test
+  public void addProjectMemberOnSpaceProjectShouldBeRefused() throws Exception {// NOSONAR
+    mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+
+    IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, "@john"));
+
+    assertTrue(e.getMessage().contains("'" + SPACE_NAME + "'"));
+    assertTrue(e.getMessage().contains("invite them to the space"));
+    verify(project, never()).setParticipator(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
+  /**
+   * A space project whose managers also name a group that is not a space is
+   * still a space project, whatever the order of its manager entries.
+   */
+  @Test
+  public void addProjectMemberOnSpaceProjectAlsoManagedByAnotherGroupShouldBeRefused() throws Exception {// NOSONAR
+    mockSpace();
+    Set<String> managers = new LinkedHashSet<>(List.of(SPACE_MANAGERS, "*:/platform/administrators"));
+    ProjectDto project = mockEditableProject(managers, Set.of(SPACE_MEMBERS));
+
+    assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
+
+    verify(projectService, never()).updateProject(any());
+    verify(project, never()).setParticipator(any());
+  }
+
+  @Test
+  public void setProjectManagerOnSpaceProjectShouldRefuseUserOutsideSpace() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+
+    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                                               () -> tool.setProjectManager(PROJECT_ID, "@john"));
+
+    assertTrue(e.getMessage().startsWith("Parameter 'username'"));
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not a member of the space '" + SPACE_NAME + "'"));
+    verify(spaceService).isMember(space, OTHER_USER);
+    verify(spaceService).isManager(space, OTHER_USER);
+    verify(project, never()).setManager(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
+  @Test
+  public void setProjectManagerOnSpaceProjectShouldAcceptSpaceMember() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
+    when(projectService.updateProject(project)).thenReturn(project);
+
+    runWithDateFormatMockResult(() -> tool.setProjectManager(PROJECT_ID, "@john"));
+
+    verify(project).setManager(Set.of(SPACE_MANAGERS, OTHER_USER));
+    verify(projectService).updateProject(project);
+  }
+
+  @Test
+  public void setProjectManagerOnSpaceProjectShouldAcceptSpaceManager() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
+    when(projectService.updateProject(project)).thenReturn(project);
+
+    runWithDateFormatMockResult(() -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
+
+    verify(project).setManager(Set.of(SPACE_MANAGERS, OTHER_USER));
+    verify(projectService).updateProject(project);
+  }
+
+  @Test
+  public void setProjectManagerOutsideSpaceShouldAcceptAnyUser() throws Exception {// NOSONAR
+    ProjectDto project = mockEditableProject(Set.of(USER), Set.of());
+    when(projectService.updateProject(project)).thenReturn(project);
+
+    runWithDateFormatMockResult(() -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
+
+    verify(project).setManager(Set.of(USER, OTHER_USER));
+    verify(projectService).updateProject(project);
+    verify(spaceService, never()).isMember(any(Space.class), anyString());
+  }
+
+  @Test
+  public void removeSpaceFromSpaceProjectShouldBeRefused() throws Exception {// NOSONAR
+    mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS, USER), Set.of(SPACE_MEMBERS, OTHER_USER));
+
+    IllegalAccessException participantError = assertThrows(IllegalAccessException.class,
+                                                           () -> tool.removeProjectMember(PROJECT_ID, SPACE_MEMBERS));
+    IllegalAccessException managerError = assertThrows(IllegalAccessException.class,
+                                                       () -> tool.removeProjectManager(PROJECT_ID, SPACE_MANAGERS));
+
+    assertTrue(participantError.getMessage().endsWith("from the project's participants."));
+    assertTrue(managerError.getMessage().endsWith("from the project's managers."));
+    verify(project, never()).setParticipator(any());
+    verify(project, never()).setManager(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
+  @Test
+  public void removeProjectMemberOnSpaceProjectShouldRemoveNamedUser() throws Exception {// NOSONAR
+    mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS, OTHER_USER));
+    when(projectService.updateProject(project)).thenReturn(project);
+
+    runWithDateFormatMockResult(() -> tool.removeProjectMember(PROJECT_ID, "@john"));
+
+    verify(project).setParticipator(Set.of(SPACE_MEMBERS));
+    verify(projectService).updateProject(project);
+  }
+
+  @Test
+  public void removeProjectManagerOnSpaceProjectShouldRemoveNamedUser() throws Exception {// NOSONAR
+    mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS, OTHER_USER), Set.of(SPACE_MEMBERS));
+    when(projectService.updateProject(project)).thenReturn(project);
+
+    runWithDateFormatMockResult(() -> tool.removeProjectManager(PROJECT_ID, OTHER_USER));
+
+    verify(project).setManager(Set.of(SPACE_MANAGERS));
     verify(projectService).updateProject(project);
   }
 
@@ -1746,6 +1879,25 @@ public class TaskMcpToolTest {
     when(projectService.getProject(projectId)).thenReturn(project);
     when(project.canView(currentIdentity)).thenReturn(true);
     return project;
+  }
+
+  @SneakyThrows
+  private ProjectDto mockEditableProject(Set<String> managers, Set<String> participators) {
+    ProjectDto project = mock(ProjectDto.class);
+    lenient().when(project.getId()).thenReturn(PROJECT_ID);
+    lenient().when(project.getManager()).thenReturn(managers);
+    lenient().when(project.getParticipator()).thenReturn(participators);
+    when(projectService.getProject(PROJECT_ID)).thenReturn(project);
+    when(project.canEdit(currentIdentity)).thenReturn(true);
+    return project;
+  }
+
+  private Space mockSpace() {
+    Space space = new Space();
+    space.setGroupId(SPACE_GROUP_ID);
+    space.setDisplayName(SPACE_NAME);
+    when(spaceService.getSpaceByGroupId(SPACE_GROUP_ID)).thenReturn(space);
+    return space;
   }
 
   private StatusDto mockStatusOf(ProjectDto project, long statusId) {
