@@ -28,6 +28,7 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.task.model.TaskSearchFilter;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
@@ -112,6 +113,22 @@ public class TaskSearchConnector {
 
   private static final String    TERM_REPLACEMENT              = "@term@";
 
+  /**
+   * The query_string operator words, read as operators only when they are a
+   * whole upper-case word: an operator with no operand makes the engine refuse
+   * the request. Dropped from the typed term rather than made lower-case, which
+   * would turn them into words every result must contain.
+   */
+  private static final String    OPERATOR_WORD                 = "(?<!\\S)(?:AND|OR|NOT)(?!\\S)";
+
+  /**
+   * Every Unicode space or separator becomes a plain space, so the
+   * operator-word rule and {@code trim} split where the query_string grammar
+   * does (it splits on the ideographic space U+3000 as well as the ASCII
+   * ones); the other spaces are normalised the same way for consistency.
+   */
+  private static final String    SPACE_CHARACTERS              = "[\\p{Z}\\s\\x1C-\\x1F]";
+
   private static final String    TERM_QUERY_REPLACEMENT        = "@term_query@";
 
   private static final String    PERMISSIONS_QUERY_REPLACEMENT = "@permission_query@";
@@ -145,31 +162,26 @@ public class TaskSearchConnector {
   }
 
   private String buildSearchQuery(String queryBase, TaskSearchFilter filter) {
-    String query = queryBase.replace(OFFSET_REPLACEMENT, String.valueOf(filter.getOffset()))
-                            .replace(LIMIT_REPLACEMENT, String.valueOf(Math.max(filter.getLimit(), 10)));
-
-    // Term search
+    String termQuery = "";
     if (StringUtils.isNotBlank(filter.getTerm())) {
-      query = query.replace(TERM_QUERY_REPLACEMENT, SEARCH_QUERY_TERM.replace(TERM_REPLACEMENT, escapeJson(filter.getTerm())));
-    } else {
-      query = query.replace(TERM_QUERY_REPLACEMENT, "");
+      termQuery = SEARCH_QUERY_TERM.replace(TERM_REPLACEMENT, escapeTerm(filter.getTerm()));
     }
 
-    // Permissions filter
+    String permissionQuery = "";
     if (CollectionUtils.isNotEmpty(filter.getPermissions())) {
       String permissions = "\"" + String.join("\",\"", filter.getPermissions()) + "\"";
-      query = query.replace(PERMISSIONS_QUERY_REPLACEMENT, PERMISSIONS_QUERY.replace(PERMISSIONS_REPLACEMENT, permissions));
-    } else {
-      query = query.replace(PERMISSIONS_QUERY_REPLACEMENT, "");
+      permissionQuery = PERMISSIONS_QUERY.replace(PERMISSIONS_REPLACEMENT, permissions);
     }
 
-    if (StringUtils.isNotBlank(filter.getSortField())) {
-      query = query.replace(SORT_REPLACEMENT, buildSortQuery(filter));
-    } else {
-      query = query.replace(SORT_REPLACEMENT, DEFAULT_SORTING_QUERY);
-    }
+    String sortQuery = StringUtils.isNotBlank(filter.getSortField()) ? buildSortQuery(filter) : DEFAULT_SORTING_QUERY;
 
-    return query;
+    // One pass: a value written into the template is never searched for another placeholder
+    return StringUtils.replaceEach(queryBase,
+                                   new String[] { OFFSET_REPLACEMENT, LIMIT_REPLACEMENT, TERM_QUERY_REPLACEMENT,
+                                       PERMISSIONS_QUERY_REPLACEMENT, SORT_REPLACEMENT },
+                                   new String[] { String.valueOf(filter.getOffset()),
+                                       String.valueOf(Math.max(filter.getLimit(), 10)), termQuery, permissionQuery,
+                                       sortQuery });
   }
 
   @SuppressWarnings("rawtypes")
@@ -217,13 +229,27 @@ public class TaskSearchConnector {
     return StringUtils.isBlank(value) ? null : Long.parseLong(value);
   }
 
-  private String escapeJson(String text) {
-    return text.replaceAll("([\\Q+-!():^[]\"{}~*?|&/\\E])", " ").trim();
+  /**
+   * Turns the typed term into the text of a query_string written in a JSON
+   * string: every Unicode space becomes a plain space, the reserved characters, the
+   * backslash included, become spaces,
+   * the operator words AND, OR and NOT, which the query_string grammar reads as
+   * operators, become spaces too, then the rest is escaped for JSON.
+   *
+   * @param text the typed term
+   * @return the text to write between the quotes of "query"
+   */
+  private String escapeTerm(String text) {
+    String stripped = text.replaceAll(SPACE_CHARACTERS, " ")
+                          .replaceAll("[\\Q+-!():^[]\"{}~*?|&/\\E\\\\]", " ")
+                          .replaceAll(OPERATOR_WORD, " ")
+                          .trim();
+    return JSONValue.escape(stripped);
   }
 
   private String buildSortQuery(TaskSearchFilter filter) {
     String sortFiled = filter.getSortField();
-    String sortDirection = filter.getSortDirection();
+    String sortDirection = "asc".equalsIgnoreCase(filter.getSortDirection()) ? "asc" : "desc";
     return switch (sortFiled) {
     case "date" -> SORTING_QUERY.replace("@sortField@", "lastUpdatedDate").replace("@sortOrder@", sortDirection);
     default -> DEFAULT_SORTING_QUERY;
