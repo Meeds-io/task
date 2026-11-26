@@ -43,7 +43,7 @@ import jakarta.annotation.PostConstruct;
  * the {@code TaskService}, view permission through the {@code UserACL}), render
  * {@code <object-reactions object-type="task" :object-id="task.id" />} under the
  * description in {@code TaskDrawer.vue}, and extend
- * {@code TaskReactionNotificationListener} and {@code TaskReactionCleanupListener}
+ * {@code TaskReactionNotificationService} and {@code TaskReactionCleanupListener}
  * (the creator and the assignee of the task being the ones to notify).
  */
 @Component

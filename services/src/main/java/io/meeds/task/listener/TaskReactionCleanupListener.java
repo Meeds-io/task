@@ -37,7 +37,11 @@ import io.meeds.social.reaction.service.ReactionService;
 import jakarta.annotation.PostConstruct;
 
 /**
- * Deletes the reactions of a task comment once deleted
+ * Deletes the reactions of a task comment, and of its replies, once deleted,
+ * and those of the comments of a task deleted on its own ({@code TASK_DELETED}).
+ * Known limit: the tasks deleted with their project are removed by the status
+ * storage, which sends no {@code TASK_DELETED}, so their comments' reactions
+ * stay (they are unreachable, the comment answering 404).
  */
 @Component
 public class TaskReactionCleanupListener extends Listener<Object, Object> {

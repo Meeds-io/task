@@ -38,7 +38,8 @@ async function initTaskDrawer(exoi18n, taskId) {
       initTaskDrawerApp(appId, exoi18n),
       Vue.prototype.$utils.importSkin('portal', 'tasksDrawer'),
       Vue.prototype.$utils.importSkin('portal', 'taskCommentsDrawer'),
-      Vue.prototype.$utils.importSkin('portal', 'tasks')
+      Vue.prototype.$utils.importSkin('portal', 'tasks'),
+      Vue.prototype.$utils.importSkin('portal', 'ActivityReactions')
     ]);
   }
   document.dispatchEvent(new CustomEvent('content-link-task-drawer-open', {detail: taskId}));
