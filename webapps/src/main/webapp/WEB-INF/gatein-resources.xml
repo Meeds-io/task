@@ -52,6 +52,7 @@
     <additional-module>tasksDrawer</additional-module>
     <additional-module>taskCommentsDrawer</additional-module>
     <additional-module>ImageCropper</additional-module>
+    <additional-module>ActivityReactions</additional-module>
   </portlet-skin>
 
   <portlet-skin>
@@ -63,6 +64,7 @@
     <additional-module>tasksDrawer</additional-module>
     <additional-module>taskCommentsDrawer</additional-module>
     <additional-module>ImageCropper</additional-module>
+    <additional-module>ActivityReactions</additional-module>
   </portlet-skin>
 
   <module>

@@ -23,6 +23,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -33,6 +35,8 @@ import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.service.TaskPayload;
 import org.exoplatform.task.util.TaskUtil;
 
 import io.meeds.social.reaction.service.ReactionService;
@@ -50,13 +54,14 @@ public class TaskReactionCleanupListenerTest {
   private TaskReactionCleanupListener listener;
 
   @Test
-  public void initRegistersTheCommentDeletionEvent() {
+  public void initRegistersTheCommentAndTaskDeletionEvents() {
     ListenerService listenerService = mock(ListenerService.class);
     when(container.getComponentInstanceOfType(ListenerService.class)).thenReturn(listenerService);
 
     listener.init();
 
     verify(listenerService).addListener(TaskUtil.TASK_COMMENT_DELETED, listener);
+    verify(listenerService).addListener(TaskUtil.TASK_DELETED, listener);
   }
 
   @Test
@@ -67,6 +72,38 @@ public class TaskReactionCleanupListenerTest {
     listener.onEvent(new Event<>(TaskUtil.TASK_COMMENT_DELETED, null, comment));
 
     verify(reactionService).deleteObjectReactions("taskComment", "5");
+  }
+
+  @Test
+  public void commentDeletionDeletesTheReactionsOfItsReplies() throws Exception {
+    CommentDto reply = new CommentDto();
+    reply.setId(6L);
+    CommentDto comment = new CommentDto();
+    comment.setId(5L);
+    comment.setSubComments(List.of(reply));
+
+    listener.onEvent(new Event<>(TaskUtil.TASK_COMMENT_DELETED, null, comment));
+
+    verify(reactionService).deleteObjectReactions("taskComment", "5");
+    verify(reactionService).deleteObjectReactions("taskComment", "6");
+  }
+
+  @Test
+  public void taskDeletionDeletesTheReactionsOfItsComments() throws Exception {
+    TaskDto task = new TaskDto();
+    task.setId(9L);
+
+    listener.onEvent(new Event<>(TaskUtil.TASK_DELETED, null, new TaskPayload(null, task)));
+
+    verify(reactionService).deleteObjectReactionsByParent("taskComment", "9");
+  }
+
+  @Test
+  public void taskDeletionWithoutTaskDoesNothing() throws Exception {
+    listener.onEvent(new Event<>(TaskUtil.TASK_DELETED, null, new TaskPayload(null, null)));
+
+    verify(reactionService, never()).deleteObjectReactionsByParent(org.mockito.ArgumentMatchers.anyString(),
+                                                                   org.mockito.ArgumentMatchers.anyString());
   }
 
   @Test

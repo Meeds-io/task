@@ -19,6 +19,7 @@
 package io.meeds.task.listener;
 
 import static org.exoplatform.task.util.TaskUtil.TASK_COMMENT_DELETED;
+import static org.exoplatform.task.util.TaskUtil.TASK_DELETED;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,7 @@ import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.task.dto.CommentDto;
+import org.exoplatform.task.service.TaskPayload;
 
 import io.meeds.task.plugin.TaskCommentAclPlugin;
 import io.meeds.social.reaction.service.ReactionService;
@@ -55,12 +57,23 @@ public class TaskReactionCleanupListener extends Listener<Object, Object> {
   public void init() {
     ListenerService listenerService = container.getComponentInstanceOfType(ListenerService.class);
     listenerService.addListener(TASK_COMMENT_DELETED, this);
+    listenerService.addListener(TASK_DELETED, this);
   }
 
   @Override
   public void onEvent(Event<Object, Object> event) throws Exception {
     if (TASK_COMMENT_DELETED.equals(event.getEventName()) && event.getData() instanceof CommentDto comment) {
+      // The replies go with their comment by cascade, with no event of their own: the comment carries them
       reactionService.deleteObjectReactions(TaskCommentAclPlugin.OBJECT_TYPE, String.valueOf(comment.getId()));
+      if (comment.getSubComments() != null) {
+        comment.getSubComments()
+               .forEach(reply -> reactionService.deleteObjectReactions(TaskCommentAclPlugin.OBJECT_TYPE,
+                                                                       String.valueOf(reply.getId())));
+      }
+    } else if (TASK_DELETED.equals(event.getEventName()) && event.getData() instanceof TaskPayload payload
+               && payload.after() != null) {
+      // The comments of a deleted task, and their replies, go by cascade as well
+      reactionService.deleteObjectReactionsByParent(TaskCommentAclPlugin.OBJECT_TYPE, String.valueOf(payload.after().getId()));
     }
   }
 

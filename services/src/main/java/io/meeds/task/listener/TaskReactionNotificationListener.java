@@ -18,66 +18,36 @@
  */
 package io.meeds.task.listener;
 
-import java.util.HashSet;
-import java.util.Set;
-
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import org.exoplatform.commons.api.notification.NotificationContext;
-import org.exoplatform.commons.api.notification.model.PluginKey;
-import org.exoplatform.commons.notification.impl.NotificationContextImpl;
 import org.exoplatform.container.PortalContainer;
-import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
-import org.exoplatform.task.dto.CommentDto;
-import org.exoplatform.task.dto.ProjectDto;
-import org.exoplatform.task.dto.TaskDto;
-import org.exoplatform.task.exception.EntityNotFoundException;
-import org.exoplatform.task.integration.notification.NotificationUtils;
-import org.exoplatform.task.integration.notification.TaskReactionPlugin;
-import org.exoplatform.task.service.CommentService;
-import org.exoplatform.task.service.TaskService;
-import org.exoplatform.task.util.ProjectUtil;
 
 import io.meeds.social.reaction.model.Reaction;
-import io.meeds.social.reaction.model.ReactionOption;
 import io.meeds.social.reaction.service.ReactionService;
-import io.meeds.task.plugin.TaskCommentAclPlugin;
+import io.meeds.task.service.TaskReactionNotificationService;
 
 import jakarta.annotation.PostConstruct;
 
 /**
- * Notifies the author of a task comment when someone reacts to it. Changing a
- * reaction doesn't notify again, and nobody is notified of its own reaction.
+ * Glue between the creation of a reaction and the notification of the author
+ * of a task comment, which {@link TaskReactionNotificationService} decides.
  */
 @Component
 public class TaskReactionNotificationListener extends Listener<Reaction, String> {
 
-  private final PortalContainer container;
+  private final PortalContainer                 container;
 
-  private final ReactionService reactionService;
-
-  private final TaskService taskService;
-
-  private final CommentService commentService;
-
-  private final UserACL userAcl;
+  private final TaskReactionNotificationService notificationService;
 
   @Autowired
   public TaskReactionNotificationListener(PortalContainer container,
-                                          ReactionService reactionService,
-                                          TaskService taskService,
-                                          CommentService commentService,
-                                          UserACL userAcl) {
+                                          TaskReactionNotificationService notificationService) {
     this.container = container;
-    this.reactionService = reactionService;
-    this.taskService = taskService;
-    this.commentService = commentService;
-    this.userAcl = userAcl;
+    this.notificationService = notificationService;
   }
 
   @PostConstruct
@@ -88,67 +58,7 @@ public class TaskReactionNotificationListener extends Listener<Reaction, String>
 
   @Override
   public void onEvent(Event<Reaction, String> event) throws Exception {
-    Reaction reaction = event.getSource();
-    String reactor = event.getData();
-    if (reaction == null || StringUtils.isBlank(reactor)) {
-      return;
-    }
-    if (!TaskCommentAclPlugin.OBJECT_TYPE.equals(reaction.getObjectType())) {
-      return;
-    }
-    CommentDto comment;
-    TaskDto task;
-    try {
-      comment = commentService.getComment(Long.parseLong(reaction.getObjectId()));
-      task = comment == null || comment.getTask() == null ? null : taskService.getTask(comment.getTask().getId());
-    } catch (EntityNotFoundException | NumberFormatException e) {
-      return;
-    }
-    if (task == null) {
-      return;
-    }
-    Set<String> receivers = getReceivers(task, comment, reactor);
-    if (receivers.isEmpty()) {
-      return;
-    }
-    NotificationContext ctx = NotificationContextImpl.cloneInstance()
-                                                     .append(NotificationUtils.TASK, task)
-                                                     .append(NotificationUtils.COMMENT, comment)
-                                                     .append(NotificationUtils.CREATOR, reactor)
-                                                     .append(NotificationUtils.RECEIVERS, receivers)
-                                                     .append(NotificationUtils.REACTION_EMOJI_ARG,
-                                                             getEmoji(reaction.getReactionId()));
-    ctx.getNotificationExecutor().with(ctx.makeCommand(PluginKey.key(TaskReactionPlugin.ID))).execute(ctx);
-  }
-
-  Set<String> getReceivers(TaskDto task, CommentDto comment, String reactor) {
-    Set<String> receivers = new HashSet<>();
-    receivers.add(comment.getAuthor());
-    receivers.removeIf(user -> StringUtils.isBlank(user) || StringUtils.equals(user, reactor));
-    if (task.getStatus() != null && task.getStatus().getProject() != null) {
-      ProjectDto project = task.getStatus().getProject();
-      receivers.removeIf(user -> !ProjectUtil.isProjectParticipant(userAcl, user, project));
-    } else {
-      // A task with no project is only seen by those who work on it
-      receivers.removeIf(user -> !isTaskParticipant(task, user));
-    }
-    return receivers;
-  }
-
-  private String getEmoji(String reactionId) {
-    return reactionService.getReactionOptions()
-                          .stream()
-                          .filter(option -> StringUtils.equals(option.getId(), reactionId))
-                          .map(ReactionOption::getEmoji)
-                          .findFirst()
-                          .orElse(reactionId);
-  }
-
-  private boolean isTaskParticipant(TaskDto task, String user) {
-    return StringUtils.equals(task.getCreatedBy(), user)
-           || StringUtils.equals(task.getAssignee(), user)
-           || task.getCoworker() != null && task.getCoworker().contains(user)
-           || task.getWatcher() != null && task.getWatcher().contains(user);
+    notificationService.notifyReaction(event.getSource(), event.getData());
   }
 
 }
