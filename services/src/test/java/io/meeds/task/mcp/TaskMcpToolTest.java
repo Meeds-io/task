@@ -886,7 +886,20 @@ public class TaskMcpToolTest {
     IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, "@john"));
 
     assertTrue(e.getMessage().contains("'" + SPACE_NAME + "'"));
-    assertTrue(e.getMessage().contains("invite them to the space"));
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not a member of the space: invite them to the space"));
+    verify(project, never()).setParticipator(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
+  @Test
+  public void addProjectMemberOnSpaceProjectShouldTellSpaceMemberAlreadyParticipates() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
+
+    IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
+
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is a member of the space and already participates in the project"));
     verify(project, never()).setParticipator(any());
     verify(projectService, never()).updateProject(any());
   }
@@ -899,6 +912,23 @@ public class TaskMcpToolTest {
   public void addProjectMemberOnSpaceProjectAlsoManagedByAnotherGroupShouldBeRefused() throws Exception {// NOSONAR
     mockSpace();
     Set<String> managers = new LinkedHashSet<>(List.of(SPACE_MANAGERS, "*:/platform/administrators"));
+    ProjectDto project = mockEditableProject(managers, Set.of(SPACE_MEMBERS));
+
+    assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
+
+    verify(projectService, never()).updateProject(any());
+    verify(project, never()).setParticipator(any());
+  }
+
+  /**
+   * Same as
+   * {@link #addProjectMemberOnSpaceProjectAlsoManagedByAnotherGroupShouldBeRefused()},
+   * the group that is not a space coming first.
+   */
+  @Test
+  public void addProjectMemberOnSpaceProjectManagedFirstByAnotherGroupShouldBeRefused() throws Exception {// NOSONAR
+    mockSpace();
+    Set<String> managers = new LinkedHashSet<>(List.of("*:/platform/administrators", SPACE_MANAGERS));
     ProjectDto project = mockEditableProject(managers, Set.of(SPACE_MEMBERS));
 
     assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));

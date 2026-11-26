@@ -736,7 +736,7 @@
     {
       "name": "add_project_member",
       "title": "Add a Project member",
-      "description": "Add a user as a participant of a task project outside any space. A project of a space, whose space id get_project_by_id returns, has the members of the space as participants, so this tool refuses it: invite the user to the space instead.",
+      "description": "Add a user as a participant of a task project outside any space. A project of a space, whose space id get_project_by_id returns, has the members of the space as participants, so this tool refuses it: a member of the space already participates, and a user outside it gets access once invited to the space.",
       "input_schema": {
         "type": "object",
         "properties": {

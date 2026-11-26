@@ -141,7 +141,10 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           MSG_PROJECT_WITHOUT_STATUS      = "Task project with identifier '%s' has no status";
 
   private static final String           MSG_SPACE_PROJECT_PARTICIPANT   =
-                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. To give the user '%s' access to the project, invite them to the space.";
+                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is not a member of the space: invite them to the space to give them access to the project.";
+
+  private static final String           MSG_SPACE_PROJECT_PARTICIPATING =
+                                                                        "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is a member of the space and already participates in the project.";
 
   private static final String           MSG_SPACE_PROJECT_MANAGER       =
                                                                 "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can manage the project. Choose a member of the space, or invite the user to the space first.";
@@ -907,10 +910,9 @@ public class TaskMcpTool implements McpToolPlugin {
                                            boolean add,
                                            boolean manager) throws IllegalAccessException {
     if (add && !manager) {
-      throw new IllegalAccessException(MSG_SPACE_PROJECT_PARTICIPANT.formatted(project.getId(),
-                                                                               space.getDisplayName(),
-                                                                               username));
-    } else if (add && !spaceService.isMember(space, username) && !spaceService.isManager(space, username)) {
+      String message = isSpaceMember(space, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
+      throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
+    } else if (add && !isSpaceMember(space, username)) {
       throw new IllegalArgumentException(MSG_SPACE_PROJECT_MANAGER.formatted(username,
                                                                              space.getDisplayName(),
                                                                              project.getId()));
@@ -919,6 +921,10 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                                  space.getDisplayName(),
                                                                                  manager ? "managers" : "participants"));
     }
+  }
+
+  private boolean isSpaceMember(Space space, String username) {
+    return spaceService.isMember(space, username) || spaceService.isManager(space, username);
   }
 
   private boolean isSpaceMembership(String permission, Space space) {
