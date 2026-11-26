@@ -146,6 +146,9 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           MSG_SPACE_PROJECT_PARTICIPATING =
                                                                         "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is a member or a manager of the space and already has access to the project.";
 
+  private static final String           MSG_SPACE_PROJECT_NO_ACCESS     =
+                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is in the space, but the project's entries for the space do not give them access.";
+
   private static final String           MSG_SPACE_PROJECT_MANAGER       =
                                                                 "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can be named a manager of the project. Choose a member of the space, or invite the user to the space first.";
 
@@ -919,7 +922,14 @@ public class TaskMcpTool implements McpToolPlugin {
     Set<String> entries = manager ? safeSet(project.getManager()) : safeSet(project.getParticipator());
     String listName = manager ? "managers" : "participants";
     if (add && !manager) {
-      String message = hasAccessThroughSpace(project, space, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
+      String message;
+      if (hasAccessThroughSpace(project, space, username)) {
+        message = MSG_SPACE_PROJECT_PARTICIPATING;
+      } else if (spaceService.isMember(space, username) || spaceService.isManager(space, username)) {
+        message = MSG_SPACE_PROJECT_NO_ACCESS;
+      } else {
+        message = MSG_SPACE_PROJECT_PARTICIPANT;
+      }
       throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
     } else if (add && !spaceService.isMember(space, username)) {
       String message = holdsThroughSpace(entries, space, username) ? MSG_SPACE_PROJECT_SPACE_MANAGER : MSG_SPACE_PROJECT_MANAGER;
