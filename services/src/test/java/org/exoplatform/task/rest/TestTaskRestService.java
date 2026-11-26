@@ -1165,4 +1165,32 @@ public class TestTaskRestService {
     // Then
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
   }
+
+  @Test
+  public void testSearchDropsTheTasksOfASpaceProjectTheNamedManagerLeft() throws Exception {
+    TaskRestService taskRestService = new TaskRestService(taskService,
+                                                          commentService,
+                                                          projectService,
+                                                          statusService,
+                                                          userService,
+                                                          spaceService,
+                                                          labelService,
+                                                          favoriteService,
+                                                          identityManager);
+    ConversationState.setCurrent(new ConversationState(new Identity("john")));
+    org.exoplatform.task.dto.ProjectDto project = new org.exoplatform.task.dto.ProjectDto();
+    project.setManager(new HashSet<>(Arrays.asList("john", "manager:/spaces/team")));
+    org.exoplatform.task.dto.StatusDto status = new org.exoplatform.task.dto.StatusDto();
+    status.setProject(project);
+    TaskDto task = new TaskDto();
+    task.setId(31L);
+    task.setStatus(status);
+    when(taskService.findTasks(any(org.exoplatform.task.model.TaskSearchFilter.class))).thenReturn(Collections.singletonList(task));
+    when(taskService.countTasks(eq("john"), eq("term"), anyList())).thenReturn(1L);
+
+    Response response = taskRestService.getTasks("whatever", "term", null, null, null, 0, 20, true, true);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertTrue(((PaginatedTaskList) response.getEntity()).getTasks().isEmpty());
+  }
 }

@@ -278,6 +278,7 @@ public class TaskRestService implements ResourceContainer {
         memberships = filterMembershipsBySpaceIds(spaceIds, memberships);
         tasks = taskService.findTasks(new TaskSearchFilter(currentUser, query, memberships, sortField, sortDirection, offset, limit));
         tasksSize = taskService.countTasks(currentUser, query, memberships);
+        tasks = tasks.stream().filter(t -> TaskUtil.canViewTask(taskService, t, currentId)).toList();
       }
       tasks.forEach(t -> transformHtml(t, currentId));
       return Response.ok(new PaginatedTaskList(tasks.stream()

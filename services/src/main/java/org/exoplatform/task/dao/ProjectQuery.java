@@ -18,6 +18,7 @@
  */
 package org.exoplatform.task.dao;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -33,6 +34,32 @@ public class ProjectQuery extends Query {
     return this;
   }
   
+  /**
+   * Selects the projects that name one of the memberships as manager or
+   * participant, or that are one of the given projects.
+   *
+   * @param memberships the memberships, may be empty
+   * @param projectIds the identifiers of projects selected whatever their
+   *          memberships, may be empty
+   * @return this query
+   */
+  public ProjectQuery setMembershipOrProjects(List<String> memberships, List<Long> projectIds) {
+    List<Condition> conditions = new LinkedList<>();
+    if (memberships != null && !memberships.isEmpty()) {
+      conditions.add(Conditions.in(Conditions.MANAGER, memberships));
+      conditions.add(Conditions.in(Conditions.PARTICIPATOR, memberships));
+    }
+    if (projectIds != null && !projectIds.isEmpty()) {
+      conditions.add(Conditions.in(Conditions.ID, projectIds));
+    }
+    if (conditions.isEmpty()) {
+      // nothing is selected
+      conditions.add(Conditions.in(Conditions.ID, Collections.singletonList(-1L)));
+    }
+    this.add(Conditions.or(conditions.toArray(new Condition[conditions.size()])));
+    return this;
+  }
+
   public ProjectQuery setManager(List<String> managers) {
     if (managers != null) {
       this.add(Conditions.in(Conditions.MANAGER, managers));

@@ -666,6 +666,45 @@ public final class ProjectUtil {
     return (list.size() == 0);
   }
 
+  /**
+   * The projects that name a user by id as manager or participant and grant
+   * the user a right: a project of a space grants it only while the user is
+   * member of the space ({@link ProjectDto#isMemberOfProjectSpaces}). A listing
+   * query selects these projects by identifier, next to the memberships of
+   * {@link UserUtil#getMembershipsWithoutUserId}, so that its pages and its
+   * total count only what the user can see.
+   *
+   * @param projectService the project service
+   * @param user the user
+   * @return the identifiers of the projects
+   */
+  public static List<Long> getProjectIdsNamingUser(ProjectService projectService, Identity user) {
+    return getProjectIdsNamingUser(projectService, user, false);
+  }
+
+  /**
+   * Same as {@link #getProjectIdsNamingUser(ProjectService, Identity)},
+   * optionally keeping only the projects that name the user as manager.
+   *
+   * @param projectService the project service
+   * @param user the user
+   * @param managerOnly true to keep the projects naming the user as manager
+   * @return the identifiers of the projects
+   */
+  public static List<Long> getProjectIdsNamingUser(ProjectService projectService, Identity user, boolean managerOnly) {
+    ProjectQuery query = new ProjectQuery();
+    if (managerOnly) {
+      query.setManager(Collections.singletonList(user.getUserId()));
+    } else {
+      query.setMembership(Collections.singletonList(user.getUserId()));
+    }
+    return projectService.findProjects(query, 0, -1)
+                         .stream()
+                         .filter(project -> project.isMemberOfProjectSpaces(user))
+                         .map(ProjectDto::getId)
+                         .toList();
+  }
+
   private static ProjectService getProjectService() {
     ExoContainer container = ExoContainerContext.getCurrentContainer();
     return container.getComponentInstanceOfType(ProjectService.class);
@@ -677,10 +716,14 @@ public final class ProjectUtil {
     if (project.getParticipator() == null) {
       return false;
     }
-    if (project.getParticipator().contains(userName)) {
+    Identity userIdentity = userAcl.getUserIdentity(userName);
+    if (userIdentity == null) {
+      return false;
+    }
+    if (project.getParticipator().contains(userName) && project.isMemberOfProjectSpaces(userIdentity)) {
       return true;
     } else {
-      Collection<MembershipEntry> memberships = userAcl.getUserIdentity(userName).getMemberships();
+      Collection<MembershipEntry> memberships = userIdentity.getMemberships();
       for (String per : project.getParticipator()) {
         MembershipEntry entry = MembershipEntry.parse(per);
         if (entry != null) {

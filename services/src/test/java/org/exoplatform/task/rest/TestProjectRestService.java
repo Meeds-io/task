@@ -19,6 +19,7 @@
 package org.exoplatform.task.rest;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -45,6 +46,7 @@ import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
@@ -59,9 +61,11 @@ import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.task.TestUtils;
+import org.exoplatform.task.dao.OrderBy;
 import org.exoplatform.task.dao.ProjectQuery;
 import org.exoplatform.task.dao.condition.AggregateCondition;
 import org.exoplatform.task.dao.condition.Condition;
+import org.exoplatform.task.dao.condition.Conditions;
 import org.exoplatform.task.dao.condition.SingleCondition;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
@@ -207,9 +211,11 @@ public class TestProjectRestService {
 
     ProjectDto project1 = new ProjectDto();
     project1.setName("project1");
+    project1.setManager(java.util.Collections.singleton("root"));
     projectService.createProject(project1);
     ProjectDto project2 = new ProjectDto();
     project2.setName("project2");
+    project2.setManager(java.util.Collections.singleton("root"));
     projectService.createProject(project2);
     ProjectDto project3 = new ProjectDto();
     project3.setName("project3");
@@ -250,6 +256,153 @@ public class TestProjectRestService {
     assertEquals(2, projectNumber);
   }
 
+  /**
+   * The list outside a space selects, with the memberships the user holds, only
+   * the projects naming the user by id that still grant a right, and its
+   * total is the query's: the page and the total stay consistent for a user who
+   * left a space. Mutant: the user's id left among the memberships, or the
+   * space project among the selected projects.
+   */
+  @Test
+  public void testGetProjectsSelectsTheProjectsNamingTheUserOnlyWhileTheyKeepTheRight() throws Exception {
+    ProjectRestService projectRestService = new ProjectRestService(taskService,
+                                                                   commentService,
+                                                                   projectService,
+                                                                   statusService,
+                                                                   userService,
+                                                                   spaceService,
+                                                                   labelService,
+                                                                   identityManager,
+                                                                   favoriteService);
+    Identity john = new Identity("john", Arrays.asList(new MembershipEntry("/platform/users", "member")));
+    ConversationState.setCurrent(new ConversationState(john));
+    ProjectDto spaceProject = new ProjectDto();
+    spaceProject.setId(1);
+    spaceProject.setManager(new HashSet<>(Arrays.asList("john", "manager:/spaces/team")));
+    ProjectDto keptProject = new ProjectDto();
+    keptProject.setId(2);
+    keptProject.setParticipator(new HashSet<>(Arrays.asList("john")));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(spaceProject, keptProject));
+    ArgumentCaptor<ProjectQuery> query = ArgumentCaptor.forClass(ProjectQuery.class);
+    when(projectService.findProjects(query.capture(), eq(0), eq(20))).thenReturn(new ArrayList<>());
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(25);
+
+    Response response = projectRestService.getProjects("", null, "ALL", 0, 20, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(25, new JSONObject(response.getEntity().toString()).getInt("projectNumber"));
+    Condition condition = query.getAllValues().get(query.getAllValues().size() - 1).getCondition();
+    assertEquals(Arrays.asList(2L), valuesOf(condition, Conditions.ID));
+    assertTrue(valuesOf(condition, Conditions.MANAGER).contains("member:/platform/users"));
+    assertFalse("the user's id is not a membership", valuesOf(condition, Conditions.MANAGER).contains("john"));
+    assertFalse(valuesOf(condition, Conditions.PARTICIPATOR).contains("john"));
+  }
+
+  /**
+   * The "Managed" filter selects, in the query, the projects naming the user as
+   * manager that still grant a right: the page is full whenever more projects
+   * follow, and the total is the query's. Mutant: the user's id left as manager
+   * of the query.
+   */
+  @Test
+  public void testGetManagedProjectsSelectsTheProjectsNamingTheUserOnlyWhileTheyKeepTheRight() throws Exception {
+    ProjectRestService projectRestService = projectRestService();
+    Identity john = new Identity("john", Arrays.asList(new MembershipEntry("/platform/users", "member")));
+    ConversationState.setCurrent(new ConversationState(john));
+    ProjectDto spaceProject = new ProjectDto();
+    spaceProject.setId(1);
+    spaceProject.setManager(new HashSet<>(Arrays.asList("john", "manager:/spaces/team")));
+    ProjectDto keptProject = new ProjectDto();
+    keptProject.setId(2);
+    keptProject.setManager(new HashSet<>(Arrays.asList("john")));
+    ProjectDto participantOnlyProject = new ProjectDto();
+    participantOnlyProject.setId(3);
+    participantOnlyProject.setParticipator(new HashSet<>(Arrays.asList("john")));
+    // the lookup answers by its own condition: the participant-only project comes back only when the lookup is not manager-only
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenAnswer(invocation -> {
+      Condition lookup = ((ProjectQuery) invocation.getArgument(0)).getCondition();
+      boolean managerOnly = valuesOf(lookup, Conditions.MANAGER).contains("john") && valuesOf(lookup, Conditions.PARTICIPATOR).isEmpty();
+      return managerOnly ? Arrays.asList(spaceProject, keptProject) : Arrays.asList(spaceProject, keptProject, participantOnlyProject);
+    });
+    ArgumentCaptor<ProjectQuery> query = ArgumentCaptor.forClass(ProjectQuery.class);
+    when(projectService.findProjects(query.capture(), eq(0), eq(20))).thenReturn(new ArrayList<>());
+    when(projectService.countProjects(any(ProjectQuery.class))).thenReturn(25);
+
+    Response response = projectRestService.getProjects("", null, "MANAGED", 0, 20, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(25, new JSONObject(response.getEntity().toString()).getInt("projectNumber"));
+    Condition condition = query.getAllValues().get(query.getAllValues().size() - 1).getCondition();
+    assertEquals("a project naming the user only as participant is not selected", Arrays.asList(2L), valuesOf(condition, Conditions.ID));
+    assertFalse("the user's id is not a manager of the query", valuesOf(condition, Conditions.MANAGER).contains("john"));
+    assertTrue(valuesOf(condition, Conditions.PARTICIPATOR).isEmpty());
+  }
+
+  /**
+   * The "With tasks" filter selects the user's memberships without the user's
+   * id, and the projects naming the user by id that still grant a right, for
+   * both the page and the total. Mutant: the user's id left among the
+   * memberships, or the identifiers not passed.
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testGetProjectsWithTasksSelectsTheProjectsNamingTheUserOnlyWhileTheyKeepTheRight() throws Exception {
+    ProjectRestService projectRestService = projectRestService();
+    Identity john = new Identity("john", Arrays.asList(new MembershipEntry("/platform/users", "member")));
+    ConversationState.setCurrent(new ConversationState(john));
+    ProjectDto spaceProject = new ProjectDto();
+    spaceProject.setId(1);
+    spaceProject.setManager(new HashSet<>(Arrays.asList("john", "manager:/spaces/team")));
+    ProjectDto keptProject = new ProjectDto();
+    keptProject.setId(2);
+    keptProject.setParticipator(new HashSet<>(Arrays.asList("john")));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(spaceProject, keptProject));
+    ArgumentCaptor<List<String>> pageMemberships = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<List<Long>> pageIds = ArgumentCaptor.forClass(List.class);
+    when(projectService.findNotEmptyProjects(pageMemberships.capture(), pageIds.capture(), eq(""), eq(0), eq(20))).thenReturn(new ArrayList<>());
+    ArgumentCaptor<List<String>> totalMemberships = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<List<Long>> totalIds = ArgumentCaptor.forClass(List.class);
+    when(projectService.countNotEmptyProjects(totalMemberships.capture(), totalIds.capture(), eq(""))).thenReturn(25);
+
+    Response response = projectRestService.getProjects("", null, "WITH_TASKS", 0, 20, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(25, new JSONObject(response.getEntity().toString()).getInt("projectNumber"));
+    assertEquals(Arrays.asList(2L), pageIds.getValue());
+    assertEquals(Arrays.asList(2L), totalIds.getValue());
+    assertTrue(pageMemberships.getValue().contains("member:/platform/users"));
+    assertFalse("the user's id is not a membership", pageMemberships.getValue().contains("john"));
+    assertFalse("the user's id is not a membership", totalMemberships.getValue().contains("john"));
+  }
+
+  private ProjectRestService projectRestService() {
+    return new ProjectRestService(taskService,
+                                  commentService,
+                                  projectService,
+                                  statusService,
+                                  userService,
+                                  spaceService,
+                                  labelService,
+                                  identityManager,
+                                  favoriteService);
+  }
+
+  private static List<Object> valuesOf(Condition condition, String field) {
+    List<Object> values = new ArrayList<>();
+    if (condition instanceof AggregateCondition aggregate) {
+      for (Condition child : aggregate.getConditions()) {
+        values.addAll(valuesOf(child, field));
+      }
+    } else if (condition instanceof SingleCondition<?> single && field.equals(single.getField())) {
+      if (single.getValue() instanceof Collection<?> collection) {
+        values.addAll(collection);
+      } else {
+        values.add(single.getValue());
+      }
+    }
+    return values;
+  }
+
   @Test
   public void testGetProjectsOfASpaceMatchesTheSpaceMembershipsAndTheUsers() throws Exception {
     ProjectRestService projectRestService = new ProjectRestService(taskService,
@@ -282,9 +435,48 @@ public class TestProjectRestService {
     assertSame(listQuery.getValue(), countQuery.getValue());
     // the space's projects, and among them those the user's memberships match
     assertEquals(Arrays.asList(new HashSet<>(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1")),
-                               new HashSet<>(Arrays.asList("mary", "*:/spaces/space1", "member:/spaces/space1"))),
+                               new HashSet<>(Arrays.asList("*:/spaces/space1", "member:/spaces/space1"))),
                  inConditions(listQuery.getValue().getCondition()));
     assertEquals(new HashSet<>(Arrays.asList("%pro%")), conditionValues(listQuery.getValue().getCondition(), SingleCondition.LIKE));
+  }
+
+  /**
+   * In a space's listing too, a project of the space naming the user is
+   * selected by its id while the user is still a member of the space. Mutant:
+   * no project id passed in the space branch.
+   */
+  @Test
+  public void testGetProjectsOfASpaceSelectsTheProjectsNamingTheUserWhileTheyKeepTheRight() throws Exception {
+    ProjectRestService projectRestService = new ProjectRestService(taskService,
+                                                                   commentService,
+                                                                   projectService,
+                                                                   statusService,
+                                                                   userService,
+                                                                   spaceService,
+                                                                   labelService,
+                                                                   identityManager,
+                                                                   favoriteService);
+    Space space = new Space();
+    space.setPrettyName("space1");
+    space.setGroupId(SpaceUtils.SPACE_GROUP + "/space1");
+    when(spaceService.getSpaceByPrettyName("space1")).thenReturn(space);
+    ConversationState.setCurrent(new ConversationState(new Identity("mary",
+                                                                    Arrays.asList(new MembershipEntry("/spaces/space1",
+                                                                                                      "member")))));
+    ProjectDto namedProject = new ProjectDto();
+    namedProject.setId(7);
+    namedProject.setManager(new HashSet<>(Arrays.asList("manager:/spaces/space1")));
+    namedProject.setParticipator(new HashSet<>(Arrays.asList("mary")));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(namedProject));
+    ArgumentCaptor<ProjectQuery> query = ArgumentCaptor.forClass(ProjectQuery.class);
+    when(projectService.findProjects(query.capture(), eq(0), eq(10))).thenReturn(new ArrayList<>());
+
+    Response response = projectRestService.getProjects("", "space1", "ALL", 0, 10, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    Condition condition = query.getAllValues().get(query.getAllValues().size() - 1).getCondition();
+    assertEquals(Arrays.asList(7L), valuesOf(condition, Conditions.ID));
+    assertFalse(valuesOf(condition, Conditions.PARTICIPATOR).contains("mary"));
   }
 
   @Test
@@ -310,15 +502,14 @@ public class TestProjectRestService {
     ArgumentCaptor<ProjectQuery> listQuery = ArgumentCaptor.forClass(ProjectQuery.class);
     verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
     assertEquals(Arrays.asList(new HashSet<>(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1")),
-                               new HashSet<>(Arrays.asList("mary",
-                                                           "*:/spaces/space1",
+                               new HashSet<>(Arrays.asList("*:/spaces/space1",
                                                            "manager:/spaces/space1",
                                                            "member:/spaces/space1"))),
                  inConditions(listQuery.getValue().getCondition()));
   }
 
   @Test
-  public void testGetProjectsOfASpaceTheUserIsNotPartOfStillMatchesTheProjectsNamingTheUser() throws Exception {
+  public void testGetProjectsOfASpaceTheUserIsNotPartOfDoesNotMatchTheProjectsNamingTheUser() throws Exception {
     ProjectRestService projectRestService = new ProjectRestService(taskService,
                                                                    commentService,
                                                                    projectService,
@@ -340,9 +531,10 @@ public class TestProjectRestService {
 
     ArgumentCaptor<ProjectQuery> listQuery = ArgumentCaptor.forClass(ProjectQuery.class);
     verify(projectService).findProjects(listQuery.capture(), eq(0), eq(10));
-    // the user's id is one of the values the projects of the space are matched with
+    // a project naming the user grants no right outside the user's spaces: the
+    // user's id is not one of the values the projects of the space are matched with
     assertEquals(Arrays.asList(new HashSet<>(Arrays.asList("manager:/spaces/space1", "member:/spaces/space1")),
-                               new HashSet<>(Arrays.asList("mary", "*:/spaces/other", "member:/spaces/other"))),
+                               new HashSet<>(Arrays.asList("*:/spaces/other", "member:/spaces/other"))),
                  inConditions(listQuery.getValue().getCondition()));
   }
 

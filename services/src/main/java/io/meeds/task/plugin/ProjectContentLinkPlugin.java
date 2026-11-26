@@ -87,6 +87,7 @@ public class ProjectContentLinkPlugin implements ContentLinkPlugin {
                                        offset,
                                        limit)
                          .stream()
+                         .filter(project -> project.canView(identity))
                          .map(this::toContentLink)
                          .toList();
   }

@@ -37,6 +37,8 @@ import java.util.*;
 public class ProjectDto implements Serializable {
     private static final Log LOG           = ExoLogger.getLogger(ProjectDto.class);
 
+    private static final String SPACES_GROUP_PREFIX = "/spaces/";
+
 
     private long      id;
 
@@ -107,7 +109,10 @@ public class ProjectDto implements Serializable {
     }
 
     private boolean hasPermission(Identity user, Set<String> permissions) {
-        if (permissions.contains(user.getUserId())) {
+        if (permissions == null) {
+            return false;
+        }
+        if (permissions.contains(user.getUserId()) && isMemberOfProjectSpaces(user)) {
             return true;
         } else {
             Set<MembershipEntry> memberships = new HashSet<MembershipEntry>();
@@ -118,14 +123,54 @@ public class ProjectDto implements Serializable {
                 }
             }
 
-            for (MembershipEntry entry :  user.getMemberships()) {
-                if (memberships.contains(entry)) {
-                    return true;
+            if (user.getMemberships() != null) {
+                for (MembershipEntry entry :  user.getMemberships()) {
+                    if (memberships.contains(entry)) {
+                        return true;
+                    }
                 }
             }
         }
 
         return false;
+    }
+
+    /**
+     * A project belongs to a space when its manager entries reference a space
+     * group. A user named by id on such a project keeps the right only while
+     * member of one of those spaces. A project outside any space is not
+     * concerned. Every check that matches a user by id against the project's
+     * manager or participant entries applies this condition.
+     *
+     * @param user the identity of the user named by id
+     * @return false when the project belongs to a space the user has left
+     */
+    public boolean isMemberOfProjectSpaces(Identity user) {
+        Set<String> spaceGroups = new HashSet<String>();
+        collectSpaceGroups(getManager(), spaceGroups);
+        if (spaceGroups.isEmpty()) {
+            return true;
+        }
+        if (user != null && user.getMemberships() != null) {
+            for (MembershipEntry entry : user.getMemberships()) {
+                if (spaceGroups.contains(entry.getGroup())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void collectSpaceGroups(Set<String> permissions, Set<String> spaceGroups) {
+        if (permissions == null) {
+            return;
+        }
+        for (String per : permissions) {
+            MembershipEntry entry = MembershipEntry.parse(per);
+            if (entry != null && entry.getGroup() != null && entry.getGroup().startsWith(SPACES_GROUP_PREFIX)) {
+                spaceGroups.add(entry.getGroup());
+            }
+        }
     }
 
     @Override
