@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -888,6 +889,23 @@ public class TaskMcpToolTest {
     assertTrue(e.getMessage().contains("'" + SPACE_NAME + "'"));
     assertTrue(e.getMessage().endsWith("The user '" + OTHER_USER + "' has no access to the project."));
     verify(project, never()).setParticipator(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
+  /**
+   * A username that resolves to no identity is refused as having no access,
+   * without asking the project: {@code ProjectDto#hasPermission} dereferences
+   * the identity it is given.
+   */
+  @Test
+  public void addProjectMemberOnSpaceProjectShouldRefuseUnknownUserWithoutViewCheck() throws Exception {// NOSONAR
+    mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    lenient().when(project.canView(isNull())).thenThrow(new NullPointerException("identity"));
+
+    IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, "ghost"));
+
+    assertTrue(e.getMessage().endsWith("The user 'ghost' has no access to the project."));
     verify(projectService, never()).updateProject(any());
   }
 
