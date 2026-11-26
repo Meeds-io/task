@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -366,6 +367,8 @@ public class ProjectServiceTest {
         project.setId(id);
         when(storage.getProject(id)).thenReturn(project);
         projectService = new ProjectServiceImpl(statusService, taskService, daoHandler, storage, listenerService);
+        // By default, every task is gone once the project is deleted
+        doThrow(new EntityNotFoundException(0L, TaskDto.class)).when(taskService).getTask(anyLong());
         return storage;
     }
 
@@ -392,6 +395,21 @@ public class ProjectServiceTest {
         assertEquals(List.of(3L), taskQueryCaptor.getValue().getProjectIds());
         assertEquals("id", taskQueryCaptor.getValue().getOrderBy().get(0).getFieldName());
         verify(storage, never()).getSubProjects(anyLong(), anyInt(), anyInt());
+    }
+
+    @Test
+    public void testDeleteProjectDoesNotAnnounceATaskThatStillExists() throws Exception {
+        storageOfProject(3L);
+        when(taskService.findTasks(any(TaskQuery.class), eq(0), anyInt())).thenReturn(List.of(task(11L), task(12L)));
+        // The second task was moved to another project while the deletion ran: it still exists
+        doThrow(new EntityNotFoundException(11L, TaskDto.class)).when(taskService).getTask(11L);
+        doReturn(task(12L)).when(taskService).getTask(12L);
+
+        projectService.removeProject(3L, false);
+
+        ArgumentCaptor<TaskPayload> payload = ArgumentCaptor.forClass(TaskPayload.class);
+        verify(listenerService).broadcast(eq(TaskUtil.TASK_DELETED), isNull(), payload.capture());
+        assertEquals(11L, payload.getValue().after().getId());
     }
 
     @Test
@@ -434,8 +452,8 @@ public class ProjectServiceTest {
         ProjectStorage storage = storageOfProject(3L);
         when(taskService.findTasks(any(TaskQuery.class), eq(0), anyInt())).thenReturn(List.of(task(11L), task(12L)));
         // The first task was deleted (and committed) before the failure, the second one is still there
-        when(taskService.getTask(11L)).thenThrow(new EntityNotFoundException(11L, TaskDto.class));
-        when(taskService.getTask(12L)).thenReturn(task(12L));
+        doThrow(new EntityNotFoundException(11L, TaskDto.class)).when(taskService).getTask(11L);
+        doReturn(task(12L)).when(taskService).getTask(12L);
         doThrow(new IllegalStateException("db down")).when(storage).removeProject(3L, false);
 
         assertThrows(IllegalStateException.class, () -> projectService.removeProject(3L, false));
@@ -449,7 +467,7 @@ public class ProjectServiceTest {
     public void testDeleteProjectFailingMidwayDoesNotAnnounceATaskItCannotCheck() throws Exception {
         ProjectStorage storage = storageOfProject(3L);
         when(taskService.findTasks(any(TaskQuery.class), eq(0), anyInt())).thenReturn(List.of(task(11L)));
-        when(taskService.getTask(11L)).thenThrow(new IllegalStateException("db down"));
+        doThrow(new IllegalStateException("db down")).when(taskService).getTask(11L);
         doThrow(new IllegalStateException("db down")).when(storage).removeProject(3L, false);
 
         assertThrows(IllegalStateException.class, () -> projectService.removeProject(3L, false));

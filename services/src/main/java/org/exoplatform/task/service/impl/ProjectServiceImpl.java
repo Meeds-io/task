@@ -142,13 +142,16 @@ public class ProjectServiceImpl implements ProjectService {
       announceDeletedTasks(tasks.stream().filter(this::isDeleted).toList());
       throw e;
     }
-    announceDeletedTasks(tasks);
+    // The deletion isn't instantaneous: a task moved to another project meanwhile still exists and isn't announced
+    announceDeletedTasks(tasks.stream().filter(this::isDeleted).toList());
   }
 
   /**
    * The tasks of a project are deleted with it by the storage, which sends no
    * event of its own: the listeners of a deleted task (search index, content
-   * links, reactions of the comments, gamification) learn it here.
+   * links, reactions of the comments, gamification) learn it here. Only the
+   * tasks listed before the deletion are announced: one created during the
+   * deletion isn't.
    */
   private void announceDeletedTasks(List<TaskDto> tasks) {
     tasks.forEach(task -> TaskUtil.broadcastEvent(listenerService, TaskUtil.TASK_DELETED, null, new TaskPayload(null, task)));
