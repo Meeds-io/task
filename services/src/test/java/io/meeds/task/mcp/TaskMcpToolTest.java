@@ -883,6 +883,9 @@ public class TaskMcpToolTest {
   public void addProjectMemberOnSpaceProjectShouldBeRefused() throws Exception {// NOSONAR
     mockSpace();
     ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    Identity johnIdentity = mock(Identity.class);
+    when(userAcl.getUserIdentity(OTHER_USER)).thenReturn(johnIdentity);
+    when(project.canView(johnIdentity)).thenReturn(false);
 
     IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, "@john"));
 
@@ -893,19 +896,21 @@ public class TaskMcpToolTest {
   }
 
   /**
-   * A username that resolves to no identity is refused as having no access,
-   * without asking the project: {@code ProjectDto#hasPermission} dereferences
-   * the identity it is given.
+   * A username {@code UserACL#getUserIdentity} resolves to no identity (it
+   * does so for the anonymous username only; a named user gets an identity)
+   * is refused as having no access without asking the project, whose
+   * {@code ProjectDto#hasPermission} dereferences the identity it is given.
    */
   @Test
-  public void addProjectMemberOnSpaceProjectShouldRefuseUnknownUserWithoutViewCheck() throws Exception {// NOSONAR
+  public void addProjectMemberOnSpaceProjectShouldRefuseUserWithoutIdentityWithoutViewCheck() throws Exception {// NOSONAR
     mockSpace();
     ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    when(userAcl.getUserIdentity("__anonim")).thenReturn(null);
     lenient().when(project.canView(isNull())).thenThrow(new NullPointerException("identity"));
 
-    IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, "ghost"));
+    IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, "__anonim"));
 
-    assertTrue(e.getMessage().endsWith("The user 'ghost' has no access to the project."));
+    assertTrue(e.getMessage().endsWith("The user '__anonim' has no access to the project."));
     verify(projectService, never()).updateProject(any());
   }
 
@@ -1045,6 +1050,23 @@ public class TaskMcpToolTest {
   }
 
 
+
+  /**
+   * An entry naming the whole space gives its right to a manager of the space
+   * too: such a user, not a member, is told they already manage the project.
+   */
+  @Test
+  public void setProjectManagerOnSpaceProjectManagedByTheWholeSpaceShouldTellSpaceManagerTheyManageIt() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of("*:" + SPACE_GROUP_ID), Set.of(SPACE_MEMBERS));
+    when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
+
+    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                                               () -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
+
+    assertTrue(e.getMessage().endsWith("As a manager of the space, the user already manages the project."));
+    verify(project, never()).setManager(any());
+  }
 
   @Test
   public void setProjectManagerOutsideSpaceShouldAcceptAnyUser() throws Exception {// NOSONAR
