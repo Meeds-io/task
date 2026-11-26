@@ -749,6 +749,10 @@ export default {
           if (older.length) {
             // each page is oldest first: an older page goes above the ones already displayed
             this.comments = older.concat(this.comments);
+          } else if (this.hasMoreComments) {
+            // Nothing new is displayed, so the drawer does not render again and the marker would
+            // not ask again: go on with the next page, which starts after the duplicates
+            return this.loadCommentsPage(this.comments.length + this.commentsDuplicates);
           }
         })
         .finally(() => {
