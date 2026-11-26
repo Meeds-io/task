@@ -1002,6 +1002,24 @@ public class TaskMcpToolTest {
     verify(projectService, never()).updateProject(any());
   }
 
+  /**
+   * A manager of the space who is not one of its members has no access when
+   * the project names the space only by its members entry: the refusal does
+   * not tell them they have one.
+   */
+  @Test
+  public void addProjectMemberOnSpaceProjectNamingOnlyTheSpaceMembersShouldNotTellSpaceManagerTheyHaveAccess() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MEMBERS), Set.of(SPACE_MEMBERS));
+    lenient().when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
+
+    IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
+
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not a member of the space: invite them to the space"));
+    verify(project, never()).setParticipator(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
   @Test
   public void addProjectMemberOnSpaceProjectShouldTellSpaceManagerWhoIsNoMemberTheyHaveAccess() throws Exception {// NOSONAR
     Space space = mockSpace();

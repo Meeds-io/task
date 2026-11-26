@@ -919,7 +919,7 @@ public class TaskMcpTool implements McpToolPlugin {
     Set<String> entries = manager ? safeSet(project.getManager()) : safeSet(project.getParticipator());
     String listName = manager ? "managers" : "participants";
     if (add && !manager) {
-      String message = isSpaceMember(space, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
+      String message = hasAccessThroughSpace(project, space, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
       throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
     } else if (add && !spaceService.isMember(space, username)) {
       String message = holdsThroughSpace(entries, space, username) ? MSG_SPACE_PROJECT_SPACE_MANAGER : MSG_SPACE_PROJECT_MANAGER;
@@ -936,8 +936,9 @@ public class TaskMcpTool implements McpToolPlugin {
     }
   }
 
-  private boolean isSpaceMember(Space space, String username) {
-    return spaceService.isMember(space, username) || spaceService.isManager(space, username);
+  private boolean hasAccessThroughSpace(ProjectDto project, Space space, String username) {
+    return holdsThroughSpace(safeSet(project.getParticipator()), space, username)
+        || holdsThroughSpace(safeSet(project.getManager()), space, username);
   }
 
   /**
