@@ -37,9 +37,11 @@ import org.exoplatform.task.dto.TaskDto;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.service.ProjectService;
 import org.exoplatform.task.service.StatusService;
+import org.exoplatform.task.service.TaskPayload;
 import org.exoplatform.task.service.TaskService;
 import org.exoplatform.task.storage.ProjectStorage;
 import org.exoplatform.task.util.StorageUtil;
+import org.exoplatform.task.util.TaskUtil;
 
 @Singleton
 public class ProjectServiceImpl implements ProjectService {
@@ -47,6 +49,8 @@ public class ProjectServiceImpl implements ProjectService {
   private static final Log   LOG          = ExoLogger.getExoLogger(ProjectServiceImpl.class);
 
   public static final String PREFIX_CLONE = "Copy of ";
+
+  private static final int  TASKS_PAGE_SIZE = 200;
 
   @Inject
   private ProjectStorage     projectStorage;
@@ -129,7 +133,29 @@ public class ProjectServiceImpl implements ProjectService {
     ProjectDto project = getProject(id);
     if (project == null)
       throw new EntityNotFoundException(id, ProjectDto.class);
+    List<TaskDto> tasks = getTasksOfProject(id);
     projectStorage.removeProject(id, deleteChild);
+    // The tasks of the project are deleted with it by the storage, which sends no event of its own: the listeners
+    // of a deleted task (search index, content links, reactions of the comments, gamification) learn it here
+    tasks.forEach(task -> TaskUtil.broadcastEvent(listenerService, TaskUtil.TASK_DELETED, null, new TaskPayload(null, task)));
+  }
+
+  private List<TaskDto> getTasksOfProject(long projectId) {
+    TaskQuery query = new TaskQuery();
+    query.setProjectIds(List.of(projectId));
+    List<TaskDto> tasks = new ArrayList<>();
+    try {
+      List<TaskDto> page;
+      do {
+        page = taskService.findTasks(query, tasks.size(), TASKS_PAGE_SIZE);
+        tasks.addAll(page);
+      } while (page.size() == TASKS_PAGE_SIZE);
+    } catch (Exception e) {
+      LOG.warn("Unable to list the tasks of the project {} before its deletion: the listeners of a deleted task won't be told",
+               projectId,
+               e);
+    }
+    return tasks;
   }
 
   @Override

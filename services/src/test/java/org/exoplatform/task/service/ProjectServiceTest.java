@@ -21,6 +21,10 @@ package org.exoplatform.task.service;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +47,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.InOrder;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.utils.ListAccess;
@@ -54,6 +59,7 @@ import org.exoplatform.task.dao.ProjectHandler;
 import org.exoplatform.task.dao.StatusHandler;
 import org.exoplatform.task.dao.TaskHandler;
 import org.exoplatform.task.dao.TaskQuery;
+import org.exoplatform.task.util.TaskUtil;
 import org.exoplatform.task.dao.jpa.DAOHandlerJPAImpl;
 import org.exoplatform.task.domain.Project;
 import org.exoplatform.task.domain.Status;
@@ -348,6 +354,41 @@ public class ProjectServiceTest {
 
         projectService.removeProject(3L, true);
         verify(projectHandler, times(1)).removeProject(eq(3L), eq(true));
+    }
+
+    @Test
+    public void testDeleteProjectTellsTheListenersOfItsTasks() throws Exception {
+        Project project = TestUtils.getDefaultProject();
+        project.setId(3L);
+        when(projectHandler.find(3L)).thenReturn(project);
+        TaskDto first = new TaskDto();
+        first.setId(11L);
+        TaskDto second = new TaskDto();
+        second.setId(12L);
+        when(taskService.findTasks(any(TaskQuery.class), eq(0), anyInt())).thenReturn(List.of(first, second));
+
+        projectService.removeProject(3L, false);
+
+        InOrder order = inOrder(projectHandler, listenerService);
+        order.verify(projectHandler).removeProject(eq(3L), eq(false));
+        ArgumentCaptor<TaskPayload> payload = ArgumentCaptor.forClass(TaskPayload.class);
+        order.verify(listenerService, times(2)).broadcast(eq(TaskUtil.TASK_DELETED), isNull(), payload.capture());
+        assertEquals(List.of(11L, 12L), payload.getAllValues().stream().map(p -> p.after().getId()).toList());
+        verify(taskService).findTasks(taskQueryCaptor.capture(), eq(0), anyInt());
+        assertEquals(List.of(3L), taskQueryCaptor.getValue().getProjectIds());
+    }
+
+    @Test
+    public void testDeleteProjectStillDeletesWhenItsTasksCannotBeListed() throws Exception {
+        Project project = TestUtils.getDefaultProject();
+        project.setId(3L);
+        when(projectHandler.find(3L)).thenReturn(project);
+        when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenThrow(new IllegalStateException("db"));
+
+        projectService.removeProject(3L, false);
+
+        verify(projectHandler).removeProject(eq(3L), eq(false));
+        verify(listenerService, never()).broadcast(eq(TaskUtil.TASK_DELETED), any(), any());
     }
 
     @Test
