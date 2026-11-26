@@ -33,6 +33,8 @@ public class NotificationUtils {
   public static final ArgumentLiteral<Set> MENTIONED = new ArgumentLiteral<Set>(Set.class, "mentioned");
   public static final ArgumentLiteral<Set> RECEIVERS = new ArgumentLiteral<Set>(Set.class, "receivers");
   public static final ArgumentLiteral<String> ACTION_NAME = new ArgumentLiteral<>(String.class, "actionName");
+  public static final ArgumentLiteral<String> REACTION_EMOJI_ARG = new ArgumentLiteral<>(String.class, "reactionEmoji");
+  public static final String REACTION_EMOJI = "reactionEmoji";
   public static final String TASKS = "tasks";
   public final static String TASK_ID = "taskId";
   public final static String TASK_TITLE = "taskName";

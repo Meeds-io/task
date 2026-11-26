@@ -131,6 +131,7 @@ export default {
   methods: {
     async openTaskDrawer() {
       this.taskDrawer = true;
+      await this.$utils.importSkin('portal', 'ActivityReactions');
       await this.$nextTick();
       this.$refs.taskDrawer.open(this.result);
     },

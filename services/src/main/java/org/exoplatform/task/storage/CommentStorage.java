@@ -52,6 +52,12 @@ public interface CommentStorage {
   List<CommentDto> loadSubComments(List<CommentDto> listComments);
 
   /**
+   * @param comment the {@link CommentDto} to retrieve the replies of
+   * @return the replies of the comment, an empty list when there is none
+   */
+  List<CommentDto> getReplies(CommentDto comment);
+
+  /**
    * Retrieves the Task comments including sub-comments
    * 
    * @param taskId Task identifier

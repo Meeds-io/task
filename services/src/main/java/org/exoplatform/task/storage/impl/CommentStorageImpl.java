@@ -156,6 +156,15 @@ public class CommentStorageImpl implements CommentStorage {
         return new ArrayList<CommentDto>();
     }
 
+    @Override
+    public List<CommentDto> getReplies(CommentDto comment) {
+        return daoHandler.getCommentHandler()
+                         .getSubComments(Collections.singletonList(StorageUtil.commentToEntity(comment)))
+                         .stream()
+                         .map((Comment reply) -> StorageUtil.commentToDto(reply, projectStorage))
+                         .collect(Collectors.toList());
+    }
+
     /**
      * Summarizes the comments of several tasks in two queries, whatever their
      * number.

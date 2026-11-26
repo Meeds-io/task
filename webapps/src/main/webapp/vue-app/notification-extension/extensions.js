@@ -22,6 +22,7 @@ extensionRegistry.registerExtension('WebNotification', 'notification-group-exten
   name: 'task',
   plugins: [
     'TaskCommentedPlugin',
+    'TaskReactionPlugin',
     'TaskMentionedPlugin',
     'TaskEditionPlugin',
     'TaskCompletedPlugin',
@@ -35,6 +36,11 @@ extensionRegistry.registerExtension('WebNotification', 'notification-content-ext
   type: 'TaskCommentedPlugin',
   rank: 10,
   vueComponent: Vue.options.components['user-notification-task-comment'],
+});
+extensionRegistry.registerExtension('WebNotification', 'notification-content-extension', {
+  type: 'TaskReactionPlugin',
+  rank: 10,
+  vueComponent: Vue.options.components['user-notification-task-reaction'],
 });
 extensionRegistry.registerExtension('WebNotification', 'notification-content-extension', {
   type: 'TaskMentionedPlugin',

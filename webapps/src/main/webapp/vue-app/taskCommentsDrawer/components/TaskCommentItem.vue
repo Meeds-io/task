@@ -59,15 +59,20 @@
           :preview-width="250"
           :preview-height="250"
           object-type="taskComment" />
-        <v-btn
-          id="reply_btn"
-          depressed
-          text
-          small
-          color="primary"
-          @click="replyComment">
-          {{ $t('comment.message.Reply') }}
-        </v-btn>
+        <div class="d-flex align-center flex-wrap">
+          <object-reactions
+            :object-id="comment.comment.id"
+            object-type="taskComment" />
+          <v-btn
+            id="reply_btn"
+            depressed
+            text
+            small
+            color="primary"
+            @click="replyComment">
+            {{ $t('comment.message.Reply') }}
+          </v-btn>
+        </div>
       </div>
     </div>
     <div v-if="comment && comment.subComments" class="py-0 TaskSubComments">

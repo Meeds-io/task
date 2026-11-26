@@ -125,6 +125,8 @@ public class CommentServiceImpl implements CommentService {
         LOG.info("Can not find comment with ID: " + commentId);
         throw new EntityNotFoundException(commentId, CommentDto.class);
       }
+      // The replies are deleted with their comment: they are read before, so the listeners of the deletion know them
+      comment.setSubComments(commentStorage.getReplies(comment));
       commentStorage.removeComment(commentId);
       broadcastEvent(listenerService, TASK_COMMENT_DELETED, comment.getTask(), comment);
     }

@@ -252,6 +252,42 @@
     <component-plugin>
       <name>notification.plugins</name>
       <set-method>addPlugin</set-method>
+      <type>org.exoplatform.task.integration.notification.TaskReactionPlugin</type>
+      <description>Initial information for plugin.</description>
+      <init-params>
+        <object-param>
+          <name>template.TaskReactionPlugin</name>
+          <description>The template of TaskReactionPlugin</description>
+          <object type="org.exoplatform.commons.api.notification.plugin.config.PluginConfig">
+            <field name="pluginId">
+              <string>TaskReactionPlugin</string>
+            </field>
+            <field name="resourceBundleKey">
+              <string>UINotification.label.TaskReactionPlugin</string>
+            </field>
+            <field name="order">
+              <string>8</string>
+            </field>
+            <field name="defaultConfig">
+              <collection type="java.util.ArrayList">
+                <value>
+                  <string>Instantly</string>
+                </value>
+              </collection>
+            </field>
+            <field name="groupId">
+              <string>task</string>
+            </field>
+            <field name="bundlePath">
+              <string>locale.notification.TaskNotification</string>
+            </field>
+          </object>
+        </object-param>
+      </init-params>
+    </component-plugin>
+    <component-plugin>
+      <name>notification.plugins</name>
+      <set-method>addPlugin</set-method>
       <type>org.exoplatform.task.integration.notification.TaskMentionPlugin</type>
       <description>Initial information for plugin.</description>
       <init-params>

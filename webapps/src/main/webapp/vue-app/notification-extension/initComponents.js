@@ -19,6 +19,7 @@
 
 import TaskAssignPlugin from './components/TaskAssignPlugin.vue';
 import TaskCommentedPlugin from './components/TaskCommentedPlugin.vue';
+import TaskReactionPlugin from './components/TaskReactionPlugin.vue';
 import TaskCompletedPlugin from './components/TaskCompletedPlugin.vue';
 import TaskCoworkerPlugin from './components/TaskCoworkerPlugin.vue';
 import TaskDueDatePlugin from './components/TaskDueDatePlugin.vue';
@@ -27,6 +28,7 @@ import TaskMentionedPlugin from './components/TaskMentionedPlugin.vue';
 
 const components = {
   'user-notification-task-comment': TaskCommentedPlugin,
+  'user-notification-task-reaction': TaskReactionPlugin,
   'user-notification-task-mention': TaskMentionedPlugin,
   'user-notification-task-edit': TaskEditionPlugin,
   'user-notification-task-archive': TaskCompletedPlugin,

@@ -34,6 +34,7 @@ import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.CommentStorageImpl;
 import org.exoplatform.task.util.StorageUtil;
+import org.exoplatform.task.util.TaskUtil;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,6 +49,7 @@ import java.util.Date;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.Silent.class)
@@ -161,6 +163,24 @@ public class CommentServiceTest {
 
     assertEquals(TestUtils.EXISTING_COMMENT_ID, commentCaptor.getValue().getId().longValue());
 
+  }
+
+  @Test
+  public void testRemoveCommentTellsTheListenersItsReplies() throws EntityNotFoundException {
+    Comment comment = TestUtils.getDefaultComment();
+    Comment reply = TestUtils.getDefaultComment();
+    reply.setId(TestUtils.EXISTING_COMMENT_ID + 1);
+    reply.setParentComment(comment);
+    when(commentHandler.find(TestUtils.EXISTING_COMMENT_ID)).thenReturn(comment);
+    when(commentHandler.getSubComments(any())).thenReturn(java.util.List.of(reply));
+    ListenerService listeners = mock(ListenerService.class);
+
+    new CommentServiceImpl(commentStorage, listeners).removeComment(TestUtils.EXISTING_COMMENT_ID);
+
+    ArgumentCaptor<CommentDto> deleted = ArgumentCaptor.forClass(CommentDto.class);
+    verify(listeners).broadcast(eq(TaskUtil.TASK_COMMENT_DELETED), any(), deleted.capture());
+    assertEquals(1, deleted.getValue().getSubComments().size());
+    assertEquals(TestUtils.EXISTING_COMMENT_ID + 1, deleted.getValue().getSubComments().get(0).getId());
   }
 
   @Test

@@ -52,6 +52,7 @@ import org.exoplatform.task.util.TaskUtil;
     @TemplateConfig(pluginId = TaskCompletedPlugin.ID, template = "war:/notification/templates/mail/TaskCompletedPlugin.gtmpl"),
     @TemplateConfig(pluginId = TaskCommentPlugin.ID, template = "war:/notification/templates/mail/TaskCommentPlugin.gtmpl"),
     @TemplateConfig(pluginId = TaskMentionPlugin.ID, template = "war:/notification/templates/mail/TaskMentionPlugin.gtmpl"),
+    @TemplateConfig(pluginId = TaskReactionPlugin.ID, template = "war:/notification/templates/mail/TaskReactionPlugin.gtmpl"),
     @TemplateConfig(pluginId = TaskEditionPlugin.ID, template = "war:/notification/templates/mail/TaskEditionPlugin.gtmpl") })
 public class MailTemplateProvider extends TemplateProvider {
 
@@ -65,6 +66,7 @@ public class MailTemplateProvider extends TemplateProvider {
     this.templateBuilders.put(PluginKey.key(TaskCompletedPlugin.ID), new TemplateBuilder());
     this.templateBuilders.put(PluginKey.key(TaskCommentPlugin.ID), new TemplateBuilder());
     this.templateBuilders.put(PluginKey.key(TaskMentionPlugin.ID), new TemplateBuilder());
+    this.templateBuilders.put(PluginKey.key(TaskReactionPlugin.ID), new TemplateBuilder());
     this.templateBuilders.put(PluginKey.key(TaskEditionPlugin.ID), new TemplateBuilder());
     this.userService = userService;
   }
@@ -111,6 +113,8 @@ public class MailTemplateProvider extends TemplateProvider {
       templateContext.put("TASK_TITLE", encoder.encode(taskTitle));
       templateContext.put("TASK_DESCRIPTION", encoder.encode(getExcerpt(taskDesc, 130)));
       templateContext.put("COMMENT_TEXT", commentText == null ? "" : commentText);
+      String reaction = notification.getValueOwnerParameter(NotificationUtils.REACTION_EMOJI);
+      templateContext.put("REACTION", reaction == null ? "" : encoder.encode(reaction));
       templateContext.put("DUE_DATE", getDueDate(notification));
       templateContext.put("TASK_URL", taskUrl);
       templateContext.put("PROJECT_URL", projectUrl);
