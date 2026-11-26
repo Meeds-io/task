@@ -440,6 +440,45 @@ public class TestProjectRestService {
     assertEquals(new HashSet<>(Arrays.asList("%pro%")), conditionValues(listQuery.getValue().getCondition(), SingleCondition.LIKE));
   }
 
+  /**
+   * In a space's listing too, a project of the space naming the user is
+   * selected by its id while the user is still a member of the space. Mutant:
+   * no project id passed in the space branch.
+   */
+  @Test
+  public void testGetProjectsOfASpaceSelectsTheProjectsNamingTheUserWhileTheyKeepTheRight() throws Exception {
+    ProjectRestService projectRestService = new ProjectRestService(taskService,
+                                                                   commentService,
+                                                                   projectService,
+                                                                   statusService,
+                                                                   userService,
+                                                                   spaceService,
+                                                                   labelService,
+                                                                   identityManager,
+                                                                   favoriteService);
+    Space space = new Space();
+    space.setPrettyName("space1");
+    space.setGroupId(SpaceUtils.SPACE_GROUP + "/space1");
+    when(spaceService.getSpaceByPrettyName("space1")).thenReturn(space);
+    ConversationState.setCurrent(new ConversationState(new Identity("mary",
+                                                                    Arrays.asList(new MembershipEntry("/spaces/space1",
+                                                                                                      "member")))));
+    ProjectDto namedProject = new ProjectDto();
+    namedProject.setId(7);
+    namedProject.setManager(new HashSet<>(Arrays.asList("manager:/spaces/space1")));
+    namedProject.setParticipator(new HashSet<>(Arrays.asList("mary")));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(namedProject));
+    ArgumentCaptor<ProjectQuery> query = ArgumentCaptor.forClass(ProjectQuery.class);
+    when(projectService.findProjects(query.capture(), eq(0), eq(10))).thenReturn(new ArrayList<>());
+
+    Response response = projectRestService.getProjects("", "space1", "ALL", 0, 10, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    Condition condition = query.getAllValues().get(query.getAllValues().size() - 1).getCondition();
+    assertEquals(Arrays.asList(7L), valuesOf(condition, Conditions.ID));
+    assertFalse(valuesOf(condition, Conditions.PARTICIPATOR).contains("mary"));
+  }
+
   @Test
   public void testGetProjectsOfASpaceMatchesAMembershipOfAnyType() throws Exception {
     ProjectRestService projectRestService = new ProjectRestService(taskService,

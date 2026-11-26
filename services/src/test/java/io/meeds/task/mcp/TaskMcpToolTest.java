@@ -1514,6 +1514,34 @@ public class TaskMcpToolTest {
     assertEquals(expected, inConditions(countQuery.getValue().getCondition()));
   }
 
+  /**
+   * In a space's listing too, a project of the space naming the user is
+   * selected by its id while the user is still a member of the space. Mutant:
+   * no project id passed in the space branch.
+   */
+  @Test
+  public void listProjectsOfASpaceSelectsTheProjectsNamingTheUserWhileTheyKeepTheRight() throws Exception { // NOSONAR
+    Space space = mock(Space.class);
+    when(spaceService.getSpaceById(10L)).thenReturn(space);
+    when(space.getGroupId()).thenReturn("/spaces/space1");
+    when(currentIdentity.getUserId()).thenReturn(USER);
+    when(currentIdentity.getMemberships()).thenReturn(Collections.singletonList(new MembershipEntry("/spaces/space1", "member")));
+    ProjectDto namedProject = new ProjectDto();
+    namedProject.setId(PROJECT_ID);
+    namedProject.setManager(new HashSet<>(Arrays.asList("manager:/spaces/space1")));
+    namedProject.setParticipator(new HashSet<>(Arrays.asList(USER)));
+    when(projectService.findProjects(any(ProjectQuery.class), eq(0), eq(-1))).thenReturn(Arrays.asList(namedProject));
+    ArgumentCaptor<ProjectQuery> query = ArgumentCaptor.forClass(ProjectQuery.class);
+    when(projectService.findProjects(query.capture(), eq(0), eq(10))).thenReturn(Collections.emptyList());
+
+    tool.listProjects(10L, null, null);
+
+    ProjectQuery listQuery = query.getAllValues().get(query.getAllValues().size() - 1);
+    assertEquals(Collections.singletonList(PROJECT_ID), valuesOf(listQuery.getCondition(), Conditions.ID));
+    assertFalse(valuesOf(listQuery.getCondition(), Conditions.PARTICIPATOR).contains(USER));
+    verify(projectService).countProjects(listQuery);
+  }
+
   @Test
   public void listProjectsOfASpaceShouldMatchAMembershipOfAnyTypeInTheSpace() throws Exception { // NOSONAR
     Space space = mock(Space.class);
