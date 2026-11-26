@@ -906,10 +906,10 @@ public class TaskMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Applies the project form's rules to a project of a space: its participants
-   * are the members of the space, its managers are chosen among them, the
-   * space's own entries are not removed, and a user who holds the right through
-   * the space is not removed by name.
+   * Applies the project form's rules to a project of a space: no participant
+   * is added by name, a manager is chosen among the members of the space, the
+   * space's own entries are not removed, and a user who holds the right
+   * through the space is not removed by name.
    */
   private void checkSpaceProjectMembership(ProjectDto project,
                                            Space space,
