@@ -144,7 +144,7 @@ public class TaskMcpTool implements McpToolPlugin {
                                                                     "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is not a member of the space: invite them to the space to give them access to the project.";
 
   private static final String           MSG_SPACE_PROJECT_PARTICIPATING =
-                                                                        "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is a member of the space and already participates in the project.";
+                                                                        "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' is a member or a manager of the space and already has access to the project.";
 
   private static final String           MSG_SPACE_PROJECT_MANAGER       =
                                                                 "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can manage the project. Choose a member of the space, or invite the user to the space first.";
@@ -918,7 +918,7 @@ public class TaskMcpTool implements McpToolPlugin {
     if (add && !manager) {
       String message = isSpaceMember(space, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
       throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
-    } else if (add && !isSpaceMember(space, username)) {
+    } else if (add && !spaceService.isMember(space, username)) {
       throw new IllegalArgumentException(MSG_SPACE_PROJECT_MANAGER.formatted(username,
                                                                              space.getDisplayName(),
                                                                              project.getId()));

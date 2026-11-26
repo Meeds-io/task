@@ -899,7 +899,7 @@ public class TaskMcpToolTest {
 
     IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
 
-    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is a member of the space and already participates in the project"));
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is a member or a manager of the space and already has access to the project"));
     verify(project, never()).setParticipator(any());
     verify(projectService, never()).updateProject(any());
   }
@@ -948,7 +948,6 @@ public class TaskMcpToolTest {
     assertTrue(e.getMessage().startsWith("Parameter 'username'"));
     assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not a member of the space '" + SPACE_NAME + "'"));
     verify(spaceService).isMember(space, OTHER_USER);
-    verify(spaceService).isManager(space, OTHER_USER);
     verify(project, never()).setManager(any());
     verify(projectService, never()).updateProject(any());
   }
@@ -966,17 +965,35 @@ public class TaskMcpToolTest {
     verify(projectService).updateProject(project);
   }
 
+  /**
+   * As in the project form, a manager of the space who is not one of its
+   * members is not offered as a project manager.
+   */
   @Test
-  public void setProjectManagerOnSpaceProjectShouldAcceptSpaceManager() throws Exception {// NOSONAR
+  public void setProjectManagerOnSpaceProjectShouldRefuseSpaceManagerWhoIsNoMember() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
+    lenient().when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
+
+    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                                               () -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
+
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is not a member of the space '" + SPACE_NAME + "'"));
+    verify(project, never()).setManager(any());
+    verify(projectService, never()).updateProject(any());
+  }
+
+  @Test
+  public void addProjectMemberOnSpaceProjectShouldTellSpaceManagerWhoIsNoMemberTheyHaveAccess() throws Exception {// NOSONAR
     Space space = mockSpace();
     ProjectDto project = mockEditableProject(Set.of(SPACE_MANAGERS), Set.of(SPACE_MEMBERS));
     when(spaceService.isManager(space, OTHER_USER)).thenReturn(true);
-    when(projectService.updateProject(project)).thenReturn(project);
 
-    runWithDateFormatMockResult(() -> tool.setProjectManager(PROJECT_ID, OTHER_USER));
+    IllegalAccessException e = assertThrows(IllegalAccessException.class, () -> tool.addProjectMember(PROJECT_ID, OTHER_USER));
 
-    verify(project).setManager(Set.of(SPACE_MANAGERS, OTHER_USER));
-    verify(projectService).updateProject(project);
+    assertTrue(e.getMessage().contains("'" + OTHER_USER + "' is a member or a manager of the space and already has access to the project"));
+    verify(project, never()).setParticipator(any());
+    verify(projectService, never()).updateProject(any());
   }
 
   @Test
