@@ -21,7 +21,11 @@ package org.exoplatform.task.service;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -356,38 +360,99 @@ public class ProjectServiceTest {
         verify(projectHandler, times(1)).removeProject(eq(3L), eq(true));
     }
 
+    private ProjectStorage storageOfProject(long id) throws Exception {
+        ProjectStorage storage = mock(ProjectStorage.class);
+        ProjectDto project = new ProjectDto();
+        project.setId(id);
+        when(storage.getProject(id)).thenReturn(project);
+        projectService = new ProjectServiceImpl(statusService, taskService, daoHandler, storage, listenerService);
+        return storage;
+    }
+
+    private static TaskDto task(long id) {
+        TaskDto task = new TaskDto();
+        task.setId(id);
+        return task;
+    }
+
     @Test
-    public void testDeleteProjectTellsTheListenersOfItsTasks() throws Exception {
-        Project project = TestUtils.getDefaultProject();
-        project.setId(3L);
-        when(projectHandler.find(3L)).thenReturn(project);
-        TaskDto first = new TaskDto();
-        first.setId(11L);
-        TaskDto second = new TaskDto();
-        second.setId(12L);
-        when(taskService.findTasks(any(TaskQuery.class), eq(0), anyInt())).thenReturn(List.of(first, second));
+    public void testDeleteProjectTellsTheListenersOfItsTasksOnceDeleted() throws Exception {
+        ProjectStorage storage = storageOfProject(3L);
+        when(taskService.findTasks(any(TaskQuery.class), eq(0), anyInt())).thenReturn(List.of(task(11L), task(12L)));
 
         projectService.removeProject(3L, false);
 
-        InOrder order = inOrder(projectHandler, listenerService);
-        order.verify(projectHandler).removeProject(eq(3L), eq(false));
+        // The tasks are listed before the deletion (they are gone after it), and announced after it
+        InOrder order = inOrder(taskService, storage, listenerService);
+        order.verify(taskService).findTasks(taskQueryCaptor.capture(), eq(0), anyInt());
+        order.verify(storage).removeProject(3L, false);
         ArgumentCaptor<TaskPayload> payload = ArgumentCaptor.forClass(TaskPayload.class);
         order.verify(listenerService, times(2)).broadcast(eq(TaskUtil.TASK_DELETED), isNull(), payload.capture());
         assertEquals(List.of(11L, 12L), payload.getAllValues().stream().map(p -> p.after().getId()).toList());
-        verify(taskService).findTasks(taskQueryCaptor.capture(), eq(0), anyInt());
         assertEquals(List.of(3L), taskQueryCaptor.getValue().getProjectIds());
+        assertEquals("id", taskQueryCaptor.getValue().getOrderBy().get(0).getFieldName());
+        verify(storage, never()).getSubProjects(anyLong(), anyInt(), anyInt());
+    }
+
+    @Test
+    public void testDeleteProjectListsEveryPageOfItsTasks() throws Exception {
+        storageOfProject(3L);
+        List<TaskDto> firstPage = new ArrayList<>();
+        for (long id = 1; id <= 200; id++) {
+            firstPage.add(task(id));
+        }
+        when(taskService.findTasks(any(TaskQuery.class), eq(0), eq(200))).thenReturn(firstPage);
+        when(taskService.findTasks(any(TaskQuery.class), eq(200), eq(200))).thenReturn(List.of(task(201L)));
+
+        projectService.removeProject(3L, false);
+
+        verify(taskService).findTasks(any(TaskQuery.class), eq(200), eq(200));
+        verify(listenerService, times(201)).broadcast(eq(TaskUtil.TASK_DELETED), isNull(), any(TaskPayload.class));
+    }
+
+    @Test
+    public void testDeleteProjectWithItsSubProjectsAnnouncesTheirTasksToo() throws Exception {
+        ProjectStorage storage = storageOfProject(3L);
+        ProjectDto child = new ProjectDto();
+        child.setId(4L);
+        ProjectDto grandChild = new ProjectDto();
+        grandChild.setId(5L);
+        when(storage.getSubProjects(3L, 0, 200)).thenReturn(List.of(child));
+        when(storage.getSubProjects(4L, 0, 200)).thenReturn(List.of(grandChild));
+        when(storage.getSubProjects(5L, 0, 200)).thenReturn(List.of());
+        when(taskService.findTasks(any(TaskQuery.class), eq(0), anyInt())).thenReturn(List.of(task(11L), task(41L), task(51L)));
+
+        projectService.removeProject(3L, true);
+
+        verify(taskService).findTasks(taskQueryCaptor.capture(), eq(0), anyInt());
+        assertEquals(List.of(3L, 4L, 5L), taskQueryCaptor.getValue().getProjectIds());
+        verify(listenerService, times(3)).broadcast(eq(TaskUtil.TASK_DELETED), isNull(), any(TaskPayload.class));
+    }
+
+    @Test
+    public void testDeleteProjectFailingMidwayAnnouncesTheTasksThatAreGone() throws Exception {
+        ProjectStorage storage = storageOfProject(3L);
+        when(taskService.findTasks(any(TaskQuery.class), eq(0), anyInt())).thenReturn(List.of(task(11L), task(12L)));
+        // The first task was deleted (and committed) before the failure, the second one is still there
+        when(taskService.getTask(11L)).thenThrow(new EntityNotFoundException(11L, TaskDto.class));
+        when(taskService.getTask(12L)).thenReturn(task(12L));
+        doThrow(new IllegalStateException("db down")).when(storage).removeProject(3L, false);
+
+        assertThrows(IllegalStateException.class, () -> projectService.removeProject(3L, false));
+
+        ArgumentCaptor<TaskPayload> payload = ArgumentCaptor.forClass(TaskPayload.class);
+        verify(listenerService).broadcast(eq(TaskUtil.TASK_DELETED), isNull(), payload.capture());
+        assertEquals(11L, payload.getValue().after().getId());
     }
 
     @Test
     public void testDeleteProjectStillDeletesWhenItsTasksCannotBeListed() throws Exception {
-        Project project = TestUtils.getDefaultProject();
-        project.setId(3L);
-        when(projectHandler.find(3L)).thenReturn(project);
+        ProjectStorage storage = storageOfProject(3L);
         when(taskService.findTasks(any(TaskQuery.class), anyInt(), anyInt())).thenThrow(new IllegalStateException("db"));
 
         projectService.removeProject(3L, false);
 
-        verify(projectHandler).removeProject(eq(3L), eq(false));
+        verify(storage).removeProject(3L, false);
         verify(listenerService, never()).broadcast(eq(TaskUtil.TASK_DELETED), any(), any());
     }
 
