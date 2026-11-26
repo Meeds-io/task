@@ -736,7 +736,7 @@
     {
       "name": "add_project_member",
       "title": "Add a Project member",
-      "description": "Add a user as a participant of a task project outside any space. A project of a space, whose space id get_project_by_id returns, has the members of the space as participants, so this tool refuses it, saying whether the user already has access to the project.",
+      "description": "Add a user as a participant of a task project outside any space. On a project of a space, whose space id get_project_by_id returns, this tool adds no participant: it refuses the call, saying whether the user already has access to the project.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -756,7 +756,7 @@
     {
       "name": "remove_project_member",
       "title": "Remove a Project member",
-      "description": "Remove a user from the participants of a task project. On a project of a space, the members of the space participate through the space: the call is refused for the space itself and for a member of the space who is not named among the participants, and a named member of the space, once removed, still participates through the space.",
+      "description": "Remove a user from the participants of a task project. On a project of a space, the call is refused for the space's own entry, and for a user who is not named among the participants but participates through the space's entry among them; a user named there, once removed, keeps any access the space gives.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -796,7 +796,7 @@
     {
       "name": "remove_project_manager",
       "title": "Remove a Project manager",
-      "description": "Remove a user from the managers of a task project. On a project of a space, the managers of the space manage the project through the space: the call is refused for the space itself and for a manager of the space who is not named among the managers, and a named manager of the space, once removed, still manages the project through the space.",
+      "description": "Remove a user from the managers of a task project. On a project of a space, the call is refused for the space's own entry, and for a user who is not named among the managers but manages the project through the space's entry among them; a user named there, once removed, keeps any right the space gives.",
       "input_schema": {
         "type": "object",
         "properties": {

@@ -141,11 +141,10 @@ public class TaskMcpTool implements McpToolPlugin {
   private static final String           MSG_PROJECT_WITHOUT_STATUS      = "Task project with identifier '%s' has no status";
 
   private static final String           MSG_SPACE_PROJECT_PARTICIPANT   =
-                                                                    "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' has no access to the project.";
+                                                                    "Task project with identifier '%s' belongs to the space '%s', and no participant can be added by name to a project of a space. The user '%s' has no access to the project.";
 
   private static final String           MSG_SPACE_PROJECT_PARTICIPATING =
-                                                                        "Task project with identifier '%s' belongs to the space '%s': its participants are the members of the space, and no participant can be added. The user '%s' already has access to the project.";
-
+                                                                        "Task project with identifier '%s' belongs to the space '%s', and no participant can be added by name to a project of a space. The user '%s' already has access to the project.";
 
   private static final String           MSG_SPACE_PROJECT_MANAGER       =
                                                                 "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can be named a manager of the project. Choose a member of the space.";

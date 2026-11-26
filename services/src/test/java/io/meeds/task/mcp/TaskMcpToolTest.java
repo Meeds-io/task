@@ -1034,7 +1034,6 @@ public class TaskMcpToolTest {
     verify(projectService, never()).updateProject(any());
   }
 
-
   /**
    * A member of the space whom the project's entries give no view right is
    * told they have no access: the refusal reads the project's view check,
@@ -1055,7 +1054,6 @@ public class TaskMcpToolTest {
     verify(project, never()).setParticipator(any());
     verify(projectService, never()).updateProject(any());
   }
-
 
 
   /**
@@ -1102,6 +1100,26 @@ public class TaskMcpToolTest {
     verify(project, never()).setParticipator(any());
     verify(project, never()).setManager(any());
     verify(projectService, never()).updateProject(any());
+  }
+
+  /**
+   * Another group's entry among a space project's managers is neither the
+   * space's own entry nor a right given through the space: it is removed, and
+   * a member of the space who is not named is not refused through it.
+   */
+  @Test
+  public void removeProjectManagerOnSpaceProjectShouldTreatAnotherGroupEntryAsNotTheSpace() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    Set<String> managers = new LinkedHashSet<>(List.of(SPACE_MANAGERS, "*:/platform/administrators"));
+    ProjectDto project = mockEditableProject(managers, Set.of(SPACE_MEMBERS));
+    lenient().when(spaceService.isMember(space, OTHER_USER)).thenReturn(true);
+    when(projectService.updateProject(project)).thenReturn(project);
+
+    runWithDateFormatMockResult(() -> tool.removeProjectManager(PROJECT_ID, "*:/platform/administrators"));
+    verify(project).setManager(Set.of(SPACE_MANAGERS));
+
+    runWithDateFormatMockResult(() -> tool.removeProjectManager(PROJECT_ID, OTHER_USER));
+    verify(projectService, times(2)).updateProject(project);
   }
 
   /**
