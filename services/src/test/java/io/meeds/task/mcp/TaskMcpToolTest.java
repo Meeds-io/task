@@ -238,6 +238,22 @@ public class TaskMcpToolTest {
     tool.getProjectById(PROJECT_ID);
   }
 
+  /**
+   * The space of a project is the one its manager entries name, also when a
+   * later entry names a group that is not a space.
+   */
+  @Test
+  public void getProjectByIdShouldReturnSpaceOfProjectAlsoManagedByAnotherGroup() throws Exception {// NOSONAR
+    Space space = mockSpace();
+    space.setId(7L);
+    ProjectDto project = mockViewableProject(PROJECT_ID);
+    when(project.getManager()).thenReturn(new LinkedHashSet<>(List.of(SPACE_MANAGERS, "*:/platform/administrators")));
+
+    ProjectModel result = runWithDateFormatMockResult(() -> tool.getProjectById(PROJECT_ID));
+
+    assertEquals(Long.valueOf(7L), result.getSpaceId());
+  }
+
   @Test(expected = IllegalArgumentException.class)
   public void assignTaskWhenUsernameBlankShouldThrowException() throws Exception {// NOSONAR
     tool.assignTask(TASK_ID, " ");
