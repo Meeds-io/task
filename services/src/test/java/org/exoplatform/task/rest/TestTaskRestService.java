@@ -958,7 +958,8 @@ public class TestTaskRestService {
     comment.setAuthor(john.getUserId());
     when(commentService.getComment(1)).thenReturn(comment);
     response = taskRestService.deleteComment( 1);
-    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
+    assertNull("the deleted comment is not answered", response.getEntity());
 
     when(commentService.getComment(1)).thenReturn(comment);
     ConversationState.setCurrent(new ConversationState(null));
