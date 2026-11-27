@@ -52,6 +52,9 @@
   </v-app>
 </template>
 <script>
+// The suffixes the app adds after the page holding it, each a whole path segment
+const URL_SUFFIX_PATTERN = /\/(projectDetail|taskDetail|myTasks|myProjects)(\/|$)/;
+
 export default {
   data () {
     return {
@@ -109,15 +112,16 @@ export default {
         this.tab='tab-1';
       }
     });
-    const urlPath = document.location.pathname;
-    const isMyTasksUrl = /\/myTasks(\/|$)/.test(urlPath);
+    // The suffix is read where getPageUrl() cuts it, so the address is read as it was built
+    const urlSuffix = this.getUrlSuffix();
+    const [, suffixName, suffixId] = urlSuffix.match(/^\/(projectDetail|taskDetail|myTasks|myProjects)(?:\/(\d+))?/) || [];
+    const isMyTasksUrl = suffixName === 'myTasks';
     if (isMyTasksUrl){
       this.tab='tab-1';
       this.projectId='';
       this.showTabs=true;
-    } else if (urlPath.includes('taskDetail')){
-      let taskId = urlPath.split('taskDetail/')[1].split(/[^0-9]/)[0];
-      taskId = taskId && Number(taskId) || 0;
+    } else if (suffixName === 'taskDetail'){
+      const taskId = Number(suffixId) || 0;
       if (taskId) {
         this.$tasksService.getTaskById(taskId).then(data => {
           this.task = data;
@@ -137,19 +141,26 @@ export default {
           window.setTimeout(() => {
             this.$refs.taskDrawer.open(this.task);
           }, 200);
-        }).finally(() => this.$root.$applicationLoaded());
+        })
+          .catch(() => this.showDefaultView('popup.msg.taskNotAccessible'))
+          .finally(() => this.$root.$applicationLoaded());
+      } else {
+        this.showDefaultView('popup.msg.taskNotAccessible');
       }
-    } else if (urlPath.includes('projectDetail')){
-      let projectId = urlPath.split('projectDetail/')[1].split(/[^0-9]/)[0];
-      projectId = projectId && Number(projectId) || 0;
+    } else if (suffixName === 'projectDetail'){
+      const projectId = Number(suffixId) || 0;
       if (projectId) {
         this.projectId=projectId;
         this.showTabs=false;
         this.$projectService.getProject(projectId).then(data => {
           document.dispatchEvent(new CustomEvent('showProjectTasks', {detail: data}));
-        }).finally(() => this.$root.$applicationLoaded());
+        })
+          .catch(() => this.showDefaultView('popup.msg.projectNotAccessible'))
+          .finally(() => this.$root.$applicationLoaded());
         this.displayDetails=true;
         this.tab='tab-2';
+      } else {
+        this.showDefaultView('popup.msg.projectNotAccessible');
       }
     } else {
       this.showTabs=true;
@@ -192,8 +203,23 @@ export default {
       // (/projectDetail/<id>, /taskDetail/<id>, /myTasks, /myProjects). The portal serves that
       // page for any deeper path, and the app reads the suffix back when the page is reloaded.
       const urlPath = document.location.pathname;
-      const suffixIndex = urlPath.search(/\/(projectDetail|taskDetail)\/|\/(myTasks|myProjects)(\/|$)/);
+      const suffixIndex = urlPath.search(URL_SUFFIX_PATTERN);
       return (suffixIndex >= 0 ? urlPath.substring(0, suffixIndex) : urlPath).replace(/\/+$/, '');
+    },
+    getUrlSuffix() {
+      const urlPath = document.location.pathname;
+      const suffixIndex = urlPath.search(URL_SUFFIX_PATTERN);
+      return suffixIndex >= 0 ? urlPath.substring(suffixIndex) : '';
+    },
+    showDefaultView(messageKey) {
+      // The project or task of the address cannot be loaded (refused or deleted): the project
+      // list of the page, under the page's own address, with the reason in an alert.
+      this.projectId='';
+      this.displayDetails=false;
+      this.showTabs=true;
+      this.tab='tab-2';
+      window.history.replaceState('task', 'Task details', this.getPageUrl());
+      this.displayMessage({type: 'error', message: this.$t(messageKey)});
     },
     showProjectDetails(id){
       this.projectId=id;
