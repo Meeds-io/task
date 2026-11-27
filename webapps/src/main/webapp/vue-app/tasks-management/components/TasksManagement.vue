@@ -110,7 +110,8 @@ export default {
       }
     });
     const urlPath = document.location.pathname;
-    if (urlPath.includes('myTasks')){
+    const isMyTasksUrl = /\/myTasks(\/|$)/.test(urlPath);
+    if (isMyTasksUrl){
       this.tab='tab-1';
       this.projectId='';
       this.showTabs=true;
@@ -156,36 +157,43 @@ export default {
     }
     if (eXo.env.portal.spaceName){
       this.spaceName = eXo.env.portal.spaceName;
-      this.tab='tab-2';
-      this.showTabs=false;
+      if (!isMyTasksUrl) {
+        this.tab='tab-2';
+      }
     }
   },
   methods: {
     getMyTasks(){
       this.showTabs=true;
       this.displayDetails=false;
-      window.history.pushState('mytasks', 'My Tasks', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/myTasks`);
+      window.history.pushState('mytasks', 'My Tasks', `${this.getPageUrl()}/myTasks`);
     },
     getMyProjects(){
       this.projectId='';
       this.showTabs=true;
       this.displayDetails=false;
-      const urlPath = document.location.pathname;
       if (eXo.env.portal.spaceName){
-        window.history.pushState('task', 'Task details', `${urlPath.split('tasks')[0]}tasks`); 
+        window.history.pushState('task', 'Task details', this.getPageUrl());
       } else {
-        window.history.pushState('myprojects', 'My Projects', `${eXo.env.portal.context}/${eXo.env.portal.portalName}/tasks/myProjects`);
-      }       
+        window.history.pushState('myprojects', 'My Projects', `${this.getPageUrl()}/myProjects`);
+      }
     },
     setTaskUrl(id){
       // this.projectId='';
-      const urlPath = document.location.pathname;
-      window.history.pushState('task', 'Task details', `${urlPath.split('tasks')[0]}tasks/taskDetail/${id}`);
+      window.history.pushState('task', 'Task details', `${this.getPageUrl()}/taskDetail/${id}`);
     },
     setProjectUrl(id){
-      const urlPath = document.location.pathname;
       this.showProjectDetails(id);
-      window.history.pushState('task', 'Task details', `${urlPath.split('tasks')[0]}tasks/projectDetail/${id}`);
+      window.history.pushState('task', 'Task details', `${this.getPageUrl()}/projectDetail/${id}`);
+    },
+    getPageUrl() {
+      // The URL of the page holding the app, whatever its node is named, unless a node of the
+      // path is itself named after a suffix the app adds: the current path without that suffix
+      // (/projectDetail/<id>, /taskDetail/<id>, /myTasks, /myProjects). The portal serves that
+      // page for any deeper path, and the app reads the suffix back when the page is reloaded.
+      const urlPath = document.location.pathname;
+      const suffixIndex = urlPath.search(/\/(projectDetail|taskDetail)\/|\/(myTasks|myProjects)(\/|$)/);
+      return (suffixIndex >= 0 ? urlPath.substring(0, suffixIndex) : urlPath).replace(/\/+$/, '');
     },
     showProjectDetails(id){
       this.projectId=id;
