@@ -140,6 +140,21 @@ public class TaskMcpTool implements McpToolPlugin {
 
   private static final String           MSG_PROJECT_WITHOUT_STATUS      = "Task project with identifier '%s' has no status";
 
+  private static final String           MSG_SPACE_PROJECT_PARTICIPANT   =
+                                                                    "Task project with identifier '%s' belongs to the space '%s', and no participant can be added by name to a project of a space. The user '%s' has no access to the project.";
+
+  private static final String           MSG_SPACE_PROJECT_PARTICIPATING =
+                                                                        "Task project with identifier '%s' belongs to the space '%s', and no participant can be added by name to a project of a space. The user '%s' already has access to the project.";
+
+  private static final String           MSG_SPACE_PROJECT_MANAGER       =
+                                                                "Parameter 'username': the user '%s' is not a member of the space '%s', which the task project with identifier '%s' belongs to, and only a member of the space can be named a manager of the project. Choose a member of the space.";
+
+  private static final String           MSG_SPACE_PROJECT_SPACE_REMOVAL =
+                                                                        "Task project with identifier '%s' belongs to the space '%s': the space cannot be removed from the project's %s.";
+
+  private static final String           MSG_SPACE_PROJECT_THROUGH_SPACE =
+                                                                        "Task project with identifier '%s' belongs to the space '%s': the user '%s' is not named among the project's %s, and is one through their membership of the space, which this tool does not change.";
+
   private final ProjectService          projectService;
 
   private final StatusService           statusService;
@@ -863,11 +878,15 @@ public class TaskMcpTool implements McpToolPlugin {
                                                String username,
                                                boolean add,
                                                boolean manager) throws ObjectNotFoundException, IllegalAccessException {
+    username = username != null && username.startsWith("@") ? username.substring(1) : username;
     if (StringUtils.isBlank(username)) {
       throw new IllegalArgumentException("Parameter 'username' is mandatory");
     }
-    username = username.startsWith("@") ? username.substring(1) : username;
     ProjectDto project = getEditableProject(projectId);
+    Space space = getProjectSpace(project);
+    if (space != null) {
+      checkSpaceProjectMembership(project, space, username, add, manager);
+    }
     Set<String> members = new HashSet<>(manager ? safeSet(project.getManager()) : safeSet(project.getParticipator()));
     if (add) {
       members.add(username);
@@ -881,6 +900,62 @@ public class TaskMcpTool implements McpToolPlugin {
     }
     project = projectService.updateProject(project);
     return toProjectModel(project);
+  }
+
+  /**
+   * Applies the project form's rules to a project of a space: no participant
+   * is added by name, a manager is chosen among the members of the space, the
+   * space's own entries are not removed, and a user who is not named but
+   * holds the right through the space is not removed by name.
+   */
+  private void checkSpaceProjectMembership(ProjectDto project,
+                                           Space space,
+                                           String username,
+                                           boolean add,
+                                           boolean manager) throws IllegalAccessException {
+    Set<String> entries = manager ? safeSet(project.getManager()) : safeSet(project.getParticipator());
+    String listName = manager ? "managers" : "participants";
+    if (add && !manager) {
+      String message = canViewProject(project, username) ? MSG_SPACE_PROJECT_PARTICIPATING : MSG_SPACE_PROJECT_PARTICIPANT;
+      throw new IllegalAccessException(message.formatted(project.getId(), space.getDisplayName(), username));
+    } else if (add && !spaceService.isMember(space, username)) {
+      throw new IllegalArgumentException(MSG_SPACE_PROJECT_MANAGER.formatted(username, space.getDisplayName(), project.getId()));
+    } else if (!add && isSpaceMembership(username, space)) {
+      throw new IllegalAccessException(MSG_SPACE_PROJECT_SPACE_REMOVAL.formatted(project.getId(),
+                                                                                 space.getDisplayName(),
+                                                                                 listName));
+    } else if (!add && !entries.contains(username) && holdsThroughSpace(entries, space, username)) {
+      throw new IllegalAccessException(MSG_SPACE_PROJECT_THROUGH_SPACE.formatted(project.getId(),
+                                                                                 space.getDisplayName(),
+                                                                                 username,
+                                                                                 listName));
+    }
+  }
+
+  private boolean canViewProject(ProjectDto project, String username) {
+    Identity identity = userAcl.getUserIdentity(username);
+    return identity != null && project.canView(identity);
+  }
+
+
+  /**
+   * @return true when one of the entries names the space's members and the
+   *         user is a member of the space, names its managers and the user is
+   *         a manager of the space, or names the whole space and the user is a
+   *         member of it, the members of a space including its managers
+   */
+  private boolean holdsThroughSpace(Set<String> entries, Space space, String username) {
+    return entries.stream()
+                  .filter(entry -> isSpaceMembership(entry, space))
+                  .map(entry -> entry.substring(0, entry.indexOf(':')))
+                  .anyMatch(type -> (SpaceUtils.MEMBER.equals(type) && spaceService.isMember(space, username))
+                                    || (SpaceUtils.MANAGER.equals(type) && spaceService.isManager(space, username))
+                                    || ("*".equals(type) && spaceService.isMember(space, username)));
+  }
+
+  private boolean isSpaceMembership(String permission, Space space) {
+    int index = permission.indexOf(':');
+    return index > -1 && space.getGroupId().equals(permission.substring(index + 1));
   }
 
   private Set<String> safeSet(Set<String> set) {
@@ -1662,16 +1737,22 @@ public class TaskMcpTool implements McpToolPlugin {
     return task;
   }
 
+  /**
+   * @param project a project
+   * @return the space whose group one of the project's manager entries names,
+   *         or null for a project outside any space
+   */
   private Space getProjectSpace(ProjectDto project) {
-    Space space = null;
-    for (String permission : project.getManager()) {
+    for (String permission : safeSet(project.getManager())) {
       int index = permission.indexOf(':');
       if (index > -1) {
-        String groupId = permission.substring(index + 1);
-        space = spaceService.getSpaceByGroupId(groupId);
+        Space space = spaceService.getSpaceByGroupId(permission.substring(index + 1));
+        if (space != null) {
+          return space;
+        }
       }
     }
-    return space;
+    return null;
   }
 
   private long getProjectId(TaskDto task) {
