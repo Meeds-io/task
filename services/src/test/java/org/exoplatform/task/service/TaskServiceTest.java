@@ -39,6 +39,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TimeZone;
 
 import org.junit.After;
 import org.junit.Before;
@@ -53,6 +54,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.portal.config.UserACL;
@@ -68,10 +70,12 @@ import org.exoplatform.task.dao.ProjectHandler;
 import org.exoplatform.task.dao.StatusHandler;
 import org.exoplatform.task.dao.TaskHandler;
 import org.exoplatform.task.dao.TaskLogHandler;
+import org.exoplatform.task.dao.TaskQuery;
 import org.exoplatform.task.domain.Task;
 import org.exoplatform.task.dto.ProjectDto;
 import org.exoplatform.task.dto.StatusDto;
 import org.exoplatform.task.dto.TaskDto;
+import org.exoplatform.task.dto.TasksList;
 import org.exoplatform.task.exception.EntityNotFoundException;
 import org.exoplatform.task.exception.ParameterEntityException;
 import org.exoplatform.task.model.TaskSearchFilter;
@@ -81,6 +85,7 @@ import org.exoplatform.task.storage.StatusStorage;
 import org.exoplatform.task.storage.TaskStorage;
 import org.exoplatform.task.storage.impl.ProjectStorageImpl;
 import org.exoplatform.task.storage.impl.TaskStorageImpl;
+import org.exoplatform.task.util.ProjectUtil;
 
 import io.meeds.task.search.TaskSearchConnector;
 
@@ -539,6 +544,38 @@ public class TaskServiceTest {
     assertEquals(1, result.size());
     assertEquals(result.get(0).getId(), taskDto.getId());
     assertEquals(result.get(0).getAssignee(), currentUserId);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testFilterMyTasksWithoutDueCategory() throws Exception {
+    ListAccess<Task> emptyList = Mockito.mock(ListAccess.class);
+    when(emptyList.load(0, 20)).thenReturn(new Task[0]);
+    when(emptyList.getSize()).thenReturn(0);
+    ArgumentCaptor<TaskQuery> queryCaptor = ArgumentCaptor.forClass(TaskQuery.class);
+    when(taskHandler.findTasks(queryCaptor.capture())).thenReturn(emptyList);
+    Identity root = new Identity("root");
+
+    // A null due category must behave exactly like an empty one
+    assertEquals(0, filterMyTasks(root, null).getListTasks().size());
+    assertEquals(0, filterMyTasks(root, "").getListTasks().size());
+    // A real due category takes the other branch of the guard: the user is the assignee or a coworker, not only mentioned
+    assertEquals(0, filterMyTasks(root, "today").getListTasks().size());
+
+    List<TaskQuery> queries = queryCaptor.getAllValues();
+    // each call builds the query of the list and the one of its count
+    assertEquals(0, queries.size() % 3);
+    int perCall = queries.size() / 3;
+    assertEquals(queries.get(0).getAssignee(), queries.get(perCall).getAssignee());
+    assertEquals(List.of("root"), queries.get(0).getAssignee());
+    assertNull("a due category must not list the tasks where the user is only mentioned",
+               queries.get(2 * perCall).getAssignee());
+  }
+
+  private TasksList filterMyTasks(Identity identity, String dueCategory) throws Exception {
+    return taskService.filterTasks(null, ProjectUtil.TODO_PROJECT_ID, null, null, null, null, null, null, null, null, null,
+                                   identity, dueCategory, null, TimeZone.getDefault(), false, false, false, false,
+                                   null, null, 0, 20);
   }
 
 }
